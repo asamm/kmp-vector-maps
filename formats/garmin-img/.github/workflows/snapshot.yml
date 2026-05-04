@@ -1,0 +1,24 @@
+name: Snapshot
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish snapshot (Android + JVM + KMP metadata)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-build
+      - uses: ./.github/actions/publish-module
+        with:
+          is-release: 'false'
+          publish-metadata: 'true'
+          publish-jvm: 'true'
+          publish-android: 'true'
+          gpr-token: ${{ secrets.GITHUB_TOKEN }}
