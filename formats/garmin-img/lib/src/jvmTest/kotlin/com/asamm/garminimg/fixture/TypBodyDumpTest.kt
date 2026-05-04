@@ -26,20 +26,21 @@ class TypBodyDumpTest {
         val header = TypSubFile.parseHeader(typStream)
 
         println("=== OPENTOPO.TYP body dump ===")
-        println("polygonIndex: ${header.polygonIndex}")
-        println("lineIndex:    ${header.lineIndex}")
-        println("pointIndex:   ${header.pointIndex}")
-        println("polygonData:  ${header.polygons}")
-        println("lineData:     ${header.lines}")
+        println("polygonIndex:  ${header.polygonIndex}")
+        println("lineIndex:     ${header.lineIndex}")
+        println("pointIndex:    ${header.pointIndex}")
+        println("polygonData:   ${header.polygons}")
+        println("lineData:      ${header.lines}")
+        println("shapeStacking: ${header.shapeStacking}")
 
         val table = TypBodyParser.parse(typStream, header)
-        println("--- Polygon styles (${table.polygons.size} entries) ---")
-        for ((typeForFile, style) in table.polygons.entries.sortedBy { it.key }) {
+        println("--- Polygon styles (${table.polygons.size} entries) — sorted by drawPriority ---")
+        for ((typeForFile, style) in table.polygons.entries.sortedBy { it.value.drawPriority }) {
             val type = typeForFile ushr 5
             val subType = typeForFile and 0x1F
             println(
-                "  type=0x%02x subType=0x%02x (typeForFile=0x%04x) -> fill=#%06x stroke=%s".format(
-                    type, subType, typeForFile,
+                "  prio=%5d type=0x%02x subType=0x%02x -> fill=#%06x stroke=%s".format(
+                    style.drawPriority, type, subType,
                     style.fillColor.argb and 0xFFFFFF,
                     style.strokeColor?.let { "#%06x".format(it.argb and 0xFFFFFF) } ?: "null",
                 ),

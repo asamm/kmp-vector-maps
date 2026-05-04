@@ -179,16 +179,13 @@ Sub-items, in priority order:
       when an IMG has TYP. The viewer + Monaco golden test both
       consume the TYP-aware resolver when available.
       **Follow-ups (C.7 v1):**
-      - **DRAWORDER / shape-stacking section** — the highest-impact
-        remaining gap. The TYP body-style records parse correctly
-        (verified against `qmapshack-monaco.png`: parser produces
-        plausible colours + widths matching OpenTopoMap's palette),
-        but polygons render in RGN data order rather than TYP-defined
-        z-priority, so big "background" polygons can end up over /
-        under smaller features. Section descriptor at TYP header
-        offset 0x51, itemSize 5 (UInt16 typeForFile + 3-byte priority).
-        Surfaces as `Style.PolygonStyle.drawPriority` on the resolver
-        side.
+      - [x] **DRAWORDER / shape-stacking section.** Parsed via
+        `TypBodyParser.parseShapeStacking`; priorities propagate into
+        `TypPolygonStyle.drawPriority` and through to `Style.PolygonStyle`.
+        `ImgRenderer.render` now buckets polygons / polylines / points,
+        sorts polygons ascending by priority, and draws background-first.
+        Visible: white residential land now shows under green forest
+        patches, instead of the prior "green everywhere" inversion.
       - TYP point body parsing (icons / labels) — currently points fall
         back to `InternalStyles`. Bitmap parsing is the bulk of work
         here.

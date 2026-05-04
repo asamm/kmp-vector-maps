@@ -57,7 +57,77 @@ object TypBodyParser {
     fun parse(reader: ImgRandomAccessReader, header: TypHeader): TypStyleTable {
         val polygons = parsePolygonRecords(reader, header)
         val lines = parseLineRecords(reader, header)
-        return TypStyleTable(polygons = polygons, lines = lines)
+        val drawOrder = parseShapeStacking(reader, header)
+        // Apply DRAWORDER priorities so the renderer can sort polygons
+        // before drawing — without this, large background polygons can
+        // paint over smaller foreground features.
+        val withPriority = if (drawOrder.isEmpty()) {
+            polygons
+        } else {
+            polygons.mapValues { (typeForFile, style) ->
+                val type = typeForFile ushr 5
+                val subType = typeForFile and 0x1F
+                val priority = findPriority(drawOrder, type, subType)
+                if (priority != null) style.copy(drawPriority = priority) else style
+            }
+        }
+        return TypStyleTable(polygons = withPriority, lines = lines)
+    }
+
+    /**
+     * Reads the shape-stacking (DRAWORDER) section. Returns entries in
+     * file order — the entry's index IS its draw priority. Empty
+     * `[0, 0, 0, 0, 0]` entries (zoom-level separators) are kept in place
+     * so priorities match the on-disk layout.
+     */
+    private fun parseShapeStacking(
+        reader: ImgRandomAccessReader,
+        header: TypHeader,
+    ): List<DrawOrderEntry> {
+        val descriptor = header.shapeStacking ?: return emptyList()
+        val entrySize = descriptor.itemSize
+        if (entrySize < 5) {
+            return emptyList()
+        }
+        val entryCount = (descriptor.range.length / entrySize.toLong()).toInt()
+        val out = ArrayList<DrawOrderEntry>(entryCount)
+        for (i in 0 until entryCount) {
+            reader.seek(descriptor.range.offset + i.toLong() * entrySize)
+            val type = reader.readByte()
+            val subTypeMask = reader.readUInt32()
+            out.add(DrawOrderEntry(type = type, subTypeMask = subTypeMask, priority = i))
+        }
+        return out
+    }
+
+    /**
+     * Resolves a polygon's `(type, subType)` to a draw priority via the
+     * DRAWORDER entries. Plain types (T < 0x100) match by `type` alone —
+     * the byte stored on disk IS the type. Extended types are stored
+     * modulo 256 with the subType bit set in [DrawOrderEntry.subTypeMask].
+     */
+    private fun findPriority(
+        entries: List<DrawOrderEntry>,
+        type: Int,
+        subType: Int,
+    ): Int? {
+        for (entry in entries) {
+            if (entry.type == 0 && entry.subTypeMask == 0L) {
+                continue // level separator
+            }
+            if (entry.type != (type and 0xFF)) {
+                continue
+            }
+            // Plain types: subTypeMask is typically 0 ("any subType matches").
+            // Extended types: the bitmask carries which subtypes are at this
+            // priority.
+            if (entry.subTypeMask == 0L ||
+                (entry.subTypeMask and (1L shl subType)) != 0L
+            ) {
+                return entry.priority
+            }
+        }
+        return null
     }
 
     //********************************
@@ -356,11 +426,30 @@ object TypBodyParser {
 }
 
 /**
- * One polygon's resolved TYP style: foreground fill, optional border.
+ * One polygon's resolved TYP style: foreground fill, optional border,
+ * and draw priority from the TYP's shape-stacking section (when present).
+ *
+ * Priorities are *file positions* in the shape-stacking section — lower
+ * priority values draw first (background); higher draw later (foreground).
+ * `drawPriority = Int.MAX_VALUE` is the sentinel for "no DRAWORDER entry
+ * matched" — those polygons are drawn last (which is the conservative
+ * choice; a TYP-aware renderer with proper styling rarely emits unmatched
+ * polygons).
  */
 data class TypPolygonStyle(
     val fillColor: Color,
     val strokeColor: Color?,
+    val drawPriority: Int = Int.MAX_VALUE,
+)
+
+/**
+ * One DRAWORDER entry: a (type, subTypeMask) tuple with its file-position
+ * priority. See [TypBodyParser.parseShapeStacking].
+ */
+internal data class DrawOrderEntry(
+    val type: Int,
+    val subTypeMask: Long,
+    val priority: Int,
 )
 
 /**

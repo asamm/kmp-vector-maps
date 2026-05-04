@@ -10,6 +10,38 @@ skeleton for Android + JVM, ports the seed utilities and the random-access IMG
 reader from the Java predecessor `libGarminImg`, and wires GitHub Packages
 publishing.
 
+### Added — Phase C.7 v1 (DRAWORDER / shape-stacking)
+
+Polygon z-ordering now driven by the TYP's shape-stacking section
+(header offset 0x51), the highest-impact remaining gap from C.7 v0.
+
+- `TypHeader.shapeStacking` descriptor at offset 0x51.
+- `TypBodyParser.parseShapeStacking` — reads 5-byte entries (byte type +
+  UInt32 subTypeMask), file position = priority. Empty entries
+  (zoom-level separators) are kept to preserve priority indices.
+- `TypBodyParser.parse` looks up each `(type, subType)` polygon style's
+  priority via `findPriority` (plain types match by `type` byte;
+  extended types `≥ 0x100` match the type modulo 256 with the subType
+  bit set in `subTypeMask`). Result lands on
+  `TypPolygonStyle.drawPriority`.
+- `StyleResolver.typAware` propagates the TYP priority through to
+  `Style.PolygonStyle.drawPriority`.
+- `ImgRenderer.render` was previously "iterate-and-draw"; now buckets
+  every map object into polygons / polylines / points, **stable-sorts
+  polygons ascending by drawPriority**, then draws polygons first
+  (background-first), polylines next, points last. Memory-wise this
+  pre-collect is fine for country-scale fixtures (Monaco yields a few
+  hundred polygons); a streaming variant for continent-scale renders
+  would be a later optimisation.
+
+Visible result on Monaco: white residential areas now show under the
+green forest patches rather than being painted over. Map structure
+matches QMapShack's reference layout much more closely. The remaining
+gap is mostly point-icon styling and minor type-specific quirks
+(e.g. type 0x04 built-up polygons render as opaque red where
+QMapShack shows a subtle pink tint — likely an alpha-channel issue
+in TYP-record parsing for that specific type).
+
 ### Added — Phase A
 - Gradle KMP skeleton (Kotlin 2.3.20, AGP 9.1.1, Gradle 9.3.1, JDK 17).
 - `:lib` module with Android + JVM targets.

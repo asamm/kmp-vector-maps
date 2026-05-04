@@ -71,6 +71,15 @@ class ImgRenderer(
         val labels = LabelLayout()
         target.beginFrame(backgroundColor)
 
+        // First pass: bucket every map object by kind. Polygons need to be
+        // sorted by draw priority (TYP's DRAWORDER section, when present)
+        // so background polygons paint first and small foreground features
+        // sit on top. Polylines and points draw in parser order — RGN's
+        // own ordering is fine for those.
+        val polygons = ArrayList<Pair<MapObject.PolyShape, Style.PolygonStyle>>()
+        val polylines = ArrayList<Pair<MapObject.PolyShape, Style.LineStyle>>()
+        val points = ArrayList<MapObject.Point>()
+
         for (obj in img.readMapInBounds(
             minLong = viewport.minLon,
             maxLong = viewport.maxLon,
@@ -78,7 +87,32 @@ class ImgRenderer(
             maxLat = viewport.maxLat,
             objectKindFilter = objectKindFilter,
         )) {
-            drawObject(obj, projection, target, labels)
+            when (obj) {
+                is MapObject.Point -> points.add(obj)
+                is MapObject.PolyShape -> if (obj.closed) {
+                    val s = styleResolver.resolve(obj) as? Style.PolygonStyle ?: continue
+                    polygons.add(obj to s)
+                } else {
+                    val s = styleResolver.resolve(obj) as? Style.LineStyle ?: continue
+                    polylines.add(obj to s)
+                }
+            }
+        }
+
+        // Stable-sort polygons ascending by drawPriority — lower = draws
+        // first (background). `Int.MAX_VALUE` sentinel = "no DRAWORDER
+        // entry matched" → drawn last, which is the conservative default.
+        polygons.sortBy { it.second.drawPriority }
+
+        // Draw polygons → polylines → points (no internal point sort).
+        for ((poly, style) in polygons) {
+            drawPolygon(poly, style, projection, target, labels)
+        }
+        for ((poly, style) in polylines) {
+            drawPolyline(poly, style, projection, target, labels)
+        }
+        for (point in points) {
+            drawPoint(point, projection, target, labels)
         }
 
         // Second pass: emit non-overlapping labels in priority order so the
@@ -96,18 +130,6 @@ class ImgRenderer(
         }
 
         target.endFrame()
-    }
-
-    private fun drawObject(
-        obj: MapObject,
-        projection: Projection,
-        target: RenderTarget,
-        labels: LabelLayout,
-    ) {
-        when (obj) {
-            is MapObject.Point -> drawPoint(obj, projection, target, labels)
-            is MapObject.PolyShape -> drawPoly(obj, projection, target, labels)
-        }
     }
 
     private fun drawPoint(
@@ -144,8 +166,44 @@ class ImgRenderer(
         }
     }
 
-    private fun drawPoly(
+    private fun drawPolygon(
         poly: MapObject.PolyShape,
+        style: Style.PolygonStyle,
+        projection: Projection,
+        target: RenderTarget,
+        labels: LabelLayout,
+    ) {
+        if (poly.longitudes.isEmpty()) {
+            return
+        }
+        val xs = FloatArray(poly.longitudes.size)
+        val ys = FloatArray(poly.longitudes.size)
+        projection.projectBulk(poly.longitudes, poly.latitudes, xs, ys)
+        if (allOffScreen(xs, ys, target)) {
+            return
+        }
+        target.drawPolygon(xs, ys, style)
+        if (style.labelColor != null && !poly.label.isNullOrEmpty()) {
+            val (cx, cy) = centroid(xs, ys)
+            val w = poly.label.length * DEFAULT_AREA_FONT_SIZE * 0.55f
+            labels.submit(
+                x = cx,
+                y = cy,
+                widthPx = w,
+                heightPx = DEFAULT_AREA_FONT_SIZE * 1.2f,
+                priority = style.drawPriority,
+                text = poly.label,
+                color = style.labelColor,
+                outlineColor = null,
+                fontSize = DEFAULT_AREA_FONT_SIZE,
+                anchor = TextAnchor.CENTER,
+            )
+        }
+    }
+
+    private fun drawPolyline(
+        poly: MapObject.PolyShape,
+        style: Style.LineStyle,
         projection: Projection,
         target: RenderTarget,
         labels: LabelLayout,
@@ -157,52 +215,25 @@ class ImgRenderer(
         val xs = FloatArray(n)
         val ys = FloatArray(n)
         projection.projectBulk(poly.longitudes, poly.latitudes, xs, ys)
-        // Skip polylines/polygons whose every vertex sits well outside the
-        // visible viewport — these are typically features from sub-divisions
-        // whose extent reaches past the rendered bbox. Drawing them produces
-        // artifacts at the screen edge.
         if (allOffScreen(xs, ys, target)) {
             return
         }
-
-        if (poly.closed) {
-            val style = styleResolver.resolve(poly) as? Style.PolygonStyle ?: return
-            target.drawPolygon(xs, ys, style)
-            if (style.labelColor != null && !poly.label.isNullOrEmpty()) {
-                val (cx, cy) = centroid(xs, ys)
-                val w = poly.label.length * DEFAULT_AREA_FONT_SIZE * 0.55f
-                labels.submit(
-                    x = cx,
-                    y = cy,
-                    widthPx = w,
-                    heightPx = DEFAULT_AREA_FONT_SIZE * 1.2f,
-                    priority = style.drawPriority,
-                    text = poly.label,
-                    color = style.labelColor,
-                    outlineColor = null,
-                    fontSize = DEFAULT_AREA_FONT_SIZE,
-                    anchor = TextAnchor.CENTER,
-                )
-            }
-        } else {
-            val style = styleResolver.resolve(poly) as? Style.LineStyle ?: return
-            target.drawPolyline(xs, ys, style)
-            if (style.labelColor != null && !poly.label.isNullOrEmpty()) {
-                val midIdx = n / 2
-                val w = poly.label.length * DEFAULT_LINE_FONT_SIZE * 0.55f
-                labels.submit(
-                    x = xs[midIdx],
-                    y = ys[midIdx],
-                    widthPx = w,
-                    heightPx = DEFAULT_LINE_FONT_SIZE * 1.2f,
-                    priority = style.drawPriority,
-                    text = poly.label,
-                    color = style.labelColor,
-                    outlineColor = null,
-                    fontSize = DEFAULT_LINE_FONT_SIZE,
-                    anchor = TextAnchor.CENTER,
-                )
-            }
+        target.drawPolyline(xs, ys, style)
+        if (style.labelColor != null && !poly.label.isNullOrEmpty()) {
+            val midIdx = n / 2
+            val w = poly.label.length * DEFAULT_LINE_FONT_SIZE * 0.55f
+            labels.submit(
+                x = xs[midIdx],
+                y = ys[midIdx],
+                widthPx = w,
+                heightPx = DEFAULT_LINE_FONT_SIZE * 1.2f,
+                priority = style.drawPriority,
+                text = poly.label,
+                color = style.labelColor,
+                outlineColor = null,
+                fontSize = DEFAULT_LINE_FONT_SIZE,
+                anchor = TextAnchor.CENTER,
+            )
         }
     }
 
@@ -330,7 +361,16 @@ fun interface StyleResolver {
                         val typ = table.lookupPolygon(obj.type, obj.subType)
                         if (typ != null) {
                             val internal = InternalStyles.resolvePolygon(obj.type)
+                            // Use the TYP's DRAWORDER priority when present
+                            // (lower → draw first → background); fall back
+                            // to InternalStyles' static priority otherwise.
+                            val priority = if (typ.drawPriority != Int.MAX_VALUE) {
+                                typ.drawPriority
+                            } else {
+                                internal.drawPriority
+                            }
                             internal.copy(
+                                drawPriority = priority,
                                 fillColor = typ.fillColor,
                                 strokeColor = typ.strokeColor ?: internal.strokeColor,
                             )
