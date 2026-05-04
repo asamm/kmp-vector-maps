@@ -83,6 +83,22 @@ matches Asamm's existing KMP direction.
 The work splits into six phases. Each phase has an exit gate so we can stop
 and re-evaluate before the next.
 
+### Status overview (as of 2026-05-04)
+
+| Phase | Status | Summary |
+|---|---|---|
+| A | ✅ Done | KMP library scaffold (Kotlin 2.3.20 / AGP 9.1.1 / Gradle 9.3.1, Android + JVM targets, GitHub Packages publishing). `CoordUtils` + `BinaryReader` ported as parser oracle. |
+| B | ✅ Done | Full IMG parser in `commonMain`: archive / FAT / block-demux / TRE (header + bbox + TRE7 + levels + sub-divisions) / LBL (codings 6/9/10) / RGN (points / polylines / polygons / extended types / BitStreamReader) / NET (label-only) / TYP (header). Sealed `MapObject` + `Sequence<MapObject>` API replaces the Java `MapListener` callback. ~2.5 KLOC Kotlin replaces ~4.8 KLOC Java. |
+| C | 🟡 Partial | Done: rendering pipeline, label de-cluttering, AWT impl, golden-PNG regression test, Monaco renders to recognisable PNG with internal-default styles. Deferred: C.7 TYP body parser (header parses; body needs ~1 KLOC), C.8 extended-types-subdivision branch, C.9 curve-following text, Android Canvas RenderTarget. |
+| D | ⬜ Pending | Documentation + integration polish (docs/format/, docs/upstream_diff.md, README, CHANGELOG release notes, Locus-side adapter wiring). |
+| E | ➖ Scope | Out-of-scope log only (NET routing / MDR / encrypted IMG / mkgmap preprocessing). Never "completes" — reopened only if user demand surfaces. |
+| F | ⬜ Pending | Desktop viewer (Compose Multiplatform Desktop, dev tool — not a deliverable). Natural prerequisite for C.7 visual iteration. |
+
+Detailed sub-items live in their respective phase sections below. Completed
+phases (A, B) are summarised here; their detailed plan-of-work descriptions
+were the design notes used while executing them.
+
+
 **Repo strategy:** stand up a new repository **`asamm/kmp-garmin-img`** as a
 KMP library, published to GitHub Packages Maven as
 `com.asamm.kmp:kmp-garmin-img:<ver>`. The existing
@@ -112,165 +128,93 @@ re-enabling the iOS jobs in the CI workflows.
 `com.asamm.kmp`, artifact `kmp-garmin-img`. Snapshot publishes on every push
 to `main`; release publishes on tag.
 
-### Phase A — Bootstrap `asamm/kmp-garmin-img` skeleton (1 week)
+### Phase A — Bootstrap `asamm/kmp-garmin-img` skeleton — ✅ Done
 
-Goal: empty KMP library, builds for the active targets, tests run on JVM,
-published locally to `mavenLocal()`.
+KMP library scaffold (Kotlin 2.3.20 / AGP 9.1.1 / Gradle 9.3.1, Android +
+JVM, GitHub Packages publishing). `CoordUtils` + `BinaryReader` ported
+from libGarminImg as the Phase B parser oracle; 16 commonTest cases.
 
-Steps:
-1. Create the new GitHub repo `asamm/kmp-garmin-img`. Licence: same as
-   submodule (LGPL — derived work). Initial branch `main`.
-2. Gradle skeleton:
-   - `settings.gradle.kts` with `:lib` (and later `:cli` for the desktop CLI).
-   - Root `build.gradle.kts` with KMP plugin, Android library plugin,
-     version-catalog `libs.versions.toml` mirroring the relevant versions
-     from `locus-core` / `kmp-logger` (Kotlin 2.3.20, AGP 9.1.1, Gradle
-     9.3.1, JDK 17).
-   - `lib/build.gradle.kts`:
-     - `kotlin { android { ... }; jvm() }` — iOS targets deferred (see
-       above); `iosMain` source set is **not** created.
-     - `commonMain` / `commonTest` source sets, `androidMain`,
-       `jvmMain` + `jvmTest`.
-     - JUnit 5 wired in `jvmTest` via `kotlin("test-junit5")`.
-   - Maven publishing: `maven-publish` plugin pointed at GitHub Packages
-     (`https://maven.pkg.github.com/asamm/kmp-garmin-img`); credentials via
-     `GPR_USERNAME` / `GPR_TOKEN` (with `REPO_GITHUB` accepted as a
-     username fallback to match `locus-core`).
-   - `kmp-logger` consumed as a real `commonMain` `api` dependency from
-     GitHub Packages, both as the future log channel and as a structural
-     reference for the scaffold.
-   - GitHub Actions: ubuntu-only `build` job (no macOS runner); manual
-     `snapshot` workflow; tag-driven `release` workflow.
-3. Port the Phase A.1 tests from the old submodule into `commonTest`:
-   - `CoordUtilsTest` (8 cases) — translate the Java to Kotlin, no logic
-     change. Drives a tiny temporary Kotlin port of `CoordUtils` in
-     `commonMain/kotlin/com/asamm/garminimg/coord/CoordUtils.kt`. This is
-     the first commonMain code in the repo and proves the cross-target build
-     works.
-   - `EndianDataInputStreamTest` (8 cases) → `BinaryReaderTest` — translate
-     to test a Kotlin `BinaryReader` built on `kotlinx-io-core` in
-     `commonMain/kotlin/com/asamm/garminimg/io/BinaryReader.kt`.
-4. Verify locally:
-   - `./gradlew :lib:jvmTest` — green (16 tests).
-   - `./gradlew :lib:build` — green (Android + JVM).
-   - `./gradlew :lib:publishToMavenLocal -PisSnapshot -PsnapshotSuffix=<sha>`
-     — installs `com.asamm.kmp:kmp-garmin-img:0.1.0-dev.<sha>`.
+See [CHANGELOG.md](CHANGELOG.md#added---phase-a) for landed details.
 
-Exit gate: `kmp-garmin-img:0.1.0-dev.<sha>` is consumable from a throwaway
-test Gradle project; `:lib:build` green.
+### Phase B — Parser port to `commonMain` — ✅ Done
 
-Note: the existing `libraries/libGarminImg` submodule is **untouched**
-during Phase A — Locus continues to render IMG via the old code. The
-Phase A.1 work I already did locally (build.gradle.kts + 16 tests +
-fixtures README) stays uncommitted in the worktree until Phase E
-("final-snapshot commit, then archive").
+Full IMG parser ported to `commonMain`: archive / FAT / block-demux / TRE
+(header + bbox + TRE7 + levels + sub-divisions) / LBL (codings 6/9/10) /
+RGN (points / polylines / polygons / extended types) / NET (label-only) /
+TYP (header). Sealed `MapObject` + `Sequence<MapObject>` API replaces
+the Java `MapListener` callback shape. ~2.5 KLOC Kotlin replaces ~4.8 KLOC
+Java. Two Monaco fixtures (8.5 MB OpenTopoMap + 152 KB self-built mkgmap).
 
-### Phase B — Parser port to `commonMain` (2 weeks)
+See [CHANGELOG.md](CHANGELOG.md#added---phase-b) for landed details.
 
-Goal: complete IMG parser running in `commonMain`, fixture-tested on JVM,
-zero `android.*` references.
+The "Phase B was *file-by-file port preserving working logic*" decision
+(rather than clean-room rewrite) is recorded in CHANGELOG; some originally
+deferred items (POI metadata, country/region tables) still sit in
+`LblSubFile.java` paths we haven't touched and would land as B.2.4.b if
+needed.
 
-Steps:
-1. Pull the upstream tarball
-   (https://sourceforge.net/projects/jgarminimg/files/jgarminimg/) to a
-   working directory **outside both repos**. Read alongside the existing
-   submodule and the relevant mkgmap classes
-   (`uk.me.parabola.imgfmt.app.*`). Note every stubbed/commented branch in
-   the Asamm fork (`// TODO tipos no extendidos solo` in `SubDivision.java`,
-   `// TODO: implement that...` in `LblSubFile.java`) and decide:
-   recover / drop / rewrite.
-2. Add the first IMG fixture under `lib/src/commonTest/resources/fixtures/`
-   (small mkgmap-built OSM extract, ODbL attribution alongside). The same
-   fixture acceptance rules from the old submodule's
-   `fixtures/README.md` apply — port that README too.
-3. File-by-file Kotlin port into `commonMain/kotlin/com/asamm/garminimg/`:
-   - `parser.subfile.*` — sealed `SubFile` + per-type readers
-     (`TreSubFile`, `RgnSubFile`, `LblSubFile`, `NetSubFile`,
-     `TypSubFile`).
-   - `parser.ImgFile` — replaces `ImgFilesBag`. Uses `kotlinx.coroutines`
-     `suspend` + `Dispatchers.Default` for parallel sub-file parse.
-   - `model.*` — `Label` (sealed), `SubDivision`, `Coord`, `Bounds`,
-     `ProductInfo`.
-   - `io.*` — `BinaryReader` (already started in Phase A), random-access
-     wrapper.
-   - Replace `int` magic-number type codes with enums + inline value
-     classes.
-   - Drop dead code (`UnknownSubFile`, empty `MapSubFileReader`,
-     unfinished placeholder TODOs).
-4. Each port commit must keep `commonTest` + `jvmTest` green and
-   `commonMain` iOS-clean (no `java.*` / `android.*` / JVM-only kotlinx
-   APIs) so iOS targets can be re-enabled in a single follow-up commit.
-5. Public API surface: design it Kotlin-idiomatic from scratch. The
-   adapter that maps it onto Locus's `MapSource` / `Renderer` interfaces
-   lives in `locus-core` (Phase D), not here. The new lib does not know
-   about Locus.
+### Phase C — Rendering pipeline rewrite + quality improvements — 🟡 Partial
 
-Exit gate: parser is 100 % Kotlin in `commonMain`; all fixture-backed
-tests green on JVM; no `android.*` / `java.*` references in `commonMain`
-(CI check) — keeps the door open for the deferred iOS targets.
+Goal: a Locus-rendered IMG looks the same as on a Garmin device of the
+same era, given the map's own TYP file.
 
-### Phase C — Rendering pipeline rewrite + quality improvements (2–3 weeks)
+Sub-items, in priority order:
 
-Includes Kotlin rewrite of the render-side classes (`StyleInternal`,
-`MapDrawer`, `MapTileGenerator`, painters, label declutter) plus the actual
-quality improvements.
+- [x] **C.1–C.6 — Rendering pipeline.** `Style` / `RenderTarget` /
+      `Projection` / `ImgRenderer` / `LabelLayout` in commonMain;
+      `AwtRenderTarget` in jvmMain; golden-PNG regression test. Monaco
+      renders to a recognisable PNG with `InternalStyles` defaults.
+- [x] **C.10 — Label de-cluttering.** bbox-collision + priority sort.
+- [ ] **C.7 — TYP body parser + TYP-aware StyleResolver.** Header parses
+      today; body (POINTS / LINES / POLYGONS records, ICONS bitmaps,
+      DRAWORDER, multilingual labels) is ~1 KLOC of careful porting.
+      `StyleResolver` is already a `fun interface` so the TYP-first
+      variant plugs in without architectural rework. After C.7 lands,
+      refresh the Monaco golden — visible quality jump expected.
+      Reference: mkgmap `uk.me.parabola.imgfmt.app.typ.*` (read-only,
+      LGPL/GPL hygiene — do not copy code).
+- [ ] **C.8 — Extended-types subdivision branch.** Recover the
+      `// tipos no extendidos solo` Spanish TODO from libGarminImg.
+- [ ] **C.9 — Curve-following text along polylines** (currently
+      midpoint-only); polygon-area-weighted centroids for area labels.
+- [ ] **C.11 — Background tile transparency regression test.**
+- [ ] **C.12 — Optional tile cache** (per-map LRU on disk; only if
+      perf needs it).
+- [ ] **Android Canvas RenderTarget impl** in `androidMain` — Locus-side
+      consumption; ~150 LOC against the existing `RenderTarget` interface.
 
-Goal: a Locus-rendered IMG looks the same as on a Garmin device of the same
-era, given the map's own TYP file.
+For each landed item: regression PNG goes into the test fixtures.
 
-This is the meat of the work. In rough priority:
+Exit gate: side-by-side comparison (BaseCamp / QMapShack) on three
+reference maps shows visually equivalent rendering, ±label placement.
 
-1. **Wire TYP styling end-to-end** *(highest impact — directly fixes
-   [#22569](https://help.locusmap.eu/topic/22569-how-can-locus-display-in-garmin-img-feature-style-properly))*
-   - Today: `TypFileHandler.java` (130 lines) parses TYP signature, year,
-     codepage, family ID — and stops there.
-   - Need: parse the TYP type tables (POINTS, LINES, POLYGONS, DRAWORDER,
-     ICONS) and produce a `TypStyle` table keyed by `(type, subtype)`.
-   - Replace the static `StyleInternal.lookupXxx(...)` lookups with a
-     `StyleResolver` that consults TYP first, then falls back to
-     `StyleInternal` defaults for types the TYP doesn't define.
-   - Reference: TYP format is documented in mkgmap source
-     (https://github.com/openstreetmap/mkgmap) — `uk.me.parabola.imgfmt.app.typ.*`.
-     Read-only port, do not pull mkgmap code (LGPL/GPL hygiene).
-2. **Finish the `// tipos no extendidos solo` branch in `SubDivision.java`**
-   — extended polygon/line type codes; recover from upstream + mkgmap docs.
-3. **Label rendering polish** in `LabelDeClutteringFilter.java`:
-   - Priority by POI class (consistent with Garmin device behaviour: airports
-     before villages, etc.).
-   - Anti-collision based on bounding box, not centre point only.
-   - Halo / outline on labels via `Paint.setStrokeJoin(ROUND)` + double-pass
-     draw (already a documented Compose UI pattern in the repo's drawables
-     guide).
-4. **DPI / text-scale correctness** — `UtilsGarminImg.setBase()` already
-   carries density+text scale from `MapThemesUtils`, but it's used unevenly
-   across painters; audit every `Paint.setTextSize` / `setStrokeWidth`.
-5. **Background tile transparency** — last meaningful fix from 2020 in main
-   repo (`f9bc4d4536`). Re-verify still works with the new style pipeline,
-   regression-test it.
-6. **Tile cache** — IMG tiles are regenerated on every pan; raster output is
-   deterministic given (TYP version, style version, bbox, zoom). Add a
-   per-map LRU on disk (reuse `libAndroidCore` cache infra). Out of scope if
-   it bloats the diff; flag and time-box separately.
+Natural sequencing for the next session: Phase F (desktop viewer) first
+so each C.7 TYP-styling change is visually verifiable in <1s, then
+C.7 → golden refresh → C.8 / C.9 polish.
 
-For each item: regression PNG goes into the test fixtures.
+### Phase D — Documentation & integration polish — ⬜ Pending
 
-Exit gate: side-by-side comparison (BaseCamp / QMapShack) on three reference
-maps shows visually equivalent rendering, ±label placement.
+Sub-items:
 
-### Phase D — Documentation & integration polish (2–3 days)
+- [ ] Add `docs/libraries/libGarminImg/` (consumer-facing): format
+      overview, supported sub-files, TYP coverage matrix, known
+      limitations, how to add a fixture, how to debug a misrendered map.
+- [ ] Add a row to `docs/reference/pain_areas.md` (in `locus-core`)
+      noting IMG scope (no encrypted, no routing, no MDR search).
+- [ ] Add IMG row to the "Topical guides" table at the top of root
+      `CLAUDE.md` (also in `locus-core`).
+- [ ] Update `docs/reference/structure.md` entry for libGarminImg with
+      the new module code if it gains one.
+- [ ] Wire the Locus-side adapter (`MapSourceGarminImg.kt`,
+      `GarminImgRenderer.kt` in `locus-core`) onto the new `:lib`
+      Maven dep, replacing the in-tree submodule consumption.
+- [ ] Cut `0.1.0` release on `asamm/kmp-garmin-img` (tag → GitHub
+      Release → GitHub Packages publish via existing workflow).
 
-1. Add `docs/libraries/libGarminImg/` with: format overview, supported
-   sub-files, TYP coverage matrix, known limitations, how to add a fixture,
-   how to debug a misrendered map.
-2. Add a row to `docs/reference/pain_areas.md` describing the limits of IMG
-   support so future Claude/devs know the scope (no encrypted, no routing,
-   no MDR search).
-3. Add IMG row to the table at the top of root `CLAUDE.md`
-   (the "Topical guides" table) pointing to the new doc.
-4. Update [`docs/reference/structure.md`](docs/reference/structure.md) entry
-   for libGarminImg with the new module code if it gains one.
+### Phase E — Out-of-scope log — ➖ Scope-only
 
-### Phase E (optional, evaluate after C) — Defer or drop
+Items deliberately **not** in scope. Never "completes" — reopened only
+if user demand shifts.
 
 Things deliberately **not** in scope and explicitly deferred:
 - NET routing — never used by the app's router (LoRouter handles routing).
@@ -328,6 +272,63 @@ obfuscation only; locked sub-files remain unsupported".
 If Phase C hits unexpected complexity (e.g., TYP styling reveals deep
 parser bugs that demand rewriting `RgnSubFile`), reassess at the Phase B/C
 boundary whether to keep going or freeze IMG at "current state + tests".
+
+### Phase F — Desktop viewer (development tool) — ⬜ Pending
+
+Standalone development tool — **not** a deliverable, but a productivity
+multiplier for Phase C.7 (TYP body parser) work and for ad-hoc inspection
+of unknown IMGs. Lives in a new Gradle module so the published `:lib`
+artifact stays UI-framework-agnostic.
+
+**Stack: Compose Multiplatform Desktop.**
+- Same Compose APIs Locus already uses on Android.
+- Declarative state-driven UI maps cleanly to viewport
+  (`mutableStateOf<Viewport>` + recomposition on pan/zoom).
+- Multiplatform path: the same code could become an Android preview app
+  or browser viewer later if there's demand.
+
+**Module layout:**
+```
+viewer/
+  build.gradle.kts           # JetBrains Compose plugin + :lib dep + JDK 17
+  src/main/kotlin/com/asamm/garminimg/viewer/
+    ViewerApp.kt             # @Composable entry point, window scaffolding
+    ViewerState.kt           # mutableState for ImgFile + Viewport + zoom
+    MapPanel.kt              # @Composable map area + gesture handlers
+    Toolbar.kt               # file picker, screenshot, info readout
+```
+
+**Implementation path (estimated half-day to a full day):**
+1. Gradle wiring — JetBrains Compose plugin (`org.jetbrains.compose`),
+   `compose.desktop.currentOs` runtime, `compose.material3`. JDK 17+.
+2. MVP screen (~1 hour): file picker → `ImgFile.open()` → render via
+   the existing `AwtRenderTarget` to a `BufferedImage` → wrap as Compose
+   `ImageBitmap` → display in `Image` composable.
+3. Pan/zoom (~1–2 hours): pan with `Modifier.pointerInput { detectDragGestures }`,
+   zoom with `Modifier.onPointerEvent(PointerEventType.Scroll)`. Pragmatic
+   approach — re-render on gesture-end (snappy enough for country-scale
+   fixtures); tile-shift during pan as a later optimisation.
+4. Polish (~half-day): file picker dialog (AWT `FileDialog`), status bar
+   showing current bbox + zoom + feature count, screenshot button that
+   exports current view as PNG, optional hide/show layers (POI / road /
+   contour toggles).
+
+**Path 1 (BufferedImage wrap)** is the recommended starting point.
+**Path 2** would be to write a `ComposeRenderTarget` that draws directly
+via `DrawScope` — avoids the BufferedImage intermediate, better for
+animation; ~2× the code. Worthwhile if the BufferedImage path turns out
+to lag on >5 MP renders.
+
+**Why this is deferred to a fresh session:**
+- Compose Desktop has setup quirks (Compose plugin version pinning, JDK
+  toolchain config, native packaging) that deserve a clean planning round.
+- The viewer is the natural development tool for Phase C.7 (TYP body
+  parser) — every TYP-style change can be visually verified in <1s
+  without re-running gradle. Better to build it just before C.7.
+
+**Quick CLI alternative.** A bare `cli/` module with a one-class `RenderImgToPng`
+main is a 30-minute bolt-on if scripted PNG generation is needed before
+the full viewer lands. Args: `(img_path, west, east, south, north, w, h, out_path)`.
 
 ## Critical files modified
 
