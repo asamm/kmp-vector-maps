@@ -275,8 +275,55 @@ maps shows visually equivalent rendering, ±label placement.
 Things deliberately **not** in scope and explicitly deferred:
 - NET routing — never used by the app's router (LoRouter handles routing).
 - MDR address/POI search — duplicates LoPoint/LoMap search.
-- Encrypted/locked IMG — legal + DRM blocker.
+- Encrypted/locked IMG — see breakdown below.
 - mkgmap-style preprocessing — out of scope; we're a renderer.
+
+#### Encrypted IMG — what "out of scope" actually means
+
+Two distinct things are commonly called "encrypted" in the Garmin world. The
+Java predecessor `libGarminImg` supported the first, not the second. This
+KMP rewrite supports neither.
+
+1. **XOR-obfuscated IMG (trivial — not real encryption).** Single-byte XOR
+   across the whole file; the key *is the first byte*. The Java
+   `ImgFileInputStream` (lines 38–41, 49, 71–73) handles this in 5 lines:
+   read first byte, XOR every subsequent byte. We deliberately dropped this
+   path from `ImgRandomAccessReader` in Phase B.1.
+   - **Used by:** many community/free maps (some OpenMTBMap variants, some
+     Mapwel exports), and as a marker on official maps before the actual
+     lock check.
+   - **Cost to add back:** ~5 LOC + a constructor flag. Trivial.
+
+2. **DRM-locked IMG (real lock).** The XOR layer plus a separately locked
+   sub-file checked against a device-bound unlock code. Without that code
+   you literally don't have the key. Used by paid Garmin City Navigator /
+   Topo. **Even the Java predecessor cannot display these** — the unlock
+   path was never written.
+   - **Cost to add:** unbounded. Requires obtaining device unlock codes,
+     which is the part that's clearly off-limits.
+
+**Legal stance.** Czech / EU law (Article 6 of Directive 2001/29/EC, Czech
+Copyright Act §43) prohibits circumventing "effective technological
+measures" on copyrighted works. Whether trivial XOR qualifies as
+"effective" is unsettled, but the *content* licence matters more than the
+XOR — copying Garmin's commercial maps is infringement regardless of the
+XOR layer. Reading XOR'd *unlicensed/community* maps (typically
+OSM-derived, ODbL) is widely done by tools like QMapShack without
+apparent issue.
+
+**Decision:** keep both forms out of scope. Reasons:
+- The legal grey zone is real even if narrow; Asamm shouldn't be the one
+  to test it.
+- Adding XOR support is a 5-line change behind a constructor flag — easy
+  to add later if specific user demand surfaces with clearly
+  redistributable maps. Trade-off favours staying clean.
+- Real DRM-locked maps are unreachable without device-bound unlock codes;
+  no scenario where Locus could legally display them.
+
+**Where this would be revisited:** if helpdesk demand materialises for
+opening community-distributed XOR'd maps with unambiguous redistribution
+licences. Reopen Phase E at that point with a narrow scope: "XOR
+obfuscation only; locked sub-files remain unsupported".
 
 If Phase C hits unexpected complexity (e.g., TYP styling reveals deep
 parser bugs that demand rewriting `RgnSubFile`), reassess at the Phase B/C
