@@ -261,7 +261,20 @@ rework):
   multilingual labels — ~1 KLOC of careful porting work.
 - Android Canvas RenderTarget impl (Locus consumption side).
 - Curve-following text along polylines (currently labels at midpoint).
-- Polygon-area-weighted centroid for area labels.
+
+### Added — Phase C.9 (centroids) + C.11
+- `ImgRenderer.centroid` now uses the polygon-area-weighted geometric
+  centroid (signed-area + first-moment formula) instead of the simple
+  arithmetic mean. Area labels stay inside concave / elongated shapes
+  (lakes, fjords, narrow buildings) where the arithmetic centroid drifts
+  outside. Falls back to arithmetic mean for degenerate (zero-area)
+  polygons. `CentroidTest` (commonTest) covers L-shape, square, and
+  collinear-degenerate cases.
+- `AwtRenderTarget.beginFrame` uses `AlphaComposite.Src` for the
+  transparent-background path so SrcOver-with-alpha-0 doesn't no-op.
+  Tile renders with `Color.Transparent` background now reliably leave
+  unpainted pixels at alpha=0 — regression-tested via
+  `BackgroundTransparencyTest` against Monaco.
 
 ## Phase B summary
 

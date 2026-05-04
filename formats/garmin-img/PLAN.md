@@ -89,7 +89,7 @@ and re-evaluate before the next.
 |---|---|---|
 | A | ✅ Done | KMP library scaffold (Kotlin 2.3.20 / AGP 9.1.1 / Gradle 9.3.1, Android + JVM targets, GitHub Packages publishing). `CoordUtils` + `BinaryReader` ported as parser oracle. |
 | B | ✅ Done | Full IMG parser in `commonMain`: archive / FAT / block-demux / TRE (header + bbox + TRE7 + levels + sub-divisions) / LBL (codings 6/9/10) / RGN (points / polylines / polygons / extended types / BitStreamReader) / NET (label-only) / TYP (header). Sealed `MapObject` + `Sequence<MapObject>` API replaces the Java `MapListener` callback. ~2.5 KLOC Kotlin replaces ~4.8 KLOC Java. |
-| C | 🟡 Partial | Done: rendering pipeline, label de-cluttering, AWT impl, golden-PNG regression test, Monaco renders to recognisable PNG with internal-default styles. Deferred: C.7 TYP body parser (header parses; body needs ~1 KLOC), C.8 extended-types-subdivision branch, C.9 curve-following text, Android Canvas RenderTarget. |
+| C | 🟡 Partial | Done: rendering pipeline, label de-cluttering, area-weighted centroids, AWT impl, golden-PNG regression test, transparent-background support, Monaco renders to recognisable PNG with internal-default styles. Deferred: C.7 TYP body parser (header parses; body needs ~1 KLOC), C.8 extended-types-subdivision branch, C.9 curve-following text, Android Canvas RenderTarget. |
 | D | ⬜ Pending | Documentation + integration polish (docs/format/, docs/upstream_diff.md, README, CHANGELOG release notes, Locus-side adapter wiring). |
 | E | ➖ Scope | Out-of-scope log only (NET routing / MDR / encrypted IMG / mkgmap preprocessing). Never "completes" — reopened only if user demand surfaces. |
 | F | ⬜ Pending | Desktop viewer (Compose Multiplatform Desktop, dev tool — not a deliverable). Natural prerequisite for C.7 visual iteration. |
@@ -165,6 +165,12 @@ Sub-items, in priority order:
       `AwtRenderTarget` in jvmMain; golden-PNG regression test. Monaco
       renders to a recognisable PNG with `InternalStyles` defaults.
 - [x] **C.10 — Label de-cluttering.** bbox-collision + priority sort.
+- [x] **C.9 (centroids) — Polygon-area-weighted centroid** for area
+      labels. Replaces arithmetic mean — labels stay inside concave /
+      elongated shapes. Curve-following polyline text remains deferred.
+- [x] **C.11 — Background tile transparency.** `AwtRenderTarget` uses
+      `AlphaComposite.Src` for transparent fills (SrcOver-with-alpha-0
+      is a no-op); regression-tested against the Monaco fixture.
 - [ ] **C.7 — TYP body parser + TYP-aware StyleResolver.** Header parses
       today; body (POINTS / LINES / POLYGONS records, ICONS bitmaps,
       DRAWORDER, multilingual labels) is ~1 KLOC of careful porting.
@@ -175,9 +181,10 @@ Sub-items, in priority order:
       LGPL/GPL hygiene — do not copy code).
 - [ ] **C.8 — Extended-types subdivision branch.** Recover the
       `// tipos no extendidos solo` Spanish TODO from libGarminImg.
-- [ ] **C.9 — Curve-following text along polylines** (currently
-      midpoint-only); polygon-area-weighted centroids for area labels.
-- [ ] **C.11 — Background tile transparency regression test.**
+- [ ] **C.9 (curve text) — Curve-following text along polylines.**
+      Currently labels at polyline midpoint vertex; proper text-on-path
+      with character rotation along the line is a Phase F (viewer)
+      visual-feedback workflow item.
 - [ ] **C.12 — Optional tile cache** (per-map LRU on disk; only if
       perf needs it).
 - [ ] **Android Canvas RenderTarget impl** in `androidMain` — Locus-side

@@ -239,10 +239,42 @@ class ImgRenderer(
         return allLeft || allRight || allTop || allBottom
     }
 
+    /**
+     * Area-weighted polygon centroid. Mathematically the "geometric centroid"
+     * of a non-self-intersecting polygon: produces a label anchor that sits
+     * inside concave or elongated shapes (lakes, fjords, narrow buildings)
+     * where the simple arithmetic-mean centroid would drift outside the
+     * polygon.
+     *
+     * Falls back to the arithmetic mean when the signed area is zero
+     * (degenerate / collinear polygons) — guards against divide-by-zero.
+     */
     private fun centroid(xs: FloatArray, ys: FloatArray): FloatPair {
-        // Simple arithmetic mean — good enough for label placement on small
-        // convex-ish polygons. Polygon-area-weighted centroid is a Phase C.9
-        // refinement.
+        val n = xs.size
+        if (n < 3) {
+            return arithmeticMean(xs, ys)
+        }
+        // Signed area + first-moment accumulation in one pass.
+        // Using doubles internally avoids float-precision blow-up on long
+        // polygons (e.g. coastlines with hundreds of vertices).
+        var area2 = 0.0
+        var cx = 0.0
+        var cy = 0.0
+        for (i in 0 until n) {
+            val j = if (i + 1 < n) i + 1 else 0
+            val cross = xs[i].toDouble() * ys[j] - xs[j].toDouble() * ys[i]
+            area2 += cross
+            cx += (xs[i] + xs[j]) * cross
+            cy += (ys[i] + ys[j]) * cross
+        }
+        if (area2 == 0.0) {
+            return arithmeticMean(xs, ys)
+        }
+        val factor = 1.0 / (3.0 * area2)
+        return FloatPair((cx * factor).toFloat(), (cy * factor).toFloat())
+    }
+
+    private fun arithmeticMean(xs: FloatArray, ys: FloatArray): FloatPair {
         var sx = 0f
         var sy = 0f
         for (i in xs.indices) {

@@ -9,6 +9,7 @@ package com.asamm.garminimg.render
 import com.asamm.garminimg.style.Bitmap
 import com.asamm.garminimg.style.Color as GarminColor
 import com.asamm.garminimg.style.Style
+import java.awt.AlphaComposite
 import java.awt.BasicStroke
 import java.awt.Color as AwtColor
 import java.awt.Font
@@ -55,8 +56,20 @@ class AwtRenderTarget(
     }
 
     override fun beginFrame(backgroundColor: GarminColor) {
-        g.color = backgroundColor.toAwt()
-        g.fillRect(0, 0, widthPx, heightPx)
+        if (backgroundColor.alpha == 0) {
+            // Transparent fill: SrcOver compositing with alpha=0 is a no-op,
+            // so previous frame content would persist on a re-rendered target.
+            // Switch to Src compositing to actually replace pixels with the
+            // transparent value, then restore.
+            val savedComposite = g.composite
+            g.composite = AlphaComposite.Src
+            g.color = AwtColor(0, 0, 0, 0)
+            g.fillRect(0, 0, widthPx, heightPx)
+            g.composite = savedComposite
+        } else {
+            g.color = backgroundColor.toAwt()
+            g.fillRect(0, 0, widthPx, heightPx)
+        }
     }
 
     override fun drawPolygon(xs: FloatArray, ys: FloatArray, style: Style.PolygonStyle) {
