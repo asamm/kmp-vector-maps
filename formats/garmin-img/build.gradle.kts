@@ -5,4 +5,9 @@
 plugins {
     alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.androidKotlinMultiplatformLibrary) apply false
+
+    // Used by :viewer (Compose Multiplatform Desktop development tool).
+    alias(libs.plugins.kotlinJvm) apply false
+    alias(libs.plugins.kotlinCompose) apply false
+    alias(libs.plugins.composeMultiplatform) apply false
 }

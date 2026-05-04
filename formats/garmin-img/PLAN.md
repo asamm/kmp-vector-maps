@@ -92,7 +92,7 @@ and re-evaluate before the next.
 | C | 🟡 Partial | Done: rendering pipeline, label de-cluttering, area-weighted centroids, AWT impl, golden-PNG regression test, transparent-background support, Monaco renders to recognisable PNG with internal-default styles. Deferred: C.7 TYP body parser (header parses; body needs ~1 KLOC), C.8 extended-types-subdivision branch, C.9 curve-following text, Android Canvas RenderTarget. |
 | D | ⬜ Pending | Documentation + integration polish (docs/format/, docs/upstream_diff.md, README, CHANGELOG release notes, Locus-side adapter wiring). |
 | E | ➖ Scope | Out-of-scope log only (NET routing / MDR / encrypted IMG / mkgmap preprocessing). Never "completes" — reopened only if user demand surfaces. |
-| F | ⬜ Pending | Desktop viewer (Compose Multiplatform Desktop, dev tool — not a deliverable). Natural prerequisite for C.7 visual iteration. |
+| F | 🟡 MVP done | Desktop viewer (Compose Multiplatform Desktop). MVP: open IMG, render TRE bbox, reload, AA toggle. Pan / zoom / status-bar polish deferred until C.7 needs them. |
 
 Detailed sub-items live in their respective phase sections below. Completed
 phases (A, B) are summarised here; their detailed plan-of-work descriptions
@@ -280,7 +280,7 @@ If Phase C hits unexpected complexity (e.g., TYP styling reveals deep
 parser bugs that demand rewriting `RgnSubFile`), reassess at the Phase B/C
 boundary whether to keep going or freeze IMG at "current state + tests".
 
-### Phase F — Desktop viewer (development tool) — ⬜ Pending
+### Phase F — Desktop viewer (development tool) — 🟡 MVP done
 
 Standalone development tool — **not** a deliverable, but a productivity
 multiplier for Phase C.7 (TYP body parser) work and for ad-hoc inspection
@@ -326,12 +326,35 @@ via `DrawScope` — avoids the BufferedImage intermediate, better for
 animation; ~2× the code. Worthwhile if the BufferedImage path turns out
 to lag on >5 MP renders.
 
-**Why this is deferred to a fresh session:**
-- Compose Desktop has setup quirks (Compose plugin version pinning, JDK
-  toolchain config, native packaging) that deserve a clean planning round.
-- The viewer is the natural development tool for Phase C.7 (TYP body
-  parser) — every TYP-style change can be visually verified in <1s
-  without re-running gradle. Better to build it just before C.7.
+**MVP landed (commit pending).** Compose Multiplatform Desktop 1.7.3,
+JetBrains Kotlin Compose plugin, JVM 17 toolchain. Three-row layout:
+toolbar (Open IMG / Reload / AA toggle) → map area (Compose `Image`
+backed by our `AwtRenderTarget`'s `BufferedImage`) → status bar
+(file name + description + bbox + TYP presence). Run with
+`./gradlew :viewer:run`.
+
+**Deferred polish — pick up alongside C.7 if friction surfaces:**
+- Pan via `Modifier.pointerInput { detectDragGestures }` + viewport
+  bbox shift on gesture-end.
+- Zoom via `onPointerEvent(PointerEventType.Scroll)` — focal-point
+  centred, geometric zoom factor.
+- Recent-files menu, screenshot button, layer toggles
+  (POI / road / contour visibility).
+
+**Considered and rejected — MapLibre as the renderer.** A path where
+our lib produces RGBA tiles per (z, x, y) and MapLibre Native renders
+them via a Raster Source is *technically* feasible — the tile-shaped
+output is a 30-line wrapper around `ImgRenderer.render()`. However
+for the Phase F dev-viewer use case it adds:
+- a heavy MapLibre Native binary dependency,
+- tile-cache invalidation friction on every TYP code change (which
+  defeats the "fast feedback for TYP iteration" purpose), and
+- two-component (tile producer + tile consumer) plumbing that's
+  unnecessary for single-image inspection.
+For Phase D (Locus integration) the tile-output API may still be
+useful — Locus's existing renderer or any other tile-display engine
+could consume it. That's a 30-line follow-up on `ImgRenderer`,
+parked.
 
 **Quick CLI alternative.** A bare `cli/` module with a one-class `RenderImgToPng`
 main is a 30-minute bolt-on if scripted PNG generation is needed before

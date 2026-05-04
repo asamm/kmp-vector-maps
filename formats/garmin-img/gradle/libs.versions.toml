@@ -21,6 +21,10 @@ kotlinxIo = "0.8.0"
 # https://github.com/asamm/kmp-logger
 kmpLogger = "0.9.1"
 
+# Compose Multiplatform Desktop — used only by :viewer (development tool).
+# https://github.com/JetBrains/compose-multiplatform/releases
+composeMultiplatform = "1.7.3"
+
 [libraries]
 kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
 kotlinxIoCore = { module = "org.jetbrains.kotlinx:kotlinx-io-core", version.ref = "kotlinxIo" }
@@ -31,3 +35,9 @@ kmpLogger = { module = "com.asamm.kmp:kmp-logger", version.ref = "kmpLogger" }
 # https://developer.android.com/kotlin/multiplatform/plugin
 androidKotlinMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+
+# Used only by :viewer.
+kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+# Compose compiler plugin — mandatory since Kotlin 2.0.
+kotlinCompose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }

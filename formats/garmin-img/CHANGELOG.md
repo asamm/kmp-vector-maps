@@ -262,6 +262,35 @@ rework):
 - Android Canvas RenderTarget impl (Locus consumption side).
 - Curve-following text along polylines (currently labels at midpoint).
 
+### Added — Phase F MVP (desktop viewer)
+
+New `:viewer` Gradle module — a Compose Multiplatform Desktop
+development tool. **Not** a published artifact; lives in its own module
+so the published `:lib` artifact stays UI-framework-agnostic.
+
+- Compose Multiplatform 1.7.3 + Kotlin Compose compiler plugin + JVM
+  17 toolchain. Plugins added to root `build.gradle.kts` as
+  `apply false` so versions are catalog-managed.
+- `viewer/src/main/kotlin/com/asamm/garminimg/viewer/`:
+  - `Main.kt` — `application { Window(...) }` entry point.
+  - `ViewerState.kt` — mutable state: loaded file, rendered
+    `BufferedImage`, status, AA toggle. `loadAndRender(file)` opens an
+    IMG via `ImgFile.open()`, renders the TRE bbox at 1024×1024 via
+    `AwtRenderTarget`, populates status with description + bbox + TYP
+    presence.
+  - `ViewerApp.kt` — three-row Compose layout: toolbar (Open IMG /
+    Reload / AA toggle) → map area (Compose `Image` from
+    `BufferedImage.toComposeImageBitmap()`) → status bar.
+  - File picker via AWT `FileDialog` (Compose Desktop has no native
+    picker yet); `*.img` filter as a hint.
+
+Run with `./gradlew :viewer:run`. Native bundles via
+`./gradlew :viewer:packageDistributionForCurrentOS` (Dmg / Msi / Deb).
+
+Deferred polish (will arrive when Phase C.7 friction calls for it):
+- Mouse pan + scroll-wheel zoom.
+- Recent-files menu, screenshot button, layer toggles.
+
 ### Added — Phase C.9 (centroids) + C.11
 - `ImgRenderer.centroid` now uses the polygon-area-weighted geometric
   centroid (signed-area + first-moment formula) instead of the simple
