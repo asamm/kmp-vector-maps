@@ -16,6 +16,9 @@ import com.asamm.garminimg.render.Viewport
 import com.asamm.garminimg.style.Color
 import java.awt.image.BufferedImage
 import java.io.File
+import kotlin.math.PI
+import kotlin.math.ln
+import kotlin.math.tan
 
 /**
  * Mutable state holder for the viewer. One instance per Window.
@@ -61,11 +64,14 @@ class ViewerState(
         }
 
     /**
-     * Width / height of the rendered image in pixels. Bound to the window's
-     * map-panel size; the renderer always renders at this exact resolution.
+     * Width of the rendered image in pixels. Height is computed from the
+     * loaded IMG's TRE bbox aspect (Web Mercator) so the render comes out
+     * at the same shape a desktop tool like QMapShack would show — same
+     * lat/lon range, no horizontal squish.
      */
-    var widthPx: Int by mutableStateOf(1024)
-    var heightPx: Int by mutableStateOf(1024)
+    var widthPx: Int by mutableStateOf(1600)
+    var heightPx: Int by mutableStateOf(800)
+        private set
 
     /**
      * Reads `file` into memory, parses every sub-file, renders the TRE bbox
@@ -81,6 +87,18 @@ class ViewerState(
         try {
             val bytes = file.readBytes()
             val img = ImgFile.open { ByteArrayImgRandomAccessReader(bytes) }
+
+            // Adapt heightPx to the TRE bbox so the rendered image mirrors
+            // the Mercator projection's true aspect — no horizontal squish.
+            // Also clamp to a sane range so a degenerate fixture doesn't
+            // produce a 1-pixel-tall render.
+            val nDeg = CoordUtils.toWGS84(img.tre.header.northBoundary)
+            val sDeg = CoordUtils.toWGS84(img.tre.header.southBoundary)
+            val eDeg = CoordUtils.toWGS84(img.tre.header.eastBoundary)
+            val wDeg = CoordUtils.toWGS84(img.tre.header.westBoundary)
+            val mercAspect = mercatorAspectRatio(nDeg, sDeg, eDeg, wDeg)
+            heightPx = (widthPx / mercAspect).toInt().coerceIn(200, 4096)
+
             val viewport = Viewport.ofTreBounds(
                 widthPx = widthPx,
                 heightPx = heightPx,
@@ -98,10 +116,6 @@ class ViewerState(
                 backgroundColor = Color.rgb(0xF8, 0xF6, 0xF0),
             )
             rendered = target.image
-            val nDeg = CoordUtils.toWGS84(img.tre.header.northBoundary)
-            val sDeg = CoordUtils.toWGS84(img.tre.header.southBoundary)
-            val eDeg = CoordUtils.toWGS84(img.tre.header.eastBoundary)
-            val wDeg = CoordUtils.toWGS84(img.tre.header.westBoundary)
             status = "${file.name} — '${img.archive.description}' — " +
                 "bbox %.4f..%.4fN / %.4f..%.4fE — TYP: %s".format(
                     sDeg, nDeg, wDeg, eDeg,
@@ -121,5 +135,24 @@ class ViewerState(
      */
     fun reload() {
         loadedFile?.let { loadAndRender(it) }
+    }
+
+    /**
+     * Web Mercator aspect ratio for a lat/lon bbox: how many longitude
+     * units fit per latitude unit when projected. Larger result → wider.
+     * Mirrors the math in `Projection.mercatorY` so the viewer's heightPx
+     * matches the renderer's projection precisely (no horizontal squish).
+     */
+    private fun mercatorAspectRatio(nDeg: Double, sDeg: Double, eDeg: Double, wDeg: Double): Double {
+        // Mercator x is just longitude; mercator y is ln(tan(π/4 + lat/2)).
+        val sRad = sDeg * PI / 180.0
+        val nRad = nDeg * PI / 180.0
+        val mercY1 = ln(tan(PI / 4.0 + sRad / 2.0))
+        val mercY2 = ln(tan(PI / 4.0 + nRad / 2.0))
+        val mercX1 = wDeg * PI / 180.0
+        val mercX2 = eDeg * PI / 180.0
+        val dx = mercX2 - mercX1
+        val dy = mercY2 - mercY1
+        return if (dy != 0.0) dx / dy else 2.0
     }
 }

@@ -113,14 +113,12 @@ object TypBodyParser {
             emptyList()
         }
         if (hasBitmap) {
-            // 32×32 1-bit-per-pixel pattern is 32×32/8 = 128 bytes per
-            // fg/bg pair. We don't render the pattern itself yet — just
-            // skip past it. Day pattern always present; night pattern only
-            // when hasNight is set.
+            // 32×32 1-bit-per-pixel pattern is 32×32/8 = 128 bytes. Only ONE
+            // bitmap regardless of day/night colour count: TypPolygon.write
+            // emits the bitmap exactly once, and the day/night switch
+            // happens at render time using the same 1bpp pattern with the
+            // appropriate fg/bg colour pair.
             skipBytes(reader, POLYGON_BITMAP_BYTES)
-            if (hasNight) {
-                skipBytes(reader, POLYGON_BITMAP_BYTES)
-            }
         }
         if (hasLabel) {
             skipLabelBlock(reader)
@@ -324,17 +322,19 @@ object TypBodyParser {
 
     /**
      * Skips a TYP extended-font-info block: 1 byte font-style flag, then
-     * optional 4-byte day colour and optional 4-byte night colour.
+     * optional 3-byte day BGR and optional 3-byte night BGR. Note: each
+     * colour is 3 bytes (Rgb.write writes B + G + R), NOT 4 — there's no
+     * separate flag byte per colour.
      */
     private fun skipExtendedFontInfo(reader: ImgRandomAccessReader) {
         val fontExt = reader.readByte()
         val hasDay = fontExt and 0x08 != 0
         val hasNight = fontExt and 0x10 != 0
         if (hasDay) {
-            skipBytes(reader, 4) // 0x10 flag + 3 bytes RGB
+            skipBytes(reader, 3)
         }
         if (hasNight) {
-            skipBytes(reader, 4)
+            skipBytes(reader, 3)
         }
     }
 

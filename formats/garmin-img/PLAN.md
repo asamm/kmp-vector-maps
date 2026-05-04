@@ -179,18 +179,25 @@ Sub-items, in priority order:
       when an IMG has TYP. The viewer + Monaco golden test both
       consume the TYP-aware resolver when available.
       **Follow-ups (C.7 v1):**
-      - Visual quality: OpenTopoMap render shows TYP-derived greens /
-        blues correctly but line styling looks regressed vs the
-        InternalStyles defaults — likely BGR/RGB byte order or
-        line-width-units issue. Inspect with the viewer side-by-side
-        with QMapShack reference.
+      - **DRAWORDER / shape-stacking section** — the highest-impact
+        remaining gap. The TYP body-style records parse correctly
+        (verified against `qmapshack-monaco.png`: parser produces
+        plausible colours + widths matching OpenTopoMap's palette),
+        but polygons render in RGN data order rather than TYP-defined
+        z-priority, so big "background" polygons can end up over /
+        under smaller features. Section descriptor at TYP header
+        offset 0x51, itemSize 5 (UInt16 typeForFile + 3-byte priority).
+        Surfaces as `Style.PolygonStyle.drawPriority` on the resolver
+        side.
       - TYP point body parsing (icons / labels) — currently points fall
-        back to `InternalStyles`.
-      - DRAWORDER / shape-stacking section — affects polygon
-        z-ordering.
+        back to `InternalStyles`. Bitmap parsing is the bulk of work
+        here.
       - TYP labels (multilingual). Currently the parser skips past
         label blocks correctly but doesn't surface the strings.
       - Extended-types section in TYP (only base section parses).
+      - Inspection helpers: `lib/src/jvmTest/.../TypBodyDumpTest`
+        prints all parsed polygon + line styles. Useful when adding
+        DRAWORDER or any other TYP feature.
 - [ ] **C.8 — Extended-types subdivision branch.** Recover the
       `// tipos no extendidos solo` Spanish TODO from libGarminImg.
 - [ ] **C.9 (curve text) — Curve-following text along polylines.**
