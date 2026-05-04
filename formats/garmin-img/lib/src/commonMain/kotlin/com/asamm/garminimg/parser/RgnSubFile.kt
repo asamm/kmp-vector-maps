@@ -403,13 +403,19 @@ object RgnSubFile {
             val shape = try {
                 parseOnePoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader)
             } catch (_: Exception) {
-                null
-            }
-            if (shape != null) {
-                yield(shape)
-            } else if (reader.position() >= segment.end) {
+                // Bit-stream over-ran or coordinate decode failed mid-record.
+                // The reader's position is now mid-record; resuming from
+                // there would decode misaligned bytes into nonsense
+                // coordinates that surface as spurious straight lines in the
+                // rendered map (visible at wide bbox renders).
+                //
+                // The Java predecessor's `parseExtPoly` handles this by
+                // bailing the whole segment on any exception; we mirror
+                // that here so a single corrupt record can't poison the
+                // rest of the segment.
                 break
             }
+            yield(shape)
         }
     }
 
@@ -481,13 +487,12 @@ object RgnSubFile {
             val shape = try {
                 parseOneExtPoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader)
             } catch (_: Exception) {
-                null
-            }
-            if (shape != null) {
-                yield(shape)
-            } else if (reader.position() >= segment.end) {
+                // Same rationale as parsePoly — bail the segment on
+                // mid-record decode failure rather than continuing from a
+                // misaligned read position.
                 break
             }
+            yield(shape)
         }
     }
 
@@ -593,11 +598,26 @@ object RgnSubFile {
         curLong = curLong shl longExtraBit
         curLat = curLat shl latExtraBit
 
+        // Sanity-window for the cumulative deltas: a sub-division at
+        // bitsPerCoord=B has a maximum half-extent of (2^(B-1) << (24-B))
+        // = 2^23 absolute Garmin units. Anything beyond ~2x that is a
+        // bit-stream that drifted into garbage; bail to avoid emitting
+        // nonsense polylines that render as long straight bars.
+        val driftLimit = (1 shl 22) // 2^22 abs Garmin units ~ 90° at the equator;
+        // wide enough to never reject valid sub-division-internal deltas.
+
         while (bsr.hasNext(longBits + latBits)) {
             val longOffset = bsr.readCoordOffset(longBits, longSign, longExtraBit)
             val latOffset = bsr.readCoordOffset(latBits, latSign, latExtraBit)
             curLong += longOffset
             curLat += latOffset
+            if (kotlin.math.abs(curLong) > driftLimit || kotlin.math.abs(curLat) > driftLimit) {
+                // The cumulative delta has drifted to an absurd value —
+                // the bit-stream got out of sync. Drop the rest of this
+                // record's points; the caller's segment-loop will move on.
+                bsr.finish()
+                throw IllegalStateException("polyline coordinates drifted out of sub-division bounds")
+            }
             longs.add(scaleAndAdd(subDivision.longitudeCenter, curLong, bitsPerCoord, longExtraBit))
             lats.add(scaleAndAdd(subDivision.latitudeCenter, curLat, bitsPerCoord, latExtraBit))
         }
