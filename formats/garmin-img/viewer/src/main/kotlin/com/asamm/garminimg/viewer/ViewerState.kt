@@ -29,7 +29,9 @@ import java.io.File
  * Phase C.7 is in flight and a wider viewport is needed, we add them
  * incrementally.
  */
-class ViewerState {
+class ViewerState(
+    initialAntiAliased: Boolean = true,
+) {
 
     /** Currently loaded IMG file path, or null if nothing is open. */
     var loadedFile: File? by mutableStateOf(null)
@@ -43,8 +45,19 @@ class ViewerState {
     var status: String by mutableStateOf("Open an IMG file to begin.")
         private set
 
-    /** Anti-aliasing on/off — useful when comparing against the golden PNG. */
-    var antiAliased: Boolean by mutableStateOf(true)
+    /**
+     * Anti-aliasing on/off — useful when comparing against the golden PNG.
+     * Setter writes through to [ViewerPrefs] so the choice survives restarts.
+     */
+    private var _antiAliased: Boolean by mutableStateOf(initialAntiAliased)
+    var antiAliased: Boolean
+        get() = _antiAliased
+        set(value) {
+            if (_antiAliased != value) {
+                _antiAliased = value
+                ViewerPrefs.saveAntiAliased(value)
+            }
+        }
 
     /**
      * Width / height of the rendered image in pixels. Bound to the window's
@@ -62,6 +75,7 @@ class ViewerState {
      */
     fun loadAndRender(file: File) {
         loadedFile = file
+        ViewerPrefs.saveLastFile(file.absolutePath)
         status = "Loading ${file.name}…"
         try {
             val bytes = file.readBytes()

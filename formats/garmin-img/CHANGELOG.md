@@ -262,6 +262,24 @@ rework):
 - Android Canvas RenderTarget impl (Locus consumption side).
 - Curve-following text along polylines (currently labels at midpoint).
 
+### Improved — Phase F polish + InternalStyles ocean coverage
+
+- `InternalStyles.resolvePolygon` now covers more water type codes
+  (0x28, 0x32, 0x4A..0x4C in addition to the existing 0x3B..0x44).
+  OpenTopoMap's huge Mediterranean polygon now renders as blue —
+  previously fell to the light-grey `DEFAULT_POLYGON` and was
+  invisible against the beige background. Added a separate
+  `AREA_OCEAN_BACKGROUND` style with cooler blue + lower draw
+  priority so smaller water bodies still pop on top.
+- Refreshed the Monaco golden PNG to reflect the new ocean coverage.
+- `:viewer` now persists across restarts via `java.util.prefs.Preferences`
+  (`ViewerPrefs`):
+  - Window width/height (saved on resize, distinct-until-changed).
+  - AA toggle (saved on change).
+  - Last-opened IMG path (saved on `loadAndRender`).
+  - Auto-loads the last file on launch if it still exists.
+  Cross-platform: Windows registry, macOS plist, Linux XDG config.
+
 ### Added — Phase F MVP (desktop viewer)
 
 New `:viewer` Gradle module — a Compose Multiplatform Desktop

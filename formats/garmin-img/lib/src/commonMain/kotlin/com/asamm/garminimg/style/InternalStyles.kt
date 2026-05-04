@@ -76,8 +76,16 @@ object InternalStyles {
             // Parks / forest
             0x16 -> AREA_FOREST
             in 0x17..0x1A -> AREA_FOREST
-            // Water bodies
+            // Water bodies — Garmin's water-area type codes vary by tooling:
+            //   0x28 sea/ocean (older Garmin), 0x32 sea (Mapwel),
+            //   0x3B..0x44 mkgmap-style water (river/lake/etc.),
+            //   0x4A..0x4C ocean-background polygons (mkgmap, OpenTopoMap).
+            // Cover the whole accepted range — without TYP-driven styling
+            // (Phase C.7), getting the ocean fill right is the headline
+            // visual win.
+            0x28, 0x32 -> AREA_WATER
             in 0x3B..0x44 -> AREA_WATER
+            in 0x4A..0x4C -> AREA_OCEAN_BACKGROUND
             // Buildings
             0x0A -> BUILDING
             else -> DEFAULT_POLYGON
@@ -228,6 +236,19 @@ object InternalStyles {
         strokeColor = Color.rgb(0x60, 0x80, 0xA0),
         strokeWidth = 0.5f,
         labelColor = Color.rgb(0x20, 0x40, 0x80),
+    )
+
+    /**
+     * Ocean-background polygons are typically a single huge polygon covering
+     * the whole sub-division's water area; rendered with a slightly cooler
+     * blue and lower draw priority so smaller water bodies (lakes, rivers)
+     * still pop on top of it.
+     */
+    private val AREA_OCEAN_BACKGROUND = Style.PolygonStyle(
+        drawPriority = 5,
+        fillColor = Color.rgb(0xA0, 0xC8, 0xE8),
+        strokeColor = null,
+        labelColor = null,
     )
 
     private val BUILDING = Style.PolygonStyle(
