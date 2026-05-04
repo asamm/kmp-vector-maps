@@ -38,7 +38,7 @@ class MonacoRenderTest {
         )
 
         val target = AwtRenderTarget(widthPx, heightPx)
-        ImgRenderer(img).render(viewport, target)
+        ImgRenderer(img, resolverFor(img)).render(viewport, target)
 
         // Save the artifact for human review. The build dir is in .gitignore
         // so this never lands in the repo.
@@ -56,7 +56,7 @@ class MonacoRenderTest {
             maxLat = com.asamm.garminimg.coord.CoordUtils.fromWGS84(43.79),
         )
         val tightTarget = AwtRenderTarget(widthPx, heightPx)
-        ImgRenderer(img).render(tightViewport, tightTarget)
+        ImgRenderer(img, resolverFor(img)).render(tightViewport, tightTarget)
         tightTarget.writePng(File(outDir, "otm-monaco-tight.png"))
 
         assertTrue(outFile.exists(), "expected PNG was not written")
@@ -105,7 +105,7 @@ class MonacoRenderTest {
         )
         // Anti-aliasing off so the render is byte-deterministic across JDKs.
         val target = AwtRenderTarget(widthPx, heightPx, antiAliased = false)
-        ImgRenderer(img).render(viewport, target)
+        ImgRenderer(img, resolverFor(img)).render(viewport, target)
 
         val golden = GoldenPngDiff.loadFromClasspath("fixtures/golden/otm-monaco-tight.png")
         if (golden == null) {
@@ -132,6 +132,15 @@ class MonacoRenderTest {
             ?.getResourceAsStream("fixtures/otm-monaco/otm-monaco.img")
             ?.use { it.readBytes() } ?: error("Monaco fixture missing")
         return ImgFile.open { ByteArrayImgRandomAccessReader(bytes) }
+    }
+
+    /**
+     * Returns the right [StyleResolver] for the given IMG: TYP-aware when
+     * the IMG has TYP styles, internal defaults otherwise.
+     */
+    private fun resolverFor(img: ImgFile): StyleResolver {
+        return img.typStyles?.let { StyleResolver.typAware(it) }
+            ?: StyleResolver.internalDefaults()
     }
 
     /**

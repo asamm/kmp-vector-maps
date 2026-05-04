@@ -11,6 +11,7 @@ import com.asamm.garminimg.coord.CoordUtils
 import com.asamm.garminimg.io.ByteArrayImgRandomAccessReader
 import com.asamm.garminimg.render.AwtRenderTarget
 import com.asamm.garminimg.render.ImgRenderer
+import com.asamm.garminimg.render.StyleResolver
 import com.asamm.garminimg.render.Viewport
 import com.asamm.garminimg.style.Color
 import java.awt.image.BufferedImage
@@ -89,7 +90,13 @@ class ViewerState(
                 westBoundary = img.tre.header.westBoundary,
             )
             val target = AwtRenderTarget(widthPx, heightPx, antiAliased = antiAliased)
-            ImgRenderer(img).render(viewport, target, backgroundColor = Color.rgb(0xF8, 0xF6, 0xF0))
+            val resolver = img.typStyles?.let { StyleResolver.typAware(it) }
+                ?: StyleResolver.internalDefaults()
+            ImgRenderer(img, resolver).render(
+                viewport,
+                target,
+                backgroundColor = Color.rgb(0xF8, 0xF6, 0xF0),
+            )
             rendered = target.image
             val nDeg = CoordUtils.toWGS84(img.tre.header.northBoundary)
             val sDeg = CoordUtils.toWGS84(img.tre.header.southBoundary)

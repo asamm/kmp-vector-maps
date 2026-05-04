@@ -89,7 +89,7 @@ and re-evaluate before the next.
 |---|---|---|
 | A | ✅ Done | KMP library scaffold (Kotlin 2.3.20 / AGP 9.1.1 / Gradle 9.3.1, Android + JVM targets, GitHub Packages publishing). `CoordUtils` + `BinaryReader` ported as parser oracle. |
 | B | ✅ Done | Full IMG parser in `commonMain`: archive / FAT / block-demux / TRE (header + bbox + TRE7 + levels + sub-divisions) / LBL (codings 6/9/10) / RGN (points / polylines / polygons / extended types / BitStreamReader) / NET (label-only) / TYP (header). Sealed `MapObject` + `Sequence<MapObject>` API replaces the Java `MapListener` callback. ~2.5 KLOC Kotlin replaces ~4.8 KLOC Java. |
-| C | 🟡 Partial | Done: rendering pipeline, label de-cluttering, area-weighted centroids, AWT impl, golden-PNG regression test, transparent-background support, Monaco renders to recognisable PNG with internal-default styles. Deferred: C.7 TYP body parser (header parses; body needs ~1 KLOC), C.8 extended-types-subdivision branch, C.9 curve-following text, Android Canvas RenderTarget. |
+| C | 🟡 Partial | Done: rendering pipeline, label de-cluttering, area-weighted centroids, AWT impl, golden-PNG regression test, transparent-background support, **TYP body parser v0** (polygon + line records → TYP-aware StyleResolver), Monaco renders to recognisable PNG with TYP-derived styling. Deferred: C.7 v1 (visual quality polish, point/icon parsing, DRAWORDER), C.8 extended-types-subdivision branch, C.9 curve-following text, Android Canvas RenderTarget. |
 | D | ⬜ Pending | Documentation + integration polish (docs/format/, docs/upstream_diff.md, README, CHANGELOG release notes, Locus-side adapter wiring). |
 | E | ➖ Scope | Out-of-scope log only (NET routing / MDR / encrypted IMG / mkgmap preprocessing). Never "completes" — reopened only if user demand surfaces. |
 | F | 🟡 MVP done | Desktop viewer (Compose Multiplatform Desktop). MVP: open IMG, render TRE bbox, reload, AA toggle. Pan / zoom / status-bar polish deferred until C.7 needs them. |
@@ -171,14 +171,26 @@ Sub-items, in priority order:
 - [x] **C.11 — Background tile transparency.** `AwtRenderTarget` uses
       `AlphaComposite.Src` for transparent fills (SrcOver-with-alpha-0
       is a no-op); regression-tested against the Monaco fixture.
-- [ ] **C.7 — TYP body parser + TYP-aware StyleResolver.** Header parses
-      today; body (POINTS / LINES / POLYGONS records, ICONS bitmaps,
-      DRAWORDER, multilingual labels) is ~1 KLOC of careful porting.
-      `StyleResolver` is already a `fun interface` so the TYP-first
-      variant plugs in without architectural rework. After C.7 lands,
-      refresh the Monaco golden — visible quality jump expected.
-      Reference: mkgmap `uk.me.parabola.imgfmt.app.typ.*` (read-only,
-      LGPL/GPL hygiene — do not copy code).
+- [~] **C.7 v0 — TYP body parser + TYP-aware StyleResolver.** Framework
+      lands: `TypBodyParser` walks the polygon + line indexes and
+      extracts fill / stroke / width per `(type, subType)`;
+      `StyleResolver.typAware(table)` consults the TYP first and falls
+      back to `InternalStyles`. `ImgFile.typStyles` is auto-populated
+      when an IMG has TYP. The viewer + Monaco golden test both
+      consume the TYP-aware resolver when available.
+      **Follow-ups (C.7 v1):**
+      - Visual quality: OpenTopoMap render shows TYP-derived greens /
+        blues correctly but line styling looks regressed vs the
+        InternalStyles defaults — likely BGR/RGB byte order or
+        line-width-units issue. Inspect with the viewer side-by-side
+        with QMapShack reference.
+      - TYP point body parsing (icons / labels) — currently points fall
+        back to `InternalStyles`.
+      - DRAWORDER / shape-stacking section — affects polygon
+        z-ordering.
+      - TYP labels (multilingual). Currently the parser skips past
+        label blocks correctly but doesn't surface the strings.
+      - Extended-types section in TYP (only base section parses).
 - [ ] **C.8 — Extended-types subdivision branch.** Recover the
       `// tipos no extendidos solo` Spanish TODO from libGarminImg.
 - [ ] **C.9 (curve text) — Curve-following text along polylines.**

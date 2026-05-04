@@ -57,6 +57,13 @@ class ImgFile internal constructor(
     val lbl: LblData,
     val net: NetData?,
     val typ: TypHeader?,
+    /**
+     * Parsed TYP body — `(type, subType)` → resolved styles for the
+     * polygon and line sections. Populated when the IMG has a TYP
+     * sub-file and its body parses successfully; null otherwise (and the
+     * renderer falls back to [com.asamm.garminimg.style.InternalStyles]).
+     */
+    val typStyles: com.asamm.garminimg.parser.TypStyleTable?,
 ) {
 
     /**
@@ -204,6 +211,19 @@ class ImgFile internal constructor(
                 rgnInfo = RgnSubFile.endInfo(rgnHeader),
             )
 
+            // Parse the TYP body when present. Failure to parse the body
+            // doesn't fail the whole open — the renderer simply falls back
+            // to InternalStyles for everything in that case.
+            val typStyles = if (typHeader != null && typReader != null) {
+                try {
+                    com.asamm.garminimg.parser.TypBodyParser.parse(typReader, typHeader)
+                } catch (_: Exception) {
+                    null
+                }
+            } else {
+                null
+            }
+
             return ImgFile(
                 archive = archive,
                 tre = TreData(treReader, treHeader, levels, tree),
@@ -211,6 +231,7 @@ class ImgFile internal constructor(
                 lbl = LblData(lblReader, lblHeader),
                 net = netHeader?.let { h -> NetData(netReader as ImgRandomAccessReader, h) },
                 typ = typHeader,
+                typStyles = typStyles,
             )
         }
 

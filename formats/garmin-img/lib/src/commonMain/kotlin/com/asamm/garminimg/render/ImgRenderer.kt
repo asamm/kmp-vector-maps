@@ -295,11 +295,12 @@ class ImgRenderer(
 }
 
 /**
- * Resolves `(type, subType)` to a [Style]. Two implementations:
+ * Resolves `(type, subType)` to a [Style].
  *
- * - [internalDefaults] — uses [InternalStyles] hardcoded fallbacks. The
- *   bootstrap path used until the TYP body parser (Phase C.7) lands.
- * - [withTyp] — TYP-first lookup with InternalStyles fallback (Phase C.7).
+ * - [internalDefaults] — uses [InternalStyles] hardcoded fallbacks.
+ * - [typAware] — TYP-first lookup; falls back to `InternalStyles` for
+ *   `(type, subType)` pairs the TYP doesn't define. Use this when an IMG
+ *   has a TYP sub-file (Phase C.7).
  */
 fun interface StyleResolver {
 
@@ -312,6 +313,46 @@ fun interface StyleResolver {
          */
         fun internalDefaults(): StyleResolver {
             return StyleResolver { obj -> InternalStyles.resolve(obj) }
+        }
+
+        /**
+         * Returns a resolver that consults the supplied [TypStyleTable]
+         * first and falls back to [InternalStyles] for `(type, subType)`
+         * pairs the TYP doesn't carry. Default widths / labels / borders
+         * from `InternalStyles` are preserved when the TYP doesn't
+         * override them.
+         */
+        fun typAware(table: com.asamm.garminimg.parser.TypStyleTable): StyleResolver {
+            return StyleResolver { obj ->
+                when (obj) {
+                    is MapObject.Point -> InternalStyles.resolve(obj)
+                    is MapObject.PolyShape -> if (obj.closed) {
+                        val typ = table.lookupPolygon(obj.type, obj.subType)
+                        if (typ != null) {
+                            val internal = InternalStyles.resolvePolygon(obj.type)
+                            internal.copy(
+                                fillColor = typ.fillColor,
+                                strokeColor = typ.strokeColor ?: internal.strokeColor,
+                            )
+                        } else {
+                            InternalStyles.resolve(obj)
+                        }
+                    } else {
+                        val typ = table.lookupLine(obj.type, obj.subType)
+                        if (typ != null) {
+                            val internal = InternalStyles.resolveLine(obj.type)
+                            internal.copy(
+                                strokeColor = typ.strokeColor,
+                                borderColor = typ.borderColor ?: internal.borderColor,
+                                strokeWidth = typ.strokeWidthPx,
+                                borderWidth = typ.totalWidthPx,
+                            )
+                        } else {
+                            InternalStyles.resolve(obj)
+                        }
+                    }
+                }
+            }
         }
     }
 }

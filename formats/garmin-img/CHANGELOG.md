@@ -262,6 +262,43 @@ rework):
 - Android Canvas RenderTarget impl (Locus consumption side).
 - Curve-following text along polylines (currently labels at midpoint).
 
+### Added — Phase C.7 v0 (TYP body parser)
+
+The TYP styling framework is in place — TYP-styled polygons and lines
+now use the IMG's own colour palette instead of our hardcoded fallback.
+
+- `com.asamm.garminimg.parser.TypBodyParser` walks the polygon and
+  line indexes (header descriptors at offsets 0x33 / 0x3D / 0x47),
+  parses each record's scheme byte + BGR colour triples + bitmap-skip /
+  label-skip / extended-font-skip, and produces a `TypStyleTable` of
+  `(type, subType) → (fillColor, strokeColor, widths)`.
+- `TypHeader` extended with `pointIndex`, `lineIndex`, `polygonIndex`
+  descriptors (offset / itemSize / size).
+- `StyleResolver.typAware(table)` — looks up `(type, subType)` in the
+  TYP first, falls back to `InternalStyles` for unmatched pairs;
+  preserves InternalStyles defaults (border, label colour) where the
+  TYP doesn't override.
+- `ImgFile.typStyles` auto-populated when an IMG has a TYP sub-file.
+- Viewer + golden test now use the TYP-aware resolver when available.
+- Handles mkgmap's "simple 2-colour polygon" special case where the
+  scheme byte is patched to set all transparency flags but only one
+  BGR triple is actually written — naive reading drifts the byte
+  cursor by 3.
+
+Format reference: mkgmap source `uk.me.parabola.imgfmt.app.typ.*`
+(read-only — no code copied; LGPL/GPL hygiene per CLAUDE.md).
+
+**Known C.7 follow-ups (next iteration with the viewer):**
+- Line styling looks regressed vs InternalStyles in the Monaco render
+  — likely a byte-order or width-units issue inside line record
+  parsing. Visible-but-fixable when a side-by-side reference (Locus /
+  QMapShack) is at hand.
+- Point / icon body parsing (icons skipped; points still use
+  InternalStyles).
+- DRAWORDER / shape-stacking section for polygon z-ordering.
+- TYP labels (multilingual strings) — skipped past correctly but not
+  surfaced.
+
 ### Improved — Phase F polish + InternalStyles ocean coverage
 
 - `InternalStyles.resolvePolygon` now covers more water type codes
