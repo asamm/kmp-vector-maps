@@ -117,10 +117,17 @@ object RgnSubFile {
         reader: ImgRandomAccessReader,
         header: RgnHeader,
         subDivision: SubDivision,
+        levels: TreLevels? = null,
         lblReader: ImgRandomAccessReader? = null,
         lblHeader: LblHeader? = null,
         objectKindFilter: Int = ObjectKind.ALL,
     ): Sequence<MapObject> {
+        // Bits-per-coord for this sub-division's level controls how the
+        // record-encoded deltas scale into absolute Garmin coords. When
+        // [levels] is null (e.g. minimal parser tests) we fall back to 24,
+        // which is the no-shift case — fine for unit tests, wrong for
+        // rendering.
+        val bitsPerCoord = levels?.bitsPerCoordOf(subDivision.level) ?: 24
         return sequence {
             val segments = computeSegments(reader, header, subDivision) ?: return@sequence
             // Emission order matches Java's readMapForDrawing background-first
@@ -128,37 +135,37 @@ object RgnSubFile {
             // points in any order.
             segments[SEG_POLYGON]?.let { seg ->
                 if (objectKindFilter and ObjectKind.POLYGON != 0) {
-                    yieldAll(parsePoly(reader, subDivision, seg, line = false, lblReader, lblHeader))
+                    yieldAll(parsePoly(reader, subDivision, seg, line = false, bitsPerCoord, lblReader, lblHeader))
                 }
             }
             segments[SEG_EXT_POLYGON]?.let { seg ->
                 if (objectKindFilter and ObjectKind.EXTENDED_POLYGON != 0) {
-                    yieldAll(parseExtPoly(reader, subDivision, seg, line = false, lblReader, lblHeader))
+                    yieldAll(parseExtPoly(reader, subDivision, seg, line = false, bitsPerCoord, lblReader, lblHeader))
                 }
             }
             segments[SEG_POLYLINE]?.let { seg ->
                 if (objectKindFilter and ObjectKind.POLYLINE != 0) {
-                    yieldAll(parsePoly(reader, subDivision, seg, line = true, lblReader, lblHeader))
+                    yieldAll(parsePoly(reader, subDivision, seg, line = true, bitsPerCoord, lblReader, lblHeader))
                 }
             }
             segments[SEG_EXT_POLYLINE]?.let { seg ->
                 if (objectKindFilter and ObjectKind.EXTENDED_POLYLINE != 0) {
-                    yieldAll(parseExtPoly(reader, subDivision, seg, line = true, lblReader, lblHeader))
+                    yieldAll(parseExtPoly(reader, subDivision, seg, line = true, bitsPerCoord, lblReader, lblHeader))
                 }
             }
             segments[SEG_POINT]?.let { seg ->
                 if (objectKindFilter and ObjectKind.POINT != 0) {
-                    yieldAll(parsePoints(reader, subDivision, seg, indexed = false, lblReader, lblHeader))
+                    yieldAll(parsePoints(reader, subDivision, seg, indexed = false, bitsPerCoord, lblReader, lblHeader))
                 }
             }
             segments[SEG_IPOINT]?.let { seg ->
                 if (objectKindFilter and ObjectKind.INDEXED_POINT != 0) {
-                    yieldAll(parsePoints(reader, subDivision, seg, indexed = true, lblReader, lblHeader))
+                    yieldAll(parsePoints(reader, subDivision, seg, indexed = true, bitsPerCoord, lblReader, lblHeader))
                 }
             }
             segments[SEG_EXT_POINT]?.let { seg ->
                 if (objectKindFilter and ObjectKind.EXTENDED_POINT != 0) {
-                    yieldAll(parseExtPoints(reader, subDivision, seg, lblReader, lblHeader))
+                    yieldAll(parseExtPoints(reader, subDivision, seg, bitsPerCoord, lblReader, lblHeader))
                 }
             }
         }
@@ -315,6 +322,7 @@ object RgnSubFile {
         subDivision: SubDivision,
         segment: Segment,
         indexed: Boolean,
+        bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
     ): Sequence<MapObject.Point> = sequence {
@@ -333,8 +341,8 @@ object RgnSubFile {
                 MapObject.Point(
                     type = type,
                     subType = subType,
-                    longitude = scaleAndAdd(subDivision.longitudeCenter, longitudeDelta, subDivision, additionalAccuracy = 0),
-                    latitude = scaleAndAdd(subDivision.latitudeCenter, latitudeDelta, subDivision, additionalAccuracy = 0),
+                    longitude = scaleAndAdd(subDivision.longitudeCenter, longitudeDelta, bitsPerCoord, additionalAccuracy = 0),
+                    latitude = scaleAndAdd(subDivision.latitudeCenter, latitudeDelta, bitsPerCoord, additionalAccuracy = 0),
                     label = label,
                     indexed = indexed,
                     isPoi = isPoi,
@@ -347,6 +355,7 @@ object RgnSubFile {
         reader: ImgRandomAccessReader,
         subDivision: SubDivision,
         segment: Segment,
+        bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
     ): Sequence<MapObject.Point> = sequence {
@@ -367,8 +376,8 @@ object RgnSubFile {
                 MapObject.Point(
                     type = fullType ushr 8,
                     subType = fullType and 0xFF,
-                    longitude = scaleAndAdd(subDivision.longitudeCenter, longitudeDelta, subDivision, additionalAccuracy = 0),
-                    latitude = scaleAndAdd(subDivision.latitudeCenter, latitudeDelta, subDivision, additionalAccuracy = 0),
+                    longitude = scaleAndAdd(subDivision.longitudeCenter, longitudeDelta, bitsPerCoord, additionalAccuracy = 0),
+                    latitude = scaleAndAdd(subDivision.latitudeCenter, latitudeDelta, bitsPerCoord, additionalAccuracy = 0),
                     label = label,
                     indexed = false,
                 ),
@@ -385,29 +394,21 @@ object RgnSubFile {
         subDivision: SubDivision,
         segment: Segment,
         line: Boolean,
+        bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
     ): Sequence<MapObject.PolyShape> = sequence {
         reader.seek(segment.start)
         while (reader.position() < segment.end) {
-            // The Java predecessor wraps the equivalent extPoly loop in a
-            // try/catch — the bit-stream's recursive readCoordOffset can
-            // over-run beyond the record's declared length. Bail the record
-            // and continue with the next one.
             val shape = try {
-                parseOnePoly(reader, subDivision, line, lblReader, lblHeader)
+                parseOnePoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader)
             } catch (_: Exception) {
                 null
             }
             if (shape != null) {
                 yield(shape)
-            } else {
-                // Try to recover by skipping forward — but we can't precisely
-                // know where the next record starts without re-parsing. The
-                // segment-end check on the next iteration will exit cleanly.
-                if (reader.position() >= segment.end) {
-                    break
-                }
+            } else if (reader.position() >= segment.end) {
+                break
             }
         }
     }
@@ -416,6 +417,7 @@ object RgnSubFile {
         reader: ImgRandomAccessReader,
         subDivision: SubDivision,
         line: Boolean,
+        bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
     ): MapObject.PolyShape {
@@ -446,6 +448,7 @@ object RgnSubFile {
             subDivision = subDivision,
             longitudeDelta = longitudeDelta,
             latitudeDelta = latitudeDelta,
+            bitsPerCoord = bitsPerCoord,
             extraBit = extraBit,
             fixedExtraBitLong = if (extraBit) 1 else 0,
             fixedExtraBitLat = 0,
@@ -469,13 +472,14 @@ object RgnSubFile {
         subDivision: SubDivision,
         segment: Segment,
         line: Boolean,
+        bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
     ): Sequence<MapObject.PolyShape> = sequence {
         reader.seek(segment.start)
         while (reader.position() < segment.end) {
             val shape = try {
-                parseOneExtPoly(reader, subDivision, line, lblReader, lblHeader)
+                parseOneExtPoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader)
             } catch (_: Exception) {
                 null
             }
@@ -491,6 +495,7 @@ object RgnSubFile {
         reader: ImgRandomAccessReader,
         subDivision: SubDivision,
         line: Boolean,
+        bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
     ): MapObject.PolyShape {
@@ -519,6 +524,7 @@ object RgnSubFile {
                 subDivision = subDivision,
                 longitudeDelta = longitudeDelta,
                 latitudeDelta = latitudeDelta,
+                bitsPerCoord = bitsPerCoord,
                 extraBit = false,
                 fixedExtraBitLong = 0,
                 fixedExtraBitLat = 0,
@@ -558,6 +564,7 @@ object RgnSubFile {
         subDivision: SubDivision,
         longitudeDelta: Int,
         latitudeDelta: Int,
+        bitsPerCoord: Int,
         @Suppress("UNUSED_PARAMETER") extraBit: Boolean,
         fixedExtraBitLong: Int,
         fixedExtraBitLat: Int,
@@ -579,8 +586,8 @@ object RgnSubFile {
         val longs = ArrayList<Int>(8)
         val lats = ArrayList<Int>(8)
         // First point uses the (longitudeDelta, latitudeDelta) directly.
-        longs.add(scaleAndAdd(subDivision.longitudeCenter, curLong, subDivision, additionalAccuracy = 0))
-        lats.add(scaleAndAdd(subDivision.latitudeCenter, curLat, subDivision, additionalAccuracy = 0))
+        longs.add(scaleAndAdd(subDivision.longitudeCenter, curLong, bitsPerCoord, additionalAccuracy = 0))
+        lats.add(scaleAndAdd(subDivision.latitudeCenter, curLat, bitsPerCoord, additionalAccuracy = 0))
 
         // Increase precision if the extra-bit flag is on.
         curLong = curLong shl longExtraBit
@@ -591,8 +598,8 @@ object RgnSubFile {
             val latOffset = bsr.readCoordOffset(latBits, latSign, latExtraBit)
             curLong += longOffset
             curLat += latOffset
-            longs.add(scaleAndAdd(subDivision.longitudeCenter, curLong, subDivision, longExtraBit))
-            lats.add(scaleAndAdd(subDivision.latitudeCenter, curLat, subDivision, latExtraBit))
+            longs.add(scaleAndAdd(subDivision.longitudeCenter, curLong, bitsPerCoord, longExtraBit))
+            lats.add(scaleAndAdd(subDivision.latitudeCenter, curLat, bitsPerCoord, latExtraBit))
         }
         bsr.finish()
 
@@ -628,24 +635,24 @@ object RgnSubFile {
     }
 
     /**
-     * Scales a coordinate delta `value` by `1 shl (24 - bitsPerCoord(level) -
-     * additionalAccuracy)` and adds it to `centre`. This is the Java
-     * `SubDivision.convertMapUnits` inlined: we don't have a TreLevels handle
-     * here, so we approximate by using the Java predecessor's static behaviour
-     * of `bitsPerCoord = 24` (the [TreLevels] default) — i.e. shift by 0,
-     * meaning value is added as-is. The renderer pipeline (Phase C) will pass
-     * the proper [TreLevels] so we can do correct scaling.
+     * Scales a coordinate delta `value` by `1 shl (24 - bitsPerCoord -
+     * additionalAccuracy)` and adds it to `centre`. Mirrors the Java
+     * `SubDivision.convertMapUnits` formula: smaller `bitsPerCoord` (coarser
+     * zoom levels) means deltas represent larger jumps in absolute Garmin
+     * coords, so they shift up by more bits.
      *
-     * For Phase B parser correctness this is fine: the unit tests check
-     * relative deltas, not absolute scaling.
+     * Falls back to "no shift" when `bitsPerCoord >= 24` — used by the parser
+     * unit tests that don't have a real [TreLevels] handle.
      */
     private fun scaleAndAdd(
         centre: Int,
         value: Int,
-        @Suppress("UNUSED_PARAMETER") subDivision: SubDivision,
-        @Suppress("UNUSED_PARAMETER") additionalAccuracy: Int,
+        bitsPerCoord: Int,
+        additionalAccuracy: Int,
     ): Int {
-        return centre + value
+        val shift = 24 - bitsPerCoord - additionalAccuracy
+        val scaled = if (shift >= 0) value shl shift else value shr -shift
+        return centre + scaled
     }
 
     private fun readInt16(reader: ImgRandomAccessReader): Int {

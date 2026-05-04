@@ -215,6 +215,54 @@ publishing.
   polylines, and polygons. Also verifies `objectKindFilter` correctly
   restricts the output.
 
+### Added — Phase C (rendering pipeline)
+
+End-to-end renderer producing a recognisable PNG for the Monaco fixture
+under 200 LOC of test code.
+
+- `com.asamm.garminimg.style.Style` — sealed Point/Line/Polygon style
+  records. Each carries a draw priority for label de-cluttering.
+- `com.asamm.garminimg.style.Color` — `@JvmInline` value class wrapping
+  ARGB; `Bitmap` data class for icons / fill patterns.
+- `com.asamm.garminimg.style.InternalStyles` — hardcoded fallback styles
+  covering common type ranges (motorway / principal / arterial / local
+  roads, railway, river, contour, water / forest / built-up areas,
+  buildings, city / POI labels). Replaces a small subset of the Java
+  predecessor's `StyleInternal.java`.
+- `com.asamm.garminimg.render.RenderTarget` interface with
+  beginFrame / drawPolygon / drawPolyline / drawPoint / drawText /
+  drawBitmap / endFrame. Top-left origin, screen-pixel coords.
+- `com.asamm.garminimg.render.AwtRenderTarget` (jvmMain) — `Graphics2D`
+  + `BufferedImage` impl, with PNG writer.
+- `com.asamm.garminimg.render.Projection` — Web Mercator (with
+  near-pole clamping); equirectangular fallback for tests.
+- `com.asamm.garminimg.render.Viewport` — screen-pixel size + Garmin-
+  coord bounding box, `Viewport.ofTreBounds` convenience.
+- `com.asamm.garminimg.render.ImgRenderer` — walks `ImgFile.readMapInBounds()`,
+  resolves styles via `StyleResolver`, dispatches to a `RenderTarget`,
+  collects label candidates, then emits non-overlapping labels in
+  priority order in a second pass.
+- `com.asamm.garminimg.render.LabelLayout` — bbox-collision label
+  de-clutterer.
+- `com.asamm.garminimg.render.StyleResolver` `fun interface` —
+  pluggable; `internalDefaults()` is used for now, a TYP-aware
+  variant lands in a follow-up session.
+- `lib/src/jvmTest/resources/fixtures/golden/otm-monaco-tight.png` —
+  golden reference rendered without anti-aliasing for byte-deterministic
+  comparison across JDKs.
+- `MonacoRenderTest.tightMonacoMatchesGoldenPng` — golden-PNG diff
+  regression test (pixel fraction tolerance 1%, per-channel tolerance 8).
+
+Deferred to a future session (architecture supports them without
+rework):
+- TYP body parser (POINTS / LINES / POLYGONS / ICONS / DRAWORDER) +
+  TYP-aware StyleResolver. The TYP header is parsed; the body uses a
+  variable-record format with bitmap-encoded patterns and per-type
+  multilingual labels — ~1 KLOC of careful porting work.
+- Android Canvas RenderTarget impl (Locus consumption side).
+- Curve-following text along polylines (currently labels at midpoint).
+- Polygon-area-weighted centroid for area labels.
+
 ## Phase B summary
 
 Phase B (parser port) is **complete**. The full parsing chain works

@@ -319,6 +319,7 @@ class OtmMonacoFixtureTest {
                 reader = rgnStream,
                 header = rgnHeader,
                 subDivision = subDivision,
+                levels = levels,
                 lblReader = lblStream,
                 lblHeader = lblHeader,
             ).toList()
