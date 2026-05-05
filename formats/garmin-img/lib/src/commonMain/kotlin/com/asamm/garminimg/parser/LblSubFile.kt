@@ -112,6 +112,13 @@ object LblSubFile {
     /**
      * Reads a null-terminated byte sequence and decodes via the LBL's codepage.
      * The Garmin "8-bit" and "10-bit" codings share this byte-level format.
+     *
+     * Bytes 0x01..0x06 at the start are highway-shield prefix codes (mkgmap
+     * `Format6Encoder` uses 0x29 + c for the same purpose in 6-bit). They
+     * stand for shield icons that go in front of route numbers (Hwy, I-,
+     * Rt, etc.) — they are not text. We drop them so a label like
+     * `de la République` reads as `de la République` instead of
+     * dropping the whole label because its first char isn't a letter.
      */
     private fun readLabelByteEncoded(
         reader: ImgRandomAccessReader,
@@ -120,11 +127,19 @@ object LblSubFile {
     ): String {
         reader.seek(offset)
         val out = ArrayList<Byte>()
+        var stripping = true
         while (true) {
             val b = reader.readByte()
             if (b == 0) {
                 break
             }
+            // Skip leading shield bytes; keep everything once we've seen
+            // any non-shield byte so embedded shields (rare but valid)
+            // survive.
+            if (stripping && b in 0x01..0x06) {
+                continue
+            }
+            stripping = false
             out.add(b.toByte())
         }
         val charset = LabelCharset.of(header.codepage)

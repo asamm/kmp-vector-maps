@@ -106,9 +106,9 @@ class MonacoRenderTest {
         val auditFile = File(outDir, "nice-cp-labels.txt")
         auditFile.bufferedWriter().use { w ->
             w.write("=== KEPT (${kept.size}) ===\n")
-            kept.sorted().forEach { w.write("+ $it\n") }
+            kept.sorted().forEach { w.write("+ ${dump(it)}\n") }
             w.write("=== DROPPED (${dropped.size}) ===\n")
-            dropped.sorted().forEach { w.write("- $it\n") }
+            dropped.sorted().forEach { w.write("- ${dump(it)}\n") }
         }
         println("[label audit] wrote ${auditFile.absolutePath}")
 
@@ -178,6 +178,26 @@ class MonacoRenderTest {
             error("Render diverged from golden: $diff. Candidate written to $candidate.")
         }
         println("[render] golden diff: $diff")
+    }
+
+    /**
+     * Renders the label as printable text and an explicit hex view for
+     * each non-printable / non-ASCII byte so the audit file shows what
+     * the LBL decoder actually produced.
+     */
+    private fun dump(label: String): String {
+        val printable = StringBuilder(label.length + 16)
+        val raw = StringBuilder()
+        for (c in label) {
+            val code = c.code
+            if (code in 0x20..0x7E) {
+                printable.append(c)
+            } else {
+                printable.append('?')
+            }
+            raw.append(" %04X".format(code))
+        }
+        return "[$label] →$raw"
     }
 
     private fun openMonaco(): ImgFile {
