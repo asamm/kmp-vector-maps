@@ -202,6 +202,7 @@ object InternalStyles {
         strokeWidth = 1.5f,
         borderWidth = 0f,
         dashPattern = floatArrayOf(8f, 4f),
+        labelColor = Color.rgb(0x33, 0x33, 0x33),
     )
 
     private val RIVER = Style.LineStyle(
@@ -210,6 +211,7 @@ object InternalStyles {
         borderColor = null,
         strokeWidth = 1.5f,
         borderWidth = 0f,
+        labelColor = Color.rgb(0x20, 0x60, 0xA0),
     )
 
     private val CONTOUR = Style.LineStyle(

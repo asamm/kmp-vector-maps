@@ -524,16 +524,31 @@ class ImgRenderer(
             // a digit (`3 Brasseurs`, `5e Arrondissement`), or an
             // opening parenthesis (`(La Poste)`). Lowercase-letter
             // leading strings (`te/`, `ances`, `té Marseillaise`,
-            // `ssion autos`, `gionale des Transports`, `de Castagnin`,
-            // `d'Or`) are almost always partial fragments from
-            // mkgmap-truncated OSM labels and reading them back-to-back
-            // with real labels confuses the map.
+            // `ssion autos`, `de Castagnin`, `d'Or`) are partial
+            // fragments from mkgmap-truncated OSM labels and reading
+            // them back-to-back with real labels confuses the map.
             val first = trimmed.first()
             val acceptable = first.isUpperCase() ||
                 first.isDigit() ||
                 first == '(' ||
                 first == '\''
             if (!acceptable) {
+                return false
+            }
+            // Bus-stop / transit labels: a leading list of route codes
+            // like `9b,35,57,63 Glenn Sappia` or `(18,22)- Villarem` or
+            // `5957)+ Avenue Thérèse`. They contain commas, `)`, or
+            // `;` immediately after digit/paren prefix. Drop them.
+            if ((first.isDigit() || first == '(') &&
+                BUS_LIST_REGEX.containsMatchIn(trimmed)
+            ) {
+                return false
+            }
+            // OSM opening-hours markers that escaped the time-range /
+            // day-prefix detectors. `PH` is "public holiday", `off` is
+            // closed. Both appear as standalone tokens in OSM
+            // opening_hours strings.
+            if (PH_OFF_REGEX.containsMatchIn(trimmed)) {
                 return false
             }
             // Anywhere in string: URL fragments. Catches both full URLs
@@ -597,6 +612,30 @@ class ImgRenderer(
             "(?i)\\b(Mo|Tu|We|Th|Fr|Sa|Su|Mon|Tue|Wed|Thu|Fri|Sat|Sun)\\s*[-,]\\s*" +
                 "(Mo|Tu|We|Th|Fr|Sa|Su|Mon|Tue|Wed|Thu|Fri|Sat|Sun)\\b",
         )
+
+        /**
+         * Bus-stop "route list" prefix — mkgmap sometimes inlines OSM
+         * `route_ref` tags into stop names. Catches:
+         * - `(18,22)- Villarem`, `(F,5,35,35)- Les Bassins` — paren
+         *   group of comma-separated codes followed by `-` or `+`.
+         * - `(37)- Palais Prince Charles` — single-code paren group.
+         * - `9b,35,57,63 Glenn Sappia` — leading list of codes.
+         * - `5957)+ Avenue Thérèse`, `5D)- Villa Sainte-Anne` — leading
+         *   code closed with `)`.
+         * - `15-nice` — `digits-name` ID-style label.
+         */
+        private val BUS_LIST_REGEX: Regex = Regex(
+            "^\\(.*?\\)\\s*[-+*]|" +
+                "^\\d+[A-Za-z]?\\s*[,;].*?\\d|" +
+                "^\\w+\\)\\s*[-+*]|" +
+                "^\\d+-\\w",
+        )
+
+        /**
+         * OSM opening-hours leftovers: `PH off`, `; off`, ` off ` —
+         * standalone `off` tokens used to indicate closed hours.
+         */
+        private val PH_OFF_REGEX: Regex = Regex("(?i)\\bPH\\s+(off|on)\\b|\\b\\d+\\s+off\\b")
 
         private const val LN2: Double = 0.6931471805599453
         private const val DEFAULT_POINT_LABEL_OFFSET: Float = 12f
