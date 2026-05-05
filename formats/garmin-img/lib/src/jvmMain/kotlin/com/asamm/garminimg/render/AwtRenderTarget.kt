@@ -45,6 +45,16 @@ class AwtRenderTarget(
      * humans; tests that need pixel-stable output can pass false.
      */
     private val antiAliased: Boolean = true,
+    /**
+     * Multiplier applied to TYP-driven pixel sizes (line/polygon pattern
+     * tile dimensions, point-icon dimensions, font sizes, stroke widths).
+     * TYP bitmaps were authored against handheld-DPI screens (~3× density);
+     * rendering them 1:1 on a desktop monitor (~1× density) is too thin
+     * for crossties and POI icons to read. Defaults to 1.5× — comparable
+     * to mid-density Android — and is configurable per-target so tests
+     * can stay byte-stable.
+     */
+    override val renderScale: Float = 1.5f,
 ) : RenderTarget {
 
     /**
@@ -82,23 +92,30 @@ class AwtRenderTarget(
             return
         }
         val path = buildPath(xs, ys, closed = true)
-        val pattern = style.pattern
-        if (pattern != null) {
-            // Tile the TYP 32×32 pattern across the polygon. We anchor the
-            // tile at (0,0) in the target — adjacent polygons of the same
-            // type then line up on a shared tile grid (matching mkgmap /
-            // QMapShack behaviour, where the pattern is screen-aligned).
-            val tile = patternCache.getOrPut(pattern) { pattern.toBufferedImage() }
-            val savedPaint = g.paint
-            g.paint = TexturePaint(
-                tile,
-                Rectangle2D.Float(0f, 0f, tile.width.toFloat(), tile.height.toFloat()),
-            )
-            g.fill(path)
-            g.paint = savedPaint
-        } else {
+        // Always lay down a solid fill first. TYP polygons frequently
+        // pair a colour with a sparse pattern (parks: light-green ground
+        // + green-dot stipple, marsh: blue ground + dark stipple). The
+        // TYP author's intent is "ground colour visible where the pattern
+        // is transparent" — drawing only the pattern would let the page
+        // background bleed through, which is exactly what made parks
+        // disappear in earlier renders.
+        if (style.fillColor.alpha != 0) {
             g.color = style.fillColor.toAwt()
             g.fill(path)
+        }
+        val pattern = style.pattern
+        if (pattern != null) {
+            // Tile the TYP 32×32 pattern across the polygon, scaled by
+            // [renderScale] so handheld-DPI bitmaps don't read at ant-size
+            // on desktop. Anchor the tile at (0,0) in the target so
+            // adjacent polygons of the same type share a tile grid.
+            val tile = patternCache.getOrPut(pattern) { pattern.toBufferedImage() }
+            val tileW = tile.width * renderScale
+            val tileH = tile.height * renderScale
+            val savedPaint = g.paint
+            g.paint = TexturePaint(tile, Rectangle2D.Float(0f, 0f, tileW, tileH))
+            g.fill(path)
+            g.paint = savedPaint
         }
         // Suppress the polygon outline when a TYP pattern is active — the
         // pattern itself separates adjacent areas; an extra stroke just
@@ -106,7 +123,7 @@ class AwtRenderTarget(
         val strokeColor = style.strokeColor
         if (strokeColor != null && pattern == null) {
             g.color = strokeColor.toAwt()
-            g.stroke = BasicStroke(style.strokeWidth)
+            g.stroke = BasicStroke(style.strokeWidth * renderScale)
             g.draw(path)
         }
     }
@@ -132,6 +149,7 @@ class AwtRenderTarget(
          * joints while keeping moderate-angle joints sharp.
          */
         private const val STROKE_MITER_LIMIT: Float = 4f
+
     }
 
     override fun drawPolylineBorder(xs: FloatArray, ys: FloatArray, style: Style.LineStyle) {
@@ -145,7 +163,7 @@ class AwtRenderTarget(
         val path = buildPath(xs, ys, closed = false)
         g.color = borderColor.toAwt()
         g.stroke = BasicStroke(
-            style.borderWidth,
+            style.borderWidth * renderScale,
             BasicStroke.CAP_ROUND,
             BasicStroke.JOIN_MITER,
             STROKE_MITER_LIMIT,
@@ -159,24 +177,43 @@ class AwtRenderTarget(
         }
         val pattern = style.pattern
         if (pattern != null) {
-            drawPatternedPolyline(xs, ys, pattern)
+            if (pattern.height == 1) {
+                // Single-row TYP patterns are dash patterns by design:
+                // 32×1 alternating "set / clear" pixels → a dashed line.
+                // Rendering via TexturePaint per-segment gives mushy
+                // anti-aliased blurs and corner artefacts; converting to
+                // a BasicStroke with the equivalent dash array uses
+                // AWT's path stroker and matches the look reference
+                // renderers (mkgmap, GPSMapEdit, old Locus) produce.
+                drawDashedFromPattern(xs, ys, pattern, style)
+                return
+            }
+            // Hairline multi-row patterned lines should stay hairline.
+            // TYP authors choose 1 px deliberately; renderScale would
+            // otherwise fatten siding rails to fight the main network.
+            val scale = if (style.strokeWidth <= 1f) 1f else renderScale
+            drawPatternedPolyline(xs, ys, pattern, scale)
             return
         }
         val path = buildPath(xs, ys, closed = false)
         g.color = style.strokeColor.toAwt()
         val dash = style.dashPattern
+        val w = style.strokeWidth * renderScale
         g.stroke = if (dash != null && dash.isNotEmpty()) {
+            // Dash lengths are in stroke-width units; scale them too so
+            // dashes stay proportional to the now-thicker line.
+            val scaledDash = FloatArray(dash.size) { dash[it] * renderScale }
             BasicStroke(
-                style.strokeWidth,
+                w,
                 BasicStroke.CAP_BUTT,
                 BasicStroke.JOIN_MITER,
                 STROKE_MITER_LIMIT,
-                dash,
+                scaledDash,
                 0f,
             )
         } else {
             BasicStroke(
-                style.strokeWidth,
+                w,
                 BasicStroke.CAP_ROUND,
                 BasicStroke.JOIN_MITER,
                 STROKE_MITER_LIMIT,
@@ -202,15 +239,107 @@ class AwtRenderTarget(
      * curved roads, contours, railways) this is invisible at render
      * resolution.
      */
+    /**
+     * Renders a polyline whose TYP "pattern" is a single-row dash bitmap.
+     * Walks the bitmap once to extract run lengths of opaque vs
+     * transparent pixels, then strokes the polyline with a [BasicStroke]
+     * dash array — fixed line width, sharp corners, anti-aliased only at
+     * the line edge (not along its body). Dominant colour comes from the
+     * first opaque pixel; if the bitmap is all-transparent the call is a
+     * no-op.
+     */
+    private fun drawDashedFromPattern(
+        xs: FloatArray,
+        ys: FloatArray,
+        pattern: Bitmap,
+        style: Style.LineStyle,
+    ) {
+        val w = pattern.width
+        val rgba = pattern.rgba
+        // Extract dash runs (alternating "on" / "off" lengths). AWT
+        // BasicStroke expects an even-length array; if the row starts
+        // transparent we shift so it begins with an "on" run.
+        val runs = ArrayList<Int>(8)
+        var dashColor = -1
+        var i = 0
+        var firstOnIndex = -1
+        while (i < w) {
+            val opaque = (rgba[i * 4 + 3].toInt() and 0xFF) != 0
+            var j = i
+            while (j < w) {
+                val o = (rgba[j * 4 + 3].toInt() and 0xFF) != 0
+                if (o != opaque) break
+                j++
+            }
+            val runLen = j - i
+            if (opaque && dashColor == -1) {
+                // First opaque pixel — capture its colour as the line colour.
+                val r = rgba[i * 4].toInt() and 0xFF
+                val g = rgba[i * 4 + 1].toInt() and 0xFF
+                val b = rgba[i * 4 + 2].toInt() and 0xFF
+                dashColor = (0xFF shl 24) or (r shl 16) or (g shl 8) or b
+                firstOnIndex = runs.size
+            }
+            runs.add(runLen)
+            i = j
+        }
+        if (dashColor == -1 || runs.isEmpty()) {
+            // Fully transparent pattern — nothing to draw. This is a
+            // valid TYP edge case (an "invisible" line type).
+            return
+        }
+        // Re-order so the array begins with an "on" run.
+        if (firstOnIndex > 0) {
+            val rotated = ArrayList<Int>(runs.size)
+            rotated.addAll(runs.subList(firstOnIndex, runs.size))
+            rotated.addAll(runs.subList(0, firstOnIndex))
+            runs.clear()
+            runs.addAll(rotated)
+        }
+        // BasicStroke needs an even-length dash; fold a trailing "on"
+        // run into the leading one so the alternation stays consistent.
+        if (runs.size % 2 == 1) {
+            runs[0] = runs[0] + runs.removeAt(runs.size - 1)
+        }
+        val dashArray = FloatArray(runs.size) { runs[it] * renderScale }
+        val path = buildPath(xs, ys, closed = false)
+        g.color = AwtColor(dashColor, true)
+        g.stroke = BasicStroke(
+            (style.strokeWidth * renderScale).coerceAtLeast(1f),
+            BasicStroke.CAP_BUTT,
+            BasicStroke.JOIN_MITER,
+            STROKE_MITER_LIMIT,
+            dashArray,
+            0f,
+        )
+        g.draw(path)
+    }
+
     private fun drawPatternedPolyline(
         xs: FloatArray,
         ys: FloatArray,
         pattern: Bitmap,
+        scale: Float = renderScale,
     ) {
         val tile = patternCache.getOrPut(pattern) { pattern.toBufferedImage() }
-        val tileW = tile.width.toFloat()
-        val tileH = tile.height.toFloat()
+        // TYP line bitmaps were authored at handheld DPI (~3×). At 1:1
+        // they read as ant-thin lines on a desktop display. Scaling the
+        // *paint rectangle* up makes the TexturePaint stretch the tile
+        // proportionally — railway crossties become readable, road dashes
+        // stay in proportion with the rest of the styling. Caller can
+        // override the scale (see [drawPolylineStroke]'s hairline guard)
+        // when fattening a particular line type would harm the rendering.
+        val tileW = tile.width * scale
+        val tileH = tile.height * scale
         var carriedOffset = 0f
+        // Half the tile height — used to pad the rectangle past each
+        // segment endpoint by a small overlap. Without overlap,
+        // consecutive segments leave a tiny triangular gap on the
+        // outside of every joint (and a missed wedge on the inside),
+        // which reads as the "imprecise" / "crossing" rail look at
+        // moderate zoom. Half-tile-height of overlap covers any
+        // realistic corner angle without bleeding into adjacent lines.
+        val joinOverlap = tileH / 2f
         for (i in 0 until xs.size - 1) {
             val x0 = xs[i].toDouble()
             val y0 = ys[i].toDouble()
@@ -233,7 +362,13 @@ class AwtRenderTarget(
             val savedPaint = g.paint
             g.transform = AffineTransform(savedTransform).also { it.concatenate(transform) }
             g.paint = TexturePaint(tile, Rectangle2D.Float(0f, 0f, tileW, tileH))
-            g.fill(Rectangle2D.Float(0f, -tileH / 2f, len + carriedOffset, tileH))
+            // Extend the rectangle a touch past the endpoint on the
+            // far side (and pull the start back by carriedOffset to
+            // continue the previous segment's pattern). The overlap
+            // closes seam pixels at convex corners.
+            val rectStart = -joinOverlap
+            val rectLen = len + carriedOffset + joinOverlap * 2f
+            g.fill(Rectangle2D.Float(rectStart, -tileH / 2f, rectLen, tileH))
             g.transform = savedTransform
             g.paint = savedPaint
 
@@ -264,7 +399,7 @@ class AwtRenderTarget(
         if (text.isEmpty()) {
             return
         }
-        g.font = Font(Font.SANS_SERIF, Font.PLAIN, fontSize.toInt().coerceAtLeast(8))
+        g.font = Font(Font.SANS_SERIF, Font.PLAIN, (fontSize * renderScale).toInt().coerceAtLeast(8))
         val fm = g.fontMetrics
         val w = fm.stringWidth(text)
         val ascent = fm.ascent
@@ -299,7 +434,7 @@ class AwtRenderTarget(
         if (text.isEmpty() || xs.size < 2) {
             return
         }
-        g.font = Font(Font.SANS_SERIF, Font.PLAIN, fontSize.toInt().coerceAtLeast(8))
+        g.font = Font(Font.SANS_SERIF, Font.PLAIN, (fontSize * renderScale).toInt().coerceAtLeast(8))
         val fm = g.fontMetrics
         val ascent = fm.ascent
         val descent = fm.descent
@@ -399,10 +534,14 @@ class AwtRenderTarget(
 
     override fun drawBitmap(x: Float, y: Float, bitmap: Bitmap) {
         val img = bitmap.toBufferedImage()
+        val w = (bitmap.width * renderScale).toInt().coerceAtLeast(bitmap.width)
+        val h = (bitmap.height * renderScale).toInt().coerceAtLeast(bitmap.height)
         g.drawImage(
             img,
-            (x - bitmap.width / 2f).toInt(),
-            (y - bitmap.height / 2f).toInt(),
+            (x - w / 2f).toInt(),
+            (y - h / 2f).toInt(),
+            w,
+            h,
             null,
         )
     }

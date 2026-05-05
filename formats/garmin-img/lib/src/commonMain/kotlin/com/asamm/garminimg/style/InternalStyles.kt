@@ -73,6 +73,14 @@ object InternalStyles {
         return when (type) {
             // Land / built-up
             in 0x01..0x03 -> AREA_BUILT_UP
+            // Buildings — mkgmap / OTM use 0x0A for the textbook
+            // "building" polygon, but also 0x10..0x14 for fine-grained
+            // urban-fabric & building-cluster polygons. Many TYPs ship
+            // those with near-background fills, so the InternalStyles
+            // fallback supplies a visible 1 px stroke even when the TYP
+            // explicitly says "no border" — without that the buildings
+            // disappear into the page colour.
+            0x0A, in 0x10..0x14 -> BUILDING
             // Parks / forest
             0x16 -> AREA_FOREST
             in 0x17..0x1A -> AREA_FOREST
@@ -86,8 +94,6 @@ object InternalStyles {
             0x28, 0x32 -> AREA_WATER
             in 0x3B..0x44 -> AREA_WATER
             in 0x4A..0x4C -> AREA_OCEAN_BACKGROUND
-            // Buildings
-            0x0A -> BUILDING
             else -> DEFAULT_POLYGON
         }
     }
@@ -265,10 +271,18 @@ object InternalStyles {
         labelColor = null,
     )
 
+    /**
+     * Used for individual buildings & small urban-fabric polygons. TYP
+     * styling typically supplies a light gray fill (#EBE9EB) — fine on
+     * its own, but invisible against our cream page background. The
+     * dark grey stroke supplied here (kicked in by [StyleResolver.typAware]
+     * when the TYP record has no border colour) outlines each shape so
+     * buildings remain visible.
+     */
     private val BUILDING = Style.PolygonStyle(
         drawPriority = 30,
         fillColor = Color.rgb(0xC0, 0xA0, 0x80),
-        strokeColor = Color.rgb(0x80, 0x60, 0x40),
-        strokeWidth = 0.5f,
+        strokeColor = Color.rgb(0x40, 0x40, 0x40),
+        strokeWidth = 1.5f,
     )
 }

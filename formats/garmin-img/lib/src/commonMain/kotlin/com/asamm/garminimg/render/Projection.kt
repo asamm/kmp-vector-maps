@@ -6,7 +6,7 @@
  */
 package com.asamm.garminimg.render
 
-import com.asamm.garminimg.coord.CoordUtils
+import com.asamm.garminimg.utils.coord.CoordUtils
 import kotlin.math.PI
 import kotlin.math.ln
 import kotlin.math.tan

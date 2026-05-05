@@ -7,8 +7,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.asamm.garminimg.ImgFile
-import com.asamm.garminimg.coord.CoordUtils
-import com.asamm.garminimg.io.ByteArrayImgRandomAccessReader
+import com.asamm.garminimg.utils.coord.CoordUtils
+import com.asamm.garminimg.utils.io.ByteArrayImgRandomAccessReader
 import com.asamm.garminimg.render.AwtRenderTarget
 import com.asamm.garminimg.render.ImgRenderer
 import com.asamm.garminimg.render.StyleResolver
@@ -31,6 +31,9 @@ import kotlin.math.tan
  */
 class ViewerState(
     initialAntiAliased: Boolean = true,
+    initialShowAreas: Boolean = true,
+    initialShowLines: Boolean = true,
+    initialShowPoints: Boolean = true,
 ) {
 
     /** Currently loaded IMG file path, or null if nothing is open. */
@@ -61,6 +64,43 @@ class ViewerState(
         }
 
     /**
+     * Per-kind layer toggles. Mirror QMS's "Areas / Lines / Points"
+     * checkbox row — invaluable when investigating a specific kind in
+     * isolation (e.g., why railway tracks look messy).
+     */
+    var showAreas: Boolean by mutableStateOf(initialShowAreas)
+    var showLines: Boolean by mutableStateOf(initialShowLines)
+    var showPoints: Boolean by mutableStateOf(initialShowPoints)
+
+    private fun persistLayers() {
+        ViewerPrefs.saveLayerToggles(showAreas, showLines, showPoints)
+    }
+
+    fun toggleAreas(value: Boolean) {
+        if (showAreas != value) {
+            showAreas = value
+            persistLayers()
+            rerender()
+        }
+    }
+
+    fun toggleLines(value: Boolean) {
+        if (showLines != value) {
+            showLines = value
+            persistLayers()
+            rerender()
+        }
+    }
+
+    fun togglePoints(value: Boolean) {
+        if (showPoints != value) {
+            showPoints = value
+            persistLayers()
+            rerender()
+        }
+    }
+
+    /**
      * Render dimensions in pixels — track the displayed map panel size so
      * mouse coords map 1:1 to image pixels (no letterboxing math). Updated
      * by [ViewerApp] via [setPanelSize] on resize.
@@ -85,9 +125,10 @@ class ViewerState(
 
     /**
      * Reads `file` into memory, parses every sub-file, fits the viewport
-     * to the TRE bbox, and renders the first frame.
+     * to the TRE bbox (or [restoredViewport] when supplied and matching
+     * this file path), and renders the first frame.
      */
-    fun loadAndRender(file: File) {
+    fun loadAndRender(file: File, restoredViewport: ViewerPrefs.RestoredViewport? = null) {
         loadedFile = file
         ViewerPrefs.saveLastFile(file.absolutePath)
         status = "Loading ${file.name}…"
@@ -96,7 +137,24 @@ class ViewerState(
             imgBytes = bytes
             val img = ImgFile.open { ByteArrayImgRandomAccessReader(bytes) }
             imgFile = img
-            viewport = fitToTreBounds(img)
+            val fitted = fitToTreBounds(img)
+            viewport = if (restoredViewport != null &&
+                restoredViewport.filePath == file.absolutePath
+            ) {
+                // Reuse the saved bbox; recompute the latitude span so the
+                // viewport's pixel aspect matches the current panel size
+                // (panel may have been resized between sessions).
+                Viewport(
+                    widthPx = fitted.widthPx,
+                    heightPx = fitted.heightPx,
+                    minLon = restoredViewport.minLon,
+                    maxLon = restoredViewport.maxLon,
+                    minLat = restoredViewport.minLat,
+                    maxLat = restoredViewport.maxLat,
+                )
+            } else {
+                fitted
+            }
             rerender()
         } catch (e: Exception) {
             imgFile = null
@@ -225,10 +283,30 @@ class ViewerState(
         val target = AwtRenderTarget(vp.widthPx, vp.heightPx, antiAliased = antiAliased)
         val resolver = img.typStyles?.let { StyleResolver.typAware(it) }
             ?: StyleResolver.internalDefaults()
+        var kindFilter = 0
+        if (showAreas) {
+            kindFilter = kindFilter or
+                com.asamm.garminimg.model.ObjectKind.POLYGON or
+                com.asamm.garminimg.model.ObjectKind.EXTENDED_POLYGON
+        }
+        if (showLines) {
+            kindFilter = kindFilter or
+                com.asamm.garminimg.model.ObjectKind.POLYLINE or
+                com.asamm.garminimg.model.ObjectKind.EXTENDED_POLYLINE
+        }
+        if (showPoints) {
+            kindFilter = kindFilter or
+                com.asamm.garminimg.model.ObjectKind.POINT or
+                com.asamm.garminimg.model.ObjectKind.INDEXED_POINT or
+                com.asamm.garminimg.model.ObjectKind.EXTENDED_POINT
+        }
+        val pickedLevel = com.asamm.garminimg.render.ImgRenderer
+            .pickRenderLevelWithCoverage(vp, img)
         ImgRenderer(img, resolver).render(
             viewport = vp,
             target = target,
             backgroundColor = Color.rgb(0xF8, 0xF6, 0xF0),
+            objectKindFilter = kindFilter,
         )
         rendered = target.image
         val nDeg = CoordUtils.toWGS84(img.tre.header.northBoundary)
@@ -239,10 +317,14 @@ class ViewerState(
         val viewN = CoordUtils.toWGS84(vp.maxLat)
         val viewW = CoordUtils.toWGS84(vp.minLon)
         val viewE = CoordUtils.toWGS84(vp.maxLon)
-        status = "%s — view %.4f..%.4fN / %.4f..%.4fE (TRE bbox %.4f..%.4fN / %.4f..%.4fE)".format(
+        status = "%s [L%s] — view %.4f..%.4fN / %.4f..%.4fE (TRE bbox %.4f..%.4fN / %.4f..%.4fE)".format(
             loadedFile?.name ?: "?",
+            pickedLevel?.toString() ?: "?",
             viewS, viewN, viewW, viewE, sDeg, nDeg, wDeg, eDeg,
         )
+        loadedFile?.let { f ->
+            ViewerPrefs.saveViewport(f.absolutePath, vp.minLon, vp.maxLon, vp.minLat, vp.maxLat)
+        }
     }
 
     /**

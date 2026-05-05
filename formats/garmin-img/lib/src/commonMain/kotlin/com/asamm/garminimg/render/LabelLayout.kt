@@ -73,8 +73,19 @@ class LabelLayout {
     }
 
     /**
-     * Sorts candidates by descending priority and emits non-overlapping ones
-     * via [drawCallback]. Clears the queue afterwards.
+     * Sorts candidates by descending priority and emits the survivors of
+     * two filters via [drawCallback], in this order:
+     *
+     * 1. **Same-text dedup.** Garmin IMGs frequently emit the same place
+     *    name on every adjacent sub-division boundary ("Gare de Nice-Ville"
+     *    × 8, "Le 19" × 2, etc.). Once a label with text T has been kept,
+     *    later candidates with the same T within [DEDUP_RADIUS_PX] are
+     *    dropped. Sub-pixel coords use a hash of `(text, gridCellX, gridCellY)`
+     *    so the test is O(1) per candidate, not O(n²).
+     * 2. **Bbox overlap.** Same as before — keep the highest-priority of
+     *    every overlapping group.
+     *
+     * Clears the queue afterwards.
      */
     fun drawAccepted(drawCallback: (LabelCandidate) -> Unit) {
         if (candidates.isEmpty()) {
@@ -93,7 +104,37 @@ class LabelLayout {
         val accBottom = FloatArray(candidates.size)
         var accCount = 0
 
+        // Dedup grid: text → set of grid cells that already host an accepted
+        // copy. A candidate is a duplicate when one of its 9 neighbour
+        // cells already holds a same-text accepted label, which approximates
+        // a circular radius without per-pair distance math.
+        val acceptedCells = HashMap<String, MutableSet<Long>>()
+
         for (cand in candidates) {
+            val text = cand.text
+            if (text.isNotEmpty()) {
+                val cellX = (cand.x / DEDUP_RADIUS_PX).toInt()
+                val cellY = (cand.y / DEDUP_RADIUS_PX).toInt()
+                val cells = acceptedCells[text]
+                if (cells != null) {
+                    var seen = false
+                    for (dx in -1..1) {
+                        for (dy in -1..1) {
+                            val key = ((cellX + dx).toLong() shl 32) or
+                                ((cellY + dy).toLong() and 0xFFFFFFFFL)
+                            if (cells.contains(key)) {
+                                seen = true
+                                break
+                            }
+                        }
+                        if (seen) break
+                    }
+                    if (seen) {
+                        continue
+                    }
+                }
+            }
+
             val left = cand.left
             val top = cand.top
             val right = cand.right
@@ -116,10 +157,27 @@ class LabelLayout {
                 accRight[accCount] = right
                 accBottom[accCount] = bottom
                 accCount++
+                if (text.isNotEmpty()) {
+                    val cellX = (cand.x / DEDUP_RADIUS_PX).toInt()
+                    val cellY = (cand.y / DEDUP_RADIUS_PX).toInt()
+                    val key = (cellX.toLong() shl 32) or (cellY.toLong() and 0xFFFFFFFFL)
+                    acceptedCells.getOrPut(text) { HashSet() }.add(key)
+                }
                 drawCallback(cand)
             }
         }
         candidates.clear()
+    }
+
+    private companion object {
+        /**
+         * Radius (in screen pixels) inside which two same-text labels are
+         * considered duplicates. Picked at 200 px to swallow the typical
+         * "label repeated on each sub-division boundary" pattern but stay
+         * small enough that distinct same-named places (e.g., two
+         * "Pharmacie" POIs in different blocks) survive.
+         */
+        const val DEDUP_RADIUS_PX: Float = 200f
     }
 
     /** True when [drawAccepted] would emit nothing. */

@@ -72,6 +72,7 @@ class ImgRenderer(
 
         val projection = Projection(viewport)
         val labels = LabelLayout()
+        val labelScale = target.renderScale
         target.beginFrame(backgroundColor)
 
         // Level-of-detail: pick the level whose detail best matches
@@ -126,7 +127,7 @@ class ImgRenderer(
         // Polygons paint as a single pass (each polygon's stroke is
         // local to its own outline).
         for ((poly, style) in polygons) {
-            drawPolygon(poly, style, projection, target, labels)
+            drawPolygon(poly, style, projection, target, labels, labelScale)
         }
 
         // Two-pass polyline rendering: every border first, then every
@@ -138,11 +139,11 @@ class ImgRenderer(
             drawPolylineBorder(poly, style, projection, target)
         }
         for ((poly, style) in polylines) {
-            drawPolylineCentre(poly, style, projection, target, labels)
+            drawPolylineCentre(poly, style, projection, target, labels, labelScale)
         }
 
         for (point in points) {
-            drawPoint(point, projection, target, labels)
+            drawPoint(point, projection, target, labels, labelScale)
         }
 
         // Second pass: emit non-overlapping labels in priority order so the
@@ -182,6 +183,7 @@ class ImgRenderer(
         projection: Projection,
         target: RenderTarget,
         labels: LabelLayout,
+        labelScale: Float,
     ) {
         val style = styleResolver.resolve(point) as? Style.PointStyle ?: return
         val (x, y) = projection.project(point.longitude, point.latitude).run { x to y }
@@ -195,8 +197,8 @@ class ImgRenderer(
             // for collision testing without dragging in font-metrics from the
             // platform layer. Each char averages 0.55 * fontSize in width for
             // typical sans fonts.
-            val w = pointLabel!!.length * DEFAULT_POINT_FONT_SIZE * 0.55f
-            val h = DEFAULT_POINT_FONT_SIZE * 1.2f
+            val w = pointLabel!!.length * DEFAULT_POINT_FONT_SIZE * 0.55f * labelScale
+            val h = DEFAULT_POINT_FONT_SIZE * 1.2f * labelScale
             labels.submit(
                 x = x,
                 y = y + DEFAULT_POINT_LABEL_OFFSET,
@@ -218,6 +220,7 @@ class ImgRenderer(
         projection: Projection,
         target: RenderTarget,
         labels: LabelLayout,
+        labelScale: Float,
     ) {
         if (poly.longitudes.isEmpty()) {
             return
@@ -232,12 +235,12 @@ class ImgRenderer(
         val polyLabel = poly.label
         if (style.labelColor != null && isDisplayableLabel(polyLabel)) {
             val (cx, cy) = centroid(xs, ys)
-            val w = polyLabel!!.length * DEFAULT_AREA_FONT_SIZE * 0.55f
+            val w = polyLabel!!.length * DEFAULT_AREA_FONT_SIZE * 0.55f * labelScale
             labels.submit(
                 x = cx,
                 y = cy,
                 widthPx = w,
-                heightPx = DEFAULT_AREA_FONT_SIZE * 1.2f,
+                heightPx = DEFAULT_AREA_FONT_SIZE * 1.2f * labelScale,
                 priority = style.drawPriority,
                 text = polyLabel,
                 color = style.labelColor,
@@ -272,6 +275,7 @@ class ImgRenderer(
         projection: Projection,
         target: RenderTarget,
         labels: LabelLayout,
+        labelScale: Float,
     ) {
         if (poly.longitudes.isEmpty()) {
             return
@@ -287,12 +291,12 @@ class ImgRenderer(
         val polyLabel = poly.label
         if (style.labelColor != null && isDisplayableLabel(polyLabel)) {
             val midIdx = n / 2
-            val w = polyLabel!!.length * DEFAULT_LINE_FONT_SIZE * 0.55f
+            val w = polyLabel!!.length * DEFAULT_LINE_FONT_SIZE * 0.55f * labelScale
             labels.submit(
                 x = xs[midIdx],
                 y = ys[midIdx],
                 widthPx = w,
-                heightPx = DEFAULT_LINE_FONT_SIZE * 1.2f,
+                heightPx = DEFAULT_LINE_FONT_SIZE * 1.2f * labelScale,
                 priority = style.drawPriority,
                 text = polyLabel,
                 color = style.labelColor,
@@ -406,6 +410,23 @@ class ImgRenderer(
          * if nothing fits, then to the finest available.
          */
         fun pickRenderLevel(viewport: Viewport, levels: TreLevels): Int? {
+            return pickRenderLevel(viewport, levels, materialisedLevels = null)
+        }
+
+        /**
+         * Variant that takes the set of levels actually present in the
+         * sub-division tree. Some IMGs declare a level descriptor (often
+         * level=0 / bits=24) with a non-zero `subDivisionCount` but ship
+         * no parseable sub-divisions in it — picking that level would
+         * yield an empty render. Restricting to actually-materialised
+         * levels avoids the issue without weakening the level-matcher's
+         * other invariants.
+         */
+        internal fun pickRenderLevel(
+            viewport: Viewport,
+            levels: TreLevels,
+            materialisedLevels: Set<Int>?,
+        ): Int? {
             if (levels.levels.isEmpty()) {
                 return null
             }
@@ -416,6 +437,22 @@ class ImgRenderer(
             val pixelsPerCoord = viewport.widthPx.toDouble() / lonRange
             // log2(x) = ln(x) / ln(2)
             val targetBits = 24.0 + ln(pixelsPerCoord) / LN2
+            val available = levels.levels
+                .filterNot { it.inherited }
+                .filter { it.subDivisionCount > 0 }
+                .filter { materialisedLevels == null || materialisedLevels.contains(it.level) }
+            if (available.isEmpty()) {
+                return null
+            }
+            // mkgmap-style level authoring puts the geometry meant for a
+            // given zoom into the level whose `bitsPerCoord ≈ targetBits
+            // - DETAIL_BIAS`. Each level coarser drops one bit of
+            // resolution AND simplifies geometry (residential streets,
+            // footpaths, building outlines fade out as you go up). Our
+            // bias of -4 picks finest at deep zooms, level 2-3 at city
+            // overview, level 4-5 at district, matching what reference
+            // renderers (mkgmap, GPSMapEdit, old Locus) produce on the
+            // same fixtures.
             val cap = targetBits + DETAIL_BIAS
             // Pick the finest level (highest bitsPerCoord) whose detail
             // doesn't exceed cap. Falls back to the closest level above
@@ -424,12 +461,7 @@ class ImgRenderer(
             var fineFitBits = Int.MIN_VALUE
             var bestAbove: Int? = null
             var bestAboveScore = Double.MAX_VALUE
-            for (lvl in levels.levels) {
-                // Inherited levels carry no own RGN data — picking one
-                // would render an empty viewport. Skip them entirely.
-                if (lvl.inherited) {
-                    continue
-                }
+            for (lvl in available) {
                 if (lvl.bitsPerCoord <= cap) {
                     if (lvl.bitsPerCoord > fineFitBits) {
                         fineFitBits = lvl.bitsPerCoord
@@ -447,12 +479,17 @@ class ImgRenderer(
         }
 
         /**
-         * How many extra `bitsPerCoord` of detail we accept past the
-         * theoretical pixel-matched level. ~1 bit ≈ a 2× sub-pixel
-         * over-sample, enough to catch small features at the cost of
-         * slightly noisier renders at very wide bboxes.
+         * Offset between `targetBits` (the bits-per-coord that would
+         * give 1 pixel per delta unit) and the level we actually pick.
+         * Negative → we pick coarser geometry than mathematically perfect;
+         * mkgmap authors each level expecting it to render at roughly
+         * (1 << -DETAIL_BIAS) px per delta = 16 px per delta, which is
+         * the "comfortable detail" zoom each level was built for. -4 is
+         * empirically the right value for OpenTopoMap and standard
+         * mkgmap output; very different IMG generators may want a
+         * different default exposed via the renderer constructor.
          */
-        private const val DETAIL_BIAS: Double = 1.0
+        private const val DETAIL_BIAS: Double = -2.0
 
         /**
          * Picks the LoD level *and* validates that the chosen level has
@@ -462,11 +499,15 @@ class ImgRenderer(
          * data inside a narrow "detail area" smaller than the viewer's
          * tight bbox.
          */
-        internal fun pickRenderLevelWithCoverage(
+        fun pickRenderLevelWithCoverage(
             viewport: Viewport,
             img: ImgFile,
         ): Int? {
-            val first = pickRenderLevel(viewport, img.tre.levels) ?: return null
+            val materialised = HashSet<Int>()
+            for (sd in img.tre.tree.all()) {
+                materialised.add(sd.level)
+            }
+            val first = pickRenderLevel(viewport, img.tre.levels, materialised) ?: return null
             // Walk levels from finest-passing-the-cap down to coarsest;
             // first one with intersecting sub-divisions wins.
             val candidates = img.tre.levels.levels
@@ -490,158 +531,56 @@ class ImgRenderer(
             level: Int,
             viewport: Viewport,
         ): Boolean {
+            // Bbox-overlap, not centre-containment. At deep zoom the
+            // viewport can be much smaller than a sub-division — its
+            // centre then falls outside the viewport even though the
+            // sub-division covers it. Centre-only check returned false
+            // for every level → the renderer drew nothing.
+            val bits = img.tre.levels
             for (sd in img.tre.tree.all()) {
-                if (sd.level != level || sd.objectTypes == 0) {
+                if (sd.level != level) {
                     continue
                 }
-                if (sd.longitudeCenter in viewport.minLon..viewport.maxLon &&
-                    sd.latitudeCenter in viewport.minLat..viewport.maxLat
-                ) {
-                    return true
+                if (!img.subDivisionHasAnyDataInternal(sd)) {
+                    continue
                 }
+                val bpc = bits.bitsPerCoordOf(sd.level) ?: continue
+                val scale = 1 shl (24 - bpc).coerceAtLeast(0)
+                val halfW = sd.halfWidth.toLong() * scale
+                val halfH = sd.halfHeight.toLong() * scale
+                val sdMinLon = sd.longitudeCenter - halfW
+                val sdMaxLon = sd.longitudeCenter + halfW
+                val sdMinLat = sd.latitudeCenter - halfH
+                val sdMaxLat = sd.latitudeCenter + halfH
+                if (sdMaxLon < viewport.minLon || sdMinLon > viewport.maxLon) {
+                    continue
+                }
+                if (sdMaxLat < viewport.minLat || sdMinLat > viewport.maxLat) {
+                    continue
+                }
+                return true
             }
             return false
         }
 
         /**
-         * True when [label] is something a user actually wants to see on
-         * the map. False for empty / null, URLs, e-mails, phone-number-
-         * like digit strings, opening-hours strings, hex hashes, and
-         * various short fragments. OpenTopo and similar OSM-derived IMGs
-         * ship POIs whose primary label is `https://…`, `Mo-Fr 09:00-18:00`,
-         * `+33 4 93 …`, or hex IDs; QMapShack hides those, and so do we.
+         * Sanity-only check on the raw label string: drop empty / null /
+         * whitespace-only labels. We *do not* filter URL-shaped, hour-
+         * shaped, or fragment-shaped strings here — old Locus and
+         * GPSMapEdit show every label faithfully and rely on the
+         * collision + same-text dedup pass in [LabelLayout] to keep
+         * clutter under control. Re-introduce content filters only if a
+         * specific IMG genuinely overwhelms the layout.
          */
         internal fun isDisplayableLabel(label: String?): Boolean {
-            if (label.isNullOrEmpty()) {
-                return false
-            }
-            val trimmed = label.trim()
-            if (trimmed.length < 3) {
-                return false
-            }
-            // Filter mid-word fragments. Real place names start with
-            // either an uppercase letter (`Avenue`, `Église`, `Île`),
-            // a digit (`3 Brasseurs`, `5e Arrondissement`), or an
-            // opening parenthesis (`(La Poste)`). Lowercase-letter
-            // leading strings (`te/`, `ances`, `té Marseillaise`,
-            // `ssion autos`, `de Castagnin`, `d'Or`) are partial
-            // fragments from mkgmap-truncated OSM labels and reading
-            // them back-to-back with real labels confuses the map.
-            val first = trimmed.first()
-            val acceptable = first.isUpperCase() ||
-                first.isDigit() ||
-                first == '(' ||
-                first == '\''
-            if (!acceptable) {
-                return false
-            }
-            // Bus-stop / transit labels: a leading list of route codes
-            // like `9b,35,57,63 Glenn Sappia` or `(18,22)- Villarem` or
-            // `5957)+ Avenue Thérèse`. They contain commas, `)`, or
-            // `;` immediately after digit/paren prefix. Drop them.
-            if ((first.isDigit() || first == '(') &&
-                BUS_LIST_REGEX.containsMatchIn(trimmed)
-            ) {
-                return false
-            }
-            // OSM opening-hours markers that escaped the time-range /
-            // day-prefix detectors. `PH` is "public holiday", `off` is
-            // closed. Both appear as standalone tokens in OSM
-            // opening_hours strings.
-            if (PH_OFF_REGEX.containsMatchIn(trimmed)) {
-                return false
-            }
-            // Anywhere in string: URL fragments. Catches both full URLs
-            // (https://…) and relative or sub-domain ones (.fr/, .com/).
-            val lower = trimmed.lowercase()
-            if (lower.contains("://") ||
-                lower.contains(".fr/") ||
-                lower.contains(".com/") ||
-                lower.contains(".de/") ||
-                lower.contains(".it/") ||
-                lower.contains(".co.") ||
-                lower.contains(".org/") ||
-                lower.contains(".net/") ||
-                lower.contains("www.") ||
-                lower.contains(".html") ||
-                lower.startsWith("http")
-            ) {
-                return false
-            }
-            if (trimmed.contains('@') && !trimmed.contains(' ')) {
-                // Looks like an e-mail.
-                return false
-            }
-            // Opening-hours pattern: contains `:` AND digits AND day
-            // prefixes (`Mo-`, `Tu-`, etc) OR time ranges (`HH:MM-HH:MM`).
-            if (looksLikeHoursLabel(trimmed)) {
-                return false
-            }
-            // Long hex run = ID / hash, not a place name.
-            if (HEX_RUN_REGEX.containsMatchIn(trimmed)) {
-                return false
-            }
-            // High digit/punct ratio = phone, order code, time range.
-            val nonAlpha = trimmed.count { !it.isLetter() && it != ' ' }
-            if (nonAlpha * 2 > trimmed.length) {
-                return false
-            }
-            return true
+            return !label.isNullOrBlank()
         }
-
-        /**
-         * Detects opening-hours-style labels. mkgmap-derived IMGs tag
-         * many businesses with their OSM `opening_hours` field, e.g.
-         * `Mo-Fr 09:00-18:00`, `Sa 08:30-12:30`, `00:18:00; Sa 09:30-…`.
-         */
-        private fun looksLikeHoursLabel(text: String): Boolean {
-            // Time-range pattern HH:MM-HH:MM or HH:MM,HH:MM…
-            if (TIME_RANGE_REGEX.containsMatchIn(text)) {
-                return true
-            }
-            // Day-of-week prefix common across European locales.
-            if (DAY_PREFIX_REGEX.containsMatchIn(text)) {
-                return true
-            }
-            return false
-        }
-
-        private val HEX_RUN_REGEX: Regex = Regex("[0-9A-F]{12,}")
-        private val TIME_RANGE_REGEX: Regex = Regex("\\d{1,2}:\\d{2}\\s*[-,;]\\s*\\d{1,2}:\\d{2}")
-        private val DAY_PREFIX_REGEX: Regex = Regex(
-            "(?i)\\b(Mo|Tu|We|Th|Fr|Sa|Su|Mon|Tue|Wed|Thu|Fri|Sat|Sun)\\s*[-,]\\s*" +
-                "(Mo|Tu|We|Th|Fr|Sa|Su|Mon|Tue|Wed|Thu|Fri|Sat|Sun)\\b",
-        )
-
-        /**
-         * Bus-stop "route list" prefix — mkgmap sometimes inlines OSM
-         * `route_ref` tags into stop names. Catches:
-         * - `(18,22)- Villarem`, `(F,5,35,35)- Les Bassins` — paren
-         *   group of comma-separated codes followed by `-` or `+`.
-         * - `(37)- Palais Prince Charles` — single-code paren group.
-         * - `9b,35,57,63 Glenn Sappia` — leading list of codes.
-         * - `5957)+ Avenue Thérèse`, `5D)- Villa Sainte-Anne` — leading
-         *   code closed with `)`.
-         * - `15-nice` — `digits-name` ID-style label.
-         */
-        private val BUS_LIST_REGEX: Regex = Regex(
-            "^\\(.*?\\)\\s*[-+*]|" +
-                "^\\d+[A-Za-z]?\\s*[,;].*?\\d|" +
-                "^\\w+\\)\\s*[-+*]|" +
-                "^\\d+-\\w",
-        )
-
-        /**
-         * OSM opening-hours leftovers: `PH off`, `; off`, ` off ` —
-         * standalone `off` tokens used to indicate closed hours.
-         */
-        private val PH_OFF_REGEX: Regex = Regex("(?i)\\bPH\\s+(off|on)\\b|\\b\\d+\\s+off\\b")
 
         private const val LN2: Double = 0.6931471805599453
         private const val DEFAULT_POINT_LABEL_OFFSET: Float = 12f
-        private const val DEFAULT_POINT_FONT_SIZE: Float = 11f
-        private const val DEFAULT_LINE_FONT_SIZE: Float = 10f
-        private const val DEFAULT_AREA_FONT_SIZE: Float = 12f
+        private const val DEFAULT_POINT_FONT_SIZE: Float = 13f
+        private const val DEFAULT_LINE_FONT_SIZE: Float = 12f
+        private const val DEFAULT_AREA_FONT_SIZE: Float = 14f
         private const val OFFSCREEN_MARGIN: Int = 32
         private const val OFFSCREEN_LINE_MARGIN: Int = 64
     }

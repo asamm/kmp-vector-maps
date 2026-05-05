@@ -52,6 +52,18 @@ interface RenderTarget {
     val heightPx: Int
 
     /**
+     * Multiplier the target applies to TYP-driven pixel sizes — POI icons,
+     * line/polygon pattern tiles, font sizes, stroke widths. The renderer
+     * uses this to compute label collision bounds in the *rendered* size
+     * (not the logical TYP size), so collision matches what is drawn.
+     *
+     * Defaults to 1.0 — implementations that compensate for high-DPI
+     * displays override.
+     */
+    val renderScale: Float
+        get() = 1.0f
+
+    /**
      * Called once at the start of a render pass. Implementations clear /
      * fill the canvas with [backgroundColor] (transparent by default).
      */

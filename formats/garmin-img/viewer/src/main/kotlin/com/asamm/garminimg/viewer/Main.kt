@@ -42,14 +42,24 @@ fun main() {
             title = "kmp-garmin-img viewer",
             state = windowState,
         ) {
-            val state = remember { ViewerState(initialAntiAliased = restored.antiAliased) }
+            val state = remember {
+                ViewerState(
+                    initialAntiAliased = restored.antiAliased,
+                    initialShowAreas = restored.showAreas,
+                    initialShowLines = restored.showLines,
+                    initialShowPoints = restored.showPoints,
+                )
+            }
 
-            // Auto-load the last-opened file once on launch (if it still exists).
+            // Auto-load the last-opened file once on launch (if it still
+            // exists), restoring the saved viewport when it belongs to that
+            // same file.
             LaunchedEffect(Unit) {
                 restored.lastFilePath?.let { path ->
                     val file = File(path)
                     if (file.exists() && file.canRead()) {
-                        state.loadAndRender(file)
+                        val vp = restored.viewport?.takeIf { it.filePath == file.absolutePath }
+                        state.loadAndRender(file, vp)
                     }
                 }
             }

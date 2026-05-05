@@ -87,6 +87,20 @@ private fun Toolbar(state: ViewerState) {
             )
             Text("Anti-alias", modifier = Modifier.padding(start = 4.dp))
         }
+        Spacer(Modifier.width(16.dp))
+        // Per-kind layer toggles — same idea as QMS's Areas/Lines/Points
+        // row: hide everything except what you're investigating.
+        LayerToggle("Areas", state.showAreas) { state.toggleAreas(it) }
+        LayerToggle("Lines", state.showLines) { state.toggleLines(it) }
+        LayerToggle("Points", state.showPoints) { state.togglePoints(it) }
+    }
+}
+
+@Composable
+private fun LayerToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(checked = checked, onCheckedChange = onCheckedChange)
+        Text(label, modifier = Modifier.padding(start = 4.dp, end = 8.dp))
     }
 }
 
