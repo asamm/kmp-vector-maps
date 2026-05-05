@@ -6,7 +6,7 @@
  */
 package com.asamm.garminimg.parser
 
-import com.asamm.garminimg.io.ImgRandomAccessReader
+import com.asamm.garminimg.utils.io.ImgRandomAccessReader
 
 /**
  * Parses the TRE sub-divisions section into an immutable tree of [SubDivision]s.
@@ -123,6 +123,11 @@ object SubDivisionParser {
         // "last in level" bit appears, walking the same on-disk run.
         state.expandChildren(rootBuilders, parentLevel = maxLevel)
 
+        // Second pass: parse the leaf level (typically level 0) using
+        // SMALL records. mkgmap-style IMGs commonly emit their finest
+        // detail level here. Mirrors libGarminImg's parseLastSubDivision.
+        state.parseLastSubDivisions(rootBuilders)
+
         // Back-fill end offsets from neighbour records.
         state.assignEnds(rgnInfo)
 
@@ -190,6 +195,9 @@ object SubDivisionParser {
             parentLevel: Int,
         ) {
             // Skip levels that aren't recorded in the levels section.
+            // Note: the leaf level (typically 0) is parsed in a separate
+            // pass via [parseLastSubDivisions]; this loop only walks the
+            // FULL-record levels above it.
             var childLevel = parentLevel - 1
             while (childLevel > 0 && !levels.isPresent(childLevel)) {
                 childLevel--
@@ -216,6 +224,77 @@ object SubDivisionParser {
                 parent.children.addAll(children)
                 if (!isLeafLevel) {
                     expandChildren(children, parentLevel = childLevel)
+                }
+            }
+        }
+
+        /**
+         * Walks the existing tree and reads the leaf level (typically
+         * level=0) using 14-byte SMALL records. The leaf is *not* part
+         * of the recursive [expandChildren] pass — its records sit past
+         * `lastBigIndex` in the section and need the SMALL-record
+         * record-size formula to position the reader correctly.
+         *
+         * Mirrors `TreSubFile.parseLastSubDivision` in the legacy Java
+         * parser. For each parent at the level just above the leaf, we
+         * follow [SubDivisionBuilder.indexNextLevel] into the SMALL
+         * region; siblings stop when the "last in level" bit appears.
+         */
+        fun parseLastSubDivisions(roots: List<SubDivisionBuilder>) {
+            val leafLevel = levels.minLevel
+            // mkgmap conventionally emits the leaf at level 0. If the
+            // smallest level is already above 0, there's no SMALL-record
+            // pass to do — every level was covered by expandChildren.
+            if (!levels.isPresent(leafLevel)) {
+                return
+            }
+            // Java's parseLastSubDivision returns early if leafLevel < 1
+            // would be reachable through the FULL-records descent (e.g.
+            // an IMG whose smallest level table entry is level 1).
+            // Walk the tree top-down; for each node whose direct child
+            // level is the leaf, parse SMALL records.
+            walkLeafChildren(roots)
+        }
+
+        private fun walkLeafChildren(parents: List<SubDivisionBuilder>) {
+            val leafLevel = levels.minLevel
+            for (parent in parents) {
+                val nextIndex = parent.indexNextLevel
+                if (nextIndex == 0) {
+                    continue
+                }
+                if (parent.children.isNotEmpty() &&
+                    parent.children.first().level > leafLevel
+                ) {
+                    walkLeafChildren(parent.children)
+                    continue
+                }
+                if (parent.children.isNotEmpty()) {
+                    // Already at leaf level; no SMALL pass needed for
+                    // this branch.
+                    continue
+                }
+                // Parent is the level just above the leaf and has no
+                // children parsed yet — read SMALL records starting at
+                // nextIndex.
+                val basePos = recordPosition(nextIndex, SMALL_RECORD_SIZE)
+                if (basePos < sectionOffset || basePos >= sectionEnd) {
+                    continue
+                }
+                reader.seek(basePos)
+                var index = nextIndex
+                while (reader.position() < sectionEnd) {
+                    val record = parseOneRecord(
+                        index = index,
+                        level = leafLevel,
+                        recordSize = SMALL_RECORD_SIZE,
+                    )
+                    builders[index] = record
+                    parent.children.add(record)
+                    if (record.lastInLevel) {
+                        break
+                    }
+                    index++
                 }
             }
         }

@@ -6,7 +6,7 @@
  */
 package com.asamm.garminimg.parser
 
-import com.asamm.garminimg.io.ImgRandomAccessReader
+import com.asamm.garminimg.utils.io.ImgRandomAccessReader
 
 /**
  * Logical random-access view over a single sub-file inside an IMG container.

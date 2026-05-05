@@ -6,7 +6,7 @@
  */
 package com.asamm.garminimg.parser
 
-import com.asamm.garminimg.io.ImgRandomAccessReader
+import com.asamm.garminimg.utils.io.ImgRandomAccessReader
 
 /**
  * Parser for an `.NET` sub-file. NET carries road definitions used to resolve
@@ -64,6 +64,12 @@ object NetSubFile {
         // First 24 bits of the road record are the LBL label offset (mask
         // 0x3FFFFF — high two bits are flags we ignore for label resolution).
         val labelOffset = (netReader.readUInt24() and 0x3FFFFF).toLong()
+        // labelOffset = 0 means "no label" — same convention as RGN
+        // records. Returning null here keeps the dump format aligned
+        // with the legacy parser (which produces a `label=""` for these).
+        if (labelOffset == 0L) {
+            return null
+        }
         return try {
             LblSubFile.readLabel(lblReader, lblHeader, labelOffset)
         } catch (_: IllegalArgumentException) {

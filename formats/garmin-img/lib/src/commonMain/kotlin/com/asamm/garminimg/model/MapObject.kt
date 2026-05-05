@@ -44,11 +44,19 @@ sealed interface MapObject {
          */
         val indexed: Boolean,
         /**
-         * True if the point's label-offset bit-21 was set on disk indicating a
-         * POI record (carries street/city/zip metadata in LBL — currently
-         * unused; resolved via [label] in B.2.4.b).
+         * True if the point's label-offset bit-22 was set on disk
+         * indicating a POI record. POIs additionally carry the
+         * structured [poi] block (street / city / zip / phone).
          */
         val isPoi: Boolean = false,
+        /**
+         * Structured POI metadata — present only when the LBL has a
+         * POI properties section AND this record is flagged [isPoi].
+         * The legacy parser exposed these via lazy [POILabel] getters;
+         * we surface them eagerly so consumers don't have to re-seek
+         * into LBL.
+         */
+        val poi: PoiMetadata? = null,
     ) : MapObject
 
     /**
@@ -71,6 +79,23 @@ sealed interface MapObject {
          * Always `false` for polygons.
          */
         val direction: Boolean = false,
+        /**
+         * Bit 22 of the on-disk `info2` field. Indicates the polyline
+         * uses an extra precision bit on its longitude coordinates;
+         * already consumed by the geometry decoder, surfaced here for
+         * completeness and so consumers can validate against the
+         * source IMG.
+         */
+        val extraBit: Boolean = false,
+        /**
+         * Bit 23 of the on-disk `info2` field. When set on a polyline,
+         * the `labelOffset` indexes the NET sub-file's road-definitions
+         * table (which redirects to the actual LBL string). Already
+         * applied during label resolution; surfaced so renderers /
+         * downstream tooling can tell which records were resolved
+         * through NET.
+         */
+        val dataInNet: Boolean = false,
     ) : MapObject {
 
         override fun equals(other: Any?): Boolean {
@@ -85,6 +110,8 @@ sealed interface MapObject {
             if (label != other.label) return false
             if (closed != other.closed) return false
             if (direction != other.direction) return false
+            if (extraBit != other.extraBit) return false
+            if (dataInNet != other.dataInNet) return false
             if (!longitudes.contentEquals(other.longitudes)) return false
             if (!latitudes.contentEquals(other.latitudes)) return false
             return true
@@ -96,6 +123,8 @@ sealed interface MapObject {
             h = 31 * h + (label?.hashCode() ?: 0)
             h = 31 * h + closed.hashCode()
             h = 31 * h + direction.hashCode()
+            h = 31 * h + extraBit.hashCode()
+            h = 31 * h + dataInNet.hashCode()
             h = 31 * h + longitudes.contentHashCode()
             h = 31 * h + latitudes.contentHashCode()
             return h

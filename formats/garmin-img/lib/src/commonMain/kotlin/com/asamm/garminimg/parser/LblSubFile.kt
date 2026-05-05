@@ -6,8 +6,9 @@
  */
 package com.asamm.garminimg.parser
 
-import com.asamm.garminimg.io.ImgRandomAccessReader
-import com.asamm.garminimg.io.LabelCharset
+import com.asamm.garminimg.utils.io.ImgRandomAccessReader
+import com.asamm.garminimg.utils.io.LabelCharset
+import com.asamm.garminimg.model.PoiMetadata
 
 /**
  * Parser for an `.LBL` sub-file. The LBL holds the textual labels (POI names,
@@ -42,6 +43,15 @@ import com.asamm.garminimg.io.LabelCharset
 object LblSubFile {
 
     private const val OFFSET_LABELS_DESCRIPTOR: Long = 0x15L
+    // Each LBL reference-table descriptor is 14 bytes: offset(4) +
+    // length(4) + recordSize(2) + reserved(4). Country starts right
+    // after the labels descriptor (which itself runs 0x15..0x1E, 10
+    // bytes). Region/city follow at +14 / +28.
+    private const val OFFSET_COUNTRY_DESCRIPTOR: Long = 0x1FL
+    private const val OFFSET_REGION_DESCRIPTOR: Long = 0x2DL
+    private const val OFFSET_CITY_DESCRIPTOR: Long = 0x3BL
+    private const val OFFSET_POI_DESCRIPTOR: Long = 0x57L
+    private const val OFFSET_ZIP_DESCRIPTOR: Long = 0x72L
     private const val OFFSET_CODEPAGE: Long = 0xAAL
 
     /**
@@ -62,6 +72,32 @@ object LblSubFile {
         val codingByte = reader.readByte()
         val coding = LabelCoding.fromOnDiskValue(codingByte)
 
+        // Country definitions (0x1F): name + region range, indexed.
+        val country = readSection(reader, common.headerLength, OFFSET_COUNTRY_DESCRIPTOR)
+        // Region definitions (0x2A): name + country index.
+        val region = readSection(reader, common.headerLength, OFFSET_REGION_DESCRIPTOR)
+        // City definitions (0x35): name + region/country.
+        val city = readSection(reader, common.headerLength, OFFSET_CITY_DESCRIPTOR)
+        // POI properties section (0x57): per-POI metadata (street/city/zip/phone).
+        val poiOffset: Long
+        val poiLength: Long
+        val poiMultiplier: Int
+        val poiGlobalMask: Int
+        if (common.headerLength >= OFFSET_POI_DESCRIPTOR.toInt() + 9) {
+            reader.seek(OFFSET_POI_DESCRIPTOR)
+            poiOffset = reader.readUInt32()
+            poiLength = reader.readUInt32()
+            poiMultiplier = 1 shl reader.readByte()
+            poiGlobalMask = reader.readByte()
+        } else {
+            poiOffset = 0L
+            poiLength = 0L
+            poiMultiplier = 1
+            poiGlobalMask = 0
+        }
+        // ZIP table (0x72): zip-code strings indexed by city.
+        val zip = readSection(reader, common.headerLength, OFFSET_ZIP_DESCRIPTOR)
+
         val codepage = if (common.headerLength >= OFFSET_CODEPAGE.toInt() + 2) {
             reader.seek(OFFSET_CODEPAGE)
             reader.readUInt16()
@@ -76,7 +112,313 @@ object LblSubFile {
             dataOffsetMultiplier = 1 shl multiplierExp,
             coding = coding,
             codepage = codepage,
+            poiOffset = poiOffset,
+            poiLength = poiLength,
+            poiMultiplier = poiMultiplier,
+            poiGlobalMask = poiGlobalMask,
+            country = country,
+            region = region,
+            city = city,
+            zip = zip,
         )
+    }
+
+    /**
+     * Reads a fixed-record-size section descriptor (offset, length,
+     * record size) from the LBL header. The country / region / city /
+     * zip blocks all share this layout. Returns a zero-length section
+     * if the IMG's header is too short to carry the descriptor.
+     */
+    private fun readSection(
+        reader: ImgRandomAccessReader,
+        headerLength: Int,
+        offset: Long,
+    ): LblTableSection {
+        // Each descriptor is 11 bytes: offset(4) + length(4) + recordSize(2)
+        // + reserved(1).
+        if (headerLength < offset.toInt() + 11) {
+            return LblTableSection.EMPTY
+        }
+        reader.seek(offset)
+        val o = reader.readUInt32()
+        val l = reader.readUInt32()
+        val recordSize = reader.readUInt16()
+        return LblTableSection(o, l, recordSize)
+    }
+
+    /**
+     * Resolves a POI label offset. POIs in Garmin IMGs don't store their
+     * label in LBL directly — they use the POI index table at
+     * [LblHeader.poiOffset]. Each POI table entry is a 24-bit value
+     * whose lower 22 bits are the actual LBL label offset, plus an
+     * optional property mask + zero or more attribute fields (street,
+     * city, zip, phone) we currently ignore. Returns null if the POI
+     * section isn't populated or the offset is out of range.
+     */
+    fun readPoiName(
+        reader: ImgRandomAccessReader,
+        header: LblHeader,
+        offset: Long,
+    ): String? {
+        if (header.poiLength <= 0L) {
+            return null
+        }
+        val multOffset = offset * header.poiMultiplier
+        if (multOffset >= header.poiLength) {
+            return null
+        }
+        reader.seek(header.poiOffset + multOffset)
+        val labelOffset = (reader.readUInt24() and 0x3FFFFF).toLong()
+        return try {
+            readLabel(reader, header, labelOffset)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+    }
+
+    /**
+     * Reads the full POI metadata block at the given offset — name plus
+     * any of the optional attributes (street number, street, city, ZIP,
+     * phone) the IMG carries for this POI. Returns null if the POI
+     * section isn't populated or the offset is invalid.
+     *
+     * The block layout, per mkgmap / Garmin docs:
+     * 1. UInt24: low 22 bits = label offset; bit 23 (0x800000) toggles
+     *    a per-POI mask byte.
+     * 2. (optional) byte localMask — XORs the per-IMG `poiGlobalMask`
+     *    bits via [maskPointAttributes].
+     * 3. (mask & 0x01) → street-number string (base-11 or LBL pointer)
+     * 4. (mask & 0x02) → street-name LBL pointer
+     * 5. (mask & 0x04) → city index (1- or 2-byte depending on city table size)
+     * 6. (mask & 0x08) → ZIP index
+     * 7. (mask & 0x10) → phone string
+     */
+    /**
+     * Callback that knows how to resolve a city-by-point reference.
+     * The legacy parser supports two encodings of a POI's city: a
+     * direct label offset, or a `(subDivisionIndex, indexedPointIndex)`
+     * pair pointing into RGN's indexed-points segment. Cross-file
+     * access is messy to thread through LBL; the resolver is supplied
+     * by [ImgFile] so it has TRE+RGN handles in scope.
+     */
+    fun interface IndexedPointLabelResolver {
+        fun resolve(subDivisionIndex: Int, pointIndex: Int): String?
+    }
+
+    fun readPoi(
+        reader: ImgRandomAccessReader,
+        header: LblHeader,
+        offset: Long,
+        indexedPointLabelResolver: IndexedPointLabelResolver? = null,
+    ): PoiMetadata? {
+        if (header.poiLength <= 0L) {
+            return null
+        }
+        val multOffset = offset * header.poiMultiplier
+        if (multOffset >= header.poiLength) {
+            return null
+        }
+        reader.seek(header.poiOffset + multOffset)
+        val local = reader.readUInt24()
+        val labelOffset = (local and 0x3FFFFF).toLong()
+        // Read label first so readLabel's seek doesn't disturb our
+        // position past the POI header. Save & restore around it.
+        val afterHeader = reader.position()
+        val name = try {
+            readLabel(reader, header, labelOffset)
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+        reader.seek(afterHeader)
+
+        var mask = header.poiGlobalMask
+        if (local and 0x800000 != 0) {
+            mask = maskPointAttributes(mask, reader.readByte())
+        }
+        // Each metadata field reader may seek into LBL for label
+        // resolution; we restore back to the cursor after each so
+        // subsequent fields read from the right POI-block position.
+        val streetNumber = if (mask and 0x01 != 0) {
+            val before = reader.position()
+            val v = readPoiNumber(reader, header)
+            // readPoiNumber consumed a known number of bytes regardless
+            // of the label-pointer / base-11 branch; nothing to restore.
+            // (label resolution inside happens after position is past
+            // the encoded bytes — that's safe.)
+            v
+        } else null
+        // After streetNumber, position is past the encoded bytes; same
+        // for the rest. We just need to make sure intermediate label
+        // resolutions don't leave the cursor astray.
+        val street = if (mask and 0x02 != 0) {
+            val raw = reader.readUInt24()
+            if (raw and 0x800000 != 0) {
+                null
+            } else {
+                val savedPos = reader.position()
+                val s = try {
+                    readLabel(reader, header, (raw and 0x3FFFFF).toLong())
+                } catch (_: IllegalArgumentException) { null }
+                reader.seek(savedPos)
+                s
+            }
+        } else null
+        val cityIndex = if (mask and 0x04 != 0) {
+            if (header.city.recordCount > 255) reader.readUInt16() else reader.readByte()
+        } else 0
+        val zipIndex = if (mask and 0x08 != 0) {
+            if (header.zip.recordCount > 255) reader.readUInt16() else reader.readByte()
+        } else 0
+        val phone = if (mask and 0x10 != 0) readPoiNumber(reader, header) else null
+        // Resolve indexed lookups.
+        val cityName = if (cityIndex > 0) {
+            readCityName(reader, header, cityIndex, indexedPointLabelResolver)
+        } else null
+        val zipCode = if (zipIndex > 0) readZipCode(reader, header, zipIndex) else null
+        return PoiMetadata(
+            name = name,
+            streetNumber = streetNumber,
+            street = street,
+            cityIndex = cityIndex,
+            cityName = cityName,
+            zipIndex = zipIndex,
+            zipCode = zipCode,
+            phone = phone,
+        )
+    }
+
+    /**
+     * mkgmap "base-11 / label-pointer" hybrid for POI street numbers
+     * and phone fields. If the first byte's high bit is clear, the
+     * remaining 23 bits form an LBL label offset. Otherwise the bytes
+     * encode digits in base-11 (0..9 + '-') — two digits per byte.
+     *
+     * Important: this function snapshots the reader's position before
+     * any [readLabel] call and restores it afterwards, so the cursor
+     * stays at the byte right after the encoded number — every
+     * subsequent POI metadata field starts where it should.
+     */
+    private fun readPoiNumber(reader: ImgRandomAccessReader, header: LblHeader): String? {
+        val first = reader.readByte()
+        if (first and 0x80 == 0) {
+            // High bit clear → 24-bit (3-byte) label offset.
+            val offset = (first.toLong() shl 16) or reader.readUInt16().toLong()
+            val savedPos = reader.position()
+            val result = try {
+                readLabel(reader, header, offset)
+            } catch (_: IllegalArgumentException) {
+                null
+            }
+            reader.seek(savedPos)
+            return result
+        }
+        // Base-11 path. Java's loop is do-while: it always reads at
+        // least one continuation byte even if the first byte's high
+        // bit is set (because the high bit on the first byte is the
+        // sentinel that selected this path, not a "last byte" marker).
+        val sb = StringBuilder()
+        decodeBase11Pair(first and 0x7F, last = true, out = sb)
+        var b: Int
+        do {
+            b = reader.readByte()
+            decodeBase11Pair(b and 0x7F, last = b and 0x80 != 0, out = sb)
+        } while (b and 0x80 == 0)
+        return sb.toString()
+    }
+
+    private fun readCityName(
+        reader: ImgRandomAccessReader,
+        header: LblHeader,
+        index: Int,
+        indexedPointLabelResolver: IndexedPointLabelResolver?,
+    ): String? {
+        val table = header.city
+        if (table.isEmpty || table.recordSize != 5) {
+            return null
+        }
+        val recordOffset = (index - 1).toLong() * table.recordSize
+        if (recordOffset >= table.length) {
+            return null
+        }
+        val saved = reader.position()
+        reader.seek(table.offset + recordOffset)
+        val data = reader.readUInt24()
+        val info = reader.readUInt16()
+        val name = if (info and 0x8000 != 0) {
+            // Point reference: data's high 16 bits are the
+            // SubDivision index, low 8 bits are the indexed-point
+            // index within that sub-division. Cross-references RGN.
+            indexedPointLabelResolver?.resolve(
+                subDivisionIndex = data ushr 8,
+                pointIndex = data and 0xFF,
+            )
+        } else {
+            try {
+                readLabel(reader, header, (data and 0x3FFFFF).toLong())
+            } catch (_: IllegalArgumentException) { null }
+        }
+        reader.seek(saved)
+        return name
+    }
+
+    private fun readZipCode(
+        reader: ImgRandomAccessReader,
+        header: LblHeader,
+        index: Int,
+    ): String? {
+        val table = header.zip
+        if (table.isEmpty) {
+            return null
+        }
+        val recordOffset = (index - 1).toLong() * table.recordSize
+        if (recordOffset >= table.length) {
+            return null
+        }
+        val saved = reader.position()
+        reader.seek(table.offset + recordOffset)
+        val raw = reader.readUInt24()
+        val zip = try {
+            readLabel(reader, header, (raw and 0x3FFFFF).toLong())
+        } catch (_: IllegalArgumentException) { null }
+        reader.seek(saved)
+        return zip
+    }
+
+    /**
+     * XORs `localMask` bits against `globalMask`, but only for the
+     * *set* bits in `globalMask` — the other bits stay clear. Mirrors
+     * the mkgmap convention: each POI may flip on/off any of the
+     * globally-expected attribute fields.
+     */
+    private fun maskPointAttributes(globalMask: Int, localMask: Int): Int {
+        var result = globalMask
+        var globalBit = 0x01
+        var localBit = 0x01
+        for (i in 0 until 8) {
+            if (globalMask and globalBit != 0) {
+                if (localMask and localBit == 0) {
+                    result = result xor globalBit
+                }
+                localBit = localBit shl 1
+            }
+            globalBit = globalBit shl 1
+        }
+        return result
+    }
+
+    private fun decodeBase11Pair(byte: Int, last: Boolean, out: StringBuilder) {
+        val a = byte / 11
+        val b = byte % 11
+        appendBase11Digit(a, last, out)
+        appendBase11Digit(b, last, out)
+    }
+
+    private fun appendBase11Digit(digit: Int, last: Boolean, out: StringBuilder) {
+        if (digit == 10) {
+            if (!last) out.append('-')
+        } else {
+            out.append(digit)
+        }
     }
 
     /**
@@ -265,7 +607,49 @@ data class LblHeader(
     val dataOffsetMultiplier: Int,
     val coding: LabelCoding,
     val codepage: Int,
+    /**
+     * Logical byte offset of the POI index section. POIs (cities,
+     * towns, restaurants, etc.) reference a row in this table by
+     * `(rgnLabelOffset * poiMultiplier)`; the row's first 24 bits hold
+     * the actual LBL label offset, plus optional metadata fields
+     * (street/city/zip/phone). 0 when the IMG ships no POI metadata.
+     */
+    val poiOffset: Long = 0L,
+    val poiLength: Long = 0L,
+    val poiMultiplier: Int = 1,
+    /**
+     * Default property mask applied to every POI in this LBL. A POI may
+     * override individual bits via its own local mask (see
+     * [LblSubFile.readPoi]); this is the per-IMG starting set of
+     * "expected attributes" (street, city, zip, phone…).
+     */
+    val poiGlobalMask: Int = 0,
+    val country: LblTableSection = LblTableSection.EMPTY,
+    val region: LblTableSection = LblTableSection.EMPTY,
+    val city: LblTableSection = LblTableSection.EMPTY,
+    val zip: LblTableSection = LblTableSection.EMPTY,
 )
+
+/**
+ * Common shape for the LBL reference tables (country, region, city,
+ * zip). Each row is [recordSize] bytes long; total `length / recordSize`
+ * records sit at [offset]. `recordSize == 0` means "no such section".
+ */
+data class LblTableSection(
+    val offset: Long,
+    val length: Long,
+    val recordSize: Int,
+) {
+    val isEmpty: Boolean
+        get() = recordSize == 0 || length == 0L
+
+    val recordCount: Int
+        get() = if (recordSize <= 0) 0 else (length / recordSize).toInt()
+
+    companion object {
+        val EMPTY: LblTableSection = LblTableSection(0L, 0L, 0)
+    }
+}
 
 /**
  * Per-LBL label coding.

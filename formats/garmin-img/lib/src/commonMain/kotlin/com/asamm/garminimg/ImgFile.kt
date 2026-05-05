@@ -6,7 +6,7 @@
  */
 package com.asamm.garminimg
 
-import com.asamm.garminimg.io.ImgRandomAccessReader
+import com.asamm.garminimg.utils.io.ImgRandomAccessReader
 import com.asamm.garminimg.model.MapObject
 import com.asamm.garminimg.model.ObjectKind
 import com.asamm.garminimg.parser.ImgArchive
@@ -73,10 +73,39 @@ class ImgFile internal constructor(
      * @param objectKindFilter bitmask of [ObjectKind] flags. Defaults to
      *   `ObjectKind.ALL`.
      */
+    /**
+     * Resolves a `(subDivisionIndex, indexedPointIndex)` pair to the
+     * label of that indexed point — used by LBL POI city resolution
+     * when a city encodes its name as a point reference rather than a
+     * direct LBL offset. Built lazily so the resolver only runs the
+     * tree lookup when a POI actually asks for it.
+     */
+    /**
+     * Internal city-name resolver — exposed so test harnesses (the
+     * dump-diff rig) can pass it back into [RgnSubFile.parseSubDivision]
+     * directly. Production callers should use [readMap] /
+     * [readMapInBounds], which already wire it for them.
+     */
+    internal val cityResolverInternal: com.asamm.garminimg.parser.LblSubFile.IndexedPointLabelResolver
+        get() = cityResolver
+
+    private val cityResolver: com.asamm.garminimg.parser.LblSubFile.IndexedPointLabelResolver =
+        com.asamm.garminimg.parser.LblSubFile.IndexedPointLabelResolver { sdIndex, pointIndex ->
+            val sd = tre.tree.byIndex[sdIndex] ?: return@IndexedPointLabelResolver null
+            RgnSubFile.readIndexedPointLabel(
+                reader = rgn.reader,
+                header = rgn.header,
+                subDivision = sd,
+                pointIndex = pointIndex,
+                lblReader = lbl.reader,
+                lblHeader = lbl.header,
+            )
+        }
+
     fun readMap(objectKindFilter: Int = ObjectKind.ALL): Sequence<MapObject> {
         return sequence {
             for (subDivision in tre.tree.all()) {
-                if (subDivision.objectTypes == 0) {
+                if (!subDivisionHasAnyData(subDivision)) {
                     continue
                 }
                 yieldAll(
@@ -87,6 +116,9 @@ class ImgFile internal constructor(
                         levels = tre.levels,
                         lblReader = lbl.reader,
                         lblHeader = lbl.header,
+                        netReader = net?.reader,
+                        netHeader = net?.header,
+                        cityResolver = cityResolver,
                         objectKindFilter = objectKindFilter,
                     ),
                 )
@@ -109,7 +141,7 @@ class ImgFile internal constructor(
     ): Sequence<MapObject> {
         return sequence {
             for (subDivision in tre.tree.all()) {
-                if (subDivision.objectTypes == 0) {
+                if (!subDivisionHasAnyData(subDivision)) {
                     continue
                 }
                 if (levelFilter != null && subDivision.level != levelFilter) {
@@ -126,11 +158,39 @@ class ImgFile internal constructor(
                         levels = tre.levels,
                         lblReader = lbl.reader,
                         lblHeader = lbl.header,
+                        netReader = net?.reader,
+                        netHeader = net?.header,
+                        cityResolver = cityResolver,
                         objectKindFilter = objectKindFilter,
                     ),
                 )
             }
         }
+    }
+
+    /**
+     * True when the sub-division has at least one byte of data the renderer
+     * could draw — either plain (POINT / POLYLINE / POLYGON) or extended
+     * (TRE7 polygon / polyline / POI). Extended-only sub-divisions have
+     * `objectTypes == 0` because that byte only encodes the four plain
+     * kinds; we still need to descend into them to read buildings &
+     * friends.
+     */
+    private fun subDivisionHasAnyData(sd: SubDivision): Boolean {
+        if (sd.objectTypes != 0) {
+            return true
+        }
+        return sd.extendedPolygonEnd > sd.extendedPolygonOffset ||
+            sd.extendedPolylineEnd > sd.extendedPolylineOffset ||
+            sd.extendedPoiEnd > sd.extendedPoiOffset
+    }
+
+    /**
+     * Same coverage check as [subDivisionHasAnyData] but used by the
+     * renderer's level-coverage probe.
+     */
+    internal fun subDivisionHasAnyDataInternal(sd: SubDivision): Boolean {
+        return subDivisionHasAnyData(sd)
     }
 
     private fun subDivisionIntersects(

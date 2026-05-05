@@ -6,7 +6,7 @@
  */
 package com.asamm.garminimg.parser
 
-import com.asamm.garminimg.io.ImgRandomAccessReader
+import com.asamm.garminimg.utils.io.ImgRandomAccessReader
 import com.asamm.garminimg.model.MapObject
 import com.asamm.garminimg.model.ObjectKind
 
@@ -120,6 +120,9 @@ object RgnSubFile {
         levels: TreLevels? = null,
         lblReader: ImgRandomAccessReader? = null,
         lblHeader: LblHeader? = null,
+        netReader: ImgRandomAccessReader? = null,
+        netHeader: NetHeader? = null,
+        cityResolver: LblSubFile.IndexedPointLabelResolver? = null,
         objectKindFilter: Int = ObjectKind.ALL,
     ): Sequence<MapObject> {
         // Bits-per-coord for this sub-division's level controls how the
@@ -145,7 +148,7 @@ object RgnSubFile {
             }
             segments[SEG_POLYLINE]?.let { seg ->
                 if (objectKindFilter and ObjectKind.POLYLINE != 0) {
-                    yieldAll(parsePoly(reader, subDivision, seg, line = true, bitsPerCoord, lblReader, lblHeader))
+                    yieldAll(parsePoly(reader, subDivision, seg, line = true, bitsPerCoord, lblReader, lblHeader, netReader, netHeader))
                 }
             }
             segments[SEG_EXT_POLYLINE]?.let { seg ->
@@ -155,12 +158,12 @@ object RgnSubFile {
             }
             segments[SEG_POINT]?.let { seg ->
                 if (objectKindFilter and ObjectKind.POINT != 0) {
-                    yieldAll(parsePoints(reader, subDivision, seg, indexed = false, bitsPerCoord, lblReader, lblHeader))
+                    yieldAll(parsePoints(reader, subDivision, seg, indexed = false, bitsPerCoord, lblReader, lblHeader, cityResolver))
                 }
             }
             segments[SEG_IPOINT]?.let { seg ->
                 if (objectKindFilter and ObjectKind.INDEXED_POINT != 0) {
-                    yieldAll(parsePoints(reader, subDivision, seg, indexed = true, bitsPerCoord, lblReader, lblHeader))
+                    yieldAll(parsePoints(reader, subDivision, seg, indexed = true, bitsPerCoord, lblReader, lblHeader, cityResolver))
                 }
             }
             segments[SEG_EXT_POINT]?.let { seg ->
@@ -282,15 +285,19 @@ object RgnSubFile {
     private fun attachExtendedSegment(
         result: Array<Segment?>,
         slot: Int,
-        requiredKind: Int,
-        objectTypes: Int,
+        @Suppress("UNUSED_PARAMETER") requiredKind: Int,
+        @Suppress("UNUSED_PARAMETER") objectTypes: Int,
         ini: Long,
         fin: Long,
         sectionBase: Long?,
     ) {
-        if (objectTypes and requiredKind == 0) {
-            return
-        }
+        // Extended-type presence is NOT signalled by the sub-division's
+        // objectTypes byte (which only encodes POINT/IPOINT/POLYLINE/POLYGON
+        // bits in the standard on-disk record). Instead, TRE7's per-sub-
+        // division offset range is the source of truth — a non-empty range
+        // means this sub-division has data of that extended kind. Gating on
+        // objectTypes here permanently hid extended polygons (buildings)
+        // and extended polylines from the renderer.
         if (sectionBase == null || fin <= ini) {
             return
         }
@@ -325,6 +332,7 @@ object RgnSubFile {
         bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
+        cityResolver: LblSubFile.IndexedPointLabelResolver? = null,
     ): Sequence<MapObject.Point> = sequence {
         reader.seek(segment.start)
         while (reader.position() < segment.end) {
@@ -336,7 +344,36 @@ object RgnSubFile {
             val longitudeDelta = readInt16(reader)
             val latitudeDelta = readInt16(reader)
             val subType = if (hasSubType) reader.readByte() else 0
-            val label = resolveLabel(labelOffset.toLong(), lblReader, lblHeader)
+            val poiMetadata: com.asamm.garminimg.model.PoiMetadata? =
+                if (isPoi && lblReader != null && lblHeader != null && lblHeader.poiLength > 0L) {
+                    try {
+                        LblSubFile.readPoi(
+                            reader = lblReader,
+                            header = lblHeader,
+                            offset = labelOffset.toLong(),
+                            indexedPointLabelResolver = cityResolver,
+                        )
+                    } catch (_: Exception) {
+                        null
+                    }
+                } else {
+                    null
+                }
+            val rawLabel = if (poiMetadata != null) {
+                poiMetadata.name
+            } else {
+                resolveLabel(labelOffset.toLong(), lblReader, lblHeader)
+            }
+            val label = translatePointLabel(type, subType, rawLabel)
+            // For elevation points the legacy parser swaps the POILabel
+            // for a fresh SimpleLabel after translateLabel — losing all
+            // structured metadata. Match that, so downstream consumers
+            // (and the dump-diff rig) see the same model shape.
+            val effectivePoiMetadata = if (label !== rawLabel && poiMetadata != null) {
+                null
+            } else {
+                poiMetadata
+            }
             yield(
                 MapObject.Point(
                     type = type,
@@ -346,6 +383,7 @@ object RgnSubFile {
                     label = label,
                     indexed = indexed,
                     isPoi = isPoi,
+                    poi = effectivePoiMetadata,
                 ),
             )
         }
@@ -389,6 +427,25 @@ object RgnSubFile {
     // PLAIN POLY (POLYLINE / POLYGON) PARSING
     //********************************
 
+    /**
+     * Diagnostic counter — increments whenever a polyline / polygon record
+     * fails to parse. Re-introduced so we can surface "silent data drop"
+     * regressions (a corrupt-looking record causes the rest of its segment
+     * to be skipped, which can hide entire feature classes — e.g., rails).
+     * Reset between renders by the caller if useful.
+     */
+    var parseFailures: Int = 0
+
+    /**
+     * Diagnostic — counts every infoByte we read from a plain polyline
+     * record, broken down by `info & 0x3F` (the type field). Surfaces
+     * cases where records are read but then silently dropped because
+     * decode fails downstream.
+     */
+    val rawLineTypeReads: HashMap<Int, Int> = HashMap()
+    val successfulLines: HashMap<Int, Int> = HashMap()
+    val successfulPolys: HashMap<Int, Int> = HashMap()
+
     private fun parsePoly(
         reader: ImgRandomAccessReader,
         subDivision: SubDivision,
@@ -397,12 +454,15 @@ object RgnSubFile {
         bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
+        netReader: ImgRandomAccessReader? = null,
+        netHeader: NetHeader? = null,
     ): Sequence<MapObject.PolyShape> = sequence {
         reader.seek(segment.start)
         while (reader.position() < segment.end) {
             val shape = try {
-                parseOnePoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader)
+                parseOnePoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader, netReader, netHeader)
             } catch (_: Exception) {
+                parseFailures++
                 // Bit-stream over-ran or coordinate decode failed mid-record.
                 // The reader's position is now mid-record; resuming from
                 // there would decode misaligned bytes into nonsense
@@ -426,6 +486,8 @@ object RgnSubFile {
         bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
+        netReader: ImgRandomAccessReader? = null,
+        netHeader: NetHeader? = null,
     ): MapObject.PolyShape {
         val infoByte = reader.readByte()
         val type: Int
@@ -437,11 +499,19 @@ object RgnSubFile {
             type = infoByte and 0x7F
             direction = false
         }
+        rawLineTypeReads.merge(type, 1) { a, b -> a + b }
         val twoBytesLen = infoByte and 0x80 != 0
 
         val info2 = reader.readUInt24()
         val labelOffset = info2 and 0x3FFFFF
         val extraBit = info2 and 0x400000 != 0
+        // High bit (0x800000) of info2 — `dataInNet`. When set on a
+        // polyline, `labelOffset` indexes the NET sub-file's road
+        // definitions table, *not* LBL directly. NET resolves through
+        // to its underlying LBL offset. We were treating every
+        // labelOffset as a direct LBL offset, which produced garbage
+        // labels for every road in IMGs with NET (a *lot* of records).
+        val dataInNet = info2 and 0x800000 != 0
         val longitudeDelta = readInt16(reader)
         val latitudeDelta = readInt16(reader)
         val bitStreamLen = if (twoBytesLen) reader.readUInt16() else reader.readByte()
@@ -461,7 +531,28 @@ object RgnSubFile {
             readPolyExtraSignBit = false,
         )
 
-        val label = resolveLabel(labelOffset.toLong(), lblReader, lblHeader)
+        val label = if (line && dataInNet && netReader != null && netHeader != null) {
+            // dataInNet: labelOffset points into NET's road-definitions
+            // table; NET dereferences to the underlying LBL string.
+            try {
+                NetSubFile.resolveRoadName(
+                    netReader = netReader,
+                    netHeader = netHeader,
+                    offset = labelOffset.toLong(),
+                    lblReader = lblReader ?: error("LBL required when NET is in play"),
+                    lblHeader = lblHeader ?: error("LBL required when NET is in play"),
+                )
+            } catch (_: Exception) {
+                null
+            }
+        } else {
+            resolveLabel(labelOffset.toLong(), lblReader, lblHeader)
+        }
+        if (line) {
+            successfulLines.merge(type, 1) { a, b -> a + b }
+        } else {
+            successfulPolys.merge(type, 1) { a, b -> a + b }
+        }
         return MapObject.PolyShape(
             type = type,
             subType = 0,
@@ -470,6 +561,8 @@ object RgnSubFile {
             label = label,
             closed = !line,
             direction = direction,
+            extraBit = extraBit,
+            dataInNet = dataInNet,
         )
     }
 
@@ -487,6 +580,7 @@ object RgnSubFile {
             val shape = try {
                 parseOneExtPoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader)
             } catch (_: Exception) {
+                parseFailures++
                 // Same rationale as parsePoly — bail the segment on
                 // mid-record decode failure rather than continuing from a
                 // misaligned read position.
@@ -685,6 +779,89 @@ object RgnSubFile {
      * Returns null when [labelOffset] is 0 (sentinel for "no label") or when
      * the LBL handles are missing.
      */
+    /**
+     * Mirrors the legacy parser's `RgnSubFile.translateLabel` for point
+     * records: a few `(type, subType)` combinations are known to carry
+     * an elevation / numeric value with a leading 0x1F (Unit Separator)
+     * byte. The Java path rewrites these by parsing the numeric tail
+     * and re-emitting it as a plain integer string. Without this step
+     * our dump diff carries ~500 spurious "elevation" mismatches.
+     */
+    private fun translatePointLabel(type: Int, subType: Int, raw: String?): String? {
+        if (raw.isNullOrEmpty()) {
+            return raw
+        }
+        val fullType = (type shl 8) or subType
+        if (fullType != 0x6616 && fullType != 0x6300) {
+            return raw
+        }
+        // Java's Double.parseDouble strips leading whitespace, which
+        // includes the 0x1F US separator. Mirror that so the output
+        // matches.
+        val trimmed = raw.trimStart { it.isWhitespace() || it.code <= 0x1F }
+        val value = trimmed.toDoubleOrNull() ?: return raw
+        return value.toInt().toString()
+    }
+
+    /**
+     * Reads the `pointIndex`-th indexed-point label from `subDivision`'s
+     * IPOINT segment. Used by LBL POI city resolution when a city
+     * record encodes its name as a `(SubDivision, indexed-point)` pair
+     * rather than a direct LBL offset. Mirrors libGarminImg's
+     * `RgnSubFile.getIndexPointLabel`.
+     *
+     * Returns null when the sub-division has no indexed points or the
+     * requested index isn't in range. Saves and restores the reader's
+     * position so callers can resume parsing wherever they were.
+     */
+    fun readIndexedPointLabel(
+        reader: ImgRandomAccessReader,
+        header: RgnHeader,
+        subDivision: SubDivision,
+        pointIndex: Int,
+        lblReader: ImgRandomAccessReader?,
+        lblHeader: LblHeader?,
+    ): String? {
+        if (pointIndex <= 0) {
+            return null
+        }
+        val savedPos = reader.position()
+        val segments = computeSegments(reader, header, subDivision) ?: return null
+        val seg = segments[SEG_IPOINT] ?: return null
+        reader.seek(seg.start)
+        var counter = 0
+        var result: String? = null
+        try {
+            while (reader.position() < seg.end) {
+                @Suppress("UNUSED_VARIABLE")
+                val type = reader.readByte()
+                val info = reader.readUInt24()
+                val hasSubType = info and 0x800000 != 0
+                val isPoi = info and 0x400000 != 0
+                val recLabelOffset = info and 0x3FFFFF
+                @Suppress("UNUSED_VARIABLE")
+                val longitudeDelta = readInt16(reader)
+                @Suppress("UNUSED_VARIABLE")
+                val latitudeDelta = readInt16(reader)
+                if (hasSubType) {
+                    reader.readByte()
+                }
+                counter++
+                if (counter == pointIndex && recLabelOffset != 0 && lblReader != null && lblHeader != null) {
+                    result = if (isPoi && lblHeader.poiLength > 0L) {
+                        LblSubFile.readPoiName(lblReader, lblHeader, recLabelOffset.toLong())
+                    } else {
+                        LblSubFile.readLabel(lblReader, lblHeader, recLabelOffset.toLong())
+                    }
+                    break
+                }
+            }
+        } finally {
+            reader.seek(savedPos)
+        }
+        return result
+    }
+
     private fun resolveLabel(
         labelOffset: Long,
         lblReader: ImgRandomAccessReader?,

@@ -6,7 +6,7 @@
  */
 package com.asamm.garminimg.parser
 
-import com.asamm.garminimg.io.ImgRandomAccessReader
+import com.asamm.garminimg.utils.io.ImgRandomAccessReader
 
 /**
  * Parser for a `.TRE` sub-file. The TRE carries the table-of-contents for an IMG
@@ -194,7 +194,7 @@ object TreSubFile {
  * Parsed TRE header: bounds + extended-types signal.
  *
  * Bounds are in Garmin fixed-point coordinates (24-bit signed; one unit ≈ 2.4 cm
- * at the equator). Use `com.asamm.garminimg.coord.CoordUtils.toWGS84` to convert.
+ * at the equator). Use `com.asamm.garminimg.utils.coord.CoordUtils.toWGS84` to convert.
  *
  * @property fullSurface Cached `(north - south) * (east - west)` of the bounding
  *   box in Garmin-coord units squared. Used by `ImgFilesBag.FileComparator` in the
