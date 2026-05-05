@@ -53,6 +53,13 @@ sealed interface Style {
         val dashPattern: FloatArray? = null,
         /** Label colour for road names; null hides labels. */
         val labelColor: Color? = null,
+        /**
+         * Optional 32×height RGBA tile to paint as the line's foreground
+         * stroke instead of a solid colour. The renderer tiles this
+         * along the line direction (X = travel, Y = perpendicular) so
+         * dashed/striped patterns follow the polyline's path.
+         */
+        val pattern: Bitmap? = null,
     ) : Style {
 
         override fun equals(other: Any?): Boolean {
@@ -68,6 +75,7 @@ sealed interface Style {
             if (strokeWidth != other.strokeWidth) return false
             if (borderWidth != other.borderWidth) return false
             if (labelColor != other.labelColor) return false
+            if (pattern != other.pattern) return false
             if (dashPattern == null) {
                 return other.dashPattern == null
             }
@@ -85,6 +93,7 @@ sealed interface Style {
             h = 31 * h + borderWidth.hashCode()
             h = 31 * h + (labelColor?.hashCode() ?: 0)
             h = 31 * h + (dashPattern?.contentHashCode() ?: 0)
+            h = 31 * h + (pattern?.hashCode() ?: 0)
             return h
         }
     }

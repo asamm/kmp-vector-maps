@@ -147,16 +147,31 @@ class ImgRenderer(
 
         // Second pass: emit non-overlapping labels in priority order so the
         // most important ones survive when text would otherwise pile up.
+        // Labels with an associated polyline path render curve-following so
+        // road names bend with the road; everything else stays straight.
         labels.drawAccepted { cand ->
-            target.drawText(
-                x = cand.x,
-                y = cand.y,
-                text = cand.text,
-                color = cand.color,
-                outlineColor = cand.outlineColor,
-                fontSize = cand.fontSize,
-                anchor = cand.anchor,
-            )
+            val px = cand.pathXs
+            val py = cand.pathYs
+            if (px != null && py != null && px.size >= 2) {
+                target.drawTextOnPath(
+                    xs = px,
+                    ys = py,
+                    text = cand.text,
+                    color = cand.color,
+                    outlineColor = cand.outlineColor,
+                    fontSize = cand.fontSize,
+                )
+            } else {
+                target.drawText(
+                    x = cand.x,
+                    y = cand.y,
+                    text = cand.text,
+                    color = cand.color,
+                    outlineColor = cand.outlineColor,
+                    fontSize = cand.fontSize,
+                    anchor = cand.anchor,
+                )
+            }
         }
 
         target.endFrame()
@@ -281,6 +296,8 @@ class ImgRenderer(
                 outlineColor = null,
                 fontSize = DEFAULT_LINE_FONT_SIZE,
                 anchor = TextAnchor.CENTER,
+                pathXs = xs,
+                pathYs = ys,
             )
         }
     }
@@ -563,6 +580,7 @@ fun interface StyleResolver {
                                 borderColor = typ.borderColor ?: internal.borderColor,
                                 strokeWidth = typ.strokeWidthPx,
                                 borderWidth = typ.totalWidthPx,
+                                pattern = typ.pattern,
                             )
                         } else {
                             InternalStyles.resolve(obj)

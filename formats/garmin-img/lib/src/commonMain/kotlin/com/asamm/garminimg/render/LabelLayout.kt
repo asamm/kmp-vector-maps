@@ -51,6 +51,8 @@ class LabelLayout {
         outlineColor: Color?,
         fontSize: Float,
         anchor: TextAnchor,
+        pathXs: FloatArray? = null,
+        pathYs: FloatArray? = null,
     ) {
         candidates.add(
             LabelCandidate(
@@ -64,6 +66,8 @@ class LabelLayout {
                 outlineColor = outlineColor,
                 fontSize = fontSize,
                 anchor = anchor,
+                pathXs = pathXs,
+                pathYs = pathYs,
             ),
         )
     }
@@ -137,6 +141,14 @@ data class LabelCandidate(
     val outlineColor: Color?,
     val fontSize: Float,
     val anchor: TextAnchor,
+    /**
+     * Optional polyline that the label should curve along. When
+     * present, the renderer calls [RenderTarget.drawTextOnPath] instead
+     * of the straight [RenderTarget.drawText] — that's how road names
+     * follow the road's bend.
+     */
+    val pathXs: FloatArray? = null,
+    val pathYs: FloatArray? = null,
 ) {
 
     private val halfW: Float = widthPx / 2f + LABEL_PADDING

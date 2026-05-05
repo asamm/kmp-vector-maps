@@ -5,6 +5,7 @@ package com.asamm.garminimg.viewer
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,15 +23,25 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.dp
 import java.awt.FileDialog
 import java.awt.Frame
 import java.io.File
+import kotlin.math.pow
 
 /**
  * Three-row layout: toolbar at top, map area in the middle (filling
@@ -62,6 +73,9 @@ private fun Toolbar(state: ViewerState) {
         Button(onClick = { state.reload() }, enabled = state.loadedFile != null) {
             Text("Reload")
         }
+        Button(onClick = { state.homeView() }, enabled = state.loadedFile != null) {
+            Text("Home")
+        }
         Spacer(Modifier.width(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
@@ -76,11 +90,46 @@ private fun Toolbar(state: ViewerState) {
     }
 }
 
+@OptIn(androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun MapPanel(state: ViewerState, modifier: Modifier = Modifier) {
     val img = state.rendered
+    // Live drag offset — translates the displayed image during a drag for
+    // instant feedback. On drag end we hand the accumulated delta to
+    // ViewerState.panBy, which re-renders at the new viewport; the offset
+    // resets back to zero. Sub-render-cycle interactivity without paying
+    // the render cost on every mouse move.
+    var dragOffset by remember { mutableStateOf(Offset.Zero) }
     Box(
-        modifier = modifier.background(ComposeColor(0xFFE0E0E0)),
+        modifier = modifier
+            .background(ComposeColor(0xFFE0E0E0))
+            .onSizeChanged { state.setPanelSize(it.width, it.height) }
+            .onPointerEvent(PointerEventType.Scroll) { event ->
+                val change = event.changes.firstOrNull() ?: return@onPointerEvent
+                val scrollY = change.scrollDelta.y
+                if (scrollY == 0f) {
+                    return@onPointerEvent
+                }
+                // Wheel up (negative scrollY on most platforms) = zoom in.
+                val factor = ZOOM_PER_TICK.pow(-scrollY.toDouble())
+                state.zoomAt(factor, change.position.x, change.position.y)
+            }
+            .pointerInput(Unit) {
+                detectDragGestures(
+                    onDragStart = { dragOffset = Offset.Zero },
+                    onDrag = { change, delta ->
+                        change.consume()
+                        dragOffset += delta
+                    },
+                    onDragEnd = {
+                        if (dragOffset != Offset.Zero) {
+                            state.panBy(dragOffset.x, dragOffset.y)
+                        }
+                        dragOffset = Offset.Zero
+                    },
+                    onDragCancel = { dragOffset = Offset.Zero },
+                )
+            },
         contentAlignment = Alignment.Center,
     ) {
         if (img != null) {
@@ -88,7 +137,12 @@ private fun MapPanel(state: ViewerState, modifier: Modifier = Modifier) {
                 bitmap = img.toComposeImageBitmap(),
                 contentDescription = "rendered map",
                 contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        translationX = dragOffset.x,
+                        translationY = dragOffset.y,
+                    ),
             )
         } else {
             Text(
@@ -98,6 +152,12 @@ private fun MapPanel(state: ViewerState, modifier: Modifier = Modifier) {
         }
     }
 }
+
+/**
+ * Zoom factor per scroll-wheel tick. 1.2 ≈ 20% zoom per tick — feels
+ * responsive without being jumpy.
+ */
+private const val ZOOM_PER_TICK: Double = 1.2
 
 @Composable
 private fun StatusBar(state: ViewerState) {

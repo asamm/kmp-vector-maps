@@ -118,6 +118,30 @@ interface RenderTarget {
     fun drawBitmap(x: Float, y: Float, bitmap: Bitmap)
 
     /**
+     * Draws `text` curving along the polyline given by `(xs, ys)`. Each
+     * character is positioned and rotated to follow the path tangent at
+     * its centre, so road names bend with the road. Implementations
+     * should fall back to a straight horizontal placement at the path
+     * midpoint when the path is too short to fit the rendered text.
+     *
+     * Default no-op so existing targets compile; override for proper
+     * curve-following text.
+     */
+    fun drawTextOnPath(
+        xs: FloatArray,
+        ys: FloatArray,
+        text: String,
+        color: Color,
+        outlineColor: Color? = null,
+        fontSize: Float = 12f,
+    ) {
+        if (xs.isNotEmpty() && ys.isNotEmpty() && text.isNotEmpty()) {
+            val mid = xs.size / 2
+            drawText(xs[mid], ys[mid], text, color, outlineColor, fontSize, TextAnchor.CENTER)
+        }
+    }
+
+    /**
      * Called once at the end of a render pass. Implementations flush, commit,
      * or otherwise finalise the underlying surface.
      */

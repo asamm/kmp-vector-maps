@@ -261,13 +261,23 @@ object TypBodyParser {
             emptyList()
         }
 
-        if (bitmapHeight > 0) {
-            // Lines and polygons use mkgmap's `simple=true` ColourInfo
-            // path which forces 1 bit per pixel regardless of the colour
-            // count: the bit selects between fg/bg of the active day or
-            // night colour pair. Width is fixed at 32 → 4 bytes per row.
+        // Lines and polygons use mkgmap's `simple=true` ColourInfo path
+        // which forces 1 bit per pixel regardless of the colour count:
+        // the bit selects between fg/bg of the active day colour pair.
+        // Width is fixed at 32 → 4 bytes per row.
+        val linePattern: Bitmap? = if (bitmapHeight > 0) {
             val rowBytes = (LINE_BITMAP_WIDTH * 1 + 7) / 8
-            skipBytes(reader, rowBytes * bitmapHeight)
+            val raw = ByteArray(rowBytes * bitmapHeight)
+            reader.readBlock(raw)
+            val fg = dayColours.firstOrNull() ?: Color.Black
+            val bg = if (dayColours.size >= 2 && !dayTransparent) {
+                dayColours[1]
+            } else {
+                Color.Transparent
+            }
+            expandLinePattern(raw, bitmapHeight, fg, bg)
+        } else {
+            null
         }
 
         // When there's no bitmap, the record carries line widths. The
@@ -305,7 +315,41 @@ object TypBodyParser {
             borderColor = border,
             strokeWidthPx = lineWidth.toFloat().coerceAtLeast(1f),
             totalWidthPx = totalWidth.toFloat().coerceAtLeast(lineWidth.toFloat()),
+            pattern = linePattern,
         )
+    }
+
+    /**
+     * Expands a 32×height 1bpp line bitmap to a 32×height RGBA tile.
+     * Bits are LSB-first within each byte (matching mkgmap's
+     * [BitWriter] packing for `simple=true` line records). Set bits
+     * paint with [fg]; clear bits paint with [bg].
+     */
+    private fun expandLinePattern(
+        bits: ByteArray,
+        height: Int,
+        fg: Color,
+        bg: Color,
+    ): Bitmap {
+        val width = LINE_BITMAP_WIDTH
+        val rgba = ByteArray(width * height * 4)
+        val rowBytes = (width + 7) / 8
+        var dst = 0
+        for (row in 0 until height) {
+            val rowStart = row * rowBytes
+            for (col in 0 until width) {
+                val byteIdx = col ushr 3
+                val bit = col and 0x7
+                val on = (bits[rowStart + byteIdx].toInt() ushr bit) and 0x1 != 0
+                val c = if (on) fg else bg
+                rgba[dst] = c.red.toByte()
+                rgba[dst + 1] = c.green.toByte()
+                rgba[dst + 2] = c.blue.toByte()
+                rgba[dst + 3] = c.alpha.toByte()
+                dst += 4
+            }
+        }
+        return Bitmap(width = width, height = height, rgba = rgba)
     }
 
     //********************************
@@ -693,6 +737,14 @@ data class TypLineStyle(
     val borderColor: Color?,
     val strokeWidthPx: Float,
     val totalWidthPx: Float,
+    /**
+     * Optional 32×height RGBA tile expanded from the TYP record's 1bpp
+     * line bitmap. When present, the renderer paints the polyline as
+     * the pattern (rotated to follow the line direction) instead of a
+     * solid stroke — that's how dashed roads, railways, and multi-stripe
+     * casings get drawn.
+     */
+    val pattern: Bitmap? = null,
 )
 
 /**

@@ -58,6 +58,10 @@ class MonacoRenderTest {
         val tightTarget = AwtRenderTarget(widthPx, heightPx)
         ImgRenderer(img, resolverFor(img)).render(tightViewport, tightTarget)
         tightTarget.writePng(File(outDir, "otm-monaco-tight.png"))
+        println(
+            "[render] line-label placement: curved=${tightTarget.curvedPlacements} " +
+                "shortPathFallback=${tightTarget.shortPathFallbacks}",
+        )
 
         assertTrue(outFile.exists(), "expected PNG was not written")
         assertTrue(outFile.length() > 0, "PNG is empty")

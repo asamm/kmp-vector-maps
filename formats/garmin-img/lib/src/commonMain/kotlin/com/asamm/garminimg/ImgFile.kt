@@ -140,13 +140,31 @@ class ImgFile internal constructor(
         minLat: Int,
         maxLat: Int,
     ): Boolean {
-        // SubDivision.halfWidth/halfHeight are in level-local coord units; for
-        // a fast bbox-intersect check we compare against the centre alone.
-        // This is conservative — it may include sub-divisions whose bbox is
-        // partially outside the requested area. The parser layer doesn't have
-        // a TreLevels here to do exact scaling; the renderer does that.
-        return sd.longitudeCenter in minLong..maxLong &&
-            sd.latitudeCenter in minLat..maxLat
+        // Convert the sub-division's level-local half-extents to Garmin
+        // coords (a delta unit at level L = `1 shl (24 - bitsPerCoord(L))`
+        // Garmin coord units). A pure centre-only check skips sub-divisions
+        // whose centre lies just outside the viewport but whose extents
+        // overlap into it — that produced rectangular "missing" gaps in
+        // the rendered map after pan/zoom. Add a small inflation so
+        // border-crossing labels (which anchor at the polyline mid-point
+        // sometimes outside the sub-division proper) aren't accidentally
+        // clipped either.
+        val bits = tre.levels.bitsPerCoordOf(sd.level) ?: return true
+        val scale = 1 shl (24 - bits).coerceAtLeast(0)
+        val halfW = sd.halfWidth.toLong() * scale
+        val halfH = sd.halfHeight.toLong() * scale
+        val sdMinLon = sd.longitudeCenter - halfW
+        val sdMaxLon = sd.longitudeCenter + halfW
+        val sdMinLat = sd.latitudeCenter - halfH
+        val sdMaxLat = sd.latitudeCenter + halfH
+        // Standard rectangle overlap: not(separating).
+        if (sdMaxLon < minLong || sdMinLon > maxLong) {
+            return false
+        }
+        if (sdMaxLat < minLat || sdMinLat > maxLat) {
+            return false
+        }
+        return true
     }
 
     /**
