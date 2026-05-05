@@ -1,7 +1,7 @@
 package com.asamm.garminimg.parser
 
-import com.asamm.garminimg.coord.CoordUtils
-import com.asamm.garminimg.io.ByteArrayImgRandomAccessReader
+import com.asamm.garminimg.utils.coord.CoordUtils
+import com.asamm.garminimg.utils.io.ByteArrayImgRandomAccessReader
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

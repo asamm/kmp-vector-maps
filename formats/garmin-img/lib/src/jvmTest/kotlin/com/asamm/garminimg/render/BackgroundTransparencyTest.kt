@@ -1,8 +1,8 @@
 package com.asamm.garminimg.render
 
 import com.asamm.garminimg.ImgFile
-import com.asamm.garminimg.coord.CoordUtils
-import com.asamm.garminimg.io.ByteArrayImgRandomAccessReader
+import com.asamm.garminimg.utils.coord.CoordUtils
+import com.asamm.garminimg.utils.io.ByteArrayImgRandomAccessReader
 import com.asamm.garminimg.style.Color
 import kotlin.test.Test
 import kotlin.test.assertEquals

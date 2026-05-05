@@ -1,7 +1,7 @@
 package com.asamm.garminimg.fixture
 
-import com.asamm.garminimg.coord.CoordUtils
-import com.asamm.garminimg.io.ByteArrayImgRandomAccessReader
+import com.asamm.garminimg.utils.coord.CoordUtils
+import com.asamm.garminimg.utils.io.ByteArrayImgRandomAccessReader
 import com.asamm.garminimg.parser.ImgArchive
 import com.asamm.garminimg.model.MapObject
 import com.asamm.garminimg.parser.LabelCoding

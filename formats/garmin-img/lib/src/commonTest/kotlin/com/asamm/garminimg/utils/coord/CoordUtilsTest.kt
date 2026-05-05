@@ -1,4 +1,4 @@
-package com.asamm.garminimg.coord
+package com.asamm.garminimg.utils.coord
 
 import kotlin.math.PI
 import kotlin.test.Test

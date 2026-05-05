@@ -1,7 +1,7 @@
 package com.asamm.garminimg.fixture
 
 import com.asamm.garminimg.ImgFile
-import com.asamm.garminimg.io.ByteArrayImgRandomAccessReader
+import com.asamm.garminimg.utils.io.ByteArrayImgRandomAccessReader
 import com.asamm.garminimg.model.MapObject
 import com.asamm.garminimg.model.ObjectKind
 import kotlin.test.Test

@@ -1,4 +1,4 @@
-package com.asamm.garminimg.io
+package com.asamm.garminimg.utils.io
 
 import kotlin.test.Test
 import kotlin.test.assertEquals

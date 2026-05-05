@@ -1,7 +1,7 @@
 package com.asamm.garminimg.parser
 
-import com.asamm.garminimg.io.ByteArrayImgRandomAccessReader
-import com.asamm.garminimg.io.LabelCharset
+import com.asamm.garminimg.utils.io.ByteArrayImgRandomAccessReader
+import com.asamm.garminimg.utils.io.LabelCharset
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -112,7 +112,7 @@ class LblSubFileTest {
         return openLbl(lblBytes).first
     }
 
-    private fun openLbl(lblBytes: ByteArray): Pair<LblHeader, com.asamm.garminimg.io.ImgRandomAccessReader> {
+    private fun openLbl(lblBytes: ByteArray): Pair<LblHeader, com.asamm.garminimg.utils.io.ImgRandomAccessReader> {
         val img = SyntheticImg.builder()
             .blockSizeExponent(9, 0)
             .addFatEntry(

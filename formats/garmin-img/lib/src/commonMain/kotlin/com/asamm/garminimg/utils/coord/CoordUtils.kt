@@ -4,7 +4,7 @@
  * Derived from JGarminImgParser (Patrick Valsecchi, 2006) and the Asamm fork
  * libGarminImg. Distributed under the GNU Lesser General Public License v2.1.
  */
-package com.asamm.garminimg.coord
+package com.asamm.garminimg.utils.coord
 
 import kotlin.math.PI
 import kotlin.math.round
