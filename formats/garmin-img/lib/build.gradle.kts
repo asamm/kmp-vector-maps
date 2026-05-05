@@ -34,6 +34,11 @@ kotlin {
         }
     }
 
+    // Kotlin multiplatform's `jvm()` target auto-compiles Java sources
+    // sitting alongside Kotlin in `jvmMain` / `jvmTest`. We use that to
+    // ship the legacy libGarminImg Java parser inside the jvmTest source
+    // set so the dump-diff regression test can run our parser and the
+    // reference Java parser side-by-side.
     jvm()
 
     sourceSets {
