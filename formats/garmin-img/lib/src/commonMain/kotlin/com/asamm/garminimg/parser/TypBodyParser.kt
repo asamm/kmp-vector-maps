@@ -7,6 +7,7 @@
 package com.asamm.garminimg.parser
 
 import com.asamm.garminimg.io.ImgRandomAccessReader
+import com.asamm.garminimg.style.Bitmap
 import com.asamm.garminimg.style.Color
 
 /**
@@ -57,6 +58,7 @@ object TypBodyParser {
     fun parse(reader: ImgRandomAccessReader, header: TypHeader): TypStyleTable {
         val polygons = parsePolygonRecords(reader, header)
         val lines = parseLineRecords(reader, header)
+        val points = parsePointRecords(reader, header)
         val drawOrder = parseShapeStacking(reader, header)
         // Apply DRAWORDER priorities so the renderer can sort polygons
         // before drawing — without this, large background polygons can
@@ -71,7 +73,7 @@ object TypBodyParser {
                 if (priority != null) style.copy(drawPriority = priority) else style
             }
         }
-        return TypStyleTable(polygons = withPriority, lines = lines)
+        return TypStyleTable(polygons = withPriority, lines = lines, points = points)
     }
 
     /**
@@ -182,13 +184,15 @@ object TypBodyParser {
         } else {
             emptyList()
         }
-        if (hasBitmap) {
-            // 32×32 1-bit-per-pixel pattern is 32×32/8 = 128 bytes. Only ONE
-            // bitmap regardless of day/night colour count: TypPolygon.write
-            // emits the bitmap exactly once, and the day/night switch
-            // happens at render time using the same 1bpp pattern with the
-            // appropriate fg/bg colour pair.
-            skipBytes(reader, POLYGON_BITMAP_BYTES)
+        // 32×32 1-bit-per-pixel pattern is 32×32/8 = 128 bytes. Only ONE
+        // bitmap regardless of day/night colour count: TypPolygon.write
+        // emits the bitmap exactly once, and the day/night switch
+        // happens at render time using the same 1bpp pattern with the
+        // appropriate fg/bg colour pair.
+        val bitmapBytes = if (hasBitmap) {
+            ByteArray(POLYGON_BITMAP_BYTES).also { reader.readBlock(it) }
+        } else {
+            null
         }
         if (hasLabel) {
             skipLabelBlock(reader)
@@ -197,17 +201,20 @@ object TypBodyParser {
             skipExtendedFontInfo(reader)
         }
 
-        // For B.2.7 v1: use the day foreground as the fill colour. Day
-        // background, when present, becomes a stroke colour for visual
-        // contrast — the renderer would otherwise paint adjacent same-fg
-        // polygons as one indistinguishable blob.
-        val fill = dayColours.firstOrNull() ?: Color.Transparent
-        val stroke = if (dayColours.size >= 2 && !dayTransparent) {
-            dayColours[1]
+        // Polygons with a 32×32 1bpp pattern carry fg+bg colours plus the
+        // bit pattern; we expand it to an RGBA tile that the renderer
+        // tiles via TexturePaint. Solid polygons (no bitmap) keep their
+        // raw fg colour; the optional second day colour acts as a thin
+        // outline so adjacent same-fg polygons stay separable.
+        val fg = dayColours.firstOrNull() ?: Color.Transparent
+        val bg = if (dayColours.size >= 2 && !dayTransparent) dayColours[1] else null
+        val pattern = if (bitmapBytes != null) {
+            expandPattern(bitmapBytes, fg, bg ?: Color.Transparent)
         } else {
             null
         }
-        return TypPolygonStyle(fillColor = fill, strokeColor = stroke)
+        val stroke = if (bitmapBytes == null) bg else null
+        return TypPolygonStyle(fillColor = fg, strokeColor = stroke, pattern = pattern)
     }
 
     //********************************
@@ -255,11 +262,11 @@ object TypBodyParser {
         }
 
         if (bitmapHeight > 0) {
-            // Width is fixed at 32 bits per row; height is variable.
-            // bitsPerPixel depends on number of colours — use the same
-            // ColourInfo math as polygons: 1 for ≤2 colours, 2 for ≤4, etc.
-            val bitsPerPixel = bitsPerPixelFor(dayColours.size + nightColours.size)
-            val rowBytes = (LINE_BITMAP_WIDTH * bitsPerPixel + 7) / 8
+            // Lines and polygons use mkgmap's `simple=true` ColourInfo
+            // path which forces 1 bit per pixel regardless of the colour
+            // count: the bit selects between fg/bg of the active day or
+            // night colour pair. Width is fixed at 32 → 4 bytes per row.
+            val rowBytes = (LINE_BITMAP_WIDTH * 1 + 7) / 8
             skipBytes(reader, rowBytes * bitmapHeight)
         }
 
@@ -299,6 +306,187 @@ object TypBodyParser {
             strokeWidthPx = lineWidth.toFloat().coerceAtLeast(1f),
             totalWidthPx = totalWidth.toFloat().coerceAtLeast(lineWidth.toFloat()),
         )
+    }
+
+    //********************************
+    // POINTS / ICONS
+    //********************************
+
+    /**
+     * Reads every point/icon record from the TYP body. We only attempt to
+     * decode records that use mode 0x10 palette images (the common case);
+     * mode 0x20 (per-pixel alpha) and mode 0 (24-bit true colour) are
+     * skipped silently — the renderer falls back to the InternalStyles
+     * default for those `(type, subType)` pairs.
+     */
+    private fun parsePointRecords(
+        reader: ImgRandomAccessReader,
+        header: TypHeader,
+    ): Map<Int, TypPointStyle> {
+        val index = header.pointIndex ?: return emptyMap()
+        val data = header.points ?: return emptyMap()
+        val out = HashMap<Int, TypPointStyle>()
+        forEachIndexEntry(reader, index, data) { typeForFile, recordOffset ->
+            try {
+                reader.seek(recordOffset)
+                val style = parseOnePoint(reader)
+                if (style != null) {
+                    out[typeForFile] = style
+                }
+            } catch (_: Exception) {
+                // Drop bad record; resolver falls back to InternalStyles.
+            }
+        }
+        return out
+    }
+
+    /**
+     * Parses one point record. Format (per mkgmap `TypPoint.write` /
+     * `TypElement.writeImage` / `BitmapImage.write`):
+     *
+     * - byte 0: flags (bit 0 = bitmap present, bit 1 = night XPM, bit 2 =
+     *   label, bit 3 = extended font).
+     * - byte 1: width.
+     * - byte 2: height.
+     * - byte 3: numColForCM.
+     * - byte 4: colour mode (0 = true colour, 0x10 = palette, 0x20 =
+     *   palette + per-colour alpha).
+     * - colour table (mode 0x10: numColForCM × 3 BGR; mode 0x20: bit-packed
+     *   24-bit BGR + 4-bit alpha per colour, padded to byte at end).
+     * - bitmap rows: each row `ceil(width × bitsPerPixel / 8)` bytes,
+     *   pixel indices packed LSB-first per byte; row starts byte-aligned.
+     *   `bitsPerPixel` is 1/2/4/8 depending on numberOfColours.
+     * - optional night image (same shape as day) — we skip it.
+     * - optional label / extended-font blocks — skipped.
+     *
+     * Returns null when the record uses a mode we don't yet decode (the
+     * caller drops it; the resolver then falls back to InternalStyles).
+     */
+    private fun parseOnePoint(reader: ImgRandomAccessReader): TypPointStyle? {
+        val flags = reader.readByte()
+        val hasBitmap = flags and 0x01 != 0
+        val hasNight = flags and 0x02 != 0
+        val hasLabel = flags and 0x04 != 0
+        val hasExtended = flags and 0x08 != 0
+
+        val width = reader.readByte()
+        val height = reader.readByte()
+        if (!hasBitmap || width <= 0 || height <= 0 || width > MAX_POINT_DIM ||
+            height > MAX_POINT_DIM
+        ) {
+            return null
+        }
+
+        val icon = readPointImage(reader, width, height) ?: return null
+
+        // Skip night image so subsequent label / font sections align —
+        // even though we ignore the result.
+        if (hasNight) {
+            readPointImage(reader, width, height)
+        }
+        if (hasLabel) {
+            skipLabelBlock(reader)
+        }
+        if (hasExtended) {
+            skipExtendedFontInfo(reader)
+        }
+        return TypPointStyle(icon = icon)
+    }
+
+    /**
+     * Reads one (day or night) point image from the current reader
+     * position, returning an RGBA [Bitmap] or null when the image uses a
+     * mode we don't decode.
+     */
+    private fun readPointImage(
+        reader: ImgRandomAccessReader,
+        width: Int,
+        height: Int,
+    ): Bitmap? {
+        val numForCM = reader.readByte()
+        val colourMode = reader.readByte()
+        if (numForCM == 0) {
+            // True-colour image — skip (mode 0 / 0x10 / 0x20 variants
+            // each have different layouts; not yet implemented).
+            return null
+        }
+        // Mode 0x10: numColours = numForCM solid colours + 1 implicit
+        // transparent at end. Mode 0x20: numColours = numForCM, each
+        // colour carries its own 4-bit alpha.
+        val numColours = if (colourMode == 0x10) numForCM + 1 else numForCM
+        val bpp = bitsPerPixelFor(numColours)
+
+        val palette = ArrayList<Color>(numColours)
+        when (colourMode) {
+            0x10 -> {
+                // Solid colours written as BGR triples; transparent slot
+                // is implicit (NOT stored on disk) — we append it.
+                repeat(numForCM) { palette.add(readRgb(reader)) }
+                palette.add(Color.Transparent)
+            }
+            0x20 -> {
+                // Each colour is BGR (24 bits) + alpha (4 bits) packed
+                // LSB-first. Total stream: numColours × 28 bits, padded
+                // up to the next byte at the end.
+                val totalBits = numColours * 28
+                val bytes = ByteArray((totalBits + 7) / 8)
+                reader.readBlock(bytes)
+                val br = BitStream(bytes)
+                repeat(numColours) {
+                    val b = br.read(8)
+                    val g = br.read(8)
+                    val r = br.read(8)
+                    val invAlpha4 = br.read(4)
+                    // Stored alpha is `0xff - actualAlpha` rounded to 4
+                    // bits; reconstitute by inverting and expanding the
+                    // nibble across the full byte.
+                    val actualAlpha = 0xFF - (invAlpha4 * 0x11)
+                    palette.add(Color.rgb(r, g, b, actualAlpha))
+                }
+            }
+            else -> return null
+        }
+
+        // Bitmap: each row is byte-aligned; pixels packed LSB-first.
+        val rgba = ByteArray(width * height * 4)
+        val rowBytes = (width * bpp + 7) / 8
+        val rowBuf = ByteArray(rowBytes)
+        var dst = 0
+        for (row in 0 until height) {
+            reader.readBlock(rowBuf)
+            val br = BitStream(rowBuf)
+            for (col in 0 until width) {
+                val idx = br.read(bpp)
+                val c = if (idx in 0 until palette.size) palette[idx] else Color.Transparent
+                rgba[dst] = c.red.toByte()
+                rgba[dst + 1] = c.green.toByte()
+                rgba[dst + 2] = c.blue.toByte()
+                rgba[dst + 3] = c.alpha.toByte()
+                dst += 4
+            }
+        }
+        return Bitmap(width = width, height = height, rgba = rgba)
+    }
+
+    /**
+     * Tiny LSB-first bit reader over a fixed byte buffer. Mirrors mkgmap's
+     * `BitWriter` packing: the first bit goes into bit 0 of byte 0.
+     */
+    private class BitStream(private val bytes: ByteArray) {
+
+        private var bitPos: Int = 0
+
+        fun read(n: Int): Int {
+            var value = 0
+            for (i in 0 until n) {
+                val byteIdx = bitPos ushr 3
+                val bit = bitPos and 0x7
+                val b = (bytes[byteIdx].toInt() ushr bit) and 0x1
+                value = value or (b shl i)
+                bitPos++
+            }
+            return value
+        }
     }
 
     //********************************
@@ -421,8 +609,44 @@ object TypBodyParser {
         }
     }
 
+    /**
+     * Expands a 32×32 1bpp bit pattern into a 32×32 RGBA [Bitmap]. Bits
+     * are read MSB-first within each byte, in row-major order. Set bits
+     * paint with [fg]; clear bits paint with [bg].
+     */
+    private fun expandPattern(bits: ByteArray, fg: Color, bg: Color): Bitmap {
+        val side = 32
+        val rgba = ByteArray(side * side * 4)
+        var dst = 0
+        var src = 0
+        for (row in 0 until side) {
+            // Each row is 32 bits = 4 bytes.
+            for (byteIdx in 0 until 4) {
+                val byte = bits[src + byteIdx].toInt() and 0xFF
+                for (bit in 7 downTo 0) {
+                    val on = (byte ushr bit) and 0x1 != 0
+                    val c = if (on) fg else bg
+                    rgba[dst] = c.red.toByte()
+                    rgba[dst + 1] = c.green.toByte()
+                    rgba[dst + 2] = c.blue.toByte()
+                    rgba[dst + 3] = c.alpha.toByte()
+                    dst += 4
+                }
+            }
+            src += 4
+        }
+        return Bitmap(width = side, height = side, rgba = rgba)
+    }
+
     private const val POLYGON_BITMAP_BYTES: Int = 32 * 32 / 8 // 32x32, 1bpp = 128
     private const val LINE_BITMAP_WIDTH: Int = 32
+
+    /**
+     * Sanity cap on a TYP point bitmap dimension. Real TYP icons are
+     * 16-64 px on a side; anything larger almost certainly means we mis-
+     * parsed the record header and would otherwise allocate gigabytes.
+     */
+    private const val MAX_POINT_DIM: Int = 256
 }
 
 /**
@@ -440,6 +664,14 @@ data class TypPolygonStyle(
     val fillColor: Color,
     val strokeColor: Color?,
     val drawPriority: Int = Int.MAX_VALUE,
+    /**
+     * Optional 32×32 RGBA tile expanded from the TYP record's 1bpp bit
+     * pattern. When present, the renderer tiles this across the polygon
+     * instead of using [fillColor] solid. Set bits paint with the day
+     * foreground; clear bits paint with the day background (or
+     * transparent when the day-bg-transparent flag was set).
+     */
+    val pattern: Bitmap? = null,
 )
 
 /**
@@ -464,13 +696,24 @@ data class TypLineStyle(
 )
 
 /**
+ * One point's resolved TYP style: the day icon as RGBA (when we managed
+ * to decode the point's image). Label / font metadata are deferred —
+ * the renderer falls back to the IMG's per-object label string.
+ */
+data class TypPointStyle(
+    val icon: Bitmap,
+)
+
+/**
  * Lookup table built once from a TYP body parse. Keys are `typeForFile`
- * (`(type << 5) | (subType and 0x1F)`); use [lookupPolygon] / [lookupLine]
- * for the by-(type, subType) call shape the renderer actually wants.
+ * (`(type << 5) | (subType and 0x1F)`); use [lookupPolygon] / [lookupLine] /
+ * [lookupPoint] for the by-(type, subType) call shape the renderer actually
+ * wants.
  */
 data class TypStyleTable(
     val polygons: Map<Int, TypPolygonStyle>,
     val lines: Map<Int, TypLineStyle>,
+    val points: Map<Int, TypPointStyle> = emptyMap(),
 ) {
 
     fun lookupPolygon(type: Int, subType: Int): TypPolygonStyle? {
@@ -481,6 +724,11 @@ data class TypStyleTable(
     fun lookupLine(type: Int, subType: Int): TypLineStyle? {
         return lines[typeForFile(type, subType)]
             ?: lines[typeForFile(type, 0)]
+    }
+
+    fun lookupPoint(type: Int, subType: Int): TypPointStyle? {
+        return points[typeForFile(type, subType)]
+            ?: points[typeForFile(type, 0)]
     }
 
     private fun typeForFile(type: Int, subType: Int): Int {

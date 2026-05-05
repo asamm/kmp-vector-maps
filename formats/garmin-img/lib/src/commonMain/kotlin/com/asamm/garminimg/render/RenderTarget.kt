@@ -68,8 +68,28 @@ interface RenderTarget {
     /**
      * Draws an open polyline. Borders are drawn beneath the foreground stroke
      * if [Style.LineStyle.borderColor] is non-null.
+     *
+     * Two-pass callers (the renderer at junction-clean mode) instead use
+     * [drawPolylineBorder] + [drawPolylineStroke] separately so every
+     * border lands before any centre stroke is laid down — that's what
+     * keeps roads continuous across intersections instead of leaving
+     * dark blobs at every junction.
      */
-    fun drawPolyline(xs: FloatArray, ys: FloatArray, style: Style.LineStyle)
+    fun drawPolyline(xs: FloatArray, ys: FloatArray, style: Style.LineStyle) {
+        drawPolylineBorder(xs, ys, style)
+        drawPolylineStroke(xs, ys, style)
+    }
+
+    /**
+     * Draws just the polyline's border casing (no centre stroke). No-op when
+     * the style has no border colour or `borderWidth <= strokeWidth`.
+     */
+    fun drawPolylineBorder(xs: FloatArray, ys: FloatArray, style: Style.LineStyle)
+
+    /**
+     * Draws just the polyline's foreground centre stroke (no border).
+     */
+    fun drawPolylineStroke(xs: FloatArray, ys: FloatArray, style: Style.LineStyle)
 
     /**
      * Draws a point feature. If `style.icon` is non-null, the bitmap is

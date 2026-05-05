@@ -46,6 +46,16 @@ class TypBodyDumpTest {
                 ),
             )
         }
+        println("--- Point styles (${table.points.size} entries) ---")
+        for ((typeForFile, style) in table.points.entries.sortedBy { it.key }) {
+            val type = typeForFile ushr 5
+            val subType = typeForFile and 0x1F
+            println(
+                "  type=0x%02x subType=0x%02x -> icon=%dx%d".format(
+                    type, subType, style.icon.width, style.icon.height,
+                ),
+            )
+        }
         println("--- Line styles (${table.lines.size} entries) ---")
         for ((typeForFile, style) in table.lines.entries.sortedBy { it.key }) {
             val type = typeForFile ushr 5

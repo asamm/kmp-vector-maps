@@ -105,10 +105,14 @@ class ImgFile internal constructor(
         minLat: Int,
         maxLat: Int,
         objectKindFilter: Int = ObjectKind.ALL,
+        levelFilter: Int? = null,
     ): Sequence<MapObject> {
         return sequence {
             for (subDivision in tre.tree.all()) {
                 if (subDivision.objectTypes == 0) {
+                    continue
+                }
+                if (levelFilter != null && subDivision.level != levelFilter) {
                     continue
                 }
                 if (!subDivisionIntersects(subDivision, minLong, maxLong, minLat, maxLat)) {

@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -25,9 +26,16 @@ import java.io.File
 fun main() {
     val restored = ViewerPrefs.restore()
     application {
+        val hasSavedPosition = restored.windowXDp != ViewerPrefs.POSITION_UNSET &&
+            restored.windowYDp != ViewerPrefs.POSITION_UNSET
         val windowState = WindowState(
             width = restored.windowWidthDp.dp,
             height = restored.windowHeightDp.dp,
+            position = if (hasSavedPosition) {
+                WindowPosition(restored.windowXDp.dp, restored.windowYDp.dp)
+            } else {
+                WindowPosition.PlatformDefault
+            },
         )
         Window(
             onCloseRequest = ::exitApplication,
@@ -56,6 +64,22 @@ fun main() {
                             size.width.value.toInt(),
                             size.height.value.toInt(),
                         )
+                    }
+            }
+
+            // Persist window position as the user moves it. Same dedupe;
+            // skip the initial PlatformDefault placeholder which is not a
+            // real coordinate.
+            LaunchedEffect(windowState) {
+                snapshotFlow { windowState.position }
+                    .distinctUntilChanged()
+                    .collect { pos ->
+                        if (pos.isSpecified) {
+                            ViewerPrefs.saveWindowPosition(
+                                pos.x.value.toInt(),
+                                pos.y.value.toInt(),
+                            )
+                        }
                     }
             }
 

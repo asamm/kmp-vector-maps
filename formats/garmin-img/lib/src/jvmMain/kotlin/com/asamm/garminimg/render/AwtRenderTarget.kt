@@ -15,7 +15,9 @@ import java.awt.Color as AwtColor
 import java.awt.Font
 import java.awt.Graphics2D
 import java.awt.RenderingHints
+import java.awt.TexturePaint
 import java.awt.geom.Path2D
+import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
 import java.io.File
@@ -77,32 +79,65 @@ class AwtRenderTarget(
             return
         }
         val path = buildPath(xs, ys, closed = true)
-        g.color = style.fillColor.toAwt()
-        g.fill(path)
+        val pattern = style.pattern
+        if (pattern != null) {
+            // Tile the TYP 32×32 pattern across the polygon. We anchor the
+            // tile at (0,0) in the target — adjacent polygons of the same
+            // type then line up on a shared tile grid (matching mkgmap /
+            // QMapShack behaviour, where the pattern is screen-aligned).
+            val tile = patternCache.getOrPut(pattern) { pattern.toBufferedImage() }
+            val savedPaint = g.paint
+            g.paint = TexturePaint(
+                tile,
+                Rectangle2D.Float(0f, 0f, tile.width.toFloat(), tile.height.toFloat()),
+            )
+            g.fill(path)
+            g.paint = savedPaint
+        } else {
+            g.color = style.fillColor.toAwt()
+            g.fill(path)
+        }
+        // Suppress the polygon outline when a TYP pattern is active — the
+        // pattern itself separates adjacent areas; an extra stroke just
+        // reads as a grey rectangle around forest patches.
         val strokeColor = style.strokeColor
-        if (strokeColor != null) {
+        if (strokeColor != null && pattern == null) {
             g.color = strokeColor.toAwt()
             g.stroke = BasicStroke(style.strokeWidth)
             g.draw(path)
         }
     }
 
-    override fun drawPolyline(xs: FloatArray, ys: FloatArray, style: Style.LineStyle) {
+    /**
+     * Pattern → BufferedImage cache. TYP patterns are interned by parser
+     * (one [Bitmap] per `(type, subType)`), so a small identity-keyed map
+     * keeps the per-polygon cost down to a single hash lookup.
+     */
+    private val patternCache: MutableMap<Bitmap, BufferedImage> = HashMap()
+
+    override fun drawPolylineBorder(xs: FloatArray, ys: FloatArray, style: Style.LineStyle) {
+        if (xs.size < 2) {
+            return
+        }
+        val borderColor = style.borderColor ?: return
+        if (style.borderWidth <= style.strokeWidth) {
+            return
+        }
+        val path = buildPath(xs, ys, closed = false)
+        g.color = borderColor.toAwt()
+        g.stroke = BasicStroke(
+            style.borderWidth,
+            BasicStroke.CAP_ROUND,
+            BasicStroke.JOIN_ROUND,
+        )
+        g.draw(path)
+    }
+
+    override fun drawPolylineStroke(xs: FloatArray, ys: FloatArray, style: Style.LineStyle) {
         if (xs.size < 2) {
             return
         }
         val path = buildPath(xs, ys, closed = false)
-
-        val borderColor = style.borderColor
-        if (borderColor != null && style.borderWidth > style.strokeWidth) {
-            g.color = borderColor.toAwt()
-            g.stroke = BasicStroke(
-                style.borderWidth,
-                BasicStroke.CAP_ROUND,
-                BasicStroke.JOIN_ROUND,
-            )
-            g.draw(path)
-        }
         g.color = style.strokeColor.toAwt()
         val dash = style.dashPattern
         g.stroke = if (dash != null && dash.isNotEmpty()) {

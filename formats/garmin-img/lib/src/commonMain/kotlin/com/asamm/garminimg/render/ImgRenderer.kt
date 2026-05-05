@@ -9,9 +9,12 @@ package com.asamm.garminimg.render
 import com.asamm.garminimg.ImgFile
 import com.asamm.garminimg.model.MapObject
 import com.asamm.garminimg.model.ObjectKind
+import com.asamm.garminimg.parser.TreLevels
 import com.asamm.garminimg.style.Color
 import com.asamm.garminimg.style.InternalStyles
 import com.asamm.garminimg.style.Style
+import kotlin.math.abs
+import kotlin.math.ln
 
 /**
  * Walks an [ImgFile]'s map objects and dispatches them to a [RenderTarget]
@@ -71,6 +74,15 @@ class ImgRenderer(
         val labels = LabelLayout()
         target.beginFrame(backgroundColor)
 
+        // Level-of-detail: pick the level whose detail best matches
+        // screen pixel resolution. Skipping finer levels at wide
+        // viewports drops noise (sub-division frames, over-detailed
+        // forests). If the picked level has no sub-divisions intersecting
+        // the viewport (some IMGs are sparse at the finest level outside
+        // the cartographer's chosen "detail area"), fall back to a
+        // coarser level that does have content.
+        val targetLevel = pickRenderLevelWithCoverage(viewport, img)
+
         // First pass: bucket every map object by kind. Polygons need to be
         // sorted by draw priority (TYP's DRAWORDER section, when present)
         // so background polygons paint first and small foreground features
@@ -86,6 +98,7 @@ class ImgRenderer(
             minLat = viewport.minLat,
             maxLat = viewport.maxLat,
             objectKindFilter = objectKindFilter,
+            levelFilter = targetLevel,
         )) {
             when (obj) {
                 is MapObject.Point -> points.add(obj)
@@ -104,13 +117,30 @@ class ImgRenderer(
         // entry matched" → drawn last, which is the conservative default.
         polygons.sortBy { it.second.drawPriority }
 
-        // Draw polygons → polylines → points (no internal point sort).
+        // Sort polylines by priority too — lower draws first (minor
+        // roads beneath highways at junctions). `drawPriority` defaults
+        // to Int.MAX_VALUE when not set, so types without an explicit
+        // priority pile up at the end (visually on top).
+        polylines.sortBy { it.second.drawPriority }
+
+        // Polygons paint as a single pass (each polygon's stroke is
+        // local to its own outline).
         for ((poly, style) in polygons) {
             drawPolygon(poly, style, projection, target, labels)
         }
+
+        // Two-pass polyline rendering: every border first, then every
+        // centre stroke. Single-pass would let A's border draw over B's
+        // centre at intersections, leaving dark blobs at every junction.
+        // Two-pass produces continuous roads through junctions — same
+        // technique mkgmap / QMapShack use.
         for ((poly, style) in polylines) {
-            drawPolyline(poly, style, projection, target, labels)
+            drawPolylineBorder(poly, style, projection, target)
         }
+        for ((poly, style) in polylines) {
+            drawPolylineCentre(poly, style, projection, target, labels)
+        }
+
         for (point in points) {
             drawPoint(point, projection, target, labels)
         }
@@ -201,7 +231,25 @@ class ImgRenderer(
         }
     }
 
-    private fun drawPolyline(
+    private fun drawPolylineBorder(
+        poly: MapObject.PolyShape,
+        style: Style.LineStyle,
+        projection: Projection,
+        target: RenderTarget,
+    ) {
+        if (poly.longitudes.isEmpty()) {
+            return
+        }
+        val xs = FloatArray(poly.longitudes.size)
+        val ys = FloatArray(poly.longitudes.size)
+        projection.projectBulk(poly.longitudes, poly.latitudes, xs, ys)
+        if (allOffScreen(xs, ys, target)) {
+            return
+        }
+        target.drawPolylineBorder(xs, ys, style)
+    }
+
+    private fun drawPolylineCentre(
         poly: MapObject.PolyShape,
         style: Style.LineStyle,
         projection: Projection,
@@ -218,7 +266,7 @@ class ImgRenderer(
         if (allOffScreen(xs, ys, target)) {
             return
         }
-        target.drawPolyline(xs, ys, style)
+        target.drawPolylineStroke(xs, ys, style)
         if (style.labelColor != null && !poly.label.isNullOrEmpty()) {
             val midIdx = n / 2
             val w = poly.label.length * DEFAULT_LINE_FONT_SIZE * 0.55f
@@ -316,6 +364,126 @@ class ImgRenderer(
     }
 
     companion object {
+
+        /**
+         * Picks the TRE level whose `bitsPerCoord` matches the viewport's
+         * pixel resolution best. Returns null if [levels] is empty —
+         * caller should then render every level.
+         *
+         * Math: at level L with `b` bits-per-coord, one delta unit equals
+         * `1 shl (24 - b)` Garmin coords. We want one delta unit to map
+         * to roughly one screen pixel, i.e.:
+         *
+         *     (1 shl (24 - b)) * pixelsPerCoord ≈ 1
+         *     b ≈ 24 + log2(pixelsPerCoord)
+         *
+         * `pixelsPerCoord = widthPx / (maxLon - minLon)` (in Garmin
+         * coords). We pick the finest level whose `bitsPerCoord` is at
+         * most `targetBits + DETAIL_BIAS` — a slight over-pick that
+         * keeps small harbour / coastline detail (breakwaters, jetties)
+         * visible without dragging in the noisiest finest level. Falls
+         * back to the level with the lowest bitsPerCoord above the cap
+         * if nothing fits, then to the finest available.
+         */
+        fun pickRenderLevel(viewport: Viewport, levels: TreLevels): Int? {
+            if (levels.levels.isEmpty()) {
+                return null
+            }
+            val lonRange = (viewport.maxLon - viewport.minLon).toDouble()
+            if (lonRange <= 0.0) {
+                return null
+            }
+            val pixelsPerCoord = viewport.widthPx.toDouble() / lonRange
+            // log2(x) = ln(x) / ln(2)
+            val targetBits = 24.0 + ln(pixelsPerCoord) / LN2
+            val cap = targetBits + DETAIL_BIAS
+            // Pick the finest level (highest bitsPerCoord) whose detail
+            // doesn't exceed cap. Falls back to the closest level above
+            // cap if all levels are coarser, then the finest available.
+            var fineFit: Int? = null
+            var fineFitBits = Int.MIN_VALUE
+            var bestAbove: Int? = null
+            var bestAboveScore = Double.MAX_VALUE
+            for (lvl in levels.levels) {
+                // Inherited levels carry no own RGN data — picking one
+                // would render an empty viewport. Skip them entirely.
+                if (lvl.inherited) {
+                    continue
+                }
+                if (lvl.bitsPerCoord <= cap) {
+                    if (lvl.bitsPerCoord > fineFitBits) {
+                        fineFitBits = lvl.bitsPerCoord
+                        fineFit = lvl.level
+                    }
+                } else {
+                    val score = lvl.bitsPerCoord - cap
+                    if (score < bestAboveScore) {
+                        bestAboveScore = score
+                        bestAbove = lvl.level
+                    }
+                }
+            }
+            return fineFit ?: bestAbove
+        }
+
+        /**
+         * How many extra `bitsPerCoord` of detail we accept past the
+         * theoretical pixel-matched level. ~1 bit ≈ a 2× sub-pixel
+         * over-sample, enough to catch small features at the cost of
+         * slightly noisier renders at very wide bboxes.
+         */
+        private const val DETAIL_BIAS: Double = 1.0
+
+        /**
+         * Picks the LoD level *and* validates that the chosen level has
+         * sub-divisions intersecting the viewport. Steps progressively
+         * coarser when the first pick is sparse — this matters for IMGs
+         * (like OpenTopo Monaco) where the finest level only contains
+         * data inside a narrow "detail area" smaller than the viewer's
+         * tight bbox.
+         */
+        internal fun pickRenderLevelWithCoverage(
+            viewport: Viewport,
+            img: ImgFile,
+        ): Int? {
+            val first = pickRenderLevel(viewport, img.tre.levels) ?: return null
+            // Walk levels from finest-passing-the-cap down to coarsest;
+            // first one with intersecting sub-divisions wins.
+            val candidates = img.tre.levels.levels
+                .filterNot { it.inherited }
+                .sortedByDescending { it.bitsPerCoord }
+            // Start at `first` and go coarser; also try finer if needed.
+            val firstBits = img.tre.levels.bitsPerCoordOf(first) ?: return first
+            val ordered = candidates
+                .partition { it.bitsPerCoord <= firstBits }
+                .let { (atOrCoarser, finer) -> atOrCoarser + finer }
+            for (lvl in ordered) {
+                if (hasSubDivisions(img, lvl.level, viewport)) {
+                    return lvl.level
+                }
+            }
+            return first
+        }
+
+        private fun hasSubDivisions(
+            img: ImgFile,
+            level: Int,
+            viewport: Viewport,
+        ): Boolean {
+            for (sd in img.tre.tree.all()) {
+                if (sd.level != level || sd.objectTypes == 0) {
+                    continue
+                }
+                if (sd.longitudeCenter in viewport.minLon..viewport.maxLon &&
+                    sd.latitudeCenter in viewport.minLat..viewport.maxLat
+                ) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        private const val LN2: Double = 0.6931471805599453
         private const val DEFAULT_POINT_LABEL_OFFSET: Float = 12f
         private const val DEFAULT_POINT_FONT_SIZE: Float = 11f
         private const val DEFAULT_LINE_FONT_SIZE: Float = 10f
@@ -356,7 +524,15 @@ fun interface StyleResolver {
         fun typAware(table: com.asamm.garminimg.parser.TypStyleTable): StyleResolver {
             return StyleResolver { obj ->
                 when (obj) {
-                    is MapObject.Point -> InternalStyles.resolve(obj)
+                    is MapObject.Point -> {
+                        val typPoint = table.lookupPoint(obj.type, obj.subType)
+                        val internal = InternalStyles.resolve(obj) as? Style.PointStyle
+                        if (typPoint != null && internal != null) {
+                            internal.copy(icon = typPoint.icon)
+                        } else {
+                            internal
+                        }
+                    }
                     is MapObject.PolyShape -> if (obj.closed) {
                         val typ = table.lookupPolygon(obj.type, obj.subType)
                         if (typ != null) {
@@ -373,6 +549,7 @@ fun interface StyleResolver {
                                 drawPriority = priority,
                                 fillColor = typ.fillColor,
                                 strokeColor = typ.strokeColor ?: internal.strokeColor,
+                                pattern = typ.pattern,
                             )
                         } else {
                             InternalStyles.resolve(obj)
