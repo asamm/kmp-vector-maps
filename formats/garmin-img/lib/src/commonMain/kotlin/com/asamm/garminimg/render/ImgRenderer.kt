@@ -189,12 +189,13 @@ class ImgRenderer(
             return
         }
         target.drawPoint(x, y, style)
-        if (style.showLabel && !point.label.isNullOrEmpty()) {
+        val pointLabel = point.label
+        if (style.showLabel && isDisplayableLabel(pointLabel)) {
             // Estimate text bounds from char count + font size — close enough
             // for collision testing without dragging in font-metrics from the
             // platform layer. Each char averages 0.55 * fontSize in width for
             // typical sans fonts.
-            val w = point.label.length * DEFAULT_POINT_FONT_SIZE * 0.55f
+            val w = pointLabel!!.length * DEFAULT_POINT_FONT_SIZE * 0.55f
             val h = DEFAULT_POINT_FONT_SIZE * 1.2f
             labels.submit(
                 x = x,
@@ -202,7 +203,7 @@ class ImgRenderer(
                 widthPx = w,
                 heightPx = h,
                 priority = style.drawPriority,
-                text = point.label,
+                text = pointLabel,
                 color = style.labelColor,
                 outlineColor = style.labelOutlineColor,
                 fontSize = DEFAULT_POINT_FONT_SIZE,
@@ -228,16 +229,17 @@ class ImgRenderer(
             return
         }
         target.drawPolygon(xs, ys, style)
-        if (style.labelColor != null && !poly.label.isNullOrEmpty()) {
+        val polyLabel = poly.label
+        if (style.labelColor != null && isDisplayableLabel(polyLabel)) {
             val (cx, cy) = centroid(xs, ys)
-            val w = poly.label.length * DEFAULT_AREA_FONT_SIZE * 0.55f
+            val w = polyLabel!!.length * DEFAULT_AREA_FONT_SIZE * 0.55f
             labels.submit(
                 x = cx,
                 y = cy,
                 widthPx = w,
                 heightPx = DEFAULT_AREA_FONT_SIZE * 1.2f,
                 priority = style.drawPriority,
-                text = poly.label,
+                text = polyLabel,
                 color = style.labelColor,
                 outlineColor = null,
                 fontSize = DEFAULT_AREA_FONT_SIZE,
@@ -282,16 +284,17 @@ class ImgRenderer(
             return
         }
         target.drawPolylineStroke(xs, ys, style)
-        if (style.labelColor != null && !poly.label.isNullOrEmpty()) {
+        val polyLabel = poly.label
+        if (style.labelColor != null && isDisplayableLabel(polyLabel)) {
             val midIdx = n / 2
-            val w = poly.label.length * DEFAULT_LINE_FONT_SIZE * 0.55f
+            val w = polyLabel!!.length * DEFAULT_LINE_FONT_SIZE * 0.55f
             labels.submit(
                 x = xs[midIdx],
                 y = ys[midIdx],
                 widthPx = w,
                 heightPx = DEFAULT_LINE_FONT_SIZE * 1.2f,
                 priority = style.drawPriority,
-                text = poly.label,
+                text = polyLabel,
                 color = style.labelColor,
                 outlineColor = null,
                 fontSize = DEFAULT_LINE_FONT_SIZE,
@@ -500,6 +503,101 @@ class ImgRenderer(
             return false
         }
 
+        /**
+         * True when [label] is something a user actually wants to see on
+         * the map. False for empty / null, URLs, e-mails, phone-number-
+         * like digit strings, opening-hours strings, hex hashes, and
+         * various short fragments. OpenTopo and similar OSM-derived IMGs
+         * ship POIs whose primary label is `https://…`, `Mo-Fr 09:00-18:00`,
+         * `+33 4 93 …`, or hex IDs; QMapShack hides those, and so do we.
+         */
+        internal fun isDisplayableLabel(label: String?): Boolean {
+            if (label.isNullOrEmpty()) {
+                return false
+            }
+            val trimmed = label.trim()
+            if (trimmed.length < 3) {
+                return false
+            }
+            // Filter mid-word fragments. Real place names start with
+            // either an uppercase letter (`Avenue`, `Église`, `Île`),
+            // a digit (`3 Brasseurs`, `5e Arrondissement`), or an
+            // opening parenthesis (`(La Poste)`). Lowercase-letter
+            // leading strings (`te/`, `ances`, `té Marseillaise`,
+            // `ssion autos`, `gionale des Transports`, `de Castagnin`,
+            // `d'Or`) are almost always partial fragments from
+            // mkgmap-truncated OSM labels and reading them back-to-back
+            // with real labels confuses the map.
+            val first = trimmed.first()
+            val acceptable = first.isUpperCase() ||
+                first.isDigit() ||
+                first == '(' ||
+                first == '\''
+            if (!acceptable) {
+                return false
+            }
+            // Anywhere in string: URL fragments. Catches both full URLs
+            // (https://…) and relative or sub-domain ones (.fr/, .com/).
+            val lower = trimmed.lowercase()
+            if (lower.contains("://") ||
+                lower.contains(".fr/") ||
+                lower.contains(".com/") ||
+                lower.contains(".de/") ||
+                lower.contains(".it/") ||
+                lower.contains(".co.") ||
+                lower.contains(".org/") ||
+                lower.contains(".net/") ||
+                lower.contains("www.") ||
+                lower.contains(".html") ||
+                lower.startsWith("http")
+            ) {
+                return false
+            }
+            if (trimmed.contains('@') && !trimmed.contains(' ')) {
+                // Looks like an e-mail.
+                return false
+            }
+            // Opening-hours pattern: contains `:` AND digits AND day
+            // prefixes (`Mo-`, `Tu-`, etc) OR time ranges (`HH:MM-HH:MM`).
+            if (looksLikeHoursLabel(trimmed)) {
+                return false
+            }
+            // Long hex run = ID / hash, not a place name.
+            if (HEX_RUN_REGEX.containsMatchIn(trimmed)) {
+                return false
+            }
+            // High digit/punct ratio = phone, order code, time range.
+            val nonAlpha = trimmed.count { !it.isLetter() && it != ' ' }
+            if (nonAlpha * 2 > trimmed.length) {
+                return false
+            }
+            return true
+        }
+
+        /**
+         * Detects opening-hours-style labels. mkgmap-derived IMGs tag
+         * many businesses with their OSM `opening_hours` field, e.g.
+         * `Mo-Fr 09:00-18:00`, `Sa 08:30-12:30`, `00:18:00; Sa 09:30-…`.
+         */
+        private fun looksLikeHoursLabel(text: String): Boolean {
+            // Time-range pattern HH:MM-HH:MM or HH:MM,HH:MM…
+            if (TIME_RANGE_REGEX.containsMatchIn(text)) {
+                return true
+            }
+            // Day-of-week prefix common across European locales.
+            if (DAY_PREFIX_REGEX.containsMatchIn(text)) {
+                return true
+            }
+            return false
+        }
+
+        private val HEX_RUN_REGEX: Regex = Regex("[0-9A-F]{12,}")
+        private val TIME_RANGE_REGEX: Regex = Regex("\\d{1,2}:\\d{2}\\s*[-,;]\\s*\\d{1,2}:\\d{2}")
+        private val DAY_PREFIX_REGEX: Regex = Regex(
+            "(?i)\\b(Mo|Tu|We|Th|Fr|Sa|Su|Mon|Tue|Wed|Thu|Fri|Sat|Sun)\\s*[-,]\\s*" +
+                "(Mo|Tu|We|Th|Fr|Sa|Su|Mon|Tue|Wed|Thu|Fri|Sat|Sun)\\b",
+        )
+
         private const val LN2: Double = 0.6931471805599453
         private const val DEFAULT_POINT_LABEL_OFFSET: Float = 12f
         private const val DEFAULT_POINT_FONT_SIZE: Float = 11f
@@ -545,7 +643,10 @@ fun interface StyleResolver {
                         val typPoint = table.lookupPoint(obj.type, obj.subType)
                         val internal = InternalStyles.resolve(obj) as? Style.PointStyle
                         if (typPoint != null && internal != null) {
-                            internal.copy(icon = typPoint.icon)
+                            internal.copy(
+                                icon = typPoint.icon,
+                                labelColor = typPoint.font?.dayColour ?: internal.labelColor,
+                            )
                         } else {
                             internal
                         }
@@ -567,6 +668,7 @@ fun interface StyleResolver {
                                 fillColor = typ.fillColor,
                                 strokeColor = typ.strokeColor ?: internal.strokeColor,
                                 pattern = typ.pattern,
+                                labelColor = typ.font?.dayColour ?: internal.labelColor,
                             )
                         } else {
                             InternalStyles.resolve(obj)
@@ -581,6 +683,7 @@ fun interface StyleResolver {
                                 strokeWidth = typ.strokeWidthPx,
                                 borderWidth = typ.totalWidthPx,
                                 pattern = typ.pattern,
+                                labelColor = typ.font?.dayColour ?: internal.labelColor,
                             )
                         } else {
                             InternalStyles.resolve(obj)

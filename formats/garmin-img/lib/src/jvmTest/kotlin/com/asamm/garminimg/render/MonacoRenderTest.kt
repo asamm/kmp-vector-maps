@@ -63,6 +63,55 @@ class MonacoRenderTest {
                 "shortPathFallback=${tightTarget.shortPathFallbacks}",
         )
 
+        // Diagnostic: render the user-supplied Nice CP viewport so we can
+        // visually compare against their QMapShack screenshot. Same scale
+        // as the user (~6 km wide), 2x resolution so labels are legible.
+        val niceVp = Viewport(
+            widthPx = 2000,
+            heightPx = 600,
+            minLon = com.asamm.garminimg.coord.CoordUtils.fromWGS84(7.2423),
+            maxLon = com.asamm.garminimg.coord.CoordUtils.fromWGS84(7.2819),
+            minLat = com.asamm.garminimg.coord.CoordUtils.fromWGS84(43.6993),
+            maxLat = com.asamm.garminimg.coord.CoordUtils.fromWGS84(43.7111),
+        )
+        val niceTarget = AwtRenderTarget(niceVp.widthPx, niceVp.heightPx)
+        ImgRenderer(img, resolverFor(img)).render(niceVp, niceTarget)
+        niceTarget.writePng(File(outDir, "otm-monaco-nice-cp.png"))
+
+        // Also dump every (kept vs dropped) label string in this view so
+        // we can visually audit the filter without zooming into a PNG.
+        val labelLevel = ImgRenderer.pickRenderLevelWithCoverage(niceVp, img)
+        val kept = mutableListOf<String>()
+        val dropped = mutableListOf<String>()
+        for (obj in img.readMapInBounds(
+            minLong = niceVp.minLon,
+            maxLong = niceVp.maxLon,
+            minLat = niceVp.minLat,
+            maxLat = niceVp.maxLat,
+            levelFilter = labelLevel,
+        )) {
+            val label = when (obj) {
+                is com.asamm.garminimg.model.MapObject.Point -> obj.label
+                is com.asamm.garminimg.model.MapObject.PolyShape -> obj.label
+            }
+            if (label.isNullOrEmpty()) {
+                continue
+            }
+            if (ImgRenderer.isDisplayableLabel(label)) {
+                kept.add(label)
+            } else {
+                dropped.add(label)
+            }
+        }
+        val auditFile = File(outDir, "nice-cp-labels.txt")
+        auditFile.bufferedWriter().use { w ->
+            w.write("=== KEPT (${kept.size}) ===\n")
+            kept.sorted().forEach { w.write("+ $it\n") }
+            w.write("=== DROPPED (${dropped.size}) ===\n")
+            dropped.sorted().forEach { w.write("- $it\n") }
+        }
+        println("[label audit] wrote ${auditFile.absolutePath}")
+
         assertTrue(outFile.exists(), "expected PNG was not written")
         assertTrue(outFile.length() > 0, "PNG is empty")
         assertEquals(widthPx, target.image.width)

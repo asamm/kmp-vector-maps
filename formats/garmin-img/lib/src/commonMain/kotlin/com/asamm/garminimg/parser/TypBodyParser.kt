@@ -197,9 +197,7 @@ object TypBodyParser {
         if (hasLabel) {
             skipLabelBlock(reader)
         }
-        if (hasExtended) {
-            skipExtendedFontInfo(reader)
-        }
+        val font = if (hasExtended) readExtendedFontInfo(reader) else null
 
         // Polygons with a 32×32 1bpp pattern carry fg+bg colours plus the
         // bit pattern; we expand it to an RGBA tile that the renderer
@@ -214,7 +212,12 @@ object TypBodyParser {
             null
         }
         val stroke = if (bitmapBytes == null) bg else null
-        return TypPolygonStyle(fillColor = fg, strokeColor = stroke, pattern = pattern)
+        return TypPolygonStyle(
+            fillColor = fg,
+            strokeColor = stroke,
+            pattern = pattern,
+            font = font,
+        )
     }
 
     //********************************
@@ -300,9 +303,7 @@ object TypBodyParser {
         if (hasLabel) {
             skipLabelBlock(reader)
         }
-        if (hasExtended) {
-            skipExtendedFontInfo(reader)
-        }
+        val font = if (hasExtended) readExtendedFontInfo(reader) else null
 
         val stroke = dayColours.firstOrNull() ?: Color.Black
         val border = if (dayColours.size >= 2 && !dayTransparent) {
@@ -316,6 +317,7 @@ object TypBodyParser {
             strokeWidthPx = lineWidth.toFloat().coerceAtLeast(1f),
             totalWidthPx = totalWidth.toFloat().coerceAtLeast(lineWidth.toFloat()),
             pattern = linePattern,
+            font = font,
         )
     }
 
@@ -431,10 +433,8 @@ object TypBodyParser {
         if (hasLabel) {
             skipLabelBlock(reader)
         }
-        if (hasExtended) {
-            skipExtendedFontInfo(reader)
-        }
-        return TypPointStyle(icon = icon)
+        val font = if (hasExtended) readExtendedFontInfo(reader) else null
+        return TypPointStyle(icon = icon, font = font)
     }
 
     /**
@@ -450,9 +450,15 @@ object TypBodyParser {
         val numForCM = reader.readByte()
         val colourMode = reader.readByte()
         if (numForCM == 0) {
-            // True-colour image — skip (mode 0 / 0x10 / 0x20 variants
-            // each have different layouts; not yet implemented).
-            return null
+            // True-colour image (no palette). Per mkgmap `TrueImage.write`:
+            // - mode 0   : 24bpp BGR per pixel, no transparent index.
+            // - mode 0x10: 3-byte BGR transparent-pixel marker, then
+            //              24bpp BGR per pixel; pixels matching the
+            //              marker render fully transparent.
+            // - mode 0x20: 28-bit per pixel (24 BGR + 4 alpha, alpha
+            //              stored inverted/rounded), packed LSB-first
+            //              with no row padding.
+            return readTrueColourImage(reader, width, height, colourMode)
         }
         // Mode 0x10: numColours = numForCM solid colours + 1 implicit
         // transparent at end. Mode 0x20: numColours = numForCM, each
@@ -508,6 +514,89 @@ object TypBodyParser {
                 rgba[dst + 3] = c.alpha.toByte()
                 dst += 4
             }
+        }
+        return Bitmap(width = width, height = height, rgba = rgba)
+    }
+
+    /**
+     * Reads a true-colour (paletteless) point image. Length depends on
+     * [colourMode]:
+     * - 0   : `width × height × 3` bytes (BGR per pixel, no padding).
+     * - 0x10: `3 + width × height × 3` bytes (BGR transparent marker,
+     *   then BGR pixels; pixels matching the marker emit full transparency).
+     * - 0x20: `(width × height × 28 + 7) / 8` bytes (24-bit BGR + 4-bit
+     *   inverted-alpha per pixel, packed LSB-first, padded to a byte at
+     *   the END only).
+     */
+    private fun readTrueColourImage(
+        reader: ImgRandomAccessReader,
+        width: Int,
+        height: Int,
+        colourMode: Int,
+    ): Bitmap? {
+        val n = width * height
+        if (n <= 0 || n > MAX_POINT_DIM * MAX_POINT_DIM) {
+            return null
+        }
+        val rgba = ByteArray(n * 4)
+        when (colourMode) {
+            0x00 -> {
+                val raw = ByteArray(n * 3)
+                reader.readBlock(raw)
+                var src = 0
+                var dst = 0
+                repeat(n) {
+                    rgba[dst] = raw[src + 2]
+                    rgba[dst + 1] = raw[src + 1]
+                    rgba[dst + 2] = raw[src]
+                    rgba[dst + 3] = 0xFF.toByte()
+                    src += 3
+                    dst += 4
+                }
+            }
+            0x10 -> {
+                val markerB = reader.readByte()
+                val markerG = reader.readByte()
+                val markerR = reader.readByte()
+                val raw = ByteArray(n * 3)
+                reader.readBlock(raw)
+                var src = 0
+                var dst = 0
+                repeat(n) {
+                    val b = raw[src].toInt() and 0xFF
+                    val g = raw[src + 1].toInt() and 0xFF
+                    val r = raw[src + 2].toInt() and 0xFF
+                    val transparent = (b == markerB && g == markerG && r == markerR)
+                    rgba[dst] = r.toByte()
+                    rgba[dst + 1] = g.toByte()
+                    rgba[dst + 2] = b.toByte()
+                    rgba[dst + 3] = if (transparent) 0 else 0xFF.toByte()
+                    src += 3
+                    dst += 4
+                }
+            }
+            0x20 -> {
+                val totalBits = n * 28
+                val bytes = ByteArray((totalBits + 7) / 8)
+                reader.readBlock(bytes)
+                val br = BitStream(bytes)
+                var dst = 0
+                repeat(n) {
+                    val b = br.read(8)
+                    val g = br.read(8)
+                    val r = br.read(8)
+                    val invAlpha4 = br.read(4)
+                    // Stored alpha is 0xff − actual rounded to 4 bits;
+                    // expand the nibble and invert.
+                    val actualAlpha = (0xFF - (invAlpha4 * 0x11)).coerceIn(0, 0xFF)
+                    rgba[dst] = r.toByte()
+                    rgba[dst + 1] = g.toByte()
+                    rgba[dst + 2] = b.toByte()
+                    rgba[dst + 3] = actualAlpha.toByte()
+                    dst += 4
+                }
+            }
+            else -> return null
         }
         return Bitmap(width = width, height = height, rgba = rgba)
     }
@@ -623,21 +712,42 @@ object TypBodyParser {
     }
 
     /**
-     * Skips a TYP extended-font-info block: 1 byte font-style flag, then
-     * optional 3-byte day BGR and optional 3-byte night BGR. Note: each
-     * colour is 3 bytes (Rgb.write writes B + G + R), NOT 4 — there's no
-     * separate flag byte per colour.
+     * Parses a TYP extended-font-info block per mkgmap
+     * `TypElement.writeExtendedFontInfo`:
+     * - 1 byte fontExt: low 3 bits = font style (0=default, 1=nocaps,
+     *   2=normal, 3=small, 4=large), bit 0x08 = has day colour, bit
+     *   0x10 = has night colour.
+     * - optional 3-byte day BGR colour.
+     * - optional 3-byte night BGR colour.
+     *
+     * Returns a parsed [TypFontInfo] (with `dayColour` populated when
+     * present), or `null` if the block reads as zero (no info).
      */
-    private fun skipExtendedFontInfo(reader: ImgRandomAccessReader) {
+    private fun readExtendedFontInfo(reader: ImgRandomAccessReader): TypFontInfo? {
         val fontExt = reader.readByte()
+        val style = fontExt and 0x07
         val hasDay = fontExt and 0x08 != 0
         val hasNight = fontExt and 0x10 != 0
-        if (hasDay) {
-            skipBytes(reader, 3)
-        }
+        val dayColour = if (hasDay) readRgb(reader) else null
         if (hasNight) {
+            // Night colour bytes consumed but ignored — the renderer is
+            // currently day-mode only.
             skipBytes(reader, 3)
         }
+        if (style == 0 && dayColour == null) {
+            return null
+        }
+        return TypFontInfo(style = style, dayColour = dayColour)
+    }
+
+    /**
+     * Skip-only variant kept for code paths where we don't yet propagate
+     * the parsed font info upstream (e.g. line records when night-only
+     * font info appears without a label override). Reads the same byte
+     * sequence as [readExtendedFontInfo] and discards the result.
+     */
+    private fun skipExtendedFontInfo(reader: ImgRandomAccessReader) {
+        readExtendedFontInfo(reader)
     }
 
     /**
@@ -716,6 +826,7 @@ data class TypPolygonStyle(
      * transparent when the day-bg-transparent flag was set).
      */
     val pattern: Bitmap? = null,
+    val font: TypFontInfo? = null,
 )
 
 /**
@@ -745,15 +856,34 @@ data class TypLineStyle(
      * casings get drawn.
      */
     val pattern: Bitmap? = null,
+    val font: TypFontInfo? = null,
 )
 
 /**
- * One point's resolved TYP style: the day icon as RGBA (when we managed
- * to decode the point's image). Label / font metadata are deferred —
- * the renderer falls back to the IMG's per-object label string.
+ * One point's resolved TYP style: the day icon as RGBA, plus optional
+ * extended-font info that lets the TYP override label colour/style for
+ * this `(type, subType)`.
  */
 data class TypPointStyle(
     val icon: Bitmap,
+    val font: TypFontInfo? = null,
+)
+
+/**
+ * TYP extended-font-info block (per mkgmap `TypElement.writeExtendedFontInfo`).
+ * Surfaces just the day-side label colour and the font style flag — that's
+ * what the renderer can act on right now. Night colour and font-family
+ * variants are decoded but discarded.
+ *
+ * @property style 0..7 — 0 = default font, others map to mkgmap's nocaps /
+ *   normal / small / large variants. Currently treated as a hint; the
+ *   renderer doesn't yet swap font sizes per style.
+ * @property dayColour Optional override for the label text colour. When
+ *   null, the style resolver keeps its default label colour.
+ */
+data class TypFontInfo(
+    val style: Int,
+    val dayColour: Color?,
 )
 
 /**

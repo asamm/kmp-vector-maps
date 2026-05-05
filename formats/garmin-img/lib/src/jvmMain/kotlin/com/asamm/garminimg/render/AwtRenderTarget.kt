@@ -124,6 +124,16 @@ class AwtRenderTarget(
     var shortPathFallbacks: Int = 0
         private set
 
+    private companion object {
+        /**
+         * Miter limit for stroked polylines. Java's default of 10 is too
+         * generous for crisp road outlines — at sharp angles miter spikes
+         * shoot out past the road. 4 trims those spikes back to bevelled
+         * joints while keeping moderate-angle joints sharp.
+         */
+        private const val STROKE_MITER_LIMIT: Float = 4f
+    }
+
     override fun drawPolylineBorder(xs: FloatArray, ys: FloatArray, style: Style.LineStyle) {
         if (xs.size < 2) {
             return
@@ -137,7 +147,8 @@ class AwtRenderTarget(
         g.stroke = BasicStroke(
             style.borderWidth,
             BasicStroke.CAP_ROUND,
-            BasicStroke.JOIN_ROUND,
+            BasicStroke.JOIN_MITER,
+            STROKE_MITER_LIMIT,
         )
         g.draw(path)
     }
@@ -158,8 +169,8 @@ class AwtRenderTarget(
             BasicStroke(
                 style.strokeWidth,
                 BasicStroke.CAP_BUTT,
-                BasicStroke.JOIN_ROUND,
-                10f,
+                BasicStroke.JOIN_MITER,
+                STROKE_MITER_LIMIT,
                 dash,
                 0f,
             )
@@ -167,7 +178,8 @@ class AwtRenderTarget(
             BasicStroke(
                 style.strokeWidth,
                 BasicStroke.CAP_ROUND,
-                BasicStroke.JOIN_ROUND,
+                BasicStroke.JOIN_MITER,
+                STROKE_MITER_LIMIT,
             )
         }
         g.draw(path)

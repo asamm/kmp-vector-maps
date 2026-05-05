@@ -124,6 +124,14 @@ object InternalStyles {
     // LINE STYLES
     //********************************
 
+    /**
+     * Default label colour for road / street name labels — a dark grey
+     * that reads against most backgrounds (white road fills, light
+     * shaded built-up areas) without competing with road foreground
+     * colour the way pure black would.
+     */
+    private val ROAD_LABEL_COLOR: Color = Color.rgb(0x33, 0x33, 0x33)
+
     private val DEFAULT_LINE = Style.LineStyle(
         drawPriority = 30,
         strokeColor = Color.rgb(0x80, 0x80, 0x80),
@@ -156,6 +164,7 @@ object InternalStyles {
         borderColor = Color.rgb(0x90, 0x90, 0x60),
         strokeWidth = 2.5f,
         borderWidth = 3.5f,
+        labelColor = ROAD_LABEL_COLOR,
     )
 
     private val ROAD_LOCAL = Style.LineStyle(
@@ -164,6 +173,7 @@ object InternalStyles {
         borderColor = Color.rgb(0x80, 0x80, 0x80),
         strokeWidth = 1.8f,
         borderWidth = 2.4f,
+        labelColor = ROAD_LABEL_COLOR,
     )
 
     private val ROAD_RESIDENTIAL = Style.LineStyle(
@@ -172,6 +182,7 @@ object InternalStyles {
         borderColor = Color.rgb(0xA0, 0xA0, 0xA0),
         strokeWidth = 1.4f,
         borderWidth = 1.8f,
+        labelColor = ROAD_LABEL_COLOR,
     )
 
     private val ROAD_TRACK = Style.LineStyle(
@@ -181,6 +192,7 @@ object InternalStyles {
         strokeWidth = 1.0f,
         borderWidth = 0f,
         dashPattern = floatArrayOf(4f, 3f),
+        labelColor = Color.rgb(0x60, 0x40, 0x20),
     )
 
     private val RAILWAY = Style.LineStyle(
