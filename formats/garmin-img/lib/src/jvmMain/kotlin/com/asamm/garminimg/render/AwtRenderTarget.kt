@@ -479,8 +479,14 @@ class AwtRenderTarget(
             val savedTransform = g.transform
             try {
                 g.transform = AffineTransform(savedTransform).also { it.concatenate(transform) }
-                val drawX = (-charW / 2f).toFloat()
-                val drawY = ((ascent - descent) / 2f).toFloat()
+                val drawX = (-charW / 2f)
+                // Lift the text above the line by half the line's
+                // typical stroke (renderScale-scaled) plus a small
+                // breathing gap. Centred-on-line placement (drawY=0)
+                // bisects the road and reads worse than QMS / mkgmap
+                // output where the label always sits on one side.
+                val lineLift = (renderScale * 2f) + 1f
+                val drawY = (-lineLift)
                 val s = text[i].toString()
                 if (outlineColor != null) {
                     g.color = outlineColor.toAwt()
