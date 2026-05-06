@@ -76,6 +76,12 @@ private fun Toolbar(state: ViewerState) {
         Button(onClick = { state.homeView() }, enabled = state.loadedFile != null) {
             Text("Home")
         }
+        Button(
+            onClick = { state.saveCurrentView() },
+            enabled = state.loadedFile != null,
+        ) {
+            Text("Save view")
+        }
         Spacer(Modifier.width(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(

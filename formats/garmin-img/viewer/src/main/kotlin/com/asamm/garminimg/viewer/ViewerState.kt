@@ -272,6 +272,65 @@ class ViewerState(
     }
 
     /**
+     * Saves the currently-rendered view to a project-local `captures/`
+     * folder for visual review / regression-style anchoring. Two files
+     * are written per capture, sharing a timestamp prefix:
+     *
+     * - `<ts>.png` — the rendered image as currently displayed.
+     * - `<ts>.json` — viewport bbox (Garmin coords + WGS84 degrees),
+     *   panel size, picked TRE level, and the current render-mode
+     *   toggles. Enough to reproduce the same view from a different
+     *   session (or for me to render the same patch when reviewing).
+     *
+     * Returns the absolute path of the PNG, or null when there's no
+     * loaded map / rendered image.
+     */
+    fun saveCurrentView(): String? {
+        val img = imgFile ?: return null
+        val vp = viewport ?: return null
+        val rendered = rendered ?: return null
+        val capturesDir = File("captures").apply { mkdirs() }
+        val ts = java.time.LocalDateTime.now()
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss"))
+        val pngFile = File(capturesDir, "$ts.png")
+        val jsonFile = File(capturesDir, "$ts.json")
+        javax.imageio.ImageIO.write(rendered, "PNG", pngFile)
+
+        val pickedLevel = ImgRenderer.pickRenderLevelWithCoverage(vp, img)
+        val minLonDeg = CoordUtils.toWGS84(vp.minLon)
+        val maxLonDeg = CoordUtils.toWGS84(vp.maxLon)
+        val minLatDeg = CoordUtils.toWGS84(vp.minLat)
+        val maxLatDeg = CoordUtils.toWGS84(vp.maxLat)
+        // Hand-rolled JSON — kotlinx-serialization isn't on this
+        // module's classpath and the schema is small + stable.
+        val json = buildString {
+            append("{\n")
+            append("  \"timestamp\": \"$ts\",\n")
+            append("  \"img\": \"${loadedFile?.absolutePath?.replace("\\", "\\\\")}\",\n")
+            append("  \"panel\": { \"widthPx\": ${vp.widthPx}, \"heightPx\": ${vp.heightPx} },\n")
+            append("  \"viewport_garmin\": {\n")
+            append("    \"minLon\": ${vp.minLon}, \"maxLon\": ${vp.maxLon},\n")
+            append("    \"minLat\": ${vp.minLat}, \"maxLat\": ${vp.maxLat}\n")
+            append("  },\n")
+            append("  \"viewport_wgs84\": {\n")
+            append("    \"minLon\": ${"%.6f".format(minLonDeg)}, \"maxLon\": ${"%.6f".format(maxLonDeg)},\n")
+            append("    \"minLat\": ${"%.6f".format(minLatDeg)}, \"maxLat\": ${"%.6f".format(maxLatDeg)}\n")
+            append("  },\n")
+            append("  \"picked_level\": ${pickedLevel ?: "null"},\n")
+            append("  \"render\": {\n")
+            append("    \"antiAliased\": $antiAliased,\n")
+            append("    \"showAreas\": $showAreas,\n")
+            append("    \"showLines\": $showLines,\n")
+            append("    \"showPoints\": $showPoints\n")
+            append("  }\n")
+            append("}\n")
+        }
+        jsonFile.writeText(json, Charsets.UTF_8)
+        status = "Saved ${pngFile.name} + ${jsonFile.name} → captures/"
+        return pngFile.absolutePath
+    }
+
+    /**
      * Renders the currently-loaded IMG at the current [viewport]. Cheap —
      * just walks RGN / draws — so safe to call on every gesture event for
      * Monaco-sized fixtures. Continent-scale IMGs will eventually need
