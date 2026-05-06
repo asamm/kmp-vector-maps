@@ -211,9 +211,22 @@ object TypBodyParser {
         } else {
             null
         }
+        // When `dayTransparent` is set on a patterned polygon (military
+        // hatching, restricted-zone overlays, etc.), there's no ground
+        // colour — the pattern paints over whatever's underneath. Using
+        // `fg` as the fill in that case bleeds the pattern colour across
+        // the whole polygon and obliterates the layers below; QMS / mkgmap
+        // both correctly leave the base showing through. The non-pattern
+        // path keeps `fg` because solid 1-colour polygons (parks, marshes
+        // without a stipple) need a ground colour.
+        val fill = when {
+            bitmapBytes != null && dayTransparent -> Color.Transparent
+            bitmapBytes != null -> bg ?: fg
+            else -> fg
+        }
         val stroke = if (bitmapBytes == null) bg else null
         return TypPolygonStyle(
-            fillColor = fg,
+            fillColor = fill,
             strokeColor = stroke,
             pattern = pattern,
             font = font,
