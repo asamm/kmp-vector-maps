@@ -332,14 +332,6 @@ class AwtRenderTarget(
         val tileW = tile.width * scale
         val tileH = tile.height * scale
         var carriedOffset = 0f
-        // Half the tile height — used to pad the rectangle past each
-        // segment endpoint by a small overlap. Without overlap,
-        // consecutive segments leave a tiny triangular gap on the
-        // outside of every joint (and a missed wedge on the inside),
-        // which reads as the "imprecise" / "crossing" rail look at
-        // moderate zoom. Half-tile-height of overlap covers any
-        // realistic corner angle without bleeding into adjacent lines.
-        val joinOverlap = tileH / 2f
         for (i in 0 until xs.size - 1) {
             val x0 = xs[i].toDouble()
             val y0 = ys[i].toDouble()
@@ -353,22 +345,30 @@ class AwtRenderTarget(
             val transform = AffineTransform()
             transform.translate(x0, y0)
             transform.rotate(angle)
-            // Carry the tile offset across segments so the texture
-            // progression doesn't reset at every joint — long dashed
-            // patterns stay in phase along the polyline.
-            transform.translate(-carriedOffset.toDouble(), 0.0)
 
             val savedTransform = g.transform
             val savedPaint = g.paint
             g.transform = AffineTransform(savedTransform).also { it.concatenate(transform) }
-            g.paint = TexturePaint(tile, Rectangle2D.Float(0f, 0f, tileW, tileH))
-            // Extend the rectangle a touch past the endpoint on the
-            // far side (and pull the start back by carriedOffset to
-            // continue the previous segment's pattern). The overlap
-            // closes seam pixels at convex corners.
-            val rectStart = -joinOverlap
-            val rectLen = len + carriedOffset + joinOverlap * 2f
-            g.fill(Rectangle2D.Float(rectStart, -tileH / 2f, rectLen, tileH))
+            // TexturePaint anchored at x = -carriedOffset shifts the
+            // tile's phase so the pattern continues seamlessly from the
+            // previous segment without us having to extend the fill
+            // rectangle backwards into the previous segment's space.
+            //
+            // Earlier the rectangle started at x = -carriedOffset and
+            // spanned (len + carriedOffset). At polyline corners the
+            // back-extension overlapped the previous segment's
+            // rectangle, and each rectangle painted ticks in its own
+            // segment-aligned orientation — so corners sprouted ticks
+            // pointing past where the polyline actually ends. Strict
+            // [0, len] fill clips ticks to inside the segment.
+            //
+            // y = -tileH/2 origin keeps the asymmetric-tile fix (rails
+            // / fences alignment) intact.
+            g.paint = TexturePaint(
+                tile,
+                Rectangle2D.Float(-carriedOffset, -tileH / 2f, tileW, tileH),
+            )
+            g.fill(Rectangle2D.Float(0f, -tileH / 2f, len, tileH))
             g.transform = savedTransform
             g.paint = savedPaint
 
