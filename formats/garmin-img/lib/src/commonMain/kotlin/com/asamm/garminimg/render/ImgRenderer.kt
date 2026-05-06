@@ -481,15 +481,14 @@ class ImgRenderer(
         /**
          * Offset between `targetBits` (the bits-per-coord that would
          * give 1 pixel per delta unit) and the level we actually pick.
-         * Negative → we pick coarser geometry than mathematically perfect;
-         * mkgmap authors each level expecting it to render at roughly
-         * (1 << -DETAIL_BIAS) px per delta = 16 px per delta, which is
-         * the "comfortable detail" zoom each level was built for. -4 is
-         * empirically the right value for OpenTopoMap and standard
-         * mkgmap output; very different IMG generators may want a
-         * different default exposed via the renderer constructor.
+         * Sign convention: positive → keep finer levels longer when
+         * zooming out (less aggressive simplification); negative →
+         * step up to coarser levels sooner. The right value is fixture-
+         * dependent; the viewer's level dropdown lets a human verify
+         * a tuning choice against a reference renderer (QMS / GPSMapEdit)
+         * before we change this default.
          */
-        private const val DETAIL_BIAS: Double = -2.0
+        private const val DETAIL_BIAS: Double = -1.0
 
         /**
          * Picks the LoD level *and* validates that the chosen level has
