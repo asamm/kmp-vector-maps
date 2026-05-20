@@ -6,7 +6,6 @@
  */
 package com.asamm.garminimg.render
 
-import android.graphics.Bitmap as AndroidBitmap
 import android.graphics.BitmapShader
 import android.graphics.Canvas
 import android.graphics.DashPathEffect
@@ -17,10 +16,11 @@ import android.graphics.PorterDuff
 import android.graphics.Rect
 import android.graphics.Shader
 import com.asamm.garminimg.style.Bitmap
-import com.asamm.garminimg.style.Color as GarminColor
 import com.asamm.garminimg.style.Style
 import kotlin.math.atan2
 import kotlin.math.hypot
+import android.graphics.Bitmap as AndroidBitmap
+import com.asamm.garminimg.style.Color as GarminColor
 
 /**
  * Android [Canvas]-backed [RenderTarget].
@@ -43,21 +43,17 @@ import kotlin.math.hypot
  * begin with, so on a phone they already read at the intended size;
  * tablets/foldables with unusually-high DPI can pass a larger scale
  * explicitly.
+ *
+ * @param antiAliased if true, enables antialiasing for shapes and text.
+ * @param renderScale multiplier applied to TYP-driven pixel sizes (pattern tile dimensions,
+ *   point-icon dimensions, font sizes, stroke widths). See [RenderTarget.renderScale]. Defaults
+ *   to 1.0 — the host (Locus) is expected to handle device-density scaling externally by sizing
+ *   the output bitmap appropriately.
  */
-class AndroidCanvasRenderTarget(
+class AndroidRenderTarget(
     override val widthPx: Int,
     override val heightPx: Int,
-    /**
-     * If true, enables anti-aliasing for shapes and text. Default true.
-     */
     private val antiAliased: Boolean = true,
-    /**
-     * Multiplier applied to TYP-driven pixel sizes (pattern tile
-     * dimensions, point-icon dimensions, font sizes, stroke widths).
-     * See [RenderTarget.renderScale]. Defaults to 1.0 — the host
-     * (Locus) is expected to handle device-density scaling externally
-     * by sizing the output bitmap appropriately.
-     */
     override val renderScale: Float = 1.0f,
 ) : RenderTarget {
 

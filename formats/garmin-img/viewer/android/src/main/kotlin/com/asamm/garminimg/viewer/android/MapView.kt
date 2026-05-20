@@ -11,7 +11,7 @@ import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import com.asamm.garminimg.ImgFile
-import com.asamm.garminimg.render.AndroidCanvasRenderTarget
+import com.asamm.garminimg.render.AndroidRenderTarget
 import com.asamm.garminimg.render.ImgRenderer
 import com.asamm.garminimg.render.StyleResolver
 import com.asamm.garminimg.render.Viewport
@@ -25,14 +25,14 @@ import kotlin.math.max
 
 /**
  * Minimal map view: parses the given IMG once, then re-renders into a
- * platform [android.graphics.Bitmap] via [AndroidCanvasRenderTarget] on
+ * platform [android.graphics.Bitmap] via [AndroidRenderTarget] on
  * every pan / pinch-zoom gesture. The rendered bitmap is blitted onto
  * the view's canvas in [onDraw].
  *
  * Mirrors the desktop viewer's interaction model — drag to pan, pinch
  * to zoom — but skips the toolbar (no layer toggles, no level dropdown,
  * no "Save view"). The desktop viewer remains the primary diagnostic
- * tool; this is here to validate that [AndroidCanvasRenderTarget]
+ * tool; this is here to validate that [AndroidRenderTarget]
  * renders the same output as the AWT target on real device hardware.
  */
 class MapView(context: Context, imgFile: File) : View(context) {
@@ -133,7 +133,7 @@ class MapView(context: Context, imgFile: File) : View(context) {
         // (Locus) manage density via their own bitmap allocation, so
         // the lib's renderScale defaults to 1.0; this viewer applies
         // density explicitly since nothing else scales the output.
-        val target = AndroidCanvasRenderTarget(
+        val target = AndroidRenderTarget(
             widthPx = width,
             heightPx = height,
             antiAliased = true,

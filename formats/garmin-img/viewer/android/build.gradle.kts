@@ -2,7 +2,7 @@
  * kmp-garmin-img — Android viewer (development tool).
  *
  * Minimal one-Activity app that loads an IMG from the device's Downloads
- * folder, renders it via AndroidCanvasRenderTarget into a SurfaceView,
+ * folder, renders it via AndroidRenderTarget into a SurfaceView,
  * and supports pan / pinch-zoom touch gestures. Not a published artifact.
  *
  * Install with `./gradlew :viewer:android:installDebug` after putting an

@@ -49,6 +49,11 @@ import com.asamm.garminimg.parser.TypSubFile
  * without stepping on each other. For a single-thread caller, three readers
  * over the same backing bytes is the simplest correct setup. (Future
  * coroutine-based parallel parse can wrap this layer.)
+ *
+ * @param typStyles parsed TYP body — `(type, subType)` → resolved styles for the polygon and
+ *   line sections. Populated when the IMG has a TYP sub-file and its body parses successfully;
+ *   null otherwise (and the renderer falls back to
+ *   [com.asamm.garminimg.style.InternalStyles]).
  */
 class ImgFile internal constructor(
     val archive: ImgArchive,
@@ -57,12 +62,6 @@ class ImgFile internal constructor(
     val lbl: LblData,
     val net: NetData?,
     val typ: TypHeader?,
-    /**
-     * Parsed TYP body — `(type, subType)` → resolved styles for the
-     * polygon and line sections. Populated when the IMG has a TYP
-     * sub-file and its body parses successfully; null otherwise (and the
-     * renderer falls back to [com.asamm.garminimg.style.InternalStyles]).
-     */
     val typStyles: com.asamm.garminimg.parser.TypStyleTable?,
 ) {
 

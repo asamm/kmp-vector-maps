@@ -124,12 +124,11 @@ class ImgSubFileStream(
  * non-zero only for encrypted/locked sub-files (out of scope — see PLAN.md).
  *
  * Mirrors the Java `ImgSubFile.superInit` read.
+ *
+ * @param headerLength total length, in bytes, of the sub-file-specific header (including these
+ *   common bytes). Sub-file readers use this to know where the body starts.
  */
 data class SubFileCommonHeader(
-    /**
-     * Total length, in bytes, of the sub-file-specific header (including these
-     * common bytes). Sub-file readers use this to know where the body starts.
-     */
     val headerLength: Int,
 )
 

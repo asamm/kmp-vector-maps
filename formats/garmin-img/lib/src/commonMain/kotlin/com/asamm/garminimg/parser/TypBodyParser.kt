@@ -826,18 +826,16 @@ object TypBodyParser {
  * matched" — those polygons are drawn last (which is the conservative
  * choice; a TYP-aware renderer with proper styling rarely emits unmatched
  * polygons).
+ *
+ * @param pattern optional 32×32 RGBA tile expanded from the TYP record's 1bpp bit pattern. When
+ *   present, the renderer tiles this across the polygon instead of using [fillColor] solid. Set
+ *   bits paint with the day foreground; clear bits paint with the day background (or transparent
+ *   when the day-bg-transparent flag was set).
  */
 data class TypPolygonStyle(
     val fillColor: Color,
     val strokeColor: Color?,
     val drawPriority: Int = Int.MAX_VALUE,
-    /**
-     * Optional 32×32 RGBA tile expanded from the TYP record's 1bpp bit
-     * pattern. When present, the renderer tiles this across the polygon
-     * instead of using [fillColor] solid. Set bits paint with the day
-     * foreground; clear bits paint with the day background (or
-     * transparent when the day-bg-transparent flag was set).
-     */
     val pattern: Bitmap? = null,
     val font: TypFontInfo? = null,
 )
@@ -855,19 +853,17 @@ internal data class DrawOrderEntry(
 /**
  * One line's resolved TYP style: stroke, optional border, foreground +
  * total widths in pixels.
+ *
+ * @param pattern optional 32×height RGBA tile expanded from the TYP record's 1bpp line bitmap.
+ *   When present, the renderer paints the polyline as the pattern (rotated to follow the line
+ *   direction) instead of a solid stroke — that's how dashed roads, railways, and multi-stripe
+ *   casings get drawn.
  */
 data class TypLineStyle(
     val strokeColor: Color,
     val borderColor: Color?,
     val strokeWidthPx: Float,
     val totalWidthPx: Float,
-    /**
-     * Optional 32×height RGBA tile expanded from the TYP record's 1bpp
-     * line bitmap. When present, the renderer paints the polyline as
-     * the pattern (rotated to follow the line direction) instead of a
-     * solid stroke — that's how dashed roads, railways, and multi-stripe
-     * casings get drawn.
-     */
     val pattern: Bitmap? = null,
     val font: TypFontInfo? = null,
 )

@@ -599,6 +599,14 @@ object LblSubFile {
  * @property coding Which decoder applies to label byte-streams.
  * @property codepage Codepage number (e.g. 1252, 65001) for byte-encoded
  *   labels. Ignored when [coding] is [LabelCoding.SIX_BIT].
+ *
+ * @param poiOffset logical byte offset of the POI index section. POIs (cities, towns,
+ *   restaurants, etc.) reference a row in this table by `(rgnLabelOffset * poiMultiplier)`; the
+ *   row's first 24 bits hold the actual LBL label offset, plus optional metadata fields
+ *   (street/city/zip/phone). 0 when the IMG ships no POI metadata.
+ * @param poiGlobalMask default property mask applied to every POI in this LBL. A POI may
+ *   override individual bits via its own local mask (see [LblSubFile.readPoi]); this is the
+ *   per-IMG starting set of "expected attributes" (street, city, zip, phone…).
  */
 data class LblHeader(
     val headerLength: Int,
@@ -607,22 +615,9 @@ data class LblHeader(
     val dataOffsetMultiplier: Int,
     val coding: LabelCoding,
     val codepage: Int,
-    /**
-     * Logical byte offset of the POI index section. POIs (cities,
-     * towns, restaurants, etc.) reference a row in this table by
-     * `(rgnLabelOffset * poiMultiplier)`; the row's first 24 bits hold
-     * the actual LBL label offset, plus optional metadata fields
-     * (street/city/zip/phone). 0 when the IMG ships no POI metadata.
-     */
     val poiOffset: Long = 0L,
     val poiLength: Long = 0L,
     val poiMultiplier: Int = 1,
-    /**
-     * Default property mask applied to every POI in this LBL. A POI may
-     * override individual bits via its own local mask (see
-     * [LblSubFile.readPoi]); this is the per-IMG starting set of
-     * "expected attributes" (street, city, zip, phone…).
-     */
     val poiGlobalMask: Int = 0,
     val country: LblTableSection = LblTableSection.EMPTY,
     val region: LblTableSection = LblTableSection.EMPTY,

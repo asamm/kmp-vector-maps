@@ -16,7 +16,7 @@ import com.asamm.garminimg.style.Style
  * these calls into platform-specific draw operations:
  *
  * - **AwtRenderTarget** (jvmMain) — backs onto `java.awt.Graphics2D`.
- * - **AndroidCanvasRenderTarget** (androidMain, Phase C.7) — backs onto
+ * - **AndroidRenderTarget** (androidMain) — backs onto
  *   `android.graphics.Canvas`.
  *
  * # Coordinate system

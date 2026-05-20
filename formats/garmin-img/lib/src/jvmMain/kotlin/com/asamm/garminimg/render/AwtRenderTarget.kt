@@ -36,24 +36,19 @@ import java.io.OutputStream
  * The target owns its [BufferedImage]. Callers can extract it via [image]
  * after [endFrame] and either save it ([writePng]) or hand it on to a
  * higher-level pipeline.
+ *
+ * @param antiAliased if true, enables anti-aliasing for shapes and text. Default true for humans;
+ *   tests that need pixel-stable output can pass false.
+ * @param renderScale multiplier applied to TYP-driven pixel sizes (line/polygon pattern tile
+ *   dimensions, point-icon dimensions, font sizes, stroke widths). TYP bitmaps were authored
+ *   against handheld-DPI screens (~3× density); rendering them 1:1 on a desktop monitor (~1×
+ *   density) is too thin for crossties and POI icons to read. Defaults to 1.5× — comparable to
+ *   mid-density Android — and is configurable per-target so tests can stay byte-stable.
  */
 class AwtRenderTarget(
     override val widthPx: Int,
     override val heightPx: Int,
-    /**
-     * If true, enables anti-aliasing for shapes and text. Default true for
-     * humans; tests that need pixel-stable output can pass false.
-     */
     private val antiAliased: Boolean = true,
-    /**
-     * Multiplier applied to TYP-driven pixel sizes (line/polygon pattern
-     * tile dimensions, point-icon dimensions, font sizes, stroke widths).
-     * TYP bitmaps were authored against handheld-DPI screens (~3× density);
-     * rendering them 1:1 on a desktop monitor (~1× density) is too thin
-     * for crossties and POI icons to read. Defaults to 1.5× — comparable
-     * to mid-density Android — and is configurable per-target so tests
-     * can stay byte-stable.
-     */
     override val renderScale: Float = 1.5f,
 ) : RenderTarget {
 

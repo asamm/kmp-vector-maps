@@ -80,14 +80,13 @@ object NetSubFile {
 
 /**
  * Parsed NET header (B.2.6 fields only).
+ *
+ * @param roadOffsetMultiplier multiplier applied to a logical road offset to convert it to a
+ *   byte offset within the road-definitions section.
  */
 data class NetHeader(
     val headerLength: Int,
     val roadDefinitionsOffset: Long,
     val roadDefinitionsLength: Long,
-    /**
-     * Multiplier applied to a logical road offset to convert it to a byte
-     * offset within the road-definitions section.
-     */
     val roadOffsetMultiplier: Int,
 )

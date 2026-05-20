@@ -187,6 +187,11 @@ class LabelLayout {
 /**
  * One label awaiting placement. Bounds are inflated by a small margin so
  * labels never touch each other.
+ *
+ * @param pathXs optional polyline x-coords the label should curve along. When present, the
+ *   renderer calls [RenderTarget.drawTextOnPath] instead of the straight [RenderTarget.drawText]
+ *   — that's how road names follow the road's bend.
+ * @param pathYs y-coords paired with [pathXs].
  */
 data class LabelCandidate(
     val x: Float,
@@ -199,12 +204,6 @@ data class LabelCandidate(
     val outlineColor: Color?,
     val fontSize: Float,
     val anchor: TextAnchor,
-    /**
-     * Optional polyline that the label should curve along. When
-     * present, the renderer calls [RenderTarget.drawTextOnPath] instead
-     * of the straight [RenderTarget.drawText] — that's how road names
-     * follow the road's bend.
-     */
     val pathXs: FloatArray? = null,
     val pathYs: FloatArray? = null,
 ) {

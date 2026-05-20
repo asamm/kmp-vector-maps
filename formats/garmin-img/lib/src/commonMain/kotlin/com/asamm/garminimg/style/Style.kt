@@ -23,42 +23,41 @@ sealed interface Style {
 
     /**
      * Style for a [MapObject.Point] — POI marker, indexed point, etc.
+     *
+     * @param icon optional bitmap icon — `null` for "no icon, label only".
+     * @param labelColor label colour (ARGB).
+     * @param labelOutlineColor optional secondary colour for label outlines / haloes.
+     * @param showLabel whether to render the point's label (when one exists).
      */
     data class PointStyle(
         override val drawPriority: Int,
-        /** Optional bitmap icon — `null` for "no icon, label only". */
         val icon: Bitmap?,
-        /** Label colour (ARGB). */
         val labelColor: Color,
-        /** Optional secondary colour for label outlines / haloes. */
         val labelOutlineColor: Color?,
-        /** Whether to render the point's label (when one exists). */
         val showLabel: Boolean,
     ) : Style
 
     /**
      * Style for an open polyline — road, river, contour, trail.
+     *
+     * @param strokeColor foreground stroke colour.
+     * @param borderColor optional border colour drawn beneath the foreground stroke.
+     * @param strokeWidth foreground stroke width in logical pixels at level 1.0 zoom.
+     * @param borderWidth border stroke width (must be > [strokeWidth] to be visible).
+     * @param dashPattern optional dash pattern: alternating on/off lengths in pixels.
+     * @param labelColor label colour for road names; null hides labels.
+     * @param pattern optional 32×height RGBA tile to paint as the line's foreground stroke
+     *   instead of a solid colour. The renderer tiles this along the line direction (X = travel,
+     *   Y = perpendicular) so dashed/striped patterns follow the polyline's path.
      */
     data class LineStyle(
         override val drawPriority: Int,
-        /** Foreground stroke colour. */
         val strokeColor: Color,
-        /** Optional border colour drawn beneath the foreground stroke. */
         val borderColor: Color?,
-        /** Foreground stroke width in logical pixels at level 1.0 zoom. */
         val strokeWidth: Float,
-        /** Border stroke width (must be > [strokeWidth] to be visible). */
         val borderWidth: Float,
-        /** Optional dash pattern: alternating on/off lengths in pixels. */
         val dashPattern: FloatArray? = null,
-        /** Label colour for road names; null hides labels. */
         val labelColor: Color? = null,
-        /**
-         * Optional 32×height RGBA tile to paint as the line's foreground
-         * stroke instead of a solid colour. The renderer tiles this
-         * along the line direction (X = travel, Y = perpendicular) so
-         * dashed/striped patterns follow the polyline's path.
-         */
         val pattern: Bitmap? = null,
     ) : Style {
 
@@ -100,18 +99,19 @@ sealed interface Style {
 
     /**
      * Style for a closed polygon — lake, park, building, area fill.
+     *
+     * @param fillColor fill colour (interior).
+     * @param strokeColor optional outline stroke colour.
+     * @param strokeWidth outline stroke width when [strokeColor] is non-null.
+     * @param pattern optional fill pattern (e.g. forest stipple).
+     * @param labelColor label colour for area names; null hides labels.
      */
     data class PolygonStyle(
         override val drawPriority: Int,
-        /** Fill colour (interior). */
         val fillColor: Color,
-        /** Optional outline stroke colour. */
         val strokeColor: Color?,
-        /** Outline stroke width when [strokeColor] is non-null. */
         val strokeWidth: Float = 0.5f,
-        /** Optional fill pattern (e.g. forest stipple). */
         val pattern: Bitmap? = null,
-        /** Label colour for area names; null hides labels. */
         val labelColor: Color? = null,
     ) : Style
 }
@@ -155,13 +155,12 @@ value class Color(val argb: Int) {
  *
  * Loaded once per TYP icon record at parse time; rendered targets that need
  * to upload to GPU / Canvas / `BufferedImage` do so when first encountered.
+ *
+ * @param rgba RGBA bytes, row-major, top-to-bottom. Length is `4 * width * height`.
  */
 data class Bitmap(
     val width: Int,
     val height: Int,
-    /**
-     * RGBA bytes, row-major, top-to-bottom. Length is `4 * width * height`.
-     */
     val rgba: ByteArray,
 ) {
 

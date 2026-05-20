@@ -269,14 +269,13 @@ data class TreLevel(
  * [minLevel] (leaves); rendering walks `maxLevel..minLevel` and selects the
  * appropriate level by comparing the requested resolution against
  * [bitsPerCoordOf].
+ *
+ * @param totalSubDivisions total sub-division count seeded from the implicit root (1) plus the
+ *   sum of [TreLevel.subDivisionCount]. Matches the Java predecessor's `subdivisionss` running
+ *   total.
  */
 data class TreLevels(
     val levels: List<TreLevel>,
-    /**
-     * Total sub-division count seeded from the implicit root (1) plus the
-     * sum of [TreLevel.subDivisionCount]. Matches the Java predecessor's
-     * `subdivisionss` running total.
-     */
     val totalSubDivisions: Int,
 ) {
 
