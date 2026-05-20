@@ -1,42 +1,41 @@
 # CLAUDE.md — kmp-garmin-img
 
-This file gives Claude Code project-level guidance for `asamm/kmp-garmin-img`,
-a Kotlin Multiplatform library that parses and renders unencrypted Garmin
-IMG vector maps.
+Project-level guidance for `asamm/kmp-garmin-img`, a Kotlin Multiplatform
+library that parses and renders unencrypted Garmin IMG vector maps.
 
-**Always read [PLAN.md](PLAN.md) before starting work.** It is the source of
-truth for the multi-phase rewrite (Phase A bootstrap → Phase E archive of
-the old submodule). The plan is approved; do not relitigate it without
-asking.
+**Always read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — it
+lists what's done and what's open. The original multi-phase plan is archived
+at [`docs/archive/PLAN-original.md`](docs/archive/PLAN-original.md) for
+historical context; do not relitigate the design without asking.
 
 ## What this project is
 
 A KMP rewrite of the (now-deprecated) Java library `asamm/garmin-img-parser`,
-which itself was an Android port of the desktop **JGarminImgParser**
-(SourceForge, dormant since 2008). Hard fork — no upstream sync.
+itself an Android port of the desktop **JGarminImgParser** (SourceForge,
+dormant since 2008). Hard fork — no upstream sync.
 
-Consumers: initially [Locus Map](https://github.com/asamm/locus-core)
-(Android), via Maven dep on `com.asamm.kmp:kmp-garmin-img:<ver>`. iOS is on
-the roadmap as architecture-only (commonMain compiles for iOS, iosMain is a
-stub).
+Consumer: [Locus Map](https://github.com/asamm/locus-core) via Maven dep
+on `com.asamm.kmp:kmp-garmin-img-android:<ver>`. Wired into locus-core's
+`development` branch as of 0.5.0.
 
 ## Scope
 
 In scope:
 - Parse unencrypted IMG sub-files: TRE, RGN, LBL, NET, TYP.
 - Render to a `RenderTarget` abstraction with concrete impls for Android
-  `Canvas` and AWT `Graphics2D`.
-- Apply TYP styling (this is the headline rendering improvement vs the old
+  `Canvas` (androidMain) and AWT `Graphics2D` (jvmMain).
+- Apply TYP styling (the headline rendering improvement vs the old
   Java fork).
-- Fixture-backed tests on JVM.
+- Fixture-backed tests on JVM (golden PNG, parser dump-diff).
 
 Out of scope (do not build, do not propose):
 - **Encrypted / locked Garmin maps.** Permanently out — legal + DRM.
-- **NET routing** — Locus Map has its own router (LoRouter).
-- **MDR address / POI search** — Locus Map has its own search index.
+- **NET routing** — Locus has its own router.
+- **MDR address / POI search** — Locus has its own search index.
 - **mkgmap-style preprocessing** — we are a renderer, not a converter.
-- **iOS native render impl** — `iosMain.RenderTarget` throws
-  `NotImplementedError`; an iOS team adds the actual impl later.
+- **iOS native render impl** — `commonMain` stays iOS-clean so an iOS
+  target can be added later; no `iosMain` source set ships yet (see
+  ROADMAP).
 
 ## KMP layout
 
@@ -46,18 +45,20 @@ lib/
     commonMain/kotlin/com/asamm/garminimg/    # parser, model, style, RenderTarget interface
     commonTest/kotlin/                        # fixture-backed parser & coord tests
     commonTest/resources/fixtures/            # small, redistributable IMG/TYP samples
-    androidMain/kotlin/                       # Android Canvas RenderTarget; density helpers
-    jvmMain/kotlin/                           # AWT Graphics2D RenderTarget
-    jvmTest/kotlin/                           # render-diff tests against reference PNGs
-    iosMain/kotlin/                           # stub: throws NotImplementedError
-cli/                                           # desktop CLI module: RenderImgToPng
+    androidMain/kotlin/                       # AndroidRenderTarget
+    jvmMain/kotlin/                           # AwtRenderTarget
+    jvmTest/kotlin/                           # render-diff + dump-diff tests
+viewer/
+  desktop/                                    # Compose Desktop dev tool
+  android/                                    # minimal Android dev tool
+captures/                                     # PNG+JSON dumps from the desktop viewer
 ```
 
 Hard rules:
-- **`commonMain` must contain zero `android.*` references.** CI enforces.
-- **`commonMain` must compile for all targets** (Android, JVM, iosX64,
-  iosArm64, iosSimulatorArm64). If a piece of code can't be common, push it
-  to the relevant `*Main` source set.
+- **`commonMain` must contain zero `android.*` references.**
+- **`commonMain` must stay iOS-clean** — Android and JVM are the active
+  targets, but the source set has to keep compiling for future iosX64 /
+  iosArm64 / iosSimulatorArm64.
 - **No Locus types.** This library does not depend on `locus-core` or any
   Asamm non-KMP module. The Locus-side adapter lives in `locus-core`.
 - **Public API is Kotlin-idiomatic.** Don't preserve the Java Bag/Listener
@@ -66,23 +67,25 @@ Hard rules:
 ## Targets & versions
 
 - Kotlin **2.3.20** (matches `locus-core`).
-- AGP **9.1.0** (Android target only).
+- AGP **9.1.1** (Android target only; AGP 9 has built-in Kotlin support).
 - Gradle **9.3.1**.
 - JDK **17** for compile + tests.
 - Min Android SDK 24; compile SDK 36.
 - Coroutines **1.10.x** (kotlinx-coroutines-core multiplatform).
 - Logging: `com.asamm.kmp:kmp-logger` (matches the rest of Asamm).
-- Tests: JUnit 5 (`org.junit.jupiter`) on JVM; the same on Android unit
-  tests via `useJUnitPlatform()`.
+- Tests: JUnit 5 (`org.junit.jupiter`) on JVM via `useJUnitPlatform()`.
 - Binary I/O: `kotlinx-io-core` (multiplatform). Avoid `java.io.*` in
   commonMain.
 
 ## Distribution
 
-- Maven coordinates: `com.asamm.kmp:kmp-garmin-img:<ver>`.
+- Maven coordinates: `com.asamm.kmp:kmp-garmin-img[-android|-jvm]:<ver>`.
 - Hosted on GitHub Packages Maven, repo `asamm/kmp-garmin-img`.
-- Snapshots on push to `main`; releases on tag `vX.Y.Z`.
-- Credentials in `REPO_GITHUB` env var (same convention as `locus-core`).
+- Snapshots: workflow-dispatched (`snapshot.yml`).
+- Releases: tag `vX.Y.Z` triggers `release.yml`.
+- Credentials: either `GPR_USERNAME` + `GPR_TOKEN`, or `REPO_GITHUB` in
+  `username|token` format (the locus-core convention is accepted as a
+  fallback so a single env var covers both repos).
 
 ## Style (inherits from user's global rules)
 
@@ -117,15 +120,15 @@ Lowercase-hyphens.
 
 ## What lives where
 
-- **`PLAN.md`** — multi-phase plan; the working contract. Update it when
-  scope shifts.
-- **`README.md`** — short public-facing description (write at end of
-  Phase A).
-- **`CHANGELOG.md`** — start at Phase A; bump on every release tag.
-- **`docs/format/`** — distilled IMG / TYP format reference (our own
-  words, drawing on upstream JGarminImgParser + mkgmap as documentation).
-- **`docs/upstream_diff.md`** — Phase B output: which Asamm-fork stubs we
-  recovered, dropped, or rewrote.
+- **`docs/ROADMAP.md`** — remaining work, checkbox list. Update when scope shifts.
+- **`README.md`** — short public-facing description and consumption recipe.
+- **`CHANGELOG.md`** — released versions only; bump on every release tag.
+- **`docs/archive/`** — superseded planning + changelog history kept for
+  context.
+- **`docs/visual-reference/`** — reference screenshots from other
+  renderers (QMS / GPSMapEdit) anchoring visual regression review.
+- **`captures/`** — per-session PNG+JSON dumps from the desktop viewer's
+  "Save view" button; not auto-committed.
 
 ## Reference materials (read-only)
 
@@ -136,5 +139,6 @@ Lowercase-hyphens.
   `uk.me.parabola.imgfmt.app.*` documents the IMG/TYP write side.
   **Do not copy code** (LGPL/GPL hygiene); read for behaviour, then write
   fresh.
-- Old Asamm fork (snapshot only, will be archived): the
-  `libraries/libGarminImg` submodule in `locus-core`.
+- Legacy `libGarminImg` parser — vendored under
+  `lib/src/jvmTest/java/org/free/garminimg/` as the byte-parity reference
+  for the dump-diff regression rig.

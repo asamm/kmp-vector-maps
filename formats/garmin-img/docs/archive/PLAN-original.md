@@ -3,7 +3,7 @@
 > Snapshot of the original multi-phase plan that drove the project from
 > Phase A bootstrap through the 0.5.0 release. Kept verbatim for
 > historical context — Phase A and B are fully done, Phase C is mostly
-> done. The live remaining work lives in [`ROADMAP.md`](../../ROADMAP.md).
+> done. The live remaining work lives in [`docs/ROADMAP.md`](../ROADMAP.md).
 
 ---
 
