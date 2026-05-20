@@ -69,6 +69,14 @@ object LblSubFile {
         val labelsOffset = reader.readUInt32()
         val labelsLength = reader.readUInt32()
         val multiplierExp = reader.readByte()
+        // Kotlin's `Int.shl` masks the shift count mod 32. A corrupt
+        // header with exp >= 32 would silently yield multiplier=1 and
+        // we'd then index labels at random positions. Real IMGs use
+        // 0..7; cap at 15 (== 32-byte alignment) — anything past that
+        // is a parse error.
+        require(multiplierExp in 0..15) {
+            "LBL label multiplier exponent $multiplierExp out of range [0, 15]"
+        }
         val codingByte = reader.readByte()
         val coding = LabelCoding.fromOnDiskValue(codingByte)
 
@@ -87,7 +95,11 @@ object LblSubFile {
             reader.seek(OFFSET_POI_DESCRIPTOR)
             poiOffset = reader.readUInt32()
             poiLength = reader.readUInt32()
-            poiMultiplier = 1 shl reader.readByte()
+            val poiMultiplierExp = reader.readByte()
+            require(poiMultiplierExp in 0..15) {
+                "LBL POI multiplier exponent $poiMultiplierExp out of range [0, 15]"
+            }
+            poiMultiplier = 1 shl poiMultiplierExp
             poiGlobalMask = reader.readByte()
         } else {
             poiOffset = 0L
@@ -164,7 +176,11 @@ object LblSubFile {
             return null
         }
         val multOffset = offset * header.poiMultiplier
-        if (multOffset >= header.poiLength) {
+        // Reject negative offset (a corrupt RGN record can hand us one
+        // — `Int` arithmetic wraps silently) and any offset that would
+        // either land at section EOF or read past it. The Java
+        // predecessor used `>=` here; we keep that semantics.
+        if (multOffset < 0L || multOffset >= header.poiLength) {
             return null
         }
         reader.seek(header.poiOffset + multOffset)
@@ -215,7 +231,11 @@ object LblSubFile {
             return null
         }
         val multOffset = offset * header.poiMultiplier
-        if (multOffset >= header.poiLength) {
+        // Reject negative offset (a corrupt RGN record can hand us one
+        // — `Int` arithmetic wraps silently) and any offset that would
+        // either land at section EOF or read past it. The Java
+        // predecessor used `>=` here; we keep that semantics.
+        if (multOffset < 0L || multOffset >= header.poiLength) {
             return null
         }
         reader.seek(header.poiOffset + multOffset)

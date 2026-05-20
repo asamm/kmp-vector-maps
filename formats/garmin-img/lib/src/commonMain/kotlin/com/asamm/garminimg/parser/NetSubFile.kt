@@ -37,6 +37,12 @@ object NetSubFile {
         val offset = reader.readUInt32()
         val length = reader.readUInt32()
         val multiplierExp = reader.readByte()
+        // Match LblSubFile.parseHeader's guard — `1 shl 32` wraps to 1
+        // on Kotlin's masked shift count, so a corrupt header would
+        // silently misalign every road-definition lookup.
+        require(multiplierExp in 0..15) {
+            "NET road-offset multiplier exponent $multiplierExp out of range [0, 15]"
+        }
         return NetHeader(
             headerLength = common.headerLength,
             roadDefinitionsOffset = offset,
@@ -57,7 +63,11 @@ object NetSubFile {
         lblHeader: LblHeader,
     ): String? {
         val multOffset = netHeader.roadOffsetMultiplier * offset
-        if (multOffset > netHeader.roadDefinitionsLength) {
+        // `>` was incorrect — `multOffset == roadDefinitionsLength`
+        // sits at section EOF and the subsequent read would walk one
+        // record past the section. Also guard the negative case (a
+        // corrupt RGN record can wrap into one via Int arithmetic).
+        if (multOffset < 0L || multOffset >= netHeader.roadDefinitionsLength) {
             return null
         }
         netReader.seek(netHeader.roadDefinitionsOffset + multOffset)
