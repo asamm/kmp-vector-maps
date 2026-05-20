@@ -124,8 +124,13 @@ data class Viewport(
 
     init {
         require(widthPx > 0 && heightPx > 0) { "viewport has zero dimension" }
-        require(maxLon >= minLon) { "maxLon < minLon" }
-        require(maxLat >= minLat) { "maxLat < minLat" }
+        // Strict `>` (not `>=`) so a zero-extent viewport — minLon ==
+        // maxLon or matching latitude — can't slip through. The
+        // projection's normalisation `(lon - minLon) / (maxLon - minLon)`
+        // would otherwise divide by zero and produce NaN coordinates;
+        // AWT silently renders blank, Android may throw.
+        require(maxLon > minLon) { "maxLon ($maxLon) must be > minLon ($minLon)" }
+        require(maxLat > minLat) { "maxLat ($maxLat) must be > minLat ($minLat)" }
     }
 
     companion object {

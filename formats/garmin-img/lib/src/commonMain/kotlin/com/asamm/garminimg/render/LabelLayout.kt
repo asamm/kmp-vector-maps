@@ -193,7 +193,7 @@ class LabelLayout {
  *   — that's how road names follow the road's bend.
  * @param pathYs y-coords paired with [pathXs].
  */
-data class LabelCandidate(
+class LabelCandidate(
     val x: Float,
     val y: Float,
     val widthPx: Float,
@@ -204,9 +204,19 @@ data class LabelCandidate(
     val outlineColor: Color?,
     val fontSize: Float,
     val anchor: TextAnchor,
-    val pathXs: FloatArray? = null,
-    val pathYs: FloatArray? = null,
+    pathXs: FloatArray? = null,
+    pathYs: FloatArray? = null,
 ) {
+
+    // Defensive copy — earlier this was a `data class` and the
+    // constructor stored the caller's arrays directly. Safe today
+    // because no caller reuses a pooled FloatArray, but the moment
+    // someone adds a `FloatArray` pool in `ImgRenderer.drawPolylineCentre`
+    // we'd silently swap the label's path out from under the
+    // second-pass renderer. Copy once at construction; per-label cost
+    // is O(vertices) which is already amortised over the layout pass.
+    val pathXs: FloatArray? = pathXs?.copyOf()
+    val pathYs: FloatArray? = pathYs?.copyOf()
 
     private val halfW: Float = widthPx / 2f + LABEL_PADDING
     private val halfH: Float = heightPx / 2f + LABEL_PADDING

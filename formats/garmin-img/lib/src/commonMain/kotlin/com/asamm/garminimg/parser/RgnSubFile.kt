@@ -43,6 +43,13 @@ import com.asamm.garminimg.model.ObjectKind
  */
 object RgnSubFile {
 
+    /**
+     * Hard cap for the per-poly bit-stream length. Real records ship a
+     * few hundred bytes at most; this is a DoS guard against a corrupt
+     * record carrying `bitStreamLen = 0xFFFF`.
+     */
+    private const val MAX_POLY_BIT_STREAM_LEN: Int = 4096
+
     private const val OFFSET_DATA_DESCRIPTOR: Long = 0x15L
     private const val OFFSET_EXT_POLYGONS_DESCRIPTOR: Long = 0x1DL
     private const val OFFSET_EXT_POLYLINES_DESCRIPTOR: Long = 0x39L
@@ -642,6 +649,14 @@ object RgnSubFile {
         fixedExtraBitLat: Int,
         readPolyExtraSignBit: Boolean,
     ): Pair<IntArray, IntArray> {
+        // Cap per-record bit-stream length so a corrupt poly record
+        // can't tie up a tile worker for ~0.5 MB of uninterrupted
+        // decode (`bitStreamLen = 0xFFFF`). Real polylines top out at
+        // a few hundred bytes; the cap is set well above that. Throws
+        // so the caller's per-record catch + segment-bail kicks in.
+        require(bitStreamLen in 0..MAX_POLY_BIT_STREAM_LEN) {
+            "polyline bit-stream length $bitStreamLen exceeds cap $MAX_POLY_BIT_STREAM_LEN"
+        }
         val bsr = BitStreamReader(reader, bitStreamLen)
 
         val longSign = readSign(bsr)
