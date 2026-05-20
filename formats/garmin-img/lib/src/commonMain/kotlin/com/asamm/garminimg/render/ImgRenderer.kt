@@ -622,60 +622,87 @@ fun interface StyleResolver {
          * override them.
          */
         fun typAware(table: com.asamm.garminimg.parser.TypStyleTable): StyleResolver {
+            // Per-resolver cache keyed by `(type shl 16) or (subType and 0xFF)
+            // shl 8) or (closed ? 1 : 0)`. The resolver previously
+            // allocated a fresh Style.* per MapObject — on the order of
+            // 10 000 allocations per tile per frame on Android. With a
+            // few hundred unique (type, subType, closed) triples per
+            // IMG the cache becomes a hot path after warmup.
+            //
+            // Holding `null` in the cache distinguishes a resolved
+            // miss from "not yet resolved"; the boxed Style? value is
+            // shared across all consumers of the same kind.
+            val cache = HashMap<Int, Style?>()
             return StyleResolver { obj ->
                 when (obj) {
                     is MapObject.Point -> {
-                        val typPoint = table.lookupPoint(obj.type, obj.subType)
-                        val internal = InternalStyles.resolve(obj) as? Style.PointStyle
-                        if (typPoint != null && internal != null) {
-                            internal.copy(
-                                icon = typPoint.icon,
-                                labelColor = typPoint.font?.dayColour ?: internal.labelColor,
-                            )
-                        } else {
-                            internal
+                        val key = (obj.type shl 16) or (obj.subType and 0xFF shl 8) or POINT_KEY
+                        cache.getOrPut(key) {
+                            val typPoint = table.lookupPoint(obj.type, obj.subType)
+                            val internal = InternalStyles.resolve(obj) as? Style.PointStyle
+                            if (typPoint != null && internal != null) {
+                                internal.copy(
+                                    icon = typPoint.icon,
+                                    labelColor = typPoint.font?.dayColour ?: internal.labelColor,
+                                )
+                            } else {
+                                internal
+                            }
                         }
                     }
                     is MapObject.PolyShape -> if (obj.closed) {
-                        val typ = table.lookupPolygon(obj.type, obj.subType)
-                        if (typ != null) {
-                            val internal = InternalStyles.resolvePolygon(obj.type)
-                            // Use the TYP's DRAWORDER priority when present
-                            // (lower → draw first → background); fall back
-                            // to InternalStyles' static priority otherwise.
-                            val priority = if (typ.drawPriority != Int.MAX_VALUE) {
-                                typ.drawPriority
+                        val key = (obj.type shl 16) or (obj.subType and 0xFF shl 8) or POLYGON_KEY
+                        cache.getOrPut(key) {
+                            val typ = table.lookupPolygon(obj.type, obj.subType)
+                            if (typ != null) {
+                                val internal = InternalStyles.resolvePolygon(obj.type)
+                                // Use the TYP's DRAWORDER priority when
+                                // present (lower → draw first →
+                                // background); fall back to
+                                // InternalStyles' static priority.
+                                val priority = if (typ.drawPriority != Int.MAX_VALUE) {
+                                    typ.drawPriority
+                                } else {
+                                    internal.drawPriority
+                                }
+                                internal.copy(
+                                    drawPriority = priority,
+                                    fillColor = typ.fillColor,
+                                    strokeColor = typ.strokeColor ?: internal.strokeColor,
+                                    pattern = typ.pattern,
+                                    labelColor = typ.font?.dayColour ?: internal.labelColor,
+                                )
                             } else {
-                                internal.drawPriority
+                                InternalStyles.resolve(obj)
                             }
-                            internal.copy(
-                                drawPriority = priority,
-                                fillColor = typ.fillColor,
-                                strokeColor = typ.strokeColor ?: internal.strokeColor,
-                                pattern = typ.pattern,
-                                labelColor = typ.font?.dayColour ?: internal.labelColor,
-                            )
-                        } else {
-                            InternalStyles.resolve(obj)
                         }
                     } else {
-                        val typ = table.lookupLine(obj.type, obj.subType)
-                        if (typ != null) {
-                            val internal = InternalStyles.resolveLine(obj.type)
-                            internal.copy(
-                                strokeColor = typ.strokeColor,
-                                borderColor = typ.borderColor ?: internal.borderColor,
-                                strokeWidth = typ.strokeWidthPx,
-                                borderWidth = typ.totalWidthPx,
-                                pattern = typ.pattern,
-                                labelColor = typ.font?.dayColour ?: internal.labelColor,
-                            )
-                        } else {
-                            InternalStyles.resolve(obj)
+                        val key = (obj.type shl 16) or (obj.subType and 0xFF shl 8) or LINE_KEY
+                        cache.getOrPut(key) {
+                            val typ = table.lookupLine(obj.type, obj.subType)
+                            if (typ != null) {
+                                val internal = InternalStyles.resolveLine(obj.type)
+                                internal.copy(
+                                    strokeColor = typ.strokeColor,
+                                    borderColor = typ.borderColor ?: internal.borderColor,
+                                    strokeWidth = typ.strokeWidthPx,
+                                    borderWidth = typ.totalWidthPx,
+                                    pattern = typ.pattern,
+                                    labelColor = typ.font?.dayColour ?: internal.labelColor,
+                                )
+                            } else {
+                                InternalStyles.resolve(obj)
+                            }
                         }
                     }
                 }
             }
         }
+
+        // Cache key tags so the three MapObject kinds don't collide on
+        // shared `(type, subType)` triples.
+        private const val POINT_KEY = 1
+        private const val LINE_KEY = 2
+        private const val POLYGON_KEY = 3
     }
 }
