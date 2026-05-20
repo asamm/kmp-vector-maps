@@ -87,6 +87,12 @@ object TreSubFile {
     private const val LEVEL_RECORD_SIZE: Int = 4
 
     /**
+     * Hard upper bound for `recordCount` in [parseLevels]. Real IMGs
+     * carry at most ~16 levels; this is a DoS cap, not a format limit.
+     */
+    private const val MAX_TRE_LEVELS: Int = 256
+
+    /**
      * Bit set on the zoom byte's high bit indicating that this level inherits its
      * objects from the next-higher level rather than carrying its own data.
      */
@@ -163,8 +169,18 @@ object TreSubFile {
         require(levelsLength % LEVEL_RECORD_SIZE == 0L) {
             "Levels section length $levelsLength is not a multiple of $LEVEL_RECORD_SIZE"
         }
-
-        val recordCount = (levelsLength / LEVEL_RECORD_SIZE).toInt()
+        // Bound the on-disk length against the sub-file. A corrupt /
+        // attacker-crafted TRE header carrying levelsLength = 2^32-1
+        // would otherwise drive an ~8 GB ArrayList allocation before
+        // the first record read fails. mkgmap-authored maps ship
+        // ≤ 16 levels; the cap below is several orders of magnitude
+        // larger than anything seen in the wild.
+        require(levelsLength in 0L..reader.size) {
+            "TRE levels length $levelsLength outside sub-file (size=${reader.size})"
+        }
+        val recordCount = (levelsLength / LEVEL_RECORD_SIZE)
+            .coerceAtMost(MAX_TRE_LEVELS.toLong())
+            .toInt()
         val levels = ArrayList<TreLevel>(recordCount)
         reader.seek(levelsOffset)
         repeat(recordCount) {

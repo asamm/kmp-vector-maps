@@ -47,6 +47,16 @@ import com.asamm.garminimg.style.Color
 object TypBodyParser {
 
     /**
+     * Hard upper bound for entries read from any TYP index / section
+     * length encoded on disk. Real TYPs ship a few thousand records
+     * per section; this cap is set well above real-world maxima and
+     * exists only to refuse `range.length` values from a corrupt or
+     * attacker-crafted header that would otherwise drive multi-GB
+     * allocations before the per-record reads fail.
+     */
+    private const val MAX_TYP_INDEX_ENTRIES: Int = 65_536
+
+    /**
      * Reads every record in the polygon and line bodies, returning a
      * [TypStyleTable] keyed by `(type, subType)` for fast `(t, st)` →
      * `Style` lookup at render time.
@@ -91,7 +101,13 @@ object TypBodyParser {
         if (entrySize < 5) {
             return emptyList()
         }
-        val entryCount = (descriptor.range.length / entrySize.toLong()).toInt()
+        // Cap entry count against the reader size and a hard limit so a
+        // corrupt TYP header carrying `range.length = 2^32-1` can't
+        // drive a multi-GB ArrayList allocation. Real TYPs ship a few
+        // thousand entries at most.
+        val entryCount = (descriptor.range.length / entrySize.toLong())
+            .coerceAtMost(MAX_TYP_INDEX_ENTRIES.toLong())
+            .toInt()
         val out = ArrayList<DrawOrderEntry>(entryCount)
         for (i in 0 until entryCount) {
             reader.seek(descriptor.range.offset + i.toLong() * entrySize)
@@ -653,7 +669,12 @@ object TypBodyParser {
         // Index entry: typeForFile (UInt16 = 2 bytes) + offset (1..3 bytes).
         val typeSize = 2
         val offsetSize = (index.itemSize - typeSize).coerceIn(1, 3)
-        val entryCount = (index.range.length / index.itemSize.toLong()).toInt()
+        // Cap against MAX_TYP_INDEX_ENTRIES so a corrupt `range.length`
+        // can't drive an oversized iteration. Real TYP indexes ship
+        // a few thousand entries at most.
+        val entryCount = (index.range.length / index.itemSize.toLong())
+            .coerceAtMost(MAX_TYP_INDEX_ENTRIES.toLong())
+            .toInt()
         for (i in 0 until entryCount) {
             reader.seek(index.range.offset + i.toLong() * index.itemSize)
             val typeForFile = reader.readUInt16()

@@ -97,6 +97,15 @@ object SubDivisionParser {
         reader.seek(OFFSET_DESCRIPTOR)
         val sectionOffset = reader.readUInt32()
         val sectionLength = reader.readUInt32()
+        // Bound the descriptor against the sub-file. A corrupt header
+        // carrying sectionLength = 2^32-1 would otherwise drive the
+        // walkLeafChildren loop billions of iterations before the
+        // record reads fail, growing `parent.children` unbounded.
+        require(sectionOffset + sectionLength <= reader.size) {
+            "TRE sub-divisions section [0x${sectionOffset.toString(16)}, " +
+                "0x${(sectionOffset + sectionLength).toString(16)}) past EOF " +
+                "(size=${reader.size})"
+        }
         val sectionEnd = sectionOffset + sectionLength
 
         val state = ParseState(
