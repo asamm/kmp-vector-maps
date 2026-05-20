@@ -118,7 +118,17 @@ class AwtRenderTarget(
         val strokeColor = style.strokeColor
         if (strokeColor != null && pattern == null) {
             g.color = strokeColor.toAwt()
-            g.stroke = BasicStroke(style.strokeWidth * renderScale)
+            // Full constructor so polygon outlines use the same miter-
+            // limit + butt-cap as polyline strokes. Single-arg
+            // `BasicStroke(width)` defaults to miterLimit=10 / CAP_SQUARE,
+            // which spikes at sharp corners while the matched Android
+            // backend bevels at miterLimit=4 / CAP_BUTT.
+            g.stroke = BasicStroke(
+                style.strokeWidth * renderScale,
+                BasicStroke.CAP_BUTT,
+                BasicStroke.JOIN_MITER,
+                STROKE_MITER_LIMIT,
+            )
             g.draw(path)
         }
     }
@@ -409,7 +419,7 @@ class AwtRenderTarget(
         if (text.isEmpty()) {
             return
         }
-        g.font = Font(Font.SANS_SERIF, Font.PLAIN, (fontSize * renderScale).toInt().coerceAtLeast(8))
+        g.font = fontFor(fontSize)
         val fm = g.fontMetrics
         val w = fm.stringWidth(text)
         val ascent = fm.ascent
@@ -444,7 +454,7 @@ class AwtRenderTarget(
         if (text.isEmpty() || xs.size < 2) {
             return
         }
-        g.font = Font(Font.SANS_SERIF, Font.PLAIN, (fontSize * renderScale).toInt().coerceAtLeast(8))
+        g.font = fontFor(fontSize)
         val fm = g.fontMetrics
         val ascent = fm.ascent
         val descent = fm.descent
@@ -578,6 +588,18 @@ class AwtRenderTarget(
      */
     fun writePng(out: OutputStream) {
         ImageIO.write(image, "PNG", out)
+    }
+
+    /**
+     * Sans-serif font at the requested logical size scaled by
+     * [renderScale]. Uses `deriveFont(Float)` so fractional sizes are
+     * preserved — `Font(name, style, Int)` truncates the size, which
+     * was the source of cross-backend label drift vs Android's
+     * `Paint.setTextSize(Float)`.
+     */
+    private fun fontFor(fontSize: Float): Font {
+        val pxSize = (fontSize * renderScale).coerceAtLeast(8f)
+        return Font(Font.SANS_SERIF, Font.PLAIN, 1).deriveFont(pxSize)
     }
 
     private fun buildPath(xs: FloatArray, ys: FloatArray, closed: Boolean): Path2D {

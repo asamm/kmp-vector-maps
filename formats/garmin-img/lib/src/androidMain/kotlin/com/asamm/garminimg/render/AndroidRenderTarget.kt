@@ -122,6 +122,12 @@ class AndroidRenderTarget(
         if (strokeColor != null && pattern == null) {
             resetPaintForStroke(style.strokeWidth * renderScale)
             paint.color = strokeColor.argb
+            // Match the AWT polygon outline: BUTT cap + MITER join +
+            // STROKE_MITER_LIMIT so sharp corners bevel the same way
+            // on both backends.
+            paint.strokeCap = Paint.Cap.BUTT
+            paint.strokeJoin = Paint.Join.MITER
+            paint.strokeMiter = STROKE_MITER_LIMIT
             canvas.drawPath(path, paint)
         }
     }
