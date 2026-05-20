@@ -255,29 +255,32 @@ class ImgFile internal constructor(
 
     /**
      * TRE-derived state: header, levels, and the sub-division tree.
+     * Non-data class so future fields don't break `.copy()` ABI for
+     * consumers; the underlying [reader] is `internal` so a consumer
+     * can't accidentally race the parser's seek pointer.
      */
-    data class TreData(
-        val reader: ImgRandomAccessReader,
+    class TreData internal constructor(
+        internal val reader: ImgRandomAccessReader,
         val header: TreHeader,
         val levels: TreLevels,
         val tree: SubDivisionTree,
     )
 
-    /** RGN-derived state. */
-    data class RgnData(
-        val reader: ImgRandomAccessReader,
+    /** RGN-derived state. See [TreData] for the non-data + internal-reader rationale. */
+    class RgnData internal constructor(
+        internal val reader: ImgRandomAccessReader,
         val header: RgnHeader,
     )
 
-    /** LBL-derived state. */
-    data class LblData(
-        val reader: ImgRandomAccessReader,
+    /** LBL-derived state. See [TreData] for the non-data + internal-reader rationale. */
+    class LblData internal constructor(
+        internal val reader: ImgRandomAccessReader,
         val header: LblHeader,
     )
 
     /** NET-derived state (when the IMG includes routing data; rare). */
-    data class NetData(
-        val reader: ImgRandomAccessReader,
+    class NetData internal constructor(
+        internal val reader: ImgRandomAccessReader,
         val header: NetHeader,
     )
 

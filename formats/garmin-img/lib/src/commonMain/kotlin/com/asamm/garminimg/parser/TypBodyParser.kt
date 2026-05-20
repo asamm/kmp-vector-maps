@@ -775,16 +775,6 @@ object TypBodyParser {
     }
 
     /**
-     * Skip-only variant kept for code paths where we don't yet propagate
-     * the parsed font info upstream (e.g. line records when night-only
-     * font info appears without a label override). Reads the same byte
-     * sequence as [readExtendedFontInfo] and discards the result.
-     */
-    private fun skipExtendedFontInfo(reader: ImgRandomAccessReader) {
-        readExtendedFontInfo(reader)
-    }
-
-    /**
      * Bits-per-pixel for a bitmap given the total colour count, mirroring
      * mkgmap `ColourInfo.getBitsPerPixel`.
      */
@@ -853,13 +843,34 @@ object TypBodyParser {
  *   bits paint with the day foreground; clear bits paint with the day background (or transparent
  *   when the day-bg-transparent flag was set).
  */
-data class TypPolygonStyle(
+// Non-data class — adding a field (e.g. night-mode bg) stays binary-
+// compatible for consumers as long as we don't change the existing
+// param positions. Explicit `copy()` exposes the one `.copy(drawPriority=…)`
+// the parser itself uses.
+class TypPolygonStyle(
     val fillColor: Color,
     val strokeColor: Color?,
     val drawPriority: Int = Int.MAX_VALUE,
     val pattern: Bitmap? = null,
     val font: TypFontInfo? = null,
-)
+) {
+
+    fun copy(
+        fillColor: Color = this.fillColor,
+        strokeColor: Color? = this.strokeColor,
+        drawPriority: Int = this.drawPriority,
+        pattern: Bitmap? = this.pattern,
+        font: TypFontInfo? = this.font,
+    ): TypPolygonStyle {
+        return TypPolygonStyle(
+            fillColor = fillColor,
+            strokeColor = strokeColor,
+            drawPriority = drawPriority,
+            pattern = pattern,
+            font = font,
+        )
+    }
+}
 
 /**
  * One DRAWORDER entry: a (type, subTypeMask) tuple with its file-position
@@ -880,7 +891,8 @@ internal data class DrawOrderEntry(
  *   direction) instead of a solid stroke — that's how dashed roads, railways, and multi-stripe
  *   casings get drawn.
  */
-data class TypLineStyle(
+// Non-data class — see [TypPolygonStyle].
+class TypLineStyle(
     val strokeColor: Color,
     val borderColor: Color?,
     val strokeWidthPx: Float,
@@ -894,7 +906,8 @@ data class TypLineStyle(
  * extended-font info that lets the TYP override label colour/style for
  * this `(type, subType)`.
  */
-data class TypPointStyle(
+// Non-data class — see [TypPolygonStyle].
+class TypPointStyle(
     val icon: Bitmap,
     val font: TypFontInfo? = null,
 )
@@ -911,7 +924,8 @@ data class TypPointStyle(
  * @property dayColour Optional override for the label text colour. When
  *   null, the style resolver keeps its default label colour.
  */
-data class TypFontInfo(
+// Non-data class — see [TypPolygonStyle].
+class TypFontInfo(
     val style: Int,
     val dayColour: Color?,
 )
@@ -922,7 +936,8 @@ data class TypFontInfo(
  * [lookupPoint] for the by-(type, subType) call shape the renderer actually
  * wants.
  */
-data class TypStyleTable(
+// Non-data class — see [TypPolygonStyle].
+class TypStyleTable(
     val polygons: Map<Int, TypPolygonStyle>,
     val lines: Map<Int, TypLineStyle>,
     val points: Map<Int, TypPointStyle> = emptyMap(),

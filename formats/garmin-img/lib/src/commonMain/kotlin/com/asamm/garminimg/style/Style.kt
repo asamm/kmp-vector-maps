@@ -29,13 +29,39 @@ sealed interface Style {
      * @param labelOutlineColor optional secondary colour for label outlines / haloes.
      * @param showLabel whether to render the point's label (when one exists).
      */
-    data class PointStyle(
+    // Non-data class so we can grow fields (night-mode palette, zoom-
+    // bracket overrides) without breaking `.copy()` ABI for consumers.
+    // Explicit `copy()` below covers the internal call sites.
+    class PointStyle(
         override val drawPriority: Int,
         val icon: Bitmap?,
         val labelColor: Color,
         val labelOutlineColor: Color?,
         val showLabel: Boolean,
-    ) : Style
+    ) : Style {
+
+        /**
+         * Returns a copy with the named fields overridden. Adding a new
+         * field is binary-compatible as long as it carries a default —
+         * unlike the data-class auto-generated `.copy()` whose
+         * signature shifts on every field addition.
+         */
+        fun copy(
+            drawPriority: Int = this.drawPriority,
+            icon: Bitmap? = this.icon,
+            labelColor: Color = this.labelColor,
+            labelOutlineColor: Color? = this.labelOutlineColor,
+            showLabel: Boolean = this.showLabel,
+        ): PointStyle {
+            return PointStyle(
+                drawPriority = drawPriority,
+                icon = icon,
+                labelColor = labelColor,
+                labelOutlineColor = labelOutlineColor,
+                showLabel = showLabel,
+            )
+        }
+    }
 
     /**
      * Style for an open polyline — road, river, contour, trail.
@@ -50,7 +76,8 @@ sealed interface Style {
      *   instead of a solid colour. The renderer tiles this along the line direction (X = travel,
      *   Y = perpendicular) so dashed/striped patterns follow the polyline's path.
      */
-    data class LineStyle(
+    // Non-data class — see [PointStyle].
+    class LineStyle(
         override val drawPriority: Int,
         val strokeColor: Color,
         val borderColor: Color?,
@@ -60,6 +87,28 @@ sealed interface Style {
         val labelColor: Color? = null,
         val pattern: Bitmap? = null,
     ) : Style {
+
+        fun copy(
+            drawPriority: Int = this.drawPriority,
+            strokeColor: Color = this.strokeColor,
+            borderColor: Color? = this.borderColor,
+            strokeWidth: Float = this.strokeWidth,
+            borderWidth: Float = this.borderWidth,
+            dashPattern: FloatArray? = this.dashPattern,
+            labelColor: Color? = this.labelColor,
+            pattern: Bitmap? = this.pattern,
+        ): LineStyle {
+            return LineStyle(
+                drawPriority = drawPriority,
+                strokeColor = strokeColor,
+                borderColor = borderColor,
+                strokeWidth = strokeWidth,
+                borderWidth = borderWidth,
+                dashPattern = dashPattern,
+                labelColor = labelColor,
+                pattern = pattern,
+            )
+        }
 
         override fun equals(other: Any?): Boolean {
             if (this === other) {
@@ -106,14 +155,34 @@ sealed interface Style {
      * @param pattern optional fill pattern (e.g. forest stipple).
      * @param labelColor label colour for area names; null hides labels.
      */
-    data class PolygonStyle(
+    // Non-data class — see [PointStyle].
+    class PolygonStyle(
         override val drawPriority: Int,
         val fillColor: Color,
         val strokeColor: Color?,
         val strokeWidth: Float = 0.5f,
         val pattern: Bitmap? = null,
         val labelColor: Color? = null,
-    ) : Style
+    ) : Style {
+
+        fun copy(
+            drawPriority: Int = this.drawPriority,
+            fillColor: Color = this.fillColor,
+            strokeColor: Color? = this.strokeColor,
+            strokeWidth: Float = this.strokeWidth,
+            pattern: Bitmap? = this.pattern,
+            labelColor: Color? = this.labelColor,
+        ): PolygonStyle {
+            return PolygonStyle(
+                drawPriority = drawPriority,
+                fillColor = fillColor,
+                strokeColor = strokeColor,
+                strokeWidth = strokeWidth,
+                pattern = pattern,
+                labelColor = labelColor,
+            )
+        }
+    }
 }
 
 /**

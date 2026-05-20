@@ -51,7 +51,12 @@ package com.asamm.garminimg.parser
  *   extended-POI data.
  * @property extendedPoiEnd End offset of extended-POI range.
  */
-data class SubDivision(
+// Non-data class so the (already-16-arg) primary constructor can grow
+// without breaking `.copy()` for downstream consumers. Each field is
+// `val` and not mutated post-construction, so equality / hash semantics
+// are unchanged from the previous `data class` — we never compared
+// SubDivision instances by value.
+class SubDivision(
     val index: Int,
     val level: Int,
     val dataOffset: Long,
