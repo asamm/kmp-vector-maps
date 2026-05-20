@@ -134,10 +134,12 @@ class AndroidRenderTarget(
 
     /**
      * Pattern → [AndroidBitmap] cache. TYP patterns are interned by
-     * the parser, so a small identity-keyed map keeps per-polygon
-     * cost down to a single hash lookup.
+     * the parser, so identity-keying (System.identityHashCode +
+     * `===` equality via `IdentityHashMap`) drops the per-polygon
+     * lookup cost from O(rgba.size) — `Bitmap`'s content-based
+     * equals/hashCode walks the byte array — to O(1).
      */
-    private val patternCache: MutableMap<Bitmap, AndroidBitmap> = HashMap()
+    private val patternCache: MutableMap<Bitmap, AndroidBitmap> = java.util.IdentityHashMap()
 
     override fun drawPolylineBorder(xs: FloatArray, ys: FloatArray, style: Style.LineStyle) {
         if (xs.size < 2) {

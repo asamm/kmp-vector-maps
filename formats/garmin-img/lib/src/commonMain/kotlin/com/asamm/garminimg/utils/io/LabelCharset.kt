@@ -82,23 +82,33 @@ class LabelCharset internal constructor(private val codepage: Int) {
     companion object {
 
         /**
-         * Codepage numbers we recognise explicitly. Anything else falls back to
-         * Latin-1 decoding (see [decode]).
+         * Codepage numbers we recognise explicitly. Anything else
+         * falls back to Latin-1 decoding (see [decode]); the
+         * codepages listed below are the only ones where [decode]
+         * produces a glyph-correct result.
+         *
+         * SHIFT_JIS (932) and BIG5 (950) would belong here but
+         * decoding them in `commonMain` requires platform-specific
+         * tables we haven't bundled. IMGs that ship those codepages
+         * decode as Latin-1 today — names will be mojibake. Add them
+         * when a real-world fixture appears.
          */
         const val CODEPAGE_LATIN1: Int = 0
         const val CODEPAGE_CP850: Int = 850
         const val CODEPAGE_CP1252: Int = 1252
         const val CODEPAGE_UTF8: Int = 65001
-        const val CODEPAGE_SHIFT_JIS: Int = 932
-        const val CODEPAGE_BIG5: Int = 950
 
         /**
-         * Returns a [LabelCharset] that handles the given codepage. The result
-         * never throws — exotic codepages get a Latin-1 fallback decoder.
+         * Returns a [LabelCharset] for the given codepage. Caches one
+         * instance per codepage: `LabelCharset.of(1252)` is a single
+         * allocation reused for the lifetime of the process, instead
+         * of one allocation per [LblSubFile.parseHeader] call.
          */
         fun of(codepage: Int): LabelCharset {
-            return LabelCharset(codepage)
+            return cache.getOrPut(codepage) { LabelCharset(codepage) }
         }
+
+        private val cache: MutableMap<Int, LabelCharset> = HashMap()
 
         /**
          * cp1252 mapping for the 0x80..0x9F byte range. 0 means "no

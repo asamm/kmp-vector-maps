@@ -60,9 +60,10 @@ object SubDivisionParser {
     private const val SMALL_RECORD_SIZE: Int = 14
 
     /**
-     * High-nibble mask of the `objectTypes` byte. The low nibble is the
-     * dataOffset overflow (each unit = 2^24 bytes); the high nibble carries the
-     * actual [ObjectKind] flags.
+     * Low-nibble mask of the `objectTypes` byte. The low nibble is the
+     * dataOffset overflow (each unit = 2^24 bytes); the high nibble
+     * carries the actual [ObjectKind] flags. Flip this to `0xF0` and
+     * you'll silently swap the two halves and break every IMG read.
      */
     private const val OBJECT_TYPES_DATAOFFSET_OVERFLOW_MASK: Int = 0x0F
 

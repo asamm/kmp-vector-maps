@@ -20,6 +20,11 @@ kotlin {
         freeCompilerArgs.add("-Xexpect-actual-classes")
     }
 
+    // Publish -sources.jar alongside each platform artifact so consumers
+    // (Android Studio's "Go to Source", IDEA's library inspection) can
+    // navigate into the lib without a separate manual download.
+    withSourcesJar(publish = true)
+
     // Phase A targets: Android (Locus Map) + JVM (local testing). iOS deferred.
     android {
         namespace = "$modulePackage.garminimg"

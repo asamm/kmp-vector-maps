@@ -135,10 +135,11 @@ class AwtRenderTarget(
 
     /**
      * Pattern → BufferedImage cache. TYP patterns are interned by parser
-     * (one [Bitmap] per `(type, subType)`), so a small identity-keyed map
-     * keeps the per-polygon cost down to a single hash lookup.
+     * (one [Bitmap] per `(type, subType)`), so identity-keying drops
+     * the per-polygon lookup cost from O(rgba.size) — `Bitmap`'s
+     * content-based equals/hashCode walks the byte array — to O(1).
      */
-    private val patternCache: MutableMap<Bitmap, BufferedImage> = HashMap()
+    private val patternCache: MutableMap<Bitmap, BufferedImage> = java.util.IdentityHashMap()
 
     /** Counters for quick diagnostic of label placement effectiveness. */
     var curvedPlacements: Int = 0
