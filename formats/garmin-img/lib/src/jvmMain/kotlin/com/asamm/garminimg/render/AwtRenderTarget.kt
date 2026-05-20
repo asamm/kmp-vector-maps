@@ -291,14 +291,29 @@ class AwtRenderTarget(
             runs.clear()
             runs.addAll(rotated)
         }
+        val path = buildPath(xs, ys, closed = false)
+        g.color = AwtColor(dashColor, true)
+        if (runs.size == 1) {
+            // Fully opaque row — a malformed / hand-crafted TYP can ship
+            // a "dash" pattern with no gap pixels. BasicStroke needs an
+            // even-length dash; mutating a 1-element list (as we do
+            // below for odd sizes ≥ 3) would IOOB. Stroke solid and
+            // return.
+            g.stroke = BasicStroke(
+                (style.strokeWidth * renderScale).coerceAtLeast(1f),
+                BasicStroke.CAP_BUTT,
+                BasicStroke.JOIN_MITER,
+                STROKE_MITER_LIMIT,
+            )
+            g.draw(path)
+            return
+        }
         // BasicStroke needs an even-length dash; fold a trailing "on"
         // run into the leading one so the alternation stays consistent.
         if (runs.size % 2 == 1) {
             runs[0] = runs[0] + runs.removeAt(runs.size - 1)
         }
         val dashArray = FloatArray(runs.size) { runs[it] * renderScale }
-        val path = buildPath(xs, ys, closed = false)
-        g.color = AwtColor(dashColor, true)
         g.stroke = BasicStroke(
             (style.strokeWidth * renderScale).coerceAtLeast(1f),
             BasicStroke.CAP_BUTT,

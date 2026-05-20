@@ -238,16 +238,24 @@ class AndroidRenderTarget(
             runs.clear()
             runs.addAll(rotated)
         }
-        if (runs.size % 2 == 1) {
-            runs[0] = runs[0] + runs.removeAt(runs.size - 1)
-        }
-        val dashArray = FloatArray(runs.size) { runs[it] * renderScale }
         buildPath(xs, ys, closed = false)
         resetPaintForStroke((style.strokeWidth * renderScale).coerceAtLeast(1f))
         paint.color = dashColor
         paint.strokeCap = Paint.Cap.BUTT
         paint.strokeJoin = Paint.Join.MITER
         paint.strokeMiter = STROKE_MITER_LIMIT
+        if (runs.size == 1) {
+            // Fully opaque row — a malformed / hand-crafted TYP can ship
+            // a "dash" pattern with no gap pixels. Mutating a 1-element
+            // list (as we do below for odd sizes ≥ 3) would IOOB. Stroke
+            // solid and return.
+            canvas.drawPath(path, paint)
+            return
+        }
+        if (runs.size % 2 == 1) {
+            runs[0] = runs[0] + runs.removeAt(runs.size - 1)
+        }
+        val dashArray = FloatArray(runs.size) { runs[it] * renderScale }
         paint.pathEffect = DashPathEffect(dashArray, 0f)
         canvas.drawPath(path, paint)
         paint.pathEffect = null
