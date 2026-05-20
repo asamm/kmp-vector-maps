@@ -24,6 +24,33 @@ First public release. Drop-in replacement for the legacy
   underlying file descriptors deterministically. The byte-source-factory
   overload of `ImgFile.open` owns every reader it builds; the
   explicit-readers overload leaves ownership with the caller.
+
+Pre-tag hardening, driven by a deep-review pass on the public API
+surface:
+
+- Concurrency: dropped the public mutable diagnostic counters on
+  `RgnSubFile` (a global `object` shared across threads), added an
+  explicit "not thread-safe; one `ImgFile` per worker" contract to
+  `ImgFile` + `ImgRenderer`.
+- Malformed-input DoS: bounded every length-from-disk allocation across
+  the parser (TRE / TYP / sub-division / FAT). Capped per-polyline
+  `bitStreamLen`. Guarded `1 shl exp` reads against out-of-range
+  exponents. Tightened POI / road-definition offset bounds.
+- Resource leaks: factory-overload of `ImgFile.open` now owns its
+  readers and releases them on `close()`; `FileImgRandomAccessReader`
+  closes its `RandomAccessFile` if construction fails mid-way.
+- Renderer: identity-keyed pattern caches on both backends (was
+  walking the bitmap byte-array per polygon lookup), per-resolver
+  Style cache (was allocating ~10k Style instances per tile per
+  frame), aligned polygon outline stroke + on-path font sizing
+  across AWT and Android backends.
+- API hygiene: demoted `data class` to `class` on public types where
+  `.copy()` ABI evolution is likely (`ImgFile.{Tre,Rgn,Lbl,Net}Data`,
+  `SubDivision`, `Style.{Point,Line,Polygon}Style`, all `Typ*Style`
+  types). Sub-file readers now `internal val` so consumers can't
+  accidentally race the parser's seek pointer.
+- Publishing: artifacts now ship a `-sources.jar` alongside the AAR
+  / JAR for IDE source navigation.
 - `ImgRenderer` + platform-agnostic `RenderTarget` interface in
   `commonMain`. TYP-driven styling via `StyleResolver.typAware`;
   `StyleResolver.internalDefaults` for IMGs without an embedded TYP.
