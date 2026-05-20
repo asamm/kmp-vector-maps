@@ -6,7 +6,6 @@
  */
 package com.asamm.garminimg.utils.io
 
-import java.io.Closeable
 import java.io.File
 import java.io.IOException
 import java.io.RandomAccessFile
@@ -28,11 +27,30 @@ import java.io.RandomAccessFile
  * @param file IMG file to read. Opened in read-only mode for the
  *   lifetime of this reader.
  */
-class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader, Closeable {
+class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
 
     private val raf: RandomAccessFile = RandomAccessFile(file, "r")
 
-    override val size: Long = raf.length()
+    override val size: Long
+
+    init {
+        // Guard against raf.length() throwing after the file is open
+        // (rare but possible — e.g., concurrent truncation, disk error).
+        // Without this the file descriptor leaks because the constructor
+        // bails before `this` escapes and the caller can't see the
+        // reader to close it.
+        size = try {
+            raf.length()
+        } catch (e: Throwable) {
+            try {
+                raf.close()
+            } catch (_: Throwable) {
+                // Ignore close-during-construction failure; propagate
+                // the original cause.
+            }
+            throw e
+        }
+    }
 
     override fun position(): Long {
         return raf.filePointer

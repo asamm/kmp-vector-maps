@@ -66,7 +66,31 @@ class ImgFile internal constructor(
     val net: NetData?,
     val typ: TypHeader?,
     val typStyles: com.asamm.garminimg.parser.TypStyleTable?,
-) {
+    /**
+     * The readers owned by this `ImgFile`. [close] iterates this list
+     * and closes each. Empty for callers that built `ImgFile` via the
+     * explicit-readers overload of [open] — those keep ownership and
+     * manage the readers themselves.
+     */
+    private val ownedReaders: List<ImgRandomAccessReader> = emptyList(),
+) : AutoCloseable {
+
+    /**
+     * Releases the readers this `ImgFile` owns. Safe to call on the
+     * explicit-readers overload too — `ownedReaders` is empty there
+     * so close is a no-op. Idempotent if the underlying readers'
+     * close is idempotent (the file-backed reader's is).
+     */
+    override fun close() {
+        for (reader in ownedReaders) {
+            try {
+                reader.close()
+            } catch (_: Throwable) {
+                // Continue closing the rest; surface the first failure
+                // is more trouble than it's worth when releasing.
+            }
+        }
+    }
 
     /**
      * Walks every sub-division and yields every [MapObject] in draw order
@@ -279,8 +303,90 @@ class ImgFile internal constructor(
             netReader: ImgRandomAccessReader? = null,
             typReader: ImgRandomAccessReader? = null,
         ): ImgFile {
-            val archive = ImgArchive.open(archiveReader)
+            // Explicit-readers form: caller owns and closes the readers.
+            // Pass an empty owned-readers list so [ImgFile.close] is a
+            // no-op for these instances.
+            return openInternal(
+                archive = ImgArchive.open(archiveReader),
+                treReader = treReader,
+                rgnReader = rgnReader,
+                lblReader = lblReader,
+                netReader = netReader,
+                typReader = typReader,
+                ownedReaders = emptyList(),
+            )
+        }
 
+        /**
+         * Convenience: opens an IMG using a [byteSourceFactory] that produces
+         * a fresh [ImgRandomAccessReader] each time it's invoked. The
+         * factory is called exactly once per sub-file plus once for the
+         * archive scan — 4-6 calls total, never re-allocates the
+         * archive reader. The returned `ImgFile` owns every reader it
+         * was handed; calling [ImgFile.close] (or wrapping the open in
+         * `.use { … }`) releases them all.
+         *
+         * Useful for the common case where the IMG bytes live in a
+         * single ByteArray or a file on disk and the caller doesn't
+         * want to hand-build readers.
+         */
+        fun open(byteSourceFactory: () -> ImgRandomAccessReader): ImgFile {
+            // Collect every reader we create here so we can own them
+            // through ImgFile and close on .close(). If anything below
+            // throws, the catch closes whatever we built so far before
+            // re-raising.
+            val owned = mutableListOf<ImgRandomAccessReader>()
+            try {
+                val archiveReader = byteSourceFactory().also { owned += it }
+                val archive = ImgArchive.open(archiveReader)
+                val tre = archive.findFirst("TRE") ?: error("IMG has no TRE sub-file")
+                val rgn = archive.findFirst("RGN") ?: error("IMG has no RGN sub-file")
+                val lbl = archive.findFirst("LBL") ?: error("IMG has no LBL sub-file")
+                val net = archive.findFirst("NET")
+                val typ = archive.findFirst("TYP")
+
+                fun rawForSubFile(): ImgRandomAccessReader {
+                    return byteSourceFactory().also { owned += it }
+                }
+                val treReader = archive.openSubFile(tre, rawForSubFile())
+                val rgnReader = archive.openSubFile(rgn, rawForSubFile())
+                val lblReader = archive.openSubFile(lbl, rawForSubFile())
+                val netReader = net?.let { archive.openSubFile(it, rawForSubFile()) }
+                val typReader = typ?.let { archive.openSubFile(it, rawForSubFile()) }
+
+                return openInternal(
+                    archive = archive,
+                    treReader = treReader,
+                    rgnReader = rgnReader,
+                    lblReader = lblReader,
+                    netReader = netReader,
+                    typReader = typReader,
+                    ownedReaders = owned,
+                )
+            } catch (e: Throwable) {
+                for (reader in owned) {
+                    try {
+                        reader.close()
+                    } catch (_: Throwable) {
+                        // Original exception is the interesting one.
+                    }
+                }
+                throw e
+            }
+        }
+
+        /**
+         * Shared implementation for both [open] overloads.
+         */
+        private fun openInternal(
+            archive: ImgArchive,
+            treReader: ImgRandomAccessReader,
+            rgnReader: ImgRandomAccessReader,
+            lblReader: ImgRandomAccessReader,
+            netReader: ImgRandomAccessReader?,
+            typReader: ImgRandomAccessReader?,
+            ownedReaders: List<ImgRandomAccessReader>,
+        ): ImgFile {
             val treHeader = TreSubFile.parseHeader(treReader)
             val rgnHeader = RgnSubFile.parseHeader(rgnReader)
             val lblHeader = LblSubFile.parseHeader(lblReader)
@@ -295,9 +401,6 @@ class ImgFile internal constructor(
                 rgnInfo = RgnSubFile.endInfo(rgnHeader),
             )
 
-            // Parse the TYP body when present. Failure to parse the body
-            // doesn't fail the whole open — the renderer simply falls back
-            // to InternalStyles for everything in that case.
             val typStyles = if (typHeader != null && typReader != null) {
                 try {
                     com.asamm.garminimg.parser.TypBodyParser.parse(typReader, typHeader)
@@ -316,38 +419,7 @@ class ImgFile internal constructor(
                 net = netHeader?.let { h -> NetData(netReader as ImgRandomAccessReader, h) },
                 typ = typHeader,
                 typStyles = typStyles,
-            )
-        }
-
-        /**
-         * Convenience: opens an IMG using a [byteSourceFactory] that produces
-         * a fresh [ImgRandomAccessReader] each time it's invoked. The
-         * factory is called once per sub-file plus once for the archive
-         * header. Useful for the common case where the IMG bytes live in a
-         * single ByteArray and the caller doesn't want to hand-build readers.
-         */
-        fun open(byteSourceFactory: () -> ImgRandomAccessReader): ImgFile {
-            val archiveReader = byteSourceFactory()
-            val archive = ImgArchive.open(archiveReader)
-            val tre = archive.findFirst("TRE") ?: error("IMG has no TRE sub-file")
-            val rgn = archive.findFirst("RGN") ?: error("IMG has no RGN sub-file")
-            val lbl = archive.findFirst("LBL") ?: error("IMG has no LBL sub-file")
-            val net = archive.findFirst("NET")
-            val typ = archive.findFirst("TYP")
-
-            val treReader = archive.openSubFile(tre, byteSourceFactory())
-            val rgnReader = archive.openSubFile(rgn, byteSourceFactory())
-            val lblReader = archive.openSubFile(lbl, byteSourceFactory())
-            val netReader = net?.let { archive.openSubFile(it, byteSourceFactory()) }
-            val typReader = typ?.let { archive.openSubFile(it, byteSourceFactory()) }
-
-            return open(
-                archiveReader = byteSourceFactory(),
-                treReader = treReader,
-                rgnReader = rgnReader,
-                lblReader = lblReader,
-                netReader = netReader,
-                typReader = typReader,
+                ownedReaders = ownedReaders,
             )
         }
     }

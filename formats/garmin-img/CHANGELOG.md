@@ -19,6 +19,11 @@ First public release. Drop-in replacement for the legacy
   backed reader so country-scale (200 MB+) and multi-GB IMGs work on
   phones without OOM. `ByteArrayImgRandomAccessReader` stays for
   small in-memory fixtures and tests.
+- `ImgFile` and `ImgRandomAccessReader` both implement `AutoCloseable`
+  so consumers can wrap an `ImgFile` in `.use { … }` and release the
+  underlying file descriptors deterministically. The byte-source-factory
+  overload of `ImgFile.open` owns every reader it builds; the
+  explicit-readers overload leaves ownership with the caller.
 - `ImgRenderer` + platform-agnostic `RenderTarget` interface in
   `commonMain`. TYP-driven styling via `StyleResolver.typAware`;
   `StyleResolver.internalDefaults` for IMGs without an embedded TYP.

@@ -16,8 +16,17 @@ package com.asamm.garminimg.utils.io
  *
  * The reader is single-threaded: callers must serialise access. IMG sub-file readers
  * sit on top of this and translate logical offsets into seeks here.
+ *
+ * Implements [AutoCloseable] so file-backed readers can release their underlying
+ * handle on `close()`; in-memory readers inherit the default no-op.
  */
-interface ImgRandomAccessReader {
+interface ImgRandomAccessReader : AutoCloseable {
+
+    /**
+     * Releases any underlying OS resource. Default no-op for purely
+     * in-memory readers; file-backed readers override.
+     */
+    override fun close() {}
 
     /**
      * Total number of bytes available.
