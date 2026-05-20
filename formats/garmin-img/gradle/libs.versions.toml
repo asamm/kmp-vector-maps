@@ -36,6 +36,10 @@ kmpLogger = { module = "com.asamm.kmp:kmp-logger", version.ref = "kmpLogger" }
 androidKotlinMultiplatformLibrary = { id = "com.android.kotlin.multiplatform.library", version.ref = "androidGradlePlugin" }
 kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 
+# Used only by :viewer:android — standalone Android app project, no KMP.
+# AGP 9 has built-in Kotlin support so no separate kotlin-android plugin.
+androidApplication = { id = "com.android.application", version.ref = "androidGradlePlugin" }
+
 # Used only by :viewer.
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 # Compose compiler plugin — mandatory since Kotlin 2.0.

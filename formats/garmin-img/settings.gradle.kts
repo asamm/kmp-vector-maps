@@ -26,4 +26,5 @@ dependencyResolutionManagement {
 rootProject.name = "kmp-garmin-img"
 
 include(":lib")
-include(":viewer")
+include(":viewer:desktop")
+include(":viewer:android")
