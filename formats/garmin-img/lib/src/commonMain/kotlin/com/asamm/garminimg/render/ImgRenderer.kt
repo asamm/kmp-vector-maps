@@ -42,6 +42,14 @@ import kotlin.math.ln
  * pass (label de-cluttering) will hold labels in a queue, sort by priority,
  * and only draw those that don't overlap higher-priority labels — that's
  * Phase C.9.
+ *
+ * # Thread-safety
+ *
+ * **Not thread-safe.** `render()` calls `seek()` on the shared
+ * sub-file readers in [img], so two concurrent invocations on the same
+ * `ImgRenderer` — or two `ImgRenderer`s sharing one [ImgFile] — race
+ * on the seek position and silently produce garbled tiles. Open one
+ * [ImgFile] per worker thread or serialise calls.
  */
 class ImgRenderer(
     private val img: ImgFile,

@@ -44,11 +44,14 @@ import com.asamm.garminimg.parser.TypSubFile
  *
  * # Threading
  *
- * Each [ImgRandomAccessReader] tracks its own logical position; passing one
- * instance per sub-file lets the parser read three sub-files in parallel
- * without stepping on each other. For a single-thread caller, three readers
- * over the same backing bytes is the simplest correct setup. (Future
- * coroutine-based parallel parse can wrap this layer.)
+ * **One `ImgFile` per worker thread.** Each [ImgRandomAccessReader] tracks
+ * its own logical position; passing one instance per sub-file lets the
+ * parser read three sub-files concurrently within a single `ImgFile`,
+ * but two threads driving the *same* `ImgFile` (e.g. two
+ * [com.asamm.garminimg.render.ImgRenderer]s sharing one file)
+ * race on the sub-file readers' seek positions and silently produce
+ * garbled output. Locus's tile-worker pool needs one open `ImgFile`
+ * per worker, or serialised calls.
  *
  * @param typStyles parsed TYP body — `(type, subType)` → resolved styles for the polygon and
  *   line sections. Populated when the IMG has a TYP sub-file and its body parses successfully;
