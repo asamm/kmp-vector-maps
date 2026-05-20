@@ -427,25 +427,6 @@ object RgnSubFile {
     // PLAIN POLY (POLYLINE / POLYGON) PARSING
     //********************************
 
-    /**
-     * Diagnostic counter — increments whenever a polyline / polygon record
-     * fails to parse. Re-introduced so we can surface "silent data drop"
-     * regressions (a corrupt-looking record causes the rest of its segment
-     * to be skipped, which can hide entire feature classes — e.g., rails).
-     * Reset between renders by the caller if useful.
-     */
-    var parseFailures: Int = 0
-
-    /**
-     * Diagnostic — counts every infoByte we read from a plain polyline
-     * record, broken down by `info & 0x3F` (the type field). Surfaces
-     * cases where records are read but then silently dropped because
-     * decode fails downstream.
-     */
-    val rawLineTypeReads: HashMap<Int, Int> = HashMap()
-    val successfulLines: HashMap<Int, Int> = HashMap()
-    val successfulPolys: HashMap<Int, Int> = HashMap()
-
     private fun parsePoly(
         reader: ImgRandomAccessReader,
         subDivision: SubDivision,
@@ -462,7 +443,6 @@ object RgnSubFile {
             val shape = try {
                 parseOnePoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader, netReader, netHeader)
             } catch (_: Exception) {
-                parseFailures++
                 // Bit-stream over-ran or coordinate decode failed mid-record.
                 // The reader's position is now mid-record; resuming from
                 // there would decode misaligned bytes into nonsense
@@ -499,7 +479,6 @@ object RgnSubFile {
             type = infoByte and 0x7F
             direction = false
         }
-        rawLineTypeReads.merge(type, 1) { a, b -> a + b }
         val twoBytesLen = infoByte and 0x80 != 0
 
         val info2 = reader.readUInt24()
@@ -548,11 +527,6 @@ object RgnSubFile {
         } else {
             resolveLabel(labelOffset.toLong(), lblReader, lblHeader)
         }
-        if (line) {
-            successfulLines.merge(type, 1) { a, b -> a + b }
-        } else {
-            successfulPolys.merge(type, 1) { a, b -> a + b }
-        }
         return MapObject.PolyShape(
             type = type,
             subType = 0,
@@ -580,7 +554,6 @@ object RgnSubFile {
             val shape = try {
                 parseOneExtPoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader)
             } catch (_: Exception) {
-                parseFailures++
                 // Same rationale as parsePoly — bail the segment on
                 // mid-record decode failure rather than continuing from a
                 // misaligned read position.
