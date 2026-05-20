@@ -50,6 +50,15 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
+        // Intermediate source set shared by the JVM and Android targets so
+        // code that relies on `java.io.*` (e.g. RandomAccessFile-backed
+        // IMG reader) lives in one place. AGP 9's KMP variant doesn't
+        // create this hierarchy automatically.
+        val jvmAndAndroidMain by creating {
+            dependsOn(commonMain.get())
+        }
+        androidMain.get().dependsOn(jvmAndAndroidMain)
+        jvmMain.get().dependsOn(jvmAndAndroidMain)
         jvmTest.dependencies {
             // Route the multiplatform kotlin.test annotations to the JUnit 5 (Jupiter)
             // engine on the JVM target. Without this they default to JUnit 4, which we
