@@ -1,6 +1,6 @@
 [versions]
 # Project
-version = "0.1.0"
+version = "0.5.0"
 
 # Android — aligned with locus-core-2 / kmp-logger
 androidCompileSdk = "36"
@@ -19,7 +19,7 @@ kotlinxIo = "0.8.0"
 
 # Asamm KMP libs
 # https://github.com/asamm/kmp-logger
-kmpLogger = "0.9.1"
+kmpLogger = "1.0.1"
 
 # Compose Multiplatform Desktop — used only by :viewer (development tool).
 # https://github.com/JetBrains/compose-multiplatform/releases

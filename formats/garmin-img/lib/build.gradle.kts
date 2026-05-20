@@ -74,14 +74,18 @@ tasks.withType<Test>().configureEach {
 
 publishing {
     repositories {
-        // GitHub Packages — auth'd channel for the team. REPO_GITHUB is accepted as a
-        // username fallback so the same env var used by locus-core works here too.
+        // Auth'd via GPR_USERNAME + GPR_TOKEN (CI convention) or
+        // REPO_GITHUB in `username|token` form (locus-core convention)
+        // so the same env var drives publishing from either context.
         maven {
             name = "GitHubPackages"
             url = uri("https://maven.pkg.github.com/asamm/kmp-garmin-img")
             credentials {
-                username = System.getenv("GPR_USERNAME") ?: System.getenv("REPO_GITHUB")
+                val repoGithub = System.getenv("REPO_GITHUB")?.split("|")
+                username = System.getenv("GPR_USERNAME")
+                    ?: repoGithub?.getOrNull(0)
                 password = System.getenv("GPR_TOKEN")
+                    ?: repoGithub?.getOrNull(1)
             }
         }
     }

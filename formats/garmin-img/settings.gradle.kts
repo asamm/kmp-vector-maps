@@ -6,18 +6,27 @@ pluginManagement {
     }
 }
 
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
 dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // kmp-logger is published to GitHub Packages — auth'd via GPR_USERNAME/GPR_TOKEN
-        // (REPO_GITHUB is accepted as a username fallback to match locus-core conventions).
+
+        // kmp-logger from GitHub Packages — auth'd via either
+        // GPR_USERNAME + GPR_TOKEN (kmp-* projects' own convention) or
+        // REPO_GITHUB in `username|token` form (locus-core convention).
         maven {
             name = "kmpLoggerGitHubPackages"
             url = uri("https://maven.pkg.github.com/asamm/kmp-logger")
             credentials {
-                username = System.getenv("GPR_USERNAME") ?: System.getenv("REPO_GITHUB") ?: ""
-                password = System.getenv("GPR_TOKEN") ?: ""
+                val repoGithub = System.getenv("REPO_GITHUB")?.split("|")
+                username = System.getenv("GPR_USERNAME")
+                    ?: repoGithub?.getOrNull(0)
+                password = System.getenv("GPR_TOKEN")
+                    ?: repoGithub?.getOrNull(1)
             }
         }
     }
