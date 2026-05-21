@@ -7,10 +7,11 @@ primarily for [Locus Map](https://www.locusmap.app/).
 
 ## Status
 
-**0.5.0 — feature-complete parser + dual-target renderer.** Drop-in
-replacement for the legacy `libraries/libGarminImg` submodule in
-[locus-core](https://github.com/asamm/locus-core); first consumed by
-locus-core's `development` branch.
+**0.5.2 — feature-complete parser + dual-target renderer, perf-tuned
+for country-scale IMGs.** Replaced the legacy
+`libraries/libGarminImg` submodule in
+[locus-core](https://github.com/asamm/locus-core) (PR #771); now the
+only Garmin IMG implementation on locus-core's `development` branch.
 
 Remaining work (point-icon polish, continent-scale file-backed reader,
 iOS target, optional polishing items) is tracked in
@@ -38,7 +39,7 @@ preprocessing.
 ## Coordinates
 
 ```kotlin
-implementation("com.asamm.kmp:kmp-garmin-img-android:0.5.0")
+implementation("com.asamm.kmp:kmp-garmin-img-android:0.5.2")
 ```
 
 Hosted on GitHub Packages

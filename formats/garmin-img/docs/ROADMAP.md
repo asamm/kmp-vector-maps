@@ -27,22 +27,23 @@ Full original plan archived at
   the locus-core connector. Heap footprint independent of file size;
   country-scale (200 MB+) and multi-GB IMGs work on phones.
 - [x] **0.5.0 release** — first public artifact on GitHub Packages.
+- [x] **Phase D.1 — locus-core swap finalised** — legacy
+  `libraries/libGarminImg` submodule + `MapSourceGarminImg` /
+  `GarminImgRenderer` classes removed in locus-core PR #771. The KMP
+  artifact is the only IMG implementation on `development`.
+- [x] **0.5.1 release** — 8 KB read-ahead buffer in
+  `FileImgRandomAccessReader` collapses per-byte JNI cost; per-tile
+  parse on country IMGs dropped ~65× (verified on-device).
+- [x] **0.5.2 release** — primitive `IntArrayList` in
+  `com.asamm.garminimg.utils.collections` swapped in for the RGN
+  coord decoder's `ArrayList<Int>` accumulators (no more per-coord
+  boxing).
 
 ## Open
 
-- [ ] **Phase D.1 — finalise locus-core swap.**
-  The `development` branch of locus-core now consumes
-  `com.asamm.kmp:kmp-garmin-img-android` and routes `.img` maps through
-  `MapSourceKmpGarminImg` (gated behind a compile-time flag). Once the
-  KMP path has been the default for a few internal builds and no
-  regressions surface, remove the legacy `MapSourceGarminImg` /
-  `GarminImgRenderer` and the `libraries/libGarminImg` submodule
-  reference from locus-core's `settings.gradle.kts` +
-  `libLocusCore/build.gradle.kts`.
-
 - [ ] **Phase E — archive the legacy upstream.**
-  After Phase D.1, archive `https://github.com/asamm/garmin-img-parser`
-  (the old `libGarminImg` upstream). Add a one-line README on that repo
+  Archive `https://github.com/asamm/garmin-img-parser` (the old
+  `libGarminImg` upstream). Add a one-line README on that repo
   pointing at this project as the successor.
 
 - [ ] **Phase C polish — point icons & extended-types polygons.**
@@ -68,7 +69,18 @@ Full original plan archived at
 
 - [ ] **Docs polish.**
   `docs/visual-reference/` needs a short README explaining what the
-  Monaco screenshot anchors. `docs/upstream_diff.md` referenced by
-  `CLAUDE.md` doesn't exist yet — either write a one-pager
-  documenting what was kept / dropped / rewrote vs. the Java fork,
-  or drop the reference.
+  Monaco screenshot anchors.
+
+- [ ] **Helpdesk-driven feature follow-ups** — waiting on user feedback
+  on the 4.35 Locus build before committing to scope. From the long
+  threads on
+  [#5474](https://help.locusmap.eu/topic/hello) and
+  [#3731](https://help.locusmap.eu/topic/garmin-img):
+  - configurable label text colour (Locus-side `StyleResolver` wrap)
+  - global / per-type line-thickness + line-colour overrides
+  - layer toggles (areas / lines / points) exposed as Locus prefs
+  - external `.typ` file loading next to the `.img` — highest-value
+    item; lib has the parsing primitives, only Locus-side
+    file-discovery + wiring needed
+  - extended objects (truck-routing signs, weight limits, road-blocks)
+  - per-type visibility prefs (hide buildings / forest labels / …)
