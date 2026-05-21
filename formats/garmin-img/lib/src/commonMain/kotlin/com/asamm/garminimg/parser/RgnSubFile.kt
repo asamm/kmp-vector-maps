@@ -6,9 +6,10 @@
  */
 package com.asamm.garminimg.parser
 
-import com.asamm.garminimg.utils.io.ImgRandomAccessReader
 import com.asamm.garminimg.model.MapObject
 import com.asamm.garminimg.model.ObjectKind
+import com.asamm.garminimg.utils.collections.IntArrayList
+import com.asamm.garminimg.utils.io.ImgRandomAccessReader
 
 /**
  * Parser for an `.RGN` sub-file. RGN holds the geometry of every map object
@@ -145,37 +146,110 @@ object RgnSubFile {
             // points in any order.
             segments[SEG_POLYGON]?.let { seg ->
                 if (objectKindFilter and ObjectKind.POLYGON != 0) {
-                    yieldAll(parsePoly(reader, subDivision, seg, line = false, bitsPerCoord, lblReader, lblHeader))
+                    yieldAll(
+                        parsePoly(
+                            reader,
+                            subDivision,
+                            seg,
+                            line = false,
+                            bitsPerCoord,
+                            lblReader,
+                            lblHeader
+                        )
+                    )
                 }
             }
             segments[SEG_EXT_POLYGON]?.let { seg ->
                 if (objectKindFilter and ObjectKind.EXTENDED_POLYGON != 0) {
-                    yieldAll(parseExtPoly(reader, subDivision, seg, line = false, bitsPerCoord, lblReader, lblHeader))
+                    yieldAll(
+                        parseExtPoly(
+                            reader,
+                            subDivision,
+                            seg,
+                            line = false,
+                            bitsPerCoord,
+                            lblReader,
+                            lblHeader
+                        )
+                    )
                 }
             }
             segments[SEG_POLYLINE]?.let { seg ->
                 if (objectKindFilter and ObjectKind.POLYLINE != 0) {
-                    yieldAll(parsePoly(reader, subDivision, seg, line = true, bitsPerCoord, lblReader, lblHeader, netReader, netHeader))
+                    yieldAll(
+                        parsePoly(
+                            reader,
+                            subDivision,
+                            seg,
+                            line = true,
+                            bitsPerCoord,
+                            lblReader,
+                            lblHeader,
+                            netReader,
+                            netHeader
+                        )
+                    )
                 }
             }
             segments[SEG_EXT_POLYLINE]?.let { seg ->
                 if (objectKindFilter and ObjectKind.EXTENDED_POLYLINE != 0) {
-                    yieldAll(parseExtPoly(reader, subDivision, seg, line = true, bitsPerCoord, lblReader, lblHeader))
+                    yieldAll(
+                        parseExtPoly(
+                            reader,
+                            subDivision,
+                            seg,
+                            line = true,
+                            bitsPerCoord,
+                            lblReader,
+                            lblHeader
+                        )
+                    )
                 }
             }
             segments[SEG_POINT]?.let { seg ->
                 if (objectKindFilter and ObjectKind.POINT != 0) {
-                    yieldAll(parsePoints(reader, subDivision, seg, indexed = false, bitsPerCoord, lblReader, lblHeader, cityResolver))
+                    yieldAll(
+                        parsePoints(
+                            reader,
+                            subDivision,
+                            seg,
+                            indexed = false,
+                            bitsPerCoord,
+                            lblReader,
+                            lblHeader,
+                            cityResolver
+                        )
+                    )
                 }
             }
             segments[SEG_IPOINT]?.let { seg ->
                 if (objectKindFilter and ObjectKind.INDEXED_POINT != 0) {
-                    yieldAll(parsePoints(reader, subDivision, seg, indexed = true, bitsPerCoord, lblReader, lblHeader, cityResolver))
+                    yieldAll(
+                        parsePoints(
+                            reader,
+                            subDivision,
+                            seg,
+                            indexed = true,
+                            bitsPerCoord,
+                            lblReader,
+                            lblHeader,
+                            cityResolver
+                        )
+                    )
                 }
             }
             segments[SEG_EXT_POINT]?.let { seg ->
                 if (objectKindFilter and ObjectKind.EXTENDED_POINT != 0) {
-                    yieldAll(parseExtPoints(reader, subDivision, seg, bitsPerCoord, lblReader, lblHeader))
+                    yieldAll(
+                        parseExtPoints(
+                            reader,
+                            subDivision,
+                            seg,
+                            bitsPerCoord,
+                            lblReader,
+                            lblHeader
+                        )
+                    )
                 }
             }
         }
@@ -385,8 +459,18 @@ object RgnSubFile {
                 MapObject.Point(
                     type = type,
                     subType = subType,
-                    longitude = scaleAndAdd(subDivision.longitudeCenter, longitudeDelta, bitsPerCoord, additionalAccuracy = 0),
-                    latitude = scaleAndAdd(subDivision.latitudeCenter, latitudeDelta, bitsPerCoord, additionalAccuracy = 0),
+                    longitude = scaleAndAdd(
+                        subDivision.longitudeCenter,
+                        longitudeDelta,
+                        bitsPerCoord,
+                        additionalAccuracy = 0
+                    ),
+                    latitude = scaleAndAdd(
+                        subDivision.latitudeCenter,
+                        latitudeDelta,
+                        bitsPerCoord,
+                        additionalAccuracy = 0
+                    ),
                     label = label,
                     indexed = indexed,
                     isPoi = isPoi,
@@ -421,8 +505,18 @@ object RgnSubFile {
                 MapObject.Point(
                     type = fullType ushr 8,
                     subType = fullType and 0xFF,
-                    longitude = scaleAndAdd(subDivision.longitudeCenter, longitudeDelta, bitsPerCoord, additionalAccuracy = 0),
-                    latitude = scaleAndAdd(subDivision.latitudeCenter, latitudeDelta, bitsPerCoord, additionalAccuracy = 0),
+                    longitude = scaleAndAdd(
+                        subDivision.longitudeCenter,
+                        longitudeDelta,
+                        bitsPerCoord,
+                        additionalAccuracy = 0
+                    ),
+                    latitude = scaleAndAdd(
+                        subDivision.latitudeCenter,
+                        latitudeDelta,
+                        bitsPerCoord,
+                        additionalAccuracy = 0
+                    ),
                     label = label,
                     indexed = false,
                 ),
@@ -448,7 +542,16 @@ object RgnSubFile {
         reader.seek(segment.start)
         while (reader.position() < segment.end) {
             val shape = try {
-                parseOnePoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader, netReader, netHeader)
+                parseOnePoly(
+                    reader,
+                    subDivision,
+                    line,
+                    bitsPerCoord,
+                    lblReader,
+                    lblHeader,
+                    netReader,
+                    netHeader
+                )
             } catch (_: Exception) {
                 // Bit-stream over-ran or coordinate decode failed mid-record.
                 // The reader's position is now mid-record; resuming from
@@ -579,36 +682,36 @@ object RgnSubFile {
         lblHeader: LblHeader?,
     ): MapObject.PolyShape {
         val tipo = reader.readByte()
-            val subtipo = reader.readByte()
-            val fullType = ((tipo + 0x100) shl 8) + (subtipo and 0x1F)
-            val hasLabel = subtipo and 0x20 != 0
-            val longitudeDelta = readInt16(reader)
-            val latitudeDelta = readInt16(reader)
+        val subtipo = reader.readByte()
+        val fullType = ((tipo + 0x100) shl 8) + (subtipo and 0x1F)
+        val hasLabel = subtipo and 0x20 != 0
+        val longitudeDelta = readInt16(reader)
+        val latitudeDelta = readInt16(reader)
 
-            // Extended poly's bit-stream length encoding is a quirky 2-byte LEN:
-            //  - if first byte is even, read second byte and length = (b1 + b2*256)/4 - 1
-            //  - else length = b1/2 - 1
-            var bitStreamLen = reader.readByte()
-            bitStreamLen = if (bitStreamLen and 0x01 == 0) {
-                (bitStreamLen + reader.readByte() * 256) / 4 - 1
-            } else {
-                bitStreamLen / 2 - 1
-            }
-            val bitStreamInfo = reader.readByte()
+        // Extended poly's bit-stream length encoding is a quirky 2-byte LEN:
+        //  - if first byte is even, read second byte and length = (b1 + b2*256)/4 - 1
+        //  - else length = b1/2 - 1
+        var bitStreamLen = reader.readByte()
+        bitStreamLen = if (bitStreamLen and 0x01 == 0) {
+            (bitStreamLen + reader.readByte() * 256) / 4 - 1
+        } else {
+            bitStreamLen / 2 - 1
+        }
+        val bitStreamInfo = reader.readByte()
 
-            val (longs, lats) = decodePolyCoordinates(
-                reader = reader,
-                bitStreamLen = bitStreamLen,
-                bitStreamInfo = bitStreamInfo,
-                subDivision = subDivision,
-                longitudeDelta = longitudeDelta,
-                latitudeDelta = latitudeDelta,
-                bitsPerCoord = bitsPerCoord,
-                extraBit = false,
-                fixedExtraBitLong = 0,
-                fixedExtraBitLat = 0,
-                readPolyExtraSignBit = true,
-            )
+        val (longs, lats) = decodePolyCoordinates(
+            reader = reader,
+            bitStreamLen = bitStreamLen,
+            bitStreamInfo = bitStreamInfo,
+            subDivision = subDivision,
+            longitudeDelta = longitudeDelta,
+            latitudeDelta = latitudeDelta,
+            bitsPerCoord = bitsPerCoord,
+            extraBit = false,
+            fixedExtraBitLong = 0,
+            fixedExtraBitLat = 0,
+            readPolyExtraSignBit = true,
+        )
 
         val label = if (hasLabel) {
             resolveLabel(reader.readUInt24().toLong(), lblReader, lblHeader)
@@ -670,11 +773,27 @@ object RgnSubFile {
         var curLong = longitudeDelta
         var curLat = latitudeDelta
 
-        val longs = ArrayList<Int>(8)
-        val lats = ArrayList<Int>(8)
+        // Primitive `IntArrayList` (no boxing) — polyline coord streams
+        // hit `.add` thousands of times per record on country IMGs.
+        val longs = IntArrayList(8)
+        val lats = IntArrayList(8)
         // First point uses the (longitudeDelta, latitudeDelta) directly.
-        longs.add(scaleAndAdd(subDivision.longitudeCenter, curLong, bitsPerCoord, additionalAccuracy = 0))
-        lats.add(scaleAndAdd(subDivision.latitudeCenter, curLat, bitsPerCoord, additionalAccuracy = 0))
+        longs.add(
+            scaleAndAdd(
+                subDivision.longitudeCenter,
+                curLong,
+                bitsPerCoord,
+                additionalAccuracy = 0
+            )
+        )
+        lats.add(
+            scaleAndAdd(
+                subDivision.latitudeCenter,
+                curLat,
+                bitsPerCoord,
+                additionalAccuracy = 0
+            )
+        )
 
         // Increase precision if the extra-bit flag is on.
         curLong = curLong shl longExtraBit
@@ -827,8 +946,10 @@ object RgnSubFile {
                 val hasSubType = info and 0x800000 != 0
                 val isPoi = info and 0x400000 != 0
                 val recLabelOffset = info and 0x3FFFFF
+
                 @Suppress("UNUSED_VARIABLE")
                 val longitudeDelta = readInt16(reader)
+
                 @Suppress("UNUSED_VARIABLE")
                 val latitudeDelta = readInt16(reader)
                 if (hasSubType) {
