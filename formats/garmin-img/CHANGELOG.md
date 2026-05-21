@@ -5,6 +5,23 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.1] — 2026-05-21
+
+Performance fix for country-scale IMGs.
+
+- `FileImgRandomAccessReader` gained an 8 KB read-ahead buffer.
+  The RGN bit-stream decoder reads byte-at-a-time; on a 192 MB
+  country IMG that was thousands of `RandomAccessFile.read()` JNI
+  crossings per polyline. On the desktop bench (CzechRep z17, local
+  SSD) per-tile parse dropped from 402 ms to 6 ms, and the
+  end-to-end `ImgRenderer.render` from 471 ms to 10 ms. Verified
+  on-device through Locus. Memory cost is one 8 KB ByteArray per
+  open sub-file reader (≤ 48 KB per open map).
+- New `RenderBenchmarkTest` + `TimingRenderTarget` under
+  `lib/src/jvmTest/.../bench/` — diagnostic harness, point at any
+  IMG via `-Dkmpgi.bench.img=…`. Doesn't assert; only prints
+  per-phase timings.
+
 ## [0.5.0] — 2026-05-20
 
 First public release. Drop-in replacement for the legacy
