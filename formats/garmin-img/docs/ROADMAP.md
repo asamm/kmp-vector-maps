@@ -38,13 +38,13 @@ Full original plan archived at
   `com.asamm.garminimg.utils.collections` swapped in for the RGN
   coord decoder's `ArrayList<Int>` accumulators (no more per-coord
   boxing).
+- [x] **Phase E — legacy upstream archived** —
+  [`asamm/garmin-img-parser`](https://github.com/asamm/garmin-img-parser)
+  flagged read-only on GitHub on 2026-05-21. GitHub's "Archived"
+  banner replaces the README-side successor pointer the original
+  plan called for.
 
 ## Open
-
-- [ ] **Phase E — archive the legacy upstream.**
-  Archive `https://github.com/asamm/garmin-img-parser` (the old
-  `libGarminImg` upstream). Add a one-line README on that repo
-  pointing at this project as the successor.
 
 - [ ] **Phase C polish — point icons & extended-types polygons.**
   `StyleResolver.typAware` currently falls back to `InternalStyles`

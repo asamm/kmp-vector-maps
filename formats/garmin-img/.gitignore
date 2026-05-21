@@ -19,6 +19,8 @@ replay_pid*
 !gradle/wrapper/gradle-wrapper.jar
 out/
 build/
+# Daemon JVM auto-provisioning cache — local state, regenerated every invocation.
+gradle/gradle-daemon-jvm.properties
 
 ### IntelliJ IDEA ###
 .idea/
