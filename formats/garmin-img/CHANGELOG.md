@@ -5,6 +5,25 @@ This project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.5.2] — 2026-05-21
+
+Follow-up parser perf pass on top of 0.5.1's read-ahead buffer.
+
+- Added primitive-int `IntArrayList` in
+  `com.asamm.garminimg.utils.collections`. Shape mirrors the
+  locus-core equivalent in `libUtilsBase` so the API feels familiar;
+  copied rather than depended on (the lib stays free of any
+  locus-core dep per CLAUDE.md).
+- `RgnSubFile.decodePolyCoordinates` swapped its two
+  `ArrayList<Int>` coord accumulators for the new
+  `IntArrayList` — no more per-coord boxing in the parser's hot loop.
+  Bench delta on the desktop (CzechRep z17, local SSD):
+  parse-only −23 % (6.2 ms → 4.8 ms), full render −7 %
+  (9.5 ms → 8.8 ms). Larger relative gain expected on Android where
+  GC pressure costs more.
+- Parser parity preserved — DumpDiff regression rig stays green and
+  the otm-monaco golden render is unchanged.
+
 ## [0.5.1] — 2026-05-21
 
 Performance fix for country-scale IMGs.

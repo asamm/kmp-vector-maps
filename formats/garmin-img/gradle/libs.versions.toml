@@ -1,6 +1,6 @@
 [versions]
 # Project
-version = "0.5.1"
+version = "0.5.2"
 
 # Android — aligned with locus-core-2 / kmp-logger
 androidCompileSdk = "36"
