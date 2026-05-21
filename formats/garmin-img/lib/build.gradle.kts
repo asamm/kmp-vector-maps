@@ -75,6 +75,13 @@ kotlin {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+    // Forward `-Dkmpgi.bench.*` properties from the Gradle invocation
+    // through to the test JVM. Used by RenderBenchmarkTest to point at
+    // a specific IMG file and tile (x, y, z) without committing 200-MB
+    // test fixtures. No-op when nothing matches.
+    System.getProperties()
+        .filterKeys { (it as? String)?.startsWith("kmpgi.bench.") == true }
+        .forEach { (k, v) -> systemProperty(k as String, v as Any) }
 }
 
 publishing {
