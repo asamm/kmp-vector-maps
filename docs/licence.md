@@ -1,61 +1,61 @@
 # Licence position
 
-What the Mapsforge licence means for this repo and for Locus, now and after the Kotlin conversion.
-Engineering reading, not legal advice; the legal check is locus-core plan Q1.
+What each part's licence means for this repo and for Locus. Engineering reading, not legal advice;
+the legal check is locus-core plan Q1.
 
 **Author:** Menion · **Started:** 2026-10-22
 
-## Upstream terms
+## Parts
 
-| Item | Value | Evidence |
-|---|---|---|
-| Licence | LGPL-3.0-or-later | file headers, `COPYING.LESSER` |
-| Exception | LGPL §4(d) and §4(e) **waived** | upstream `README.md`, commit `c78c1d79` (2018-10-31) |
-| Copyright holders | mapsforge.org plus individual contributors per file | headers, e.g. `DatabaseRenderer.java` |
-| Dependencies | androidsvg Apache-2.0, kxml2 BSD-style, svgSalamander LGPL-2.1 / BSD | upstream build files |
+| Part | Licence |
+|---|---|
+| `formats/mapsforge/**`, including its Kotlin conversion | LGPL-3.0-or-later + §4(d)/(e) waiver |
+| `core/`, `render/`, `android/`, viewer, tools (written fresh) | Apache-2.0 (D19) |
+| `formats/garmin-img/` (M4) | LGPL-2.1, -only or -or-later open (Q13) |
+| Fixtures | per [fixtures/README.md](../fixtures/README.md): ODbL map data, Apache-2.0 theme |
 
-- The waiver is only in the upstream README, **not** in file headers or `COPYING.LESSER`.
-- It is an additional permission under GPL-3.0 §7, which a redistributor may drop. This repo must
-  carry it forward explicitly, or Locus loses it.
+- An Apache-2.0 core keeps LGPL-2.1 and LGPL-3.0 code out of one derivative work.
+- Today's Asamm code (golden harness, throwaway viewers) carries LGPL-3.0-or-later headers; code
+  moving into `core/`, `render/` or the new viewer gets Apache-2.0 headers.
 
-## Kotlin conversion
+## Mapsforge
 
-- A translation is a modification under GPL-3.0 §0, so the converted code stays a derivative work:
-  **LGPL-3.0-or-later**, whatever share of Java lines survives.
-- Relicensing (Apache, proprietary) needs consent of every copyright holder; not realistic.
-- Only a clean-room rewrite escapes it, which is option O4, rejected in the locus-core plan.
-- Files written from scratch (core, viewers, tools) could carry any licence; they use
-  LGPL-3.0-or-later. Licences stay per format module: Garmin IMG keeps LGPL-2.1 when it joins (M3).
+| Item | Value |
+|---|---|
+| Licence | LGPL-3.0-or-later (headers, `COPYING.LESSER`) |
+| Waiver | §4(d) and §4(e), upstream `README.md` only, commit `c78c1d79` (2018-10-31) |
+| Headers | 176 of 177 vendored files; `TileDependencies.java` has none upstream |
+| Dependencies | androidsvg Apache-2.0; kxml2 BSD + public domain; svgSalamander BSD (1.1.3 POM) |
+| Embedded code | `TextStroke.java` and parts of `LatLongUtils.java`: Apache-2.0 |
+
+- The waiver is a GPL-3.0 §7 additional permission a redistributor may drop, so this repo carries
+  it in [LICENSE.md](../LICENSE.md) and grants it for Asamm's changes.
+- A Kotlin translation is a modification (GPL-3.0 §0): the converted code stays LGPL-3.0-or-later.
+  Relicensing needs every copyright holder; only a clean-room rewrite (rejected O4) escapes it.
+- Open (Q14): 40 of 66 upstream authors committed only before the waiver; vendored headers name
+  mapsforge.org (120 files) and Ludwig M Brinckmann (75 files).
 
 ## Obligations of this repo
 
-| ID | Obligation | Source | How |
-|---|---|---|---|
-| L1 | Keep every copyright notice and licence header | GPL-3.0 §4 | hard rule in `CLAUDE.md` |
-| L2 | Mark modified files with a notice and date | GPL-3.0 §5(a) | add `Copyright 2026 Asamm Software` to the header list on first change |
-| L3 | Ship `COPYING` and `COPYING.LESSER` | LGPL §4(b) | repo root, done |
-| L4 | Carry the §4(d)/(e) waiver, and grant it for Asamm's own changes | GPL-3.0 §7 | `README.md` licence section, POM description |
-| L5 | Make source available to recipients of binaries | GPL-3.0 §6 | public repo, one tag per release |
+| ID | Obligation | How |
+|---|---|---|
+| L1 | Keep every copyright notice and licence header | hard rule in `CLAUDE.md` |
+| L2 | Mark modified files with a notice and date | add `Copyright 2026 Asamm Software` on first change |
+| L3 | Ship `COPYING` and `COPYING.LESSER` | repo root |
+| L4 | Carry the waiver | `LICENSE.md`, later the POM |
+| L5 | Source for recipients of binaries | public repo, one tag per release |
 
 ## Obligations of Locus
 
-| Item | Without waiver | With waiver |
+| Item | Mapsforge (waiver) | Garmin IMG (LGPL-2.1) |
 |---|---|---|
-| Notice that the library is used and is LGPL | required | required, already in `LibLicensesLco` |
-| Licence texts in the app | required | required |
-| User can relink a modified library, §4(d) | required | **waived** |
-| Installation information, §4(e) | required | **waived** |
-| Library may be modified, R8-minified, statically merged | only with §4(d) | allowed |
-| iOS (static linking) | effectively blocked | allowed |
+| Notice and licence texts in the app | required, in `LibLicensesLco` | required |
+| User can relink a modified library | waived | required (§6) |
+| R8-minified, merged into the APK | allowed | only with a relinking path |
+| Public source | this repo | `kmp-garmin-img` is private (Q12) |
 
-- Net change for Locus: none in kind. It moves from upstream Mapsforge to an Asamm-modified
-  Mapsforge under the same terms.
-- locus-core [`third_party_licenses.md`](https://github.com/asamm/locus-core/blob/development/docs/reference/third_party_licenses.md)
-  risk item 2 says the dependency is acceptable "only while the library stays replaceable/relinkable
-  (separate artifact, not modified)". That ignores the waiver and needs updating when Locus switches
-  (P5).
-
-## Repository visibility
-
-**Public**, as now. L5 is then met with no extra process. Publishing via GitHub Packages still
-needs a token to read, independent of visibility.
+- Garmin: Locus already ships kmp-garmin-img R8-processed, without a relinking path or public
+  source — an existing gap. Asamm can waive §6 only for its own code, not for the parts derived
+  from JGarminImgParser (Q13, locus-core Q1).
+- locus-core `third_party_licenses.md` risk item 2 assumes Mapsforge must stay "replaceable,
+  not modified"; it ignores the waiver and is updated in M9 (I8).

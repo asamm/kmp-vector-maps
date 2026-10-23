@@ -1,70 +1,110 @@
 # Architecture
 
-Target shape of the multi-format repo: one driver interface every vector format implements, one
-render pipeline, one viewer. Modelled on GDAL's driver registry. Draft; none of the interface
-exists yet (milestone M2).
+Target design: one driver interface every vector format implements, one render pipeline, an
+Android host API shaped for Locus, one viewer. Draft; nothing exists yet (from M3,
+[ROADMAP](ROADMAP.md)).
 
-**Author:** Menion · **Started:** 2026-10-22
+**Author:** Menion · **Started:** 2026-10-22 · **Revised:** 2026-10-22, after the Locus integration
+analysis
 
-## Layers
+## Platforms and layers
 
-| Layer | Path (target) | Content |
-|---|---|---|
-| Core | `core/` (KMP) | driver interface, tile model, projection, `RenderTarget`, pipeline stages, label placement |
-| Backends | `render/{android,awt}` | `RenderTarget` on `android.graphics.Canvas` / `java.awt.Graphics2D` |
-| Formats | `formats/{mapsforge,garmin-img}`, later `formats/mvt` | one driver each, plus its golden set |
-| Tools | `viewer/` (Compose MP: desktop + Android), `bench/` | written once, work for every driver |
+Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and tools; no iOS (D22).
 
-- A format depends on `:core` only; the viewer and tools depend on `:core` and pick drivers from the
-  registry.
-- Format licences stay per module (Garmin LGPL-2.1, Mapsforge LGPL-3.0).
+| Layer | Path | Content | Licence |
+|---|---|---|---|
+| Core | `core/` | driver interface, styles, tiles, `RenderTarget`, anchors, label placement | Apache-2.0 |
+| Backends | `render/{android,skia,awt}` | Android `Canvas`; Skia via Skiko (desktop); AWT for upstream parity only | Apache-2.0 |
+| Host API | `android/` | Locus-facing facade on `android.graphics` types | Apache-2.0 |
+| Formats | `formats/<format>/` | one driver each, plus its golden set | per format |
+| Tools | `viewer/`, `bench/` | written once for every driver | Apache-2.0 |
 
-## Today
-
-| Path | State | Becomes |
-|---|---|---|
-| `formats/mapsforge/legacy/` | vendored Mapsforge 0.30.0 Java, unchanged | deleted after the Kotlin conversion (M5) |
-| `formats/mapsforge/golden`, `golden-upstream` | pixel-exact check against upstream | the format's golden set, on committed PNGs once output changes on purpose |
-| `viewer/{common,desktop,android}` | two Mapsforge-only viewers, shared viewport maths | one Compose MP viewer over the registry (M2) |
-| `core/`, `render/`, `bench/` | not created | M2 onwards |
-| Garmin IMG | separate repo `kmp-garmin-img` | `formats/garmin-img/` (M3) |
+- Libraries are **Kotlin/JVM**: `java.*` allowed, `android.*` only in Android modules. KMP only
+  for the shared Compose viewer UI.
+- A format depends on `:core` only. The core is written fresh: kmp-garmin-img's `RenderTarget`
+  and `LabelLayout` carry LGPL-2.1 headers and are references, not sources.
 
 ## Driver interface
 
 | Type | Role |
 |---|---|
-| `MapFormatDriver` | id, name, file extensions; `probe(source)` → confidence; `open(source)` → `MapDataset` |
-| `MapFormats` | registry; `open(source)` asks every registered driver to probe, takes the best |
-| `MapDataset` | bounds, zoom range, languages, attribution, available styles; `createRenderer(style, config)` |
-| `MapRenderer` | `render(request, target, hooks)` for one tile; thread-safe, one instance per style |
-| `TileRequest` | tile x/y/zoom, tile size, scale, text scale, language, label mode |
-| `FeatureQuery` | optional capability: features in a bbox with their resolved style (LoPoints today) |
+| `MapFormatDriver` | extensions; `probe(file)` → `MapInfo` or null; `open(specs)` → `MapDataset` |
+| `MapFormats` | registry; picks the driver whose probe succeeds |
+| `MapDataset` | one or more files: Mapsforge multi-map, IMG + TYP; `addMap` at runtime |
+| `MapStyle` | compiled, cached: Mapsforge theme, Garmin TYP, MVT style; day, night, background |
+| `StyleMenu` | layers, overlays, categories, titles; **keeps Mapsforge ids** for Locus prefs |
+| `MapRenderer` | per (dataset, style, selection, config); `render(request, target, hooks, cancel)` |
+| `RenderConfig` | language, device scale, text scale, label mode, tile size |
+| `RenderKey` | hashable (style, selection, config) for host tile caches |
+| `FeatureQuery` | optional pull API: tags at a zoom → resolved symbol (LoPoints) |
 
-## Render pipeline
+- **Threads:** a dataset is thread-safe; a renderer declares `maxParallelism` and bounds itself.
+- **Cancellation** is checked between draw-list steps and never leaves label state half-filled.
+- **No globals:** scales and tile size travel per request (Mapsforge `DisplayModel`, `Parameters`).
 
-Every renderer draws in fixed stages, so a host can insert its own layer between two of them.
+## Android host API
 
-| Stage | Content | Host hook after it |
+Mirrors Locus' seam `MapSourceRenderer.renderTile(TileRequest): TileContent`, so TileManager,
+caches, shading and screen drawing stay as they are (D23).
+
+```kotlin
+interface VectorMapRenderer : Closeable {
+    fun addMap(spec: MapFileSpec): Boolean
+    fun renderTile(request: TileRenderRequest, isCancelled: () -> Boolean): TileRenderResult
+    fun labelPass(): LabelPass?          // null when labels are baked into tiles
+}
+sealed interface TileRenderResult {      // Image: mutable Bitmap, owned by the caller
+    class Image(val bitmap: Bitmap, val singleColor: Boolean) : TileRenderResult
+    object Empty : TileRenderResult; object Cancelled : TileRenderResult
+}
+interface LabelPass {                    // replaces Locus' MapsForgeV4LabelRenderer
+    fun prepare(view: LabelViewport)     // async, cancels the previous run
+    fun draw(canvas: Canvas, view: LabelViewport)
+    var onPrepared: (() -> Unit)?
+}
+```
+
+- The bitmap is mutable because Locus shades finished tiles (`UtilsShading.shadeTile`).
+- `ThemeLoader` parses asset or directory themes once, off the UI thread, with the style-menu
+  selection; `VectorMapDriver.probe` replaces Locus' own `.map` header sniffing.
+
+## Draw list and anchors
+
+No fixed stages: a renderer walks its style's ordered draw list and calls the host at named
+anchors, each with a per-format default.
+
+| Anchor | Mapsforge | Garmin IMG | MVT |
+|---|---|---|---|
+| `HILLSHADE` | theme `<hillshading>` (layer + level); else after all features | after polygons | style layer |
+| `LABELS` | label pass | label layout | symbol layers |
+
+- The hillshade hook gets geo bounds and pixel scale and draws with alpha and blend mode; the host
+  prefetches DEM data.
+
+## Labels
+
+- A `LabelCandidate` has a stable identity, world coordinates, priority, **measured** collision
+  geometry, a neutral text style and a kind: point, line symbol, path text.
+- `SEPARATE`: tiles carry no labels; candidates are placed per screen, rotation-aware and
+  upright — Locus' grid collision moved into the library.
+- `IN_TILE`: placed over the tile plus a one-tile margin, independent of render order; replaces
+  Mapsforge `TileDependencies` and Garmin's per-render `LabelLayout`.
+
+## Golden strategy
+
+| Layer | Gate | When |
 |---|---|---|
-| S1 `BACKGROUND` | map background, sea, land | — |
-| S2 `AREAS` | land cover, water, buildings | **hillshading** (Locus) |
-| S3 `LINES` | roads, paths, borders | — |
-| S4 `SYMBOLS` | icons, line symbols | — |
-| S5 `LABELS` | captions, path text | — |
+| Differential pixels | vendored vs upstream 0.30.0, same host | ✅ M0 |
+| Android pixels | Robolectric native graphics, vendored vs upstream | M2.4 |
+| Text dumps | reader output, label store, `RenderCallback`, sorted | M2.2, M2.5 |
+| Committed pixels | exact in a pinned container, tolerant outside | M6, once output changes |
 
-- Label mode per request: `IN_TILE` (labels baked into the tile), `SEPARATE` (tile without labels,
-  label candidates returned), `NONE`.
-- `SEPARATE` is what Locus uses today for map rotation: tiles render unrotated, labels are placed
-  and drawn upright in screen space by
-  [`MapsForgeV4LabelRenderer`](https://github.com/asamm/locus-core/blob/development/libraries/libLocusCore/src/main/java/com/asamm/locus/maps/sources/renderers/MapsForgeV4LabelRenderer.kt).
-  That placement moves into `:core`, shared by all formats.
-- Mapsforge themes order instructions by rule, not by kind, so the theme places a hillshading marker
-  where the hook runs; without one, the hook runs after all area fills ([ROADMAP](ROADMAP.md) D16).
+- An override set per [upstream.md](upstream.md) deviation keeps one intentional change from
+  dropping the whole corpus off the differential test.
 
-## Sources
+## Notes
 
-- `RenderTarget` starts from `kmp-garmin-img`'s
-  [`RenderTarget`](https://github.com/asamm/kmp-garmin-img/blob/main/lib/src/commonMain/kotlin/com/asamm/garminimg/render/RenderTarget.kt)
-  and Mapsforge's `GraphicFactory` / `Canvas`; it needs paint caching owned by the renderer, not
-  per zoom level (locus-core F2/F3).
-- Until the Kotlin conversion, the Mapsforge driver adapts the vendored Java renderer.
+- `RenderTarget` is low-level (paths, paint handles, text measuring, clip, transforms, blend,
+  shaders) and wraps a host-supplied canvas or bitmap; Garmin's two-pass borders and patterns
+  become a small painter on top.
+- Paint caching belongs to the renderer, not to a zoom level (locus-core F2/F3).

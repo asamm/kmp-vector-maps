@@ -26,6 +26,8 @@ tasks.test {
     dependsOn(":formats:mapsforge:golden-upstream:renderGoldens")
     inputs.dir(upstreamRender)
     inputs.dir(rootProject.layout.projectDirectory.dir("fixtures"))
+    // keeps the rendered PNGs and diffs when the result comes from the build cache
+    outputs.dir(goldenDir)
     systemProperty("golden.fixturesDir", rootProject.layout.projectDirectory.dir("fixtures").asFile.absolutePath)
     systemProperty("golden.expectedDir", upstreamRender.get().asFile.absolutePath)
     systemProperty("golden.actualDir", goldenDir.get().dir("actual").asFile.absolutePath)

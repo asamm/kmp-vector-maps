@@ -2,7 +2,12 @@ pluginManagement {
     repositories {
         google()
         mavenCentral()
-        gradlePluginPortal()
+        // only the foojay toolchain resolver comes from the plugin portal
+        gradlePluginPortal {
+            content {
+                includeGroupAndSubgroups("org.gradle.toolchains")
+            }
+        }
     }
 }
 
@@ -16,10 +21,14 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
 
-        // upstream Mapsforge for the golden corpus only
-        maven {
-            url = uri("https://jitpack.io")
-            content {
+        // upstream Mapsforge for the golden corpus only; nothing else may come from JitPack
+        exclusiveContent {
+            forRepository {
+                maven {
+                    url = uri("https://jitpack.io")
+                }
+            }
+            filter {
                 includeGroup("com.github.mapsforge.mapsforge")
             }
         }
