@@ -8,6 +8,12 @@ java {
     }
 }
 
+// as upstream: Java 8 bytecode, UTF-8 sources
+tasks.withType<JavaCompile>().configureEach {
+    options.release = 8
+    options.encoding = "UTF-8"
+}
+
 dependencies {
     api(project(":formats:mapsforge:legacy:map-reader"))
     api(libs.kxml2)

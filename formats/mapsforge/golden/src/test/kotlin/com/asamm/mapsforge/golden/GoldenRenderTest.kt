@@ -13,22 +13,21 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 
 /**
- * Renders the corpus with the vendored modules and requires pixel equality, and equal label dumps,
- * with the upstream 0.30.0 render produced by `:formats:mapsforge:golden-upstream:renderGoldens` on
- * the same machine.
+ * Compares the vendored render (`:formats:mapsforge:golden:renderVendored`) with the upstream 0.30.0
+ * render (`:formats:mapsforge:golden-upstream:renderGoldens`), both made on this machine: pixels
+ * and label dumps must be equal.
  */
 class GoldenRenderTest {
 
     @Test
     fun vendoredRenderMatchesUpstream() {
-        val actualDir = rendered
-        val expected = expectedDir.listFiles { f -> f.extension == "png" }.orEmpty().sortedBy { it.name }
-        val actual = actualDir.listFiles { f -> f.extension == "png" }.orEmpty().sortedBy { it.name }
-        assertTrue(expected.isNotEmpty(), "no expected renders in $expectedDir")
+        val expected = TestDirs.expected.listFiles { f -> f.extension == "png" }.orEmpty().sortedBy { it.name }
+        val actual = TestDirs.actual.listFiles { f -> f.extension == "png" }.orEmpty().sortedBy { it.name }
+        assertTrue(expected.isNotEmpty(), "no expected renders in ${TestDirs.expected}")
         assertEquals(expected.map { it.name }, actual.map { it.name }, "rendered tile sets differ")
 
         val mismatches = expected.mapNotNull { exp ->
-            val diffPixels = compare(exp, File(actualDir, exp.name))
+            val diffPixels = compare(exp, File(TestDirs.actual, exp.name))
             if (diffPixels == 0) {
                 null
             } else {
@@ -36,7 +35,7 @@ class GoldenRenderTest {
             }
         }
         if (mismatches.isNotEmpty()) {
-            fail("${mismatches.size} of ${expected.size} tiles differ, diffs in $diffDir\n" + mismatches.joinToString("\n"))
+            fail("${mismatches.size} of ${expected.size} tiles differ, diffs in ${TestDirs.diff}\n" + mismatches.joinToString("\n"))
         }
         // guard against a corpus of empty tiles passing trivially
         assertTrue(expected.count { !isUniform(ImageIO.read(it)) } >= expected.size / 2, "corpus is mostly blank")
@@ -44,14 +43,13 @@ class GoldenRenderTest {
 
     @Test
     fun vendoredLabelDumpsMatchUpstream() {
-        val actualDir = rendered
-        val expected = expectedDir.listFiles { f -> f.extension == "txt" }.orEmpty().sortedBy { it.name }
-        val actual = actualDir.listFiles { f -> f.extension == "txt" }.orEmpty().sortedBy { it.name }
-        assertTrue(expected.isNotEmpty(), "no expected label dumps in $expectedDir")
+        val expected = TestDirs.expected.listFiles { f -> f.extension == "txt" }.orEmpty().sortedBy { it.name }
+        val actual = TestDirs.actual.listFiles { f -> f.extension == "txt" }.orEmpty().sortedBy { it.name }
+        assertTrue(expected.isNotEmpty(), "no expected label dumps in ${TestDirs.expected}")
         assertEquals(expected.map { it.name }, actual.map { it.name }, "label dump sets differ")
         for (exp in expected) {
             val expLines = exp.readLines()
-            val actLines = File(actualDir, exp.name).readLines()
+            val actLines = File(TestDirs.actual, exp.name).readLines()
             if (expLines != actLines) {
                 val line = expLines.indices.firstOrNull { it >= actLines.size || expLines[it] != actLines[it] }
                     ?: expLines.size
@@ -89,8 +87,8 @@ class GoldenRenderTest {
             }
         }
         if (count > 0) {
-            diffDir.mkdirs()
-            ImageIO.write(diff, "png", File(diffDir, expectedFile.name))
+            TestDirs.diff.mkdirs()
+            ImageIO.write(diff, "png", File(TestDirs.diff, expectedFile.name))
         }
         return count
     }
@@ -105,31 +103,5 @@ class GoldenRenderTest {
             }
         }
         return true
-    }
-
-    private companion object {
-
-        val fixturesDir = dirProperty("golden.fixturesDir")
-        val expectedDir = dirProperty("golden.expectedDir")
-        val diffDir = dirProperty("golden.diffDir")
-
-        /**
-         * The vendored render, done once per test JVM so every test reads the same fresh output
-         * whatever order JUnit runs them in.
-         */
-        val rendered: File by lazy {
-            val actualDir = dirProperty("golden.actualDir")
-            actualDir.deleteRecursively()
-            diffDir.deleteRecursively()
-            GoldenCorpus.renderAll(fixturesDir = fixturesDir, outDir = actualDir)
-            actualDir
-        }
-
-        fun dirProperty(key: String): File {
-            val path = requireNotNull(System.getProperty(key)) {
-                "dirProperty($key), not set; run through Gradle: ./gradlew :formats:mapsforge:golden:test"
-            }
-            return File(path)
-        }
     }
 }

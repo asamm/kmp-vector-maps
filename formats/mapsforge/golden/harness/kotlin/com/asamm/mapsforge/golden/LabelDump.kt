@@ -23,14 +23,20 @@ import java.util.Locale
 object LabelDump {
 
     fun write(store: LabelStore, tiles: List<Tile>, file: File) {
-        val lines = mutableListOf<String>()
+        val out = mutableListOf<String>()
         for (tile in tiles) {
-            lines += "tile ${tile.zoomLevel}/${tile.tileX}/${tile.tileY}"
-            // one tile per query, so the list keeps the order the renderer stored
-            store.getVisibleItems(tile, tile)
-                .forEach { lines += "  ${describe(it)}" }
+            out += "tile ${tile.zoomLevel}/${tile.tileX}/${tile.tileY}"
+            lines(store = store, tile = tile).forEach { out += "  $it" }
         }
-        file.writeText(lines.joinToString(separator = "\n", postfix = "\n"))
+        file.writeText(out.joinToString(separator = "\n", postfix = "\n"))
+    }
+
+    /**
+     * One line per label stored for `tile`, in store order.
+     */
+    fun lines(store: LabelStore, tile: Tile): List<String> {
+        // one tile per query, so the list keeps the order the renderer stored
+        return store.getVisibleItems(tile, tile).map { describe(it) }
     }
 
     private fun describe(item: MapElementContainer): String {

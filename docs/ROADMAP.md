@@ -7,7 +7,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M1 done, M2 in progress.** Next action: M2.3, parallel 3×3 block.
+**Status: M0–M1 done, M2 in progress.** Next action: M2.4, Android pixels via Robolectric.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -55,22 +55,27 @@ the second deep review found.
 |---|---|---|
 | M2.1 | Corpus at 512 px, scale 1 / 2.625 / 3, z18–20 on land, menu `hike_bike` and `car` | 🔧 |
 | M2.2 | Locus primary mode: no labels in tile + `TileBasedLabelStore`, label dump | 🔧 |
-| M2.3 | Parallel 3×3 block: no label lost or doubled | ⬜ |
+| M2.3 | Parallel 3×3 block: same pixels and labels as a serial render | 🔧 |
 | M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | ⬜ |
 | M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | ⬜ |
 | M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | ⬜ |
 | M2.7 | `bench/`: JMH per stage + A54 run at N threads, baseline recorded here; adds the Apache-2.0 text | ⬜ |
 
-- M2.1: 72 renders, 18 tiles × 4 sets covering theme, menu layer, device scale and text scale.
-  Mutations caught: menu rule filter 72 of 72, device scale ignored 36 of 72. Not caught: the
-  per-instruction menu filter — LoMaps sets a category on only 4 instructions (swamp, two lines),
-  none on the Monaco tiles.
-- M2.1 found upstream non-deterministic: label priority ties are broken in `HashSet` order, which
-  follows identity hashes. Both golden JVMs pin `-XX:hashCode=2`; the M6 label model needs a
-  stable tie-break (A7).
+- M2.1: 18 tiles × 4 sets covering theme, menu layer, device scale and text scale. Not caught:
+  the per-instruction menu filter — LoMaps sets a category on only 4 instructions (swamp, two
+  lines), none on the Monaco tiles.
 - M2.2: a fifth set in Locus' primary mode (no labels in tile, `TileBasedLabelStore(100)`) and its
   label dump in store order: 319 labels over 18 tiles — 219 symbols, 65 captions, 35 way texts.
-  Mutations caught: labels not stored, caption offset flipped, labels drawn into tiles.
+- M2.3: a 3×3 block at z16 rendered on 4 threads through one long-lived renderer, 5 rounds,
+  against a serial render. Neither a dropped paint lock nor dropped matching-cache locks were
+  caught: the test guards render-order independence and gross races, not every lock.
+- Determinism (M2.1, corrected in M2.3): upstream breaks label ties in `HashSet` order, which
+  follows identity hashes (A7). Both renders run in their own JVM from one entry point that aligns
+  a sequential identity-hash counter (`-XX:hashCode=3`), with a serial collector on a fixed heap.
+  The first fix, a constant hash (`-XX:hashCode=2`), made `Closed.YES` and `Closed.NO` collide in
+  the theme's matching cache and rendered some areas as lines; M2.3 caught it.
+- Mutations caught (90 renders, 5 sets): menu rule filter 90 of 90, device scale ignored 54,
+  caption offset flipped 45 plus the dump, labels not stored (dump and M2.3).
 
 *Verify: each step's new test fails on a targeted mutation; CI green.*
 
@@ -202,7 +207,7 @@ A1–A6 found in locus-core `development` @ `79226d9`, A7 in upstream Mapsforge 
 | A4 | No redraw after the label pass prepares (`TODO force redraw`) |
 | A5 | `MapContent` tests `is MapSourceMapsForgeV4` in both branches, the second is dead |
 | A6 | Theme parse runs synchronously on the caller, dark variant under the pref lock |
-| A7 | Mapsforge label collision: equal-priority labels survive in identity-hash order (`DatabaseRenderer`) |
+| A7 | Equal-priority labels survive in identity-hash order (`DatabaseRenderer`), output varies between runs |
 
 ## Open
 

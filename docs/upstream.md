@@ -36,12 +36,13 @@ build intentionally differs from it.
 
 ## Build deviations
 
-The sources are identical; how they are built is not.
+The sources are identical; how they are built is not. The JVM modules (`core`, `map`,
+`map-reader`, `map-awt`) build like upstream: `--release 8`, UTF-8.
 
 | ID | What | Upstream | Here |
 |---|---|---|---|
-| B1 | Bytecode level | `--release 8` | Java 17; D8 at min-api 24 rewrites `ByteBuffer.clear()` (verified) |
+| B1 | Bytecode level, `map-android` | `--release 8` | Java 17; D8 at min-api 24 rewrites `ByteBuffer.clear()` (verified) |
 | B2 | `map-android` packaging | plain JAR against `android.jar` | Android library (AAR), minSdk 24 in its manifest |
 | B3 | Kotlin stdlib | none | AGP's built-in Kotlin adds `kotlin-stdlib` to `map-android` |
-| B4 | Source encoding | `UTF-8` set explicitly | platform default; non-ASCII only in comments, no effect |
+| B4 | Source encoding | `UTF-8` set explicitly | resolved: JVM modules set UTF-8, `map-android` gets it as AGP's default |
 | B5 | Line endings | CRLF in the upstream tree | LF via `.gitattributes`; the sync routine ignores CR |

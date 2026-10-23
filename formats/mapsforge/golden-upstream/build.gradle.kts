@@ -24,9 +24,14 @@ tasks.register<JavaExec>("renderGoldens") {
     description = "Renders the golden corpus with upstream Mapsforge 0.30.0."
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass = "com.asamm.mapsforge.golden.MainKt"
-    // Mapsforge breaks label priority ties in HashSet order, which follows identity hashes;
-    // a constant identity hash makes that order, and so the renders, repeatable
-    jvmArgs("-XX:+UnlockExperimentalVMOptions", "-XX:hashCode=2")
+    // same flags as :formats:mapsforge:golden:renderVendored; why: alignIdentityHashes() in Main.kt
+    jvmArgs(
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:hashCode=3",
+        "-XX:+UseSerialGC",
+        "-Xms2g",
+        "-Xmx2g",
+    )
     inputs.dir(fixturesDir)
     outputs.dir(expectedDir)
     val outDir = expectedDir.get().asFile
