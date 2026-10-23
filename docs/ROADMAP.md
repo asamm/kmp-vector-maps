@@ -7,7 +7,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M1 done, M2 in progress.** Next action: M2.4, Android pixels via Robolectric.
+**Status: M0–M1 done, M2 in progress.** Next action: M2.6, Paint-count sweep.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -56,8 +56,8 @@ the second deep review found.
 | M2.1 | Corpus at 512 px, scale 1 / 2.625 / 3, z18–20 on land, menu `hike_bike` and `car` | 🔧 |
 | M2.2 | Locus primary mode: no labels in tile + `TileBasedLabelStore`, label dump | 🔧 |
 | M2.3 | Parallel 3×3 block: same pixels and labels as a serial render | 🔧 |
-| M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | ⬜ |
-| M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | ⬜ |
+| M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | ⏸ after M2.7 |
+| M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | 🔧 |
 | M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | ⬜ |
 | M2.7 | `bench/`: JMH per stage + A54 run at N threads, baseline recorded here; adds the Apache-2.0 text | ⬜ |
 
@@ -74,8 +74,15 @@ the second deep review found.
   a sequential identity-hash counter (`-XX:hashCode=3`), with a serial collector on a fixed heap.
   The first fix, a constant hash (`-XX:hashCode=2`), made `Closed.YES` and `Closed.NO` collide in
   the theme's matching cache and rendered some areas as lines; M2.3 caught it.
+- M2.4: deferred after M2.7 — Robolectric runs inside Gradle's test JVM and needs its own
+  determinism setup.
+- M2.5: `reader.txt` and `theme_callbacks.txt` over the corpus tiles plus z3 and z5, the theme
+  driven through Mapsforge's own `StandardRenderer` with full paint state. Not covered by the
+  Monaco map: explicit way label positions, water tiles, `readLabels` / `readPoiData`.
 - Mutations caught (90 renders, 5 sets): menu rule filter 90 of 90, device scale ignored 54,
-  caption offset flipped 45 plus the dump, labels not stored (dump and M2.3).
+  caption offset flipped 45 plus the dump, labels not stored (dump and M2.3), way coordinate +1
+  µ° (90 plus `reader.txt`); line stroke +0.1 % (90), caption text size ×1.05 (50) and line dash
+  ×1.05 (33), each also in `theme_callbacks.txt`.
 
 *Verify: each step's new test fails on a targeted mutation; CI green.*
 

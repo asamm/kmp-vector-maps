@@ -15,7 +15,7 @@ import kotlin.test.fail
 /**
  * Compares the vendored render (`:formats:mapsforge:golden:renderVendored`) with the upstream 0.30.0
  * render (`:formats:mapsforge:golden-upstream:renderGoldens`), both made on this machine: pixels
- * and label dumps must be equal.
+ * and text dumps (labels, reader, theme callbacks) must be equal.
  */
 class GoldenRenderTest {
 
@@ -42,11 +42,11 @@ class GoldenRenderTest {
     }
 
     @Test
-    fun vendoredLabelDumpsMatchUpstream() {
+    fun vendoredTextDumpsMatchUpstream() {
         val expected = TestDirs.expected.listFiles { f -> f.extension == "txt" }.orEmpty().sortedBy { it.name }
         val actual = TestDirs.actual.listFiles { f -> f.extension == "txt" }.orEmpty().sortedBy { it.name }
-        assertTrue(expected.isNotEmpty(), "no expected label dumps in ${TestDirs.expected}")
-        assertEquals(expected.map { it.name }, actual.map { it.name }, "label dump sets differ")
+        assertTrue(expected.isNotEmpty(), "no expected text dumps in ${TestDirs.expected}")
+        assertEquals(expected.map { it.name }, actual.map { it.name }, "text dump sets differ")
         for (exp in expected) {
             val expLines = exp.readLines()
             val actLines = File(TestDirs.actual, exp.name).readLines()
@@ -58,8 +58,8 @@ class GoldenRenderTest {
                         "expected '${expLines.getOrNull(line)}', actual '${actLines.getOrNull(line)}'",
                 )
             }
-            // guard against an empty store passing trivially
-            assertTrue(expLines.count { it.startsWith("  ") } > 0, "${exp.name} holds no labels")
+            // guard against an empty dump passing trivially
+            assertTrue(expLines.count { it.startsWith("  ") } > 0, "${exp.name} holds no entries")
         }
     }
 

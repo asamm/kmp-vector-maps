@@ -68,7 +68,7 @@ object GoldenCorpus {
 
     /**
      * Renders every set × tile combination into `outDir` as PNG files, plus a label dump for each
-     * set that keeps labels out of the tiles.
+     * set that keeps labels out of the tiles, and the reader and theme-callback dumps.
      */
     fun renderAll(fixturesDir: File, outDir: File) {
         outDir.mkdirs()
@@ -84,8 +84,41 @@ object GoldenCorpus {
                     outDir = outDir,
                 )
             }
+            writeDumps(
+                mapFile = mapFile,
+                themeFile = File(fixturesDir, "themes/lomaps/theme.xml"),
+                outDir = outDir,
+            )
         } finally {
             DisplayModel.setDeviceScaleFactor(originalDeviceScale)
+        }
+    }
+
+    /**
+     * Reader and theme-callback dumps for `dumpTiles`, with the day theme, `hike_bike` and device
+     * scale 1.
+     */
+    private fun writeDumps(mapFile: File, themeFile: File, outDir: File) {
+        DisplayModel.setDeviceScaleFactor(1.0f)
+        val displayModel = DisplayModel()
+        displayModel.setFixedTileSize(TILE_SIZE)
+        val mapDataStore = MapFile(mapFile)
+        val xmlTheme = ExternalRenderTheme(themeFile, MenuSelection("hike_bike"))
+        val themeFuture = RenderThemeFuture(AwtGraphicFactory.INSTANCE, xmlTheme, displayModel)
+        themeFuture.run()
+        themeFuture.get()
+        try {
+            MapDataDump.writeReader(store = mapDataStore, tiles = dumpTiles, file = File(outDir, "reader.txt"))
+            MapDataDump.writeTheme(
+                store = mapDataStore,
+                themeFuture = themeFuture,
+                displayModel = displayModel,
+                tiles = dumpTiles,
+                file = File(outDir, "theme_callbacks.txt"),
+            )
+        } finally {
+            themeFuture.decrementRefCount()
+            mapDataStore.close()
         }
     }
 
@@ -127,6 +160,15 @@ object GoldenCorpus {
         } finally {
             themeFuture.decrementRefCount()
             mapDataStore.close()
+        }
+    }
+
+    /**
+     * Corpus tiles plus z3 and z5, which read the map's two low-zoom subfiles; dumped, not rendered.
+     */
+    private val dumpTiles: List<Tile> by lazy {
+        tiles + listOf(3, 5).map { zoom ->
+            tileAt(lat = HARBOUR_LAT, lon = HARBOUR_LON, zoom = zoom, dx = 0, dy = 0)
         }
     }
 
