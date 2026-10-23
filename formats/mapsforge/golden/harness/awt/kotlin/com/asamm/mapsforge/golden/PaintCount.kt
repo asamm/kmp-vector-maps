@@ -47,7 +47,7 @@ object PaintCount {
         displayModel.setFixedTileSize(tileSize)
         val mapDataStore = MapFile(mapFile)
         val out = mutableListOf<String>()
-        val xmlTheme = ExternalRenderTheme(themeFile, GoldenCorpus.MenuSelection("hike_bike"))
+        val xmlTheme = ExternalRenderTheme(themeFile, Corpus.MenuSelection("hike_bike"))
         val themeFuture = RenderThemeFuture(graphicFactory, xmlTheme, displayModel)
         try {
             themeFuture.run()

@@ -46,6 +46,8 @@ include(":formats:mapsforge:legacy:map-android")
 include(":formats:mapsforge:legacy:map-awt")
 include(":formats:mapsforge:golden")
 include(":formats:mapsforge:golden-upstream")
+include(":formats:mapsforge:golden-android")
+include(":formats:mapsforge:golden-android-upstream")
 
 // benchmarks
 include(":bench")

@@ -7,7 +7,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M1 done, M2 in progress.** Next action: M2.4, Android golden.
+**Status: M0–M1 done, M2 in review.** Next action: M2 PR review, then M3.1.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -20,7 +20,7 @@ settles, labels before speed, the Locus-facing API last.
 |---|---|---|---|
 | M0 | Foundation: vendored Mapsforge 0.30.0, golden test, CI | S | ✅ `d41acf5` |
 | M1 | Review hardening: CI, supply chain, licence docs, this plan | S | ✅ PR #1, `42f1598` |
-| M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | 🔧 in progress |
+| M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | 🔧 |
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ⬜ |
 | M4 | Garmin IMG joins | M | ⬜ needs Q12, Q13 |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ⬜ |
@@ -56,7 +56,7 @@ the second deep review found.
 | M2.1 | Corpus at 512 px, scale 1 / 2.625 / 3, z18–20 on land, menu `hike_bike` and `car` | 🔧 |
 | M2.2 | Locus primary mode: no labels in tile + `TileBasedLabelStore`, label dump | 🔧 |
 | M2.3 | Parallel 3×3 block: same pixels and labels as a serial render | 🔧 |
-| M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | ⏸ after M2.7 |
+| M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | 🔧 |
 | M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | 🔧 |
 | M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | 🔧 |
 | M2.7 | `bench/`: JMH per stage on the JVM, baseline recorded here; adds the Apache-2.0 text | 🔧 |
@@ -75,8 +75,12 @@ the second deep review found.
   a sequential identity-hash counter (`-XX:hashCode=3`), with a serial collector on a fixed heap.
   The first fix, a constant hash (`-XX:hashCode=2`), made `Closed.YES` and `Closed.NO` collide in
   the theme's matching cache and rendered some areas as lines; M2.3 caught it.
-- M2.4: deferred after M2.7 — Robolectric runs inside Gradle's test JVM and needs its own
-  determinism setup.
+- M2.4: the 90 corpus tiles through `map-android` under Robolectric native graphics (SDK 35), each
+  side in its own test JVM with the M2.3 flags. Upstream varied in one tile between runs: the first
+  rasterisation of each symbol starts a thread writing Mapsforge's SVG file cache, and those
+  threads shift the main thread's identity hashes. A warm-up pass fills the never-evicted symbol
+  cache, waits for the writers, then aligns and renders the kept pass. Caught: line stroke +0.1 %
+  (90 of 90), caption x+1 (41), symbols not drawn (42). Labels and text dumps stay AWT-only.
 - M2.5: `reader.txt` and `theme_callbacks.txt` over the corpus tiles plus z3 and z5, the theme
   driven through Mapsforge's own `StandardRenderer` with full paint state. Not covered by the
   Monaco map: explicit way label positions, water tiles, `readLabels` / `readPoiData`.

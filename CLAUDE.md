@@ -26,6 +26,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 |---|---|
 | `formats/mapsforge/legacy/*` | vendored Mapsforge Java, upstream module split; deleted after M5 |
 | `formats/mapsforge/golden`, `golden-upstream` | pixel test: vendored vs upstream 0.30.0 (JitPack) |
+| `formats/mapsforge/golden-android`, `golden-android-upstream` | the same through `map-android`, Robolectric |
 | `viewer/*` | throwaway dev viewers; replaced by the kmp-garmin-img viewer in M3 |
 | `fixtures/` | test maps and themes, see [fixtures/README.md](fixtures/README.md) |
 | `bench/` | JMH benchmarks, `./gradlew :bench:jmh`; baseline in ROADMAP M2.7 |
@@ -52,7 +53,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 ## Versions
 
 Aligned with locus-core: Kotlin 2.4.20, AGP 9.4.1, Gradle 9.7.1, JDK 17, Android min SDK 24,
-compile SDK 37. Tests: JUnit 5 on JVM.
+compile SDK 37. Tests: JUnit 5 on JVM; JUnit 4 only where Robolectric needs it (`golden-android*`).
 
 ## Reference sources (read-only)
 

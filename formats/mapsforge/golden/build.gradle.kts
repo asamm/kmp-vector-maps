@@ -9,7 +9,8 @@ plugins {
 kotlin {
     jvmToolchain(17)
     sourceSets.main {
-        kotlin.srcDir("harness/kotlin")
+        kotlin.srcDir("harness/common/kotlin")
+        kotlin.srcDir("harness/awt/kotlin")
     }
 }
 

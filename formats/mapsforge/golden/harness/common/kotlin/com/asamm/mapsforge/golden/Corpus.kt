@@ -4,9 +4,10 @@
  */
 package com.asamm.mapsforge.golden
 
+import org.mapsforge.core.graphics.GraphicFactory
+import org.mapsforge.core.graphics.TileBitmap
 import org.mapsforge.core.model.Tile
 import org.mapsforge.core.util.MercatorProjection
-import org.mapsforge.map.awt.graphics.AwtGraphicFactory
 import org.mapsforge.map.layer.cache.InMemoryTileCache
 import org.mapsforge.map.layer.labels.TileBasedLabelStore
 import org.mapsforge.map.layer.renderer.DatabaseRenderer
@@ -18,23 +19,19 @@ import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback
 import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu
 import org.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import java.io.File
-import javax.imageio.ImageIO
 
 /**
- * Golden render corpus: a fixed tile set rendered through the public Mapsforge AWT API.
- *
- * Compiled twice — against upstream Mapsforge 0.30.0 (`:formats:mapsforge:golden-upstream`) and
- * against the vendored modules (`:formats:mapsforge:golden`) — so both renders run the same code on
- * the same machine.
+ * The golden corpus, independent of a graphics backend: render sets, tiles and the render loop,
+ * shared by the AWT golden test and the Android one.
  */
-object GoldenCorpus {
+object Corpus {
 
     // fixed tile size of every golden render (ROADMAP D20)
-    private const val TILE_SIZE = 512
+    const val TILE_SIZE = 512
 
     // Monaco harbour, centre of the fixture map
-    private const val HARBOUR_LAT = 43.7350
-    private const val HARBOUR_LON = 7.4230
+    const val HARBOUR_LAT = 43.7350
+    const val HARBOUR_LON = 7.4230
 
     // Casino square, on land for the highest zooms
     private const val CASINO_LAT = 43.7396
@@ -44,7 +41,7 @@ object GoldenCorpus {
      * Render configurations; together they cover each theme, menu layer, device scale and text
      * scale at least once without the full cross-product, plus Locus' primary label mode.
      */
-    private val SETS = listOf(
+    val SETS = listOf(
         RenderSet(theme = "theme", menuLayer = "hike_bike", deviceScale = 1.0f, textScale = 1.0f),
         RenderSet(theme = "theme", menuLayer = "car", deviceScale = 2.625f, textScale = 1.0f),
         RenderSet(theme = "theme_dark", menuLayer = "hike_bike", deviceScale = 3.0f, textScale = 1.5f),
@@ -67,78 +64,39 @@ object GoldenCorpus {
     }
 
     /**
-     * Renders every set × tile combination into `outDir` as PNG files, plus a label dump for each
-     * set that keeps labels out of the tiles, the reader and theme-callback dumps and the Paint
-     * counts.
+     * Corpus tiles plus z3 and z5, which read the map's two low-zoom subfiles; dumped, not rendered.
      */
-    fun renderAll(fixturesDir: File, outDir: File) {
-        outDir.mkdirs()
-        val mapFile = File(fixturesDir, "maps/monaco.osm.map")
-        // the device scale is a JVM-wide static in Mapsforge; leave it as found
-        val originalDeviceScale = DisplayModel.getDeviceScaleFactor()
-        try {
-            for (set in SETS) {
-                renderSet(
-                    set = set,
-                    mapFile = mapFile,
-                    themeFile = File(fixturesDir, "themes/lomaps/${set.theme}.xml"),
-                    outDir = outDir,
-                )
-            }
-            writeDumps(
-                mapFile = mapFile,
-                themeFile = File(fixturesDir, "themes/lomaps/theme.xml"),
-                outDir = outDir,
-            )
-            PaintCount.write(
-                mapFile = mapFile,
-                themeFile = File(fixturesDir, "themes/lomaps/theme.xml"),
-                tileSize = TILE_SIZE,
-                lat = HARBOUR_LAT,
-                lon = HARBOUR_LON,
-                file = File(outDir, "paint_counts.txt"),
-            )
-        } finally {
-            DisplayModel.setDeviceScaleFactor(originalDeviceScale)
+    val dumpTiles: List<Tile> by lazy {
+        tiles + listOf(3, 5).map { zoom ->
+            tileAt(lat = HARBOUR_LAT, lon = HARBOUR_LON, zoom = zoom, dx = 0, dy = 0)
         }
+    }
+
+    fun mapFile(fixturesDir: File): File {
+        return File(fixturesDir, "maps/monaco.osm.map")
+    }
+
+    fun themeFile(fixturesDir: File, theme: String): File {
+        return File(fixturesDir, "themes/lomaps/$theme.xml")
     }
 
     /**
-     * Reader and theme-callback dumps for `dumpTiles`, with the day theme, `hike_bike` and device
-     * scale 1.
+     * Renders every corpus tile of `set` and hands each bitmap to `onTile`, which owns writing it;
+     * returns the label store when the set keeps labels out of the tiles. Sets the JVM-wide device
+     * scale; callers restore it.
      */
-    private fun writeDumps(mapFile: File, themeFile: File, outDir: File) {
-        DisplayModel.setDeviceScaleFactor(1.0f)
-        val displayModel = DisplayModel()
-        displayModel.setFixedTileSize(TILE_SIZE)
-        val mapDataStore = MapFile(mapFile)
-        val xmlTheme = ExternalRenderTheme(themeFile, MenuSelection("hike_bike"))
-        val themeFuture = RenderThemeFuture(AwtGraphicFactory.INSTANCE, xmlTheme, displayModel)
-        themeFuture.run()
-        themeFuture.get()
-        try {
-            MapDataDump.writeReader(store = mapDataStore, tiles = dumpTiles, file = File(outDir, "reader.txt"))
-            MapDataDump.writeTheme(
-                store = mapDataStore,
-                themeFuture = themeFuture,
-                displayModel = displayModel,
-                tiles = dumpTiles,
-                file = File(outDir, "theme_callbacks.txt"),
-            )
-        } finally {
-            themeFuture.decrementRefCount()
-            mapDataStore.close()
-        }
-    }
-
-    private fun renderSet(set: RenderSet, mapFile: File, themeFile: File, outDir: File) {
+    fun renderSet(
+        set: RenderSet,
+        fixturesDir: File,
+        graphicFactory: GraphicFactory,
+        onTile: (Tile, TileBitmap) -> Unit,
+    ): TileBasedLabelStore? {
         // a static in Mapsforge, read when the theme is parsed and when tiles are drawn
         DisplayModel.setDeviceScaleFactor(set.deviceScale)
-        val graphicFactory = AwtGraphicFactory.INSTANCE
         val displayModel = DisplayModel()
         displayModel.setFixedTileSize(TILE_SIZE)
-        val mapDataStore = MapFile(mapFile)
-        val xmlTheme = ExternalRenderTheme(themeFile, MenuSelection(set.menuLayer))
+        val mapDataStore = MapFile(mapFile(fixturesDir))
+        val xmlTheme = ExternalRenderTheme(themeFile(fixturesDir, set.theme), MenuSelection(set.menuLayer))
         val themeFuture = RenderThemeFuture(graphicFactory, xmlTheme, displayModel)
         themeFuture.run()
         // the renderer only logs a parse failure and returns null tiles; fail with the real cause
@@ -159,26 +117,18 @@ object GoldenCorpus {
                 val job = RendererJob(tile, mapDataStore, themeFuture, displayModel, set.textScale, false, false)
                 val bitmap = renderer.executeJob(job)
                     ?: throw IllegalStateException("renderSet(${set.name}), no bitmap for $tile")
-                val file = File(outDir, "${set.name}_z${tile.zoomLevel}_${tile.tileX}_${tile.tileY}.png")
-                ImageIO.write(AwtGraphicFactory.getBitmap(bitmap), "png", file)
+                onTile(tile, bitmap)
                 bitmap.decrementRefCount()
-            }
-            if (labelStore != null) {
-                LabelDump.write(store = labelStore, tiles = tiles, file = File(outDir, "${set.name}_labels.txt"))
             }
         } finally {
             themeFuture.decrementRefCount()
             mapDataStore.close()
         }
+        return labelStore
     }
 
-    /**
-     * Corpus tiles plus z3 and z5, which read the map's two low-zoom subfiles; dumped, not rendered.
-     */
-    private val dumpTiles: List<Tile> by lazy {
-        tiles + listOf(3, 5).map { zoom ->
-            tileAt(lat = HARBOUR_LAT, lon = HARBOUR_LON, zoom = zoom, dx = 0, dy = 0)
-        }
+    fun tileFileName(set: RenderSet, tile: Tile, extension: String): String {
+        return "${set.name}_z${tile.zoomLevel}_${tile.tileX}_${tile.tileY}.$extension"
     }
 
     private fun buildTiles(): List<Tile> {
@@ -220,7 +170,7 @@ object GoldenCorpus {
      * @param labelsInTile false renders like Locus' primary mode: tiles without labels, labels
      * kept in a `TileBasedLabelStore` for a separate pass
      */
-    private data class RenderSet(
+    data class RenderSet(
         val theme: String,
         val menuLayer: String,
         val deviceScale: Float,

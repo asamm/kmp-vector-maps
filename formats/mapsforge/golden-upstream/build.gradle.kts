@@ -9,7 +9,8 @@ plugins {
 kotlin {
     jvmToolchain(17)
     sourceSets.main {
-        kotlin.srcDir("../golden/harness/kotlin")
+        kotlin.srcDir("../golden/harness/common/kotlin")
+        kotlin.srcDir("../golden/harness/awt/kotlin")
     }
 }
 
@@ -24,7 +25,7 @@ tasks.register<JavaExec>("renderGoldens") {
     description = "Renders the golden corpus with upstream Mapsforge 0.30.0."
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass = "com.asamm.mapsforge.golden.MainKt"
-    // same flags as :formats:mapsforge:golden:renderVendored; why: alignIdentityHashes() in Main.kt
+    // same flags as :formats:mapsforge:golden:renderVendored; why: IdentityHashes in the harness
     jvmArgs(
         "-XX:+UnlockExperimentalVMOptions",
         "-XX:hashCode=3",
