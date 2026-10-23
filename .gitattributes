@@ -21,6 +21,14 @@ gradlew       text eol=lf
 *.cmd         text eol=crlf
 
 # Binaries — never touch
+*.map         binary
+*.img         binary
+*.pbf         binary
+*.mvt         binary
+*.mbtiles     binary
+*.pmtiles     binary
+*.ttf         binary
+*.otf         binary
 *.jar         binary
 *.png         binary
 *.jpg         binary

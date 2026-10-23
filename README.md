@@ -11,10 +11,10 @@ Android viewers running. Not published yet. Milestones: [docs/ROADMAP.md](docs/R
 | Format | State |
 |---|---|
 | Mapsforge `.map` v5 | vendored from [Mapsforge](https://github.com/mapsforge/mapsforge) 0.30.0 |
-| Garmin IMG | in [kmp-garmin-img](https://github.com/asamm/kmp-garmin-img), moves here |
+| Garmin IMG | in `asamm/kmp-garmin-img` (private for now), moves here |
 | Mapbox Vector Tiles | planned |
 
-Targets: Android, JVM (desktop); iOS later.
+Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 
 ## Modules
 
@@ -29,12 +29,6 @@ Targets: Android, JVM (desktop); iOS later.
 
 ## Licence
 
-Per format. Mapsforge code and the shared tooling: LGPL-3.0-or-later, see
-[COPYING.LESSER](COPYING.LESSER) and [COPYING](COPYING); derivative work of Mapsforge (© the
-Mapsforge contributors).
-
-As upstream Mapsforge, and for Asamm's own changes too: **the constraints of LGPL v3 §4(d) and
-§4(e) are waived.** You may convey a Combined Work without providing any way to recombine or
-relink the application and without providing any shared library mechanism.
-
-Details: [docs/licence.md](docs/licence.md). Mapsforge sync state: [docs/upstream.md](docs/upstream.md).
+Per part — Mapsforge LGPL-3.0-or-later with the LGPL §4(d)/(e) waiver, shared code Apache-2.0,
+Garmin IMG LGPL-2.1 — see [LICENSE.md](LICENSE.md). Mapsforge sync state:
+[docs/upstream.md](docs/upstream.md).

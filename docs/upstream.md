@@ -1,7 +1,7 @@
 # Upstream sync
 
-Which Mapsforge release this repo is based on, and every place where the vendored code
-intentionally differs from it.
+Which Mapsforge release this repo is based on, and every place where the vendored code or its
+build intentionally differs from it.
 
 | Item | Value |
 |---|---|
@@ -12,14 +12,36 @@ intentionally differs from it.
 
 ## Sync routine
 
-- Diff the vendored files against the tag:
-  `for f in $(git ls-files 'formats/mapsforge/legacy/*/src/main/java/*'); do u=mapsforge-${f#formats/mapsforge/legacy/}; git -C <mapsforge> show 54e8654f:$u | diff -q --strip-trailing-cr - $f; done`.
+- Check the vendored files against the tag, from anywhere in this repo; it prints the count and
+  exits non-zero on any difference:
+
+  ```sh
+  M=<path to a mapsforge clone>; root=$(git rev-parse --show-toplevel); n=0; fail=0
+  for f in $(git -C "$root" ls-files 'formats/mapsforge/legacy/*/src/main/java/*'); do
+    n=$((n+1)); u=mapsforge-${f#formats/mapsforge/legacy/}
+    git -C "$M" show 54e8654f:"$u" | diff -q --strip-trailing-cr - "$root/$f" >/dev/null \
+      || { echo "DIFF $f"; fail=1; }
+  done; echo "$n files compared"; [ "$fail" = 0 ]
+  ```
+
 - Read each upstream release's changelog; port theme-format changes and render bug fixes by hand.
 - Diff a module directory against the tag: `git -C <mapsforge> diff 54e8654f <newTag> -- <module>`.
-- Update the table above and the deviation list in the same change.
+- Update the table above and both deviation lists in the same change.
 
-## Deviations
+## Code deviations
 
 | ID | Where | What | Why |
 |---|---|---|---|
 | — | — | none yet | — |
+
+## Build deviations
+
+The sources are identical; how they are built is not.
+
+| ID | What | Upstream | Here |
+|---|---|---|---|
+| B1 | Bytecode level | `--release 8` | Java 17; D8 at min-api 24 rewrites `ByteBuffer.clear()` (verified) |
+| B2 | `map-android` packaging | plain JAR against `android.jar` | Android library (AAR), minSdk 24 in its manifest |
+| B3 | Kotlin stdlib | none | AGP's built-in Kotlin adds `kotlin-stdlib` to `map-android` |
+| B4 | Source encoding | `UTF-8` set explicitly | platform default; non-ASCII only in comments, no effect |
+| B5 | Line endings | CRLF in the upstream tree | LF via `.gitattributes`; the sync routine ignores CR |
