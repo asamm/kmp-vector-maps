@@ -8,6 +8,7 @@ import org.mapsforge.core.model.Tile
 import org.mapsforge.core.util.MercatorProjection
 import org.mapsforge.map.awt.graphics.AwtGraphicFactory
 import org.mapsforge.map.layer.cache.InMemoryTileCache
+import org.mapsforge.map.layer.labels.TileBasedLabelStore
 import org.mapsforge.map.layer.renderer.DatabaseRenderer
 import org.mapsforge.map.layer.renderer.RendererJob
 import org.mapsforge.map.model.DisplayModel
@@ -41,13 +42,20 @@ object GoldenCorpus {
 
     /**
      * Render configurations; together they cover each theme, menu layer, device scale and text
-     * scale at least once without the full cross-product.
+     * scale at least once without the full cross-product, plus Locus' primary label mode.
      */
     private val SETS = listOf(
         RenderSet(theme = "theme", menuLayer = "hike_bike", deviceScale = 1.0f, textScale = 1.0f),
         RenderSet(theme = "theme", menuLayer = "car", deviceScale = 2.625f, textScale = 1.0f),
         RenderSet(theme = "theme_dark", menuLayer = "hike_bike", deviceScale = 3.0f, textScale = 1.5f),
         RenderSet(theme = "theme_dark", menuLayer = "car", deviceScale = 1.0f, textScale = 1.5f),
+        RenderSet(
+            theme = "theme",
+            menuLayer = "hike_bike",
+            deviceScale = 2.625f,
+            textScale = 1.0f,
+            labelsInTile = false,
+        ),
     )
 
     /**
@@ -59,7 +67,8 @@ object GoldenCorpus {
     }
 
     /**
-     * Renders every set × tile combination into `outDir` as PNG files.
+     * Renders every set × tile combination into `outDir` as PNG files, plus a label dump for each
+     * set that keeps labels out of the tiles.
      */
     fun renderAll(fixturesDir: File, outDir: File) {
         outDir.mkdirs()
@@ -92,12 +101,14 @@ object GoldenCorpus {
         themeFuture.run()
         // the renderer only logs a parse failure and returns null tiles; fail with the real cause
         themeFuture.get()
+        // labels outside the tile: no tile cache, labels kept in a store, as Locus' primary mode
+        val labelStore = if (set.labelsInTile) null else TileBasedLabelStore(100)
         val renderer = DatabaseRenderer(
             mapDataStore,
             graphicFactory,
-            InMemoryTileCache(64),
-            null,
-            true,
+            if (set.labelsInTile) InMemoryTileCache(64) else null,
+            labelStore,
+            set.labelsInTile,
             true,
             null,
         )
@@ -109,6 +120,9 @@ object GoldenCorpus {
                 val file = File(outDir, "${set.name}_z${tile.zoomLevel}_${tile.tileX}_${tile.tileY}.png")
                 ImageIO.write(AwtGraphicFactory.getBitmap(bitmap), "png", file)
                 bitmap.decrementRefCount()
+            }
+            if (labelStore != null) {
+                LabelDump.write(store = labelStore, tiles = tiles, file = File(outDir, "${set.name}_labels.txt"))
             }
         } finally {
             themeFuture.decrementRefCount()
@@ -150,17 +164,21 @@ object GoldenCorpus {
     }
 
     /**
-     * One render configuration; `name` prefixes its PNG files and must stay unique per set.
+     * One render configuration; `name` prefixes its output files and must stay unique per set.
+     *
+     * @param labelsInTile false renders like Locus' primary mode: tiles without labels, labels
+     * kept in a `TileBasedLabelStore` for a separate pass
      */
     private data class RenderSet(
         val theme: String,
         val menuLayer: String,
         val deviceScale: Float,
         val textScale: Float,
+        val labelsInTile: Boolean = true,
     ) {
 
         val name: String
-            get() = "${theme}_${menuLayer}_ds${deviceScale}_ts$textScale"
+            get() = "${theme}_${menuLayer}_ds${deviceScale}_ts$textScale" + if (labelsInTile) "" else "_separate"
     }
 
     /**

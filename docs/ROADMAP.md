@@ -7,7 +7,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M1 done, M2 in progress.** Next action: M2.2, Locus primary label mode.
+**Status: M0–M1 done, M2 in progress.** Next action: M2.3, parallel 3×3 block.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -54,7 +54,7 @@ the second deep review found.
 | Step | Content | Status |
 |---|---|---|
 | M2.1 | Corpus at 512 px, scale 1 / 2.625 / 3, z18–20 on land, menu `hike_bike` and `car` | 🔧 |
-| M2.2 | Locus primary mode: no labels in tile + `TileBasedLabelStore`, sorted dump | ⬜ |
+| M2.2 | Locus primary mode: no labels in tile + `TileBasedLabelStore`, label dump | 🔧 |
 | M2.3 | Parallel 3×3 block: no label lost or doubled | ⬜ |
 | M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | ⬜ |
 | M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | ⬜ |
@@ -68,6 +68,9 @@ the second deep review found.
 - M2.1 found upstream non-deterministic: label priority ties are broken in `HashSet` order, which
   follows identity hashes. Both golden JVMs pin `-XX:hashCode=2`; the M6 label model needs a
   stable tie-break (A7).
+- M2.2: a fifth set in Locus' primary mode (no labels in tile, `TileBasedLabelStore(100)`) and its
+  label dump in store order: 319 labels over 18 tiles — 219 symbols, 65 captions, 35 way texts.
+  Mutations caught: labels not stored, caption offset flipped, labels drawn into tiles.
 
 *Verify: each step's new test fails on a targeted mutation; CI green.*
 
