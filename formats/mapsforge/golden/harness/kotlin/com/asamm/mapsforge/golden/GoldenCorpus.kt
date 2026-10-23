@@ -68,7 +68,8 @@ object GoldenCorpus {
 
     /**
      * Renders every set × tile combination into `outDir` as PNG files, plus a label dump for each
-     * set that keeps labels out of the tiles, and the reader and theme-callback dumps.
+     * set that keeps labels out of the tiles, the reader and theme-callback dumps and the Paint
+     * counts.
      */
     fun renderAll(fixturesDir: File, outDir: File) {
         outDir.mkdirs()
@@ -88,6 +89,14 @@ object GoldenCorpus {
                 mapFile = mapFile,
                 themeFile = File(fixturesDir, "themes/lomaps/theme.xml"),
                 outDir = outDir,
+            )
+            PaintCount.write(
+                mapFile = mapFile,
+                themeFile = File(fixturesDir, "themes/lomaps/theme.xml"),
+                tileSize = TILE_SIZE,
+                lat = HARBOUR_LAT,
+                lon = HARBOUR_LON,
+                file = File(outDir, "paint_counts.txt"),
             )
         } finally {
             DisplayModel.setDeviceScaleFactor(originalDeviceScale)
@@ -227,7 +236,7 @@ object GoldenCorpus {
      * Selects one style-menu layer plus its overlays enabled by default, as Locus does with its
      * default preferences.
      */
-    private class MenuSelection(private val layerId: String) : XmlRenderThemeMenuCallback {
+    class MenuSelection(private val layerId: String) : XmlRenderThemeMenuCallback {
 
         override fun getCategories(style: XmlRenderThemeStyleMenu): Set<String> {
             val layer = style.getLayer(layerId)

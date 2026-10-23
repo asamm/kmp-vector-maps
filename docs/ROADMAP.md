@@ -7,7 +7,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M1 done, M2 in progress.** Next action: M2.6, Paint-count sweep.
+**Status: M0–M1 done, M2 in progress.** Next action: M2.7, benchmark baseline.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -58,7 +58,7 @@ the second deep review found.
 | M2.3 | Parallel 3×3 block: same pixels and labels as a serial render | 🔧 |
 | M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | ⏸ after M2.7 |
 | M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | 🔧 |
-| M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | ⬜ |
+| M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | 🔧 |
 | M2.7 | `bench/`: JMH per stage + A54 run at N threads, baseline recorded here; adds the Apache-2.0 text | ⬜ |
 
 - M2.1: 18 tiles × 4 sets covering theme, menu layer, device scale and text scale. Not caught:
@@ -79,6 +79,11 @@ the second deep review found.
 - M2.5: `reader.txt` and `theme_callbacks.txt` over the corpus tiles plus z3 and z5, the theme
   driven through Mapsforge's own `StandardRenderer` with full paint state. Not covered by the
   Monaco map: explicit way label positions, water tiles, `readLabels` / `readPoiData`.
+- M2.6: `paint_counts.txt` from one long-lived renderer (`hike_bike`) sweeping z8–20 twice, Paints
+  created and still alive after a full GC: 3,359 alive after the theme parse, ~3,100 more per new
+  zoom, 43,494 after z20, unchanged in the second sweep — the never-evicted caches of F2/F3. M5.3
+  bounds `live`. Caught only here, no pixel changed: stroke scaling not cached per zoom (~2,100
+  Paints per zoom in the second sweep); per-zoom eviction changes `live`.
 - Mutations caught (90 renders, 5 sets): menu rule filter 90 of 90, device scale ignored 54,
   caption offset flipped 45 plus the dump, labels not stored (dump and M2.3), way coordinate +1
   µ° (90 plus `reader.txt`); line stroke +0.1 % (90), caption text size ×1.05 (50) and line dash
