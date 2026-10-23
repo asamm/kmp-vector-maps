@@ -23,6 +23,9 @@ val upstreamRender = project(":formats:mapsforge:golden-upstream").layout.buildD
 
 tasks.test {
     useJUnitPlatform()
+    // Mapsforge breaks label priority ties in HashSet order, which follows identity hashes;
+    // a constant identity hash makes that order, and so the renders, repeatable
+    jvmArgs("-XX:+UnlockExperimentalVMOptions", "-XX:hashCode=2")
     dependsOn(":formats:mapsforge:golden-upstream:renderGoldens")
     inputs.dir(upstreamRender)
     inputs.dir(rootProject.layout.projectDirectory.dir("fixtures"))

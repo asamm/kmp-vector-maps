@@ -7,7 +7,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M1 done.** Next action: M2.1, golden corpus at 512 px with theme menus.
+**Status: M0–M1 done, M2 in progress.** Next action: M2.2, Locus primary label mode.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -20,7 +20,7 @@ settles, labels before speed, the Locus-facing API last.
 |---|---|---|---|
 | M0 | Foundation: vendored Mapsforge 0.30.0, golden test, CI | S | ✅ `d41acf5` |
 | M1 | Review hardening: CI, supply chain, licence docs, this plan | S | ✅ PR #1, `42f1598` |
-| M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | ⬜ next |
+| M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | 🔧 in progress |
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ⬜ |
 | M4 | Garmin IMG joins | M | ⬜ needs Q12, Q13 |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ⬜ |
@@ -48,11 +48,12 @@ M5; M5 → M5; M6 (KMP) → dropped (D22); M7 → M6; M8 → M9; M9 → M10. M1,
 
 *Verified: `./gradlew build` and the PR CI run green; 6 review threads resolved in `5b47f55`.*
 
-**M2 — Safety net.** One PR per row, each closing a gap the second deep review found.
+**M2 — Safety net.** One PR (`feature/m2-golden-coverage`), one commit per row, each closing a gap
+the second deep review found.
 
-| PR | Content | Status |
+| Step | Content | Status |
 |---|---|---|
-| M2.1 | Corpus at 512 px, scale 1 / 2.625 / 3, z18–20 on land, menu `hike_bike` and `car` | ⬜ next |
+| M2.1 | Corpus at 512 px, scale 1 / 2.625 / 3, z18–20 on land, menu `hike_bike` and `car` | 🔧 |
 | M2.2 | Locus primary mode: no labels in tile + `TileBasedLabelStore`, sorted dump | ⬜ |
 | M2.3 | Parallel 3×3 block: no label lost or doubled | ⬜ |
 | M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | ⬜ |
@@ -60,7 +61,15 @@ M5; M5 → M5; M6 (KMP) → dropped (D22); M7 → M6; M8 → M9; M9 → M10. M1,
 | M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | ⬜ |
 | M2.7 | `bench/`: JMH per stage + A54 run at N threads, baseline recorded here; adds the Apache-2.0 text | ⬜ |
 
-*Verify: each PR's new test fails on a targeted mutation; CI green.*
+- M2.1: 72 renders, 18 tiles × 4 sets covering theme, menu layer, device scale and text scale.
+  Mutations caught: menu rule filter 72 of 72, device scale ignored 36 of 72. Not caught: the
+  per-instruction menu filter — LoMaps sets a category on only 4 instructions (swamp, two lines),
+  none on the Monaco tiles.
+- M2.1 found upstream non-deterministic: label priority ties are broken in `HashSet` order, which
+  follows identity hashes. Both golden JVMs pin `-XX:hashCode=2`; the M6 label model needs a
+  stable tie-break (A7).
+
+*Verify: each step's new test fails on a targeted mutation; CI green.*
 
 **M3 — Core v0 and shared viewer.**
 
@@ -180,7 +189,7 @@ See the locus-core plan, R1–R7. Repo-specific:
 
 ## Adjacent, out of scope
 
-Found in locus-core `development` @ `79226d9`; not fixed here.
+A1–A6 found in locus-core `development` @ `79226d9`, A7 in upstream Mapsforge 0.30.0; not fixed here.
 
 | ID | Finding |
 |---|---|
@@ -190,6 +199,7 @@ Found in locus-core `development` @ `79226d9`; not fixed here.
 | A4 | No redraw after the label pass prepares (`TODO force redraw`) |
 | A5 | `MapContent` tests `is MapSourceMapsForgeV4` in both branches, the second is dead |
 | A6 | Theme parse runs synchronously on the caller, dark variant under the pref lock |
+| A7 | Mapsforge label collision: equal-priority labels survive in identity-hash order (`DatabaseRenderer`) |
 
 ## Open
 

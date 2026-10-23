@@ -4,7 +4,7 @@ Asamm-owned vector map renderers for Locus Map behind one driver interface: Maps
 (extracted from Mapsforge 0.30.0), Garmin IMG next, Mapbox Vector Tiles later. Android is the
 product; JVM desktop runs benchmarks and tools; no iOS.
 
-**Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, PR-sized
+**Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, commit-sized
 steps, decisions D1–D23, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
 not relitigate a decision without asking. Update the roadmap status in the same commit as the work.
 
@@ -77,4 +77,5 @@ compile SDK 37. Tests: JUnit 5 on JVM.
 - **Never commit or push without explicit confirmation.**
 - Commit prefixes `- fix:` / `- chg:` / `- add:` / `- var:`; branches `feature/`, `fix/`,
   `refactor/`.
-- One roadmap step (`M2.1`, …) per PR; name the step in the PR title.
+- One roadmap step (`M2.1`, …) per commit, each with its own `/deep-review`; related steps share
+  one PR, named after the milestone or group.
