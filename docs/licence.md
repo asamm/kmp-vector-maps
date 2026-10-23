@@ -10,13 +10,13 @@ the legal check is locus-core plan Q1.
 | Part | Licence |
 |---|---|
 | `formats/mapsforge/**`, including its Kotlin conversion | LGPL-3.0-or-later + §4(d)/(e) waiver |
-| `core/`, `render/`, `android/`, viewer, tools (written fresh) | Apache-2.0 (D19) |
+| `core/`, `render/`, `android/`, `bench/`, the M3.3 viewer (written fresh) | Apache-2.0 (D19) |
 | `formats/garmin-img/` (M4) | LGPL-2.1, -only or -or-later open (Q13) |
 | Fixtures | per [fixtures/README.md](../fixtures/README.md): ODbL map data, Apache-2.0 theme |
 
 - An Apache-2.0 core keeps LGPL-2.1 and LGPL-3.0 code out of one derivative work.
-- Today's Asamm code (golden harness, throwaway viewers) carries LGPL-3.0-or-later headers; code
-  moving into `core/`, `render/` or the new viewer gets Apache-2.0 headers.
+- The golden harness and the throwaway `viewer/` carry LGPL-3.0-or-later headers; the viewer is
+  deleted in M3.3, not relicensed.
 
 ## Mapsforge
 
@@ -33,7 +33,8 @@ the legal check is locus-core plan Q1.
 - A Kotlin translation is a modification (GPL-3.0 §0): the converted code stays LGPL-3.0-or-later.
   Relicensing needs every copyright holder; only a clean-room rewrite (rejected O4) escapes it.
 - Open (Q14): 40 of 66 upstream authors committed only before the waiver; vendored headers name
-  mapsforge.org (120 files) and Ludwig M Brinckmann (75 files).
+  mapsforge.org (122 files) and Ludwig M Brinckmann (75 files), counted with
+  `git ls-files 'formats/mapsforge/legacy/*.java' | xargs grep -l 'Copyright.*<name>' | wc -l`.
 
 ## Obligations of this repo
 

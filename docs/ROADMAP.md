@@ -30,6 +30,9 @@ settles, labels before speed, the Locus-facing API last.
 | M9 | Locus integration | M | ⬜ needs Q14, Q16 |
 | M10 | Mapbox Vector Tiles | L | ⏸ |
 
+Renumbered 2026-10-22 against `d41acf5`: old M0 and M1 → M0; M2 → M3; M3 → M4; M4 → folded into
+M5; M5 → M5; M6 (KMP) → dropped (D22); M7 → M6; M8 → M9; M9 → M10. M1, M2, M7, M8 are new.
+
 **M0 — Foundation. DONE 2026-10-22** (`d41acf5`)
 - 177 vendored files, the `jdeps` closure of the Mapsforge types locus-core imports; identical
   to upstream 0.30.0 ([upstream.md](upstream.md)).
@@ -45,17 +48,17 @@ settles, labels before speed, the Locus-facing API last.
 
 *Verified: `./gradlew build` green locally.*
 
-**M2 — Safety net.** One PR per row; G-IDs from the second review.
+**M2 — Safety net.** One PR per row, each closing a gap the second deep review found.
 
 | PR | Content | Status |
 |---|---|---|
-| M2.1 | Corpus at 512 px, scale 1 / 2.625 / 3, z18–20 on land, menu `hike_bike` and `car` (G2, G5) | ⬜ next |
-| M2.2 | Locus primary mode: no labels in tile + `TileBasedLabelStore`, sorted dump (G1) | ⬜ |
-| M2.3 | Parallel 3×3 block: no label lost or doubled (G4) | ⬜ |
-| M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream (G3) | ⬜ |
-| M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output (G6) | ⬜ |
-| M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 (G7) | ⬜ |
-| M2.7 | `bench/`: JMH per stage + A54 run at N threads; baseline recorded here (G8) | ⬜ |
+| M2.1 | Corpus at 512 px, scale 1 / 2.625 / 3, z18–20 on land, menu `hike_bike` and `car` | ⬜ next |
+| M2.2 | Locus primary mode: no labels in tile + `TileBasedLabelStore`, sorted dump | ⬜ |
+| M2.3 | Parallel 3×3 block: no label lost or doubled | ⬜ |
+| M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | ⬜ |
+| M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | ⬜ |
+| M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | ⬜ |
+| M2.7 | `bench/`: JMH per stage + A54 run at N threads, baseline recorded here; adds the Apache-2.0 text | ⬜ |
 
 *Verify: each PR's new test fails on a targeted mutation; CI green.*
 
@@ -115,7 +118,7 @@ area, so each conversion PR stays pixel-identical. Every PR gated by goldens, du
 | I1 | ~100-line adapter behind `MapSourceRenderer`; `isStillWanted` as cancel |
 | I2 | Delete `MapsForgeV4Renderer*`, `MapsForgeV4LabelRenderer`, `GarminImgRenderer` |
 | I3 | Type swaps: `MapManager`, `PrefMapVectorV4Theme`, theme fragment, LoPoints |
-| I4 | `MapSourceVector` base for the 33 `is MapSourceMapsForgeV4` checks |
+| I4 | `MapSourceVector` base for the 22 `is MapSourceMapsForgeV4` checks and 6 casts |
 | I5 | Remove the Mapsforge globals Locus sets |
 | I6 | Tile size per Q16, with `MapAutoLoader` filter and memory budget |
 | I7 | One release behind a remote flag, upstream Mapsforge as fallback (`com.asamm.*` by then) |
@@ -154,7 +157,8 @@ All taken 2026-10-22.
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.
 - D16: Locus shades the finished tile today, so a theme without the marker keeps today's look.
-- D20: Locus sizes vector tiles 256 px × density (704 px on the A54); Garmin already uses 512 px.
+- D20: Locus sizes vector tiles 256 px × density rounded down to 64 px, minimum 64 (704 px on the
+  A54, 640 px at density 2.625); Garmin already uses 512 px.
 - D22, rejected: KMP `commonMain` for the libraries. iOS Locus uses MapLibre with Asamm's vector
   tiles, and kmp-garmin-img uses no KMP feature (no `expect`/`actual`, dead `kotlinx-io`).
 - D23: Locus changes shrink to an adapter plus type swaps; see [architecture.md](architecture.md).

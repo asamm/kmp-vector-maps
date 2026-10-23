@@ -28,7 +28,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `formats/mapsforge/golden`, `golden-upstream` | pixel test: vendored vs upstream 0.30.0 (JitPack) |
 | `viewer/*` | throwaway dev viewers; replaced by the kmp-garmin-img viewer in M3 |
 | `fixtures/` | test maps and themes, see [fixtures/README.md](fixtures/README.md) |
-| `core/`, `render/`, `android/`, `bench/` | from M3 on, see architecture.md |
+| `bench/` from M2.7; `core/`, `render/`, `android/` from M3 | see architecture.md |
 
 - New Mapsforge code goes beside `legacy/`, never into it.
 - Large local maps stay outside the repo, referenced from `local.properties` (`viewer.mapFile`).
@@ -40,7 +40,8 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 - **Never remove a licence header** or `COPYING*`; on a vendored file's first change, append
   `Copyright 2026 Asamm Software` ([licence.md](docs/licence.md) L2).
 - New Asamm files: `Copyright 2026 Asamm Software` + SPDX id — `LGPL-3.0-or-later` under
-  `formats/mapsforge/`, `Apache-2.0` for core, renderers, host API, viewer, tools.
+  `formats/mapsforge/` and the throwaway `viewer/`, `Apache-2.0` for `core/`, `render/`,
+  `android/`, `bench/` and the M3.3 viewer.
 - **Formats depend on the core only.** No Locus types anywhere.
 - Kotlin/JVM libraries: `android.*` only in `render/android`, `android/`, `legacy/map-android`.
 - Packages `org.mapsforge.*` until M5, then `com.asamm.*`.
