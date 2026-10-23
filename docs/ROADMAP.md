@@ -7,7 +7,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0 done, M1 in review.** Next action: merge M1 (`fix/review-round-2`), then M2.1.
+**Status: M0–M1 done.** Next action: M2.1, golden corpus at 512 px with theme menus.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -19,7 +19,7 @@ settles, labels before speed, the Locus-facing API last.
 | ID | Milestone | Size | Status |
 |---|---|---|---|
 | M0 | Foundation: vendored Mapsforge 0.30.0, golden test, CI | S | ✅ `d41acf5` |
-| M1 | Review hardening: CI, supply chain, licence docs, this plan | S | 🔧 `fix/review-round-2` |
+| M1 | Review hardening: CI, supply chain, licence docs, this plan | S | ✅ PR #1, `42f1598` |
 | M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | ⬜ next |
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ⬜ |
 | M4 | Garmin IMG joins | M | ⬜ needs Q12, Q13 |
@@ -41,12 +41,12 @@ M5; M5 → M5; M6 (KMP) → dropped (D22); M7 → M6; M8 → M9; M9 → M10. M1,
 
 *Verified: `./gradlew build` and CI run 39843874517 green.*
 
-**M1 — Review hardening. IN REVIEW** (`fix/review-round-2`)
+**M1 — Review hardening. DONE 2026-10-23** (PR #1, merged as `42f1598`)
 - Upstream sync script that fails on drift; build deviations B1–B5 recorded.
 - CI pinned to `ubuntu-24.04` and action SHAs; JitPack exclusive and checksum-verified.
 - `LICENSE.md` with licence per part and the Mapsforge waiver, fixture attribution; this plan.
 
-*Verified: `./gradlew build` green locally.*
+*Verified: `./gradlew build` and the PR CI run green; 6 review threads resolved in `5b47f55`.*
 
 **M2 — Safety net.** One PR per row, each closing a gap the second deep review found.
 
