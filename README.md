@@ -26,6 +26,8 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
   `./gradlew :formats:mapsforge:golden:test`.
 - **`:bench`** — JMH benchmarks per render stage. `./gradlew :bench:jmh`, another map with
   `-Pbench.mapFile=<path>`.
+- **`:bench:android`** — the same on a device (`androidx.benchmark`),
+  `./gradlew :bench:android:connectedReleaseAndroidTest`.
 - **`:viewer:desktop`** — Compose Desktop dev tool. `./gradlew :viewer:desktop:run`.
 - **`:viewer:android`** — minimal Android dev tool. `./gradlew :viewer:android:installDebug`.
 

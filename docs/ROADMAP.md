@@ -7,7 +7,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M1 done, M2 in progress.** Next action: M2.7b, A54 benchmark run.
+**Status: M0–M1 done, M2 in progress.** Next action: M2.4, Android golden.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -60,7 +60,7 @@ the second deep review found.
 | M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | 🔧 |
 | M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | 🔧 |
 | M2.7 | `bench/`: JMH per stage on the JVM, baseline recorded here; adds the Apache-2.0 text | 🔧 |
-| M2.7b | A54 run at N threads (`androidx.benchmark`), baseline recorded here | ⬜ |
+| M2.7b | A54 run at N threads (`androidx.benchmark`), baseline recorded here | 🔧 |
 
 - M2.1: 18 tiles × 4 sets covering theme, menu layer, device scale and text scale. Not caught:
   the per-instruction menu filter — LoMaps sets a category on only 4 instructions (swamp, two
@@ -102,6 +102,19 @@ the second deep review found.
 | render tile z12 / z15 / z17 | 64 / 30 / 12 | 105 / 85 / 25 |
 | 4×4 block at z16, 1 / 2 / 4 / 8 threads | 364 / 188 / 115 / 90 | 595 / 318 / 194 / 135 |
 | allocated per tile render at z12 | 12.7 MB | 31.5 MB |
+
+- M2.7b: A54 baseline below, `bench/android` (`androidx.benchmark` 1.5.0) on 2026-10-23, Galaxy
+  A54 (SM-A546B, Android 16, clocks locked), same setup as M2.7, p50 ms; how to run in
+  `bench/android/build.gradle.kts`. Rendering takes up to ~2× the JVM time (z12); the block stops
+  scaling above 4 threads (4 big cores). Theme parse is XML only on both: symbols rasterise lazily
+  on first render, which no number here isolates.
+
+| Benchmark | Monaco | Czech map at Prague |
+|---|---|---|
+| theme parse | 83 | 80 |
+| read tile z12 / z15 / z17 | 11.3 / 0.64 / 0.52 | 37.6 / 5.2 / 5.7 |
+| render tile z12 / z15 / z17 | 126 / 39 / 15 | 259 / 131 / 36 |
+| 4×4 block at z16, 1 / 2 / 4 / 8 threads | 433 / 260 / 171 / 168 | 881 / 502 / 324 / 305 |
 
 *Verify: each step's new test fails on a targeted mutation; CI green.*
 

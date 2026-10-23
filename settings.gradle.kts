@@ -49,6 +49,7 @@ include(":formats:mapsforge:golden-upstream")
 
 // benchmarks
 include(":bench")
+include(":bench:android")
 
 // development tools
 include(":viewer:common")

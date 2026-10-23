@@ -29,6 +29,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `viewer/*` | throwaway dev viewers; replaced by the kmp-garmin-img viewer in M3 |
 | `fixtures/` | test maps and themes, see [fixtures/README.md](fixtures/README.md) |
 | `bench/` | JMH benchmarks, `./gradlew :bench:jmh`; baseline in ROADMAP M2.7 |
+| `bench/android/` | device benchmarks, `androidx.benchmark`; A54 baseline in ROADMAP M2.7b |
 | `core/`, `render/`, `android/` | from M3 on, see architecture.md |
 
 - New Mapsforge code goes beside `legacy/`, never into it.

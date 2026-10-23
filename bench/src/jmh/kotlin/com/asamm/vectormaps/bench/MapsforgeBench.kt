@@ -78,7 +78,7 @@ open class MapsforgeBench {
     }
 
     /**
-     * Parsing the LoMaps day theme; symbols are rasterised while parsing.
+     * Parsing the LoMaps day theme; symbols are rasterised lazily on first render, not here.
      */
     @State(Scope.Benchmark)
     @BenchmarkMode(Mode.SampleTime)
