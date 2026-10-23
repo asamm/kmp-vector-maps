@@ -28,7 +28,8 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `formats/mapsforge/golden`, `golden-upstream` | pixel test: vendored vs upstream 0.30.0 (JitPack) |
 | `viewer/*` | throwaway dev viewers; replaced by the kmp-garmin-img viewer in M3 |
 | `fixtures/` | test maps and themes, see [fixtures/README.md](fixtures/README.md) |
-| `bench/` from M2.7; `core/`, `render/`, `android/` from M3 | see architecture.md |
+| `bench/` | JMH benchmarks, `./gradlew :bench:jmh`; baseline in ROADMAP M2.7 |
+| `core/`, `render/`, `android/` | from M3 on, see architecture.md |
 
 - New Mapsforge code goes beside `legacy/`, never into it.
 - Large local maps stay outside the repo, referenced from `local.properties` (`viewer.mapFile`).

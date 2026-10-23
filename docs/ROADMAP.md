@@ -7,7 +7,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M1 done, M2 in progress.** Next action: M2.7, benchmark baseline.
+**Status: M0–M1 done, M2 in progress.** Next action: M2.7b, A54 benchmark run.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -59,7 +59,8 @@ the second deep review found.
 | M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | ⏸ after M2.7 |
 | M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | 🔧 |
 | M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | 🔧 |
-| M2.7 | `bench/`: JMH per stage + A54 run at N threads, baseline recorded here; adds the Apache-2.0 text | ⬜ |
+| M2.7 | `bench/`: JMH per stage on the JVM, baseline recorded here; adds the Apache-2.0 text | 🔧 |
+| M2.7b | A54 run at N threads (`androidx.benchmark`), baseline recorded here | ⬜ |
 
 - M2.1: 18 tiles × 4 sets covering theme, menu layer, device scale and text scale. Not caught:
   the per-instruction menu filter — LoMaps sets a category on only 4 instructions (swamp, two
@@ -88,6 +89,19 @@ the second deep review found.
   caption offset flipped 45 plus the dump, labels not stored (dump and M2.3), way coordinate +1
   µ° (90 plus `reader.txt`); line stroke +0.1 % (90), caption text size ×1.05 (50) and line dash
   ×1.05 (33), each also in `theme_callbacks.txt`.
+- M2.7: JVM baseline below, `./gradlew :bench:jmh` on 2026-10-23, Ryzen AI 9 HX PRO 375 (24
+  threads), JDK 17, 512 px tiles, Locus primary mode, LoMaps day theme without menu, p50 ms.
+  Czech column: `czech_republic.osm.map` (765,299,145 B, LoMaps of 2026-10-08) with
+  `-Pbench.center=50.0875,14.4214`. One fork: theme parse varies ~20 % between runs, so compare
+  M7 deltas below that with `fork = 3`.
+
+| Benchmark | Monaco | Czech map at Prague |
+|---|---|---|
+| theme parse | 63 | 52 |
+| read tile z12 / z15 / z17 | 3.2 / 0.11 / 0.09 | 8.4 / 1.1 / 1.1 |
+| render tile z12 / z15 / z17 | 64 / 30 / 12 | 105 / 85 / 25 |
+| 4×4 block at z16, 1 / 2 / 4 / 8 threads | 364 / 188 / 115 / 90 | 595 / 318 / 194 / 135 |
+| allocated per tile render at z12 | 12.7 MB | 31.5 MB |
 
 *Verify: each step's new test fails on a targeted mutation; CI green.*
 

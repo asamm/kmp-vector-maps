@@ -2,10 +2,11 @@ pluginManagement {
     repositories {
         google()
         mavenCentral()
-        // only the foojay toolchain resolver comes from the plugin portal
+        // only the foojay toolchain resolver and the JMH plugin come from the plugin portal
         gradlePluginPortal {
             content {
                 includeGroupAndSubgroups("org.gradle.toolchains")
+                includeGroup("me.champeau.jmh")
             }
         }
     }
@@ -45,6 +46,9 @@ include(":formats:mapsforge:legacy:map-android")
 include(":formats:mapsforge:legacy:map-awt")
 include(":formats:mapsforge:golden")
 include(":formats:mapsforge:golden-upstream")
+
+// benchmarks
+include(":bench")
 
 // development tools
 include(":viewer:common")

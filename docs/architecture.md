@@ -1,8 +1,8 @@
 # Architecture
 
 Target design: one driver interface every vector format implements, one render pipeline, an
-Android host API shaped for Locus, one viewer. Draft; nothing exists yet (`bench/` from M2.7,
-the rest from M3, [ROADMAP](ROADMAP.md)).
+Android host API shaped for Locus, one viewer. Draft; `bench/` exists since M2.7, the rest comes
+from M3 ([ROADMAP](ROADMAP.md)).
 
 **Author:** Menion · **Started:** 2026-10-22 · **Revised:** 2026-10-22, after the Locus integration
 analysis

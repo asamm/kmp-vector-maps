@@ -24,6 +24,8 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
   `legacy/` goes once the Kotlin conversion replaces it.
 - **`:formats:mapsforge:golden`** — pixel-exact render comparison against upstream 0.30.0.
   `./gradlew :formats:mapsforge:golden:test`.
+- **`:bench`** — JMH benchmarks per render stage. `./gradlew :bench:jmh`, another map with
+  `-Pbench.mapFile=<path>`.
 - **`:viewer:desktop`** — Compose Desktop dev tool. `./gradlew :viewer:desktop:run`.
 - **`:viewer:android`** — minimal Android dev tool. `./gradlew :viewer:android:installDebug`.
 

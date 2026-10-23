@@ -19,6 +19,10 @@ kotlinxCoroutines = "1.11.0"
 composeMultiplatform = "1.12.1"
 composeMaterial3 = "1.9.0"
 
+# https://github.com/openjdk/jmh/tags, https://github.com/melix/jmh-gradle-plugin/releases
+jmh = "1.37"
+jmhPlugin = "0.7.3"
+
 # Vendored Mapsforge dependencies, versions as in Mapsforge 0.30.0
 # https://bigbadaboom.github.io/androidsvg/
 androidSvg = "1.4"
@@ -41,5 +45,6 @@ upstreamMapsforgeAwt = { module = "com.github.mapsforge.mapsforge:mapsforge-map-
 androidApplication = { id = "com.android.application", version.ref = "androidGradlePlugin" }
 androidLibrary = { id = "com.android.library", version.ref = "androidGradlePlugin" }
 kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+jmh = { id = "me.champeau.jmh", version.ref = "jmhPlugin" }
 kotlinCompose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 composeMultiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
