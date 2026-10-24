@@ -4,7 +4,7 @@ Asamm-owned vector map renderers for Locus Map behind one driver interface: Maps
 (extracted from Mapsforge 0.30.0), Garmin IMG next, Mapbox Vector Tiles later. Android is the
 product; JVM desktop runs benchmarks and tools; no iOS.
 
-**Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, PR-sized
+**Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, commit-sized
 steps, decisions D1–D23, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
 not relitigate a decision without asking. Update the roadmap status in the same commit as the work.
 
@@ -26,11 +26,15 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 |---|---|
 | `formats/mapsforge/legacy/*` | vendored Mapsforge Java, upstream module split; deleted after M5 |
 | `formats/mapsforge/golden`, `golden-upstream` | pixel test: vendored vs upstream 0.30.0 (JitPack) |
+| `formats/mapsforge/golden-android`, `golden-android-upstream` | the same through `map-android`, Robolectric |
 | `viewer/*` | throwaway dev viewers; replaced by the kmp-garmin-img viewer in M3 |
-| `fixtures/` | test maps and themes, see [fixtures/README.md](fixtures/README.md) |
-| `bench/` from M2.7; `core/`, `render/`, `android/` from M3 | see architecture.md |
+| `dev/fixtures/` | test maps and themes, see [dev/fixtures/README.md](dev/fixtures/README.md) |
+| `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baseline in ROADMAP M2.7 |
+| `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baseline in ROADMAP M2.7b |
+| `core/`, `render/`, `android/` | from M3 on, see architecture.md |
 
 - New Mapsforge code goes beside `legacy/`, never into it.
+- `dev/` holds development helpers (benchmarks, test data); nothing in it ships.
 - Large local maps stay outside the repo, referenced from `local.properties` (`viewer.mapFile`).
 
 ## Hard rules
@@ -41,7 +45,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
   `Copyright 2026 Asamm Software` ([licence.md](docs/licence.md) L2).
 - New Asamm files: `Copyright 2026 Asamm Software` + SPDX id — `LGPL-3.0-or-later` under
   `formats/mapsforge/` and the throwaway `viewer/`, `Apache-2.0` for `core/`, `render/`,
-  `android/`, `bench/` and the M3.3 viewer.
+  `android/`, `dev/bench/` and the M3.3 viewer.
 - **Formats depend on the core only.** No Locus types anywhere.
 - Kotlin/JVM libraries: `android.*` only in `render/android`, `android/`, `legacy/map-android`.
 - Packages `org.mapsforge.*` until M5, then `com.asamm.*`.
@@ -50,7 +54,8 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 ## Versions
 
 Aligned with locus-core: Kotlin 2.4.20, AGP 9.4.1, Gradle 9.7.1, JDK 17, Android min SDK 24,
-compile SDK 37. Tests: JUnit 5 on JVM.
+compile SDK 37. Tests: JUnit 5 on JVM; JUnit 4 only where Robolectric or androidx.benchmark
+need it (`golden-android*`, `dev/bench/android`).
 
 ## Reference sources (read-only)
 
@@ -77,4 +82,5 @@ compile SDK 37. Tests: JUnit 5 on JVM.
 - **Never commit or push without explicit confirmation.**
 - Commit prefixes `- fix:` / `- chg:` / `- add:` / `- var:`; branches `feature/`, `fix/`,
   `refactor/`.
-- One roadmap step (`M2.1`, …) per PR; name the step in the PR title.
+- One roadmap step (`M2.1`, …) per commit, each with its own `/deep-review`; related steps share
+  one PR, named after the milestone or group.

@@ -7,7 +7,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M1 done.** Next action: M2.1, golden corpus at 512 px with theme menus.
+**Status: M0–M1 done, M2 in review.** Next action: M2 PR review, then M3.1.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -20,7 +20,7 @@ settles, labels before speed, the Locus-facing API last.
 |---|---|---|---|
 | M0 | Foundation: vendored Mapsforge 0.30.0, golden test, CI | S | ✅ `d41acf5` |
 | M1 | Review hardening: CI, supply chain, licence docs, this plan | S | ✅ PR #1, `42f1598` |
-| M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | ⬜ next |
+| M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | 🔧 |
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ⬜ |
 | M4 | Garmin IMG joins | M | ⬜ needs Q12, Q13 |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ⬜ |
@@ -48,19 +48,83 @@ M5; M5 → M5; M6 (KMP) → dropped (D22); M7 → M6; M8 → M9; M9 → M10. M1,
 
 *Verified: `./gradlew build` and the PR CI run green; 6 review threads resolved in `5b47f55`.*
 
-**M2 — Safety net.** One PR per row, each closing a gap the second deep review found.
+**M2 — Safety net.** One PR (`feature/m2-golden-coverage`), one commit per row, each closing a gap
+the second deep review found.
 
-| PR | Content | Status |
+| Step | Content | Status |
 |---|---|---|
-| M2.1 | Corpus at 512 px, scale 1 / 2.625 / 3, z18–20 on land, menu `hike_bike` and `car` | ⬜ next |
-| M2.2 | Locus primary mode: no labels in tile + `TileBasedLabelStore`, sorted dump | ⬜ |
-| M2.3 | Parallel 3×3 block: no label lost or doubled | ⬜ |
-| M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | ⬜ |
-| M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | ⬜ |
-| M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | ⬜ |
-| M2.7 | `bench/`: JMH per stage + A54 run at N threads, baseline recorded here; adds the Apache-2.0 text | ⬜ |
+| M2.1 | Corpus at 512 px, scale 1 / 2.625 / 3, z18–20 on land, menu `hike_bike` and `car` | 🔧 |
+| M2.2 | Locus primary mode: no labels in tile + `TileBasedLabelStore`, label dump | 🔧 |
+| M2.3 | Parallel 3×3 block: same pixels and labels as a serial render | 🔧 |
+| M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | 🔧 |
+| M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | 🔧 |
+| M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | 🔧 |
+| M2.7 | `dev/bench/`: JMH per stage on the JVM, baseline recorded here; adds the Apache-2.0 text | 🔧 |
+| M2.7b | A54 run at N threads (`androidx.benchmark`), baseline recorded here | 🔧 |
 
-*Verify: each PR's new test fails on a targeted mutation; CI green.*
+- M2.1: 18 tiles × 4 sets covering theme, menu layer, device scale and text scale. Not caught:
+  the per-instruction menu filter — LoMaps sets a category on only 4 instructions (swamp, two
+  lines), none on the Monaco tiles.
+- M2.2: a fifth set in Locus' primary mode (no labels in tile, `TileBasedLabelStore(100)`) and its
+  label dump in store order: 319 labels over 18 tiles — 219 symbols, 65 captions, 35 way texts.
+- M2.3: a 3×3 block at z16 rendered on 4 threads through one long-lived renderer, 5 rounds,
+  against a serial render. Neither a dropped paint lock nor dropped matching-cache locks were
+  caught: the test guards render-order independence and gross races, not every lock.
+- Determinism (M2.1, corrected in M2.3): upstream breaks label ties in `HashSet` order, which
+  follows identity hashes (A7). Both renders run in their own JVM with a sequential identity-hash
+  counter (`-XX:hashCode=3`), a serial collector on a fixed heap and synchronous JIT (`-Xbatch`),
+  and align the counter to a fixed boundary before every theme parse and tile. Classpath jars open
+  up front: the two sides list them in a different order, and a jar opened mid-render shifted the
+  hashes of everything after it. Each side writes the hashes per tile to `identity_hashes.log`, the
+  first place to look when a tie flips; one flipped on CI in 3 of 4 runs before this.
+  The first fix, a constant hash (`-XX:hashCode=2`), made `Closed.YES` and `Closed.NO` collide in
+  the theme's matching cache and rendered some areas as lines; M2.3 caught it.
+- M2.4: the 90 corpus tiles through `map-android` under Robolectric native graphics (SDK 35), each
+  side in its own test JVM with the M2.3 flags. Upstream varied in one tile between runs: the first
+  rasterisation of each symbol starts a thread writing Mapsforge's SVG file cache, and those
+  threads shift the main thread's identity hashes. A warm-up pass fills the never-evicted symbol
+  cache, waits for the writers, then renders the kept pass. Caught: line stroke +0.1 %
+  (90 of 90), caption x+1 (41), symbols not drawn (42). Labels and text dumps stay AWT-only.
+- M2.5: `reader.txt` and `theme_callbacks.txt` over the corpus tiles plus z3 and z5, the theme
+  driven through Mapsforge's own `StandardRenderer` with full paint state. Not covered by the
+  Monaco map: explicit way label positions, water tiles, `readLabels` / `readPoiData`.
+- M2.6: `paint_counts.txt` from one long-lived renderer (`hike_bike`) sweeping z8–20 twice, Paints
+  created and still alive after a full GC: 3,359 alive after the theme parse, ~3,100 more per new
+  zoom, 43,494 after z20, unchanged in the second sweep — the never-evicted caches of F2/F3. M5.3
+  bounds `live`. Caught only here, no pixel changed: stroke scaling not cached per zoom (~2,100
+  Paints per zoom in the second sweep); per-zoom eviction changes `live`.
+- Mutations caught (90 renders, 5 sets): menu rule filter 90 of 90, device scale ignored 54,
+  caption offset flipped 45 plus the dump, labels not stored (dump and M2.3), way coordinate +1
+  µ° (90 plus `reader.txt`); line stroke +0.1 % (90), caption text size ×1.05 (50) and line dash
+  ×1.05 (33), each also in `theme_callbacks.txt`.
+- M2.7: JVM baseline below, `./gradlew :dev:bench:jmh` on 2026-10-23, Ryzen AI 9 HX PRO 375 (24
+  threads), JDK 17, 512 px tiles, Locus primary mode, LoMaps day theme without menu, p50 ms.
+  Czech column: `czech_republic.osm.map` (765,299,145 B, LoMaps of 2026-10-08) with
+  `-Pbench.center=50.0875,14.4214`. One fork: theme parse varies ~20 % between runs, so compare
+  M7 deltas below that with `fork = 3`.
+
+| Benchmark | Monaco | Czech map at Prague |
+|---|---|---|
+| theme parse | 63 | 52 |
+| read tile z12 / z15 / z17 | 3.2 / 0.11 / 0.09 | 8.4 / 1.1 / 1.1 |
+| render tile z12 / z15 / z17 | 64 / 30 / 12 | 105 / 85 / 25 |
+| 4×4 block at z16, 1 / 2 / 4 / 8 threads | 364 / 188 / 115 / 90 | 595 / 318 / 194 / 135 |
+| allocated per tile render at z12 | 12.7 MB | 31.5 MB |
+
+- M2.7b: A54 baseline below, `dev/bench/android` (`androidx.benchmark` 1.5.0) on 2026-10-23, Galaxy
+  A54 (SM-A546B, Android 16, clocks locked), same setup as M2.7, p50 ms; how to run in
+  `dev/bench/android/build.gradle.kts`. Rendering takes up to ~2× the JVM time (z12); the block
+  stops scaling above 4 threads (4 big cores). Theme parse is XML only on both: symbols rasterise
+  lazily on first render, which no number here isolates.
+
+| Benchmark | Monaco | Czech map at Prague |
+|---|---|---|
+| theme parse | 83 | 80 |
+| read tile z12 / z15 / z17 | 11.3 / 0.64 / 0.52 | 37.6 / 5.2 / 5.7 |
+| render tile z12 / z15 / z17 | 126 / 39 / 15 | 259 / 131 / 36 |
+| 4×4 block at z16, 1 / 2 / 4 / 8 threads | 433 / 260 / 171 / 168 | 881 / 502 / 324 / 305 |
+
+*Verify: each step's new test fails on a targeted mutation; CI green.*
 
 **M3 — Core v0 and shared viewer.**
 
@@ -104,7 +168,8 @@ area, so each conversion PR stays pixel-identical. Every PR gated by goldens, du
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.
 - M7.2 lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock.
 - M7.3 allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring.
-- M7.4 theme parse (437 ms on the A54): lazy SVG, cached `MapStyle`.
+- M7.4 theme parse (~80 ms on the A54, M2.7b): cached `MapStyle`; SVG rasterising on first
+  render is not measured yet.
 
 **M8 — Android host API.**
 - M8.1 `android/`: `VectorMapDriver`, `VectorMapRenderer`, `LabelPass`, `ThemeLoader` (D23).
@@ -180,7 +245,7 @@ See the locus-core plan, R1–R7. Repo-specific:
 
 ## Adjacent, out of scope
 
-Found in locus-core `development` @ `79226d9`; not fixed here.
+A1–A6 found in locus-core `development` @ `79226d9`, A7 in upstream Mapsforge 0.30.0; not fixed here.
 
 | ID | Finding |
 |---|---|
@@ -190,6 +255,7 @@ Found in locus-core `development` @ `79226d9`; not fixed here.
 | A4 | No redraw after the label pass prepares (`TODO force redraw`) |
 | A5 | `MapContent` tests `is MapSourceMapsForgeV4` in both branches, the second is dead |
 | A6 | Theme parse runs synchronously on the caller, dark variant under the pref lock |
+| A7 | Equal-priority labels survive in identity-hash order (`DatabaseRenderer`), output varies between runs |
 
 ## Open
 

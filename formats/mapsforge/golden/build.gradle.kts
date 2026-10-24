@@ -8,28 +8,62 @@ plugins {
 
 kotlin {
     jvmToolchain(17)
-    sourceSets.test {
-        kotlin.srcDir("harness/kotlin")
+    sourceSets.main {
+        kotlin.srcDir("harness/common/kotlin")
+        kotlin.srcDir("harness/awt/kotlin")
     }
 }
 
 dependencies {
-    testImplementation(project(":formats:mapsforge:legacy:map-awt"))
+    implementation(project(":formats:mapsforge:legacy:map-awt"))
     testImplementation(kotlin("test-junit5"))
 }
 
-val goldenDir = layout.buildDirectory.dir("golden")
+val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures")
+val actualDir = layout.buildDirectory.dir("golden/actual").get().asFile
+val diffDir = layout.buildDirectory.dir("golden/diff").get().asFile
 val upstreamRender = project(":formats:mapsforge:golden-upstream").layout.buildDirectory.dir("golden/expected")
+
+// Same entry point and JVM flags as `:formats:mapsforge:golden-upstream:renderGoldens`, so both
+// renders get the same identity hashes and match exactly (see that task).
+val renderVendored = tasks.register<JavaExec>("renderVendored") {
+    description = "Renders the golden corpus with the vendored Mapsforge modules."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass = "com.asamm.mapsforge.golden.MainKt"
+    jvmArgs(
+        // synchronous JIT: background compilation draws identity hashes at varying moments
+        "-Xbatch",
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:hashCode=3",
+        "-XX:+UseSerialGC",
+        "-Xms2g",
+        "-Xmx2g",
+    )
+    inputs.dir(fixturesDir)
+    outputs.dir(actualDir)
+    // a task-local copy: the configuration cache cannot capture script values
+    val outDir = actualDir
+    doFirst {
+        outDir.deleteRecursively()
+    }
+    args(fixturesDir.asFile.absolutePath, actualDir.absolutePath)
+}
 
 tasks.test {
     useJUnitPlatform()
-    dependsOn(":formats:mapsforge:golden-upstream:renderGoldens")
+    dependsOn(renderVendored, ":formats:mapsforge:golden-upstream:renderGoldens")
     inputs.dir(upstreamRender)
-    inputs.dir(rootProject.layout.projectDirectory.dir("fixtures"))
-    // keeps the rendered PNGs and diffs when the result comes from the build cache
-    outputs.dir(goldenDir)
-    systemProperty("golden.fixturesDir", rootProject.layout.projectDirectory.dir("fixtures").asFile.absolutePath)
+    inputs.dir(actualDir)
+    inputs.dir(fixturesDir)
+    // keeps the diff images when the result comes from the build cache
+    outputs.dir(diffDir)
+    // a task-local copy: the configuration cache cannot capture script values
+    val staleDiffs = diffDir
+    doFirst {
+        staleDiffs.deleteRecursively()
+    }
+    systemProperty("golden.fixturesDir", fixturesDir.asFile.absolutePath)
     systemProperty("golden.expectedDir", upstreamRender.get().asFile.absolutePath)
-    systemProperty("golden.actualDir", goldenDir.get().dir("actual").asFile.absolutePath)
-    systemProperty("golden.diffDir", goldenDir.get().dir("diff").asFile.absolutePath)
+    systemProperty("golden.actualDir", actualDir.absolutePath)
+    systemProperty("golden.diffDir", diffDir.absolutePath)
 }

@@ -1,6 +1,6 @@
 # Fixtures
 
-Test data shared by the golden corpus (`formats/mapsforge/golden`, `golden-upstream`) and both
+Test data shared by the golden corpus (`formats/mapsforge/golden*`), the benchmarks and both
 viewers.
 
 | Path | Content | Source | Licence |
@@ -18,4 +18,5 @@ Rendered tiles (golden PNGs, CI artifacts, viewer captures) are ODbL Produced Wo
 
 - Replace a fixture only together with a fresh golden run; the corpus tiles are chosen for this
   Monaco map.
-- Large maps for performance runs stay outside the repo, referenced from `local.properties`.
+- Large maps stay outside the repo: the viewers read them from `local.properties`, the
+  benchmarks from `-Pbench.mapFile` (JVM) or the `bench.mapFile` instrumentation argument.

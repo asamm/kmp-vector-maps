@@ -6,9 +6,9 @@ under its path.
 | Part | Path | Licence | Full text |
 |---|---|---|---|
 | Mapsforge format, incl. its Kotlin conversion | `formats/mapsforge/` | LGPL-3.0-or-later + additional permission below | [COPYING.LESSER](COPYING.LESSER), [COPYING](COPYING) |
-| Core, renderers, Android host API, new viewer, benchmarks | `core/`, `render/`, `android/`, `bench/`, the M3.3 viewer | Apache-2.0 | added with `bench/` (M2.7) |
+| Core, renderers, Android host API, new viewer, benchmarks | `core/`, `render/`, `android/`, `dev/bench/`, the M3.3 viewer | Apache-2.0 | [LICENSE-APACHE](LICENSE-APACHE) |
 | Garmin IMG format (planned) | `formats/garmin-img/` | LGPL-2.1 | added with the module |
-| Test data | `fixtures/` | per [fixtures/README.md](fixtures/README.md) | — |
+| Test data | `dev/fixtures/` | per [dev/fixtures/README.md](dev/fixtures/README.md) | — |
 
 The current development viewers under `viewer/` and the golden test harness are
 LGPL-3.0-or-later, as stated in their file headers; the viewers are deleted in M3.3.

@@ -6,6 +6,8 @@ plugins {
     alias(libs.plugins.androidApplication) apply false
     alias(libs.plugins.androidLibrary) apply false
     alias(libs.plugins.kotlinJvm) apply false
+    alias(libs.plugins.jmh) apply false
+    alias(libs.plugins.androidxBenchmark) apply false
     alias(libs.plugins.kotlinCompose) apply false
     alias(libs.plugins.composeMultiplatform) apply false
 }

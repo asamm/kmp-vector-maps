@@ -27,7 +27,7 @@ android {
     }
 
     sourceSets.getByName("main") {
-        assets.directories.add(rootProject.layout.projectDirectory.dir("fixtures").asFile.absolutePath)
+        assets.directories.add(rootProject.layout.projectDirectory.dir("dev/fixtures").asFile.absolutePath)
     }
 
     androidResources {
