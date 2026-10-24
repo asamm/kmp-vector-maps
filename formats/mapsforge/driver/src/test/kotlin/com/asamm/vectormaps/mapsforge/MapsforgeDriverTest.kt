@@ -86,6 +86,16 @@ class MapsforgeDriverTest {
     }
 
     @Test
+    fun textWrapsLaterWithTextScale() {
+        val scaled = config.copy(textScale = 1.5f)
+        driver.open(listOf(monaco)).use { dataset ->
+            dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, scaled).use { renderer ->
+                assertEquals((256 * 0.7f * 1.5f).toInt(), renderer.displayModel.maxTextWidth)
+            }
+        }
+    }
+
+    @Test
     fun renderStopsWhenCancelled() {
         driver.open(listOf(monaco)).use { dataset ->
             dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, config).use { renderer ->
@@ -94,6 +104,24 @@ class MapsforgeDriverTest {
                 assertEquals(RenderResult.CANCELLED, renderer.render(harbour, target) { true })
                 assertNull(target.bitmap)
             }
+        }
+    }
+
+    @Test
+    fun multiMapRendersFromEveryFile() {
+        val copy = createTempFile(suffix = ".map").toFile()
+        try {
+            monaco.copyTo(copy, overwrite = true)
+            driver.open(listOf(monaco, copy)).use { dataset ->
+                dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, config).use { renderer ->
+                    val target = TileBitmapTarget(256)
+
+                    assertEquals(RenderResult.DRAWN, renderer.render(harbour, target) { false })
+                    target.bitmap?.decrementRefCount()
+                }
+            }
+        } finally {
+            copy.delete()
         }
     }
 
@@ -160,6 +188,23 @@ class MapsforgeDriverTest {
                 assertEquals(RenderResult.DRAWN, renderer.render(harbour, target) { false })
                 target.bitmap?.decrementRefCount()
             }
+        }
+    }
+
+    @Test
+    fun createRendererRefusesChangedTheme() {
+        val copy = createTempFile(suffix = ".xml").toFile()
+        try {
+            theme.copyTo(copy, overwrite = true)
+            val style = driver.loadStyle(copy)
+            copy.setLastModified(copy.lastModified() + 2_000)
+            driver.open(listOf(monaco)).use { dataset ->
+                assertFailsWith<IllegalStateException> {
+                    dataset.createRenderer(style, StyleSelection.DEFAULT, config)
+                }
+            }
+        } finally {
+            copy.delete()
         }
     }
 

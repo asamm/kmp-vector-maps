@@ -157,16 +157,20 @@ green, 3 of 3 runs on the final commit.*
   - In-tile labels ask a key-only tile cache (`DrawnTiles`) which neighbours were drawn; Mapsforge's
     `InMemoryTileCache`, which Locus uses today, also pins up to its capacity in bitmaps.
   - Each renderer opens its own readers in its language, so no shared store grows while read (the
-    copy-on-write must); hosts recreate renderers after `addMap` (core KDoc).
+    copy-on-write must); hosts recreate renderers after `addMap` (core KDoc). Multi-maps return all
+    data (`RETURN_ALL`) and text wraps at `0.7 × textScale` of the tile, as in Locus.
+  - The style id holds the theme file time; `createRenderer` throws once the file changed.
   - Style menus missing a required attribute or naming an absent default layer give `menu = null`
     and render every category; so does a layer id the theme lacks, as in Locus.
   - Golden: the vendored AWT corpus tiles and label dumps render through the driver; the text
     dumps, Paint counts, `ParallelRenderTest` and the Android goldens stay on plain Mapsforge. The
     upstream side mirrors the driver's menu read and map probe before each set; the two sides
     still run different code, so a few slots in `identity_hashes.log` differ by class loading and
-    JIT work; the vendored side repeats exactly, the upstream side varies slightly between runs. A driver ignoring the text scale fails the test.
+    JIT work; the vendored side repeats exactly, the upstream side varies slightly between runs.
 
-*Verify: golden test green through the driver; viewer renders Monaco and Czech on desktop and A54.*
+*Verify: golden test green through the driver, and red when the driver ignores the text scale
+(the wrap width is not covered: LoMaps sets its own on most captions; a driver test pins it);
+viewer renders Monaco and Czech on desktop and A54.*
 
 **M4 — Garmin IMG.** Blocked by Q12 (visibility) and Q13 (licence wording).
 
@@ -208,6 +212,10 @@ area, so each conversion PR stays pixel-identical. Every PR gated by goldens, du
 - M8.2 style-menu ids, Locus-extended attributes and asset themes kept, so prefs migrate as-is.
 - M8 must: Mapsforge's Android SVG cache keys unsized symbols without the scale, so renderers at
   two device scales share them; key them by scale or clear the cache per scale.
+- M8 must: reset the Mapsforge device scale to 1 after `AndroidGraphicFactory.createInstance`.
+- M8 must: on `addMap`, close and recreate the renderers and clear the tile cache; closing a
+  dataset leaves its renderers, and their readers, open.
+- M8 must: transparent tiles (a `RenderConfig` option), so a backup map shows through as in Locus.
 - M8.3 throwaway locus-core branch wires the adapter end to end (H7).
 
 **M9 — Locus integration** (locus-core side).

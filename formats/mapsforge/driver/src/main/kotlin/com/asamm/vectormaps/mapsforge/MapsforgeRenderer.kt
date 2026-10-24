@@ -32,7 +32,7 @@ class MapsforgeRenderer internal constructor(
     graphicFactory: GraphicFactory,
     private val store: MapDataStore,
     private val themeFuture: RenderThemeFuture,
-    private val displayModel: DisplayModel,
+    internal val displayModel: DisplayModel,
     private val tileCache: TileCache?,
     labelStore: TileBasedLabelStore?,
 ) : MapRenderer {

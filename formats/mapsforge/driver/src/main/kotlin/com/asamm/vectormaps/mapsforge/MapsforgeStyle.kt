@@ -13,9 +13,12 @@ import java.io.File
 
 /**
  * A Mapsforge XML render theme file with its style menu.
+ *
+ * @param lastModified file time read with the menu; the id and the menu hold for it only
  */
 class MapsforgeStyle internal constructor(
     val file: File,
+    internal val lastModified: Long,
     override val id: String,
     override val menu: StyleMenu?,
 ) : MapStyle {

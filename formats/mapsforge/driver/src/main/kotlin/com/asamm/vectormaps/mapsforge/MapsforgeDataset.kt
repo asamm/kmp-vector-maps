@@ -68,7 +68,8 @@ class MapsforgeDataset internal constructor(
 
     /**
      * Opens the readers and compiles the theme; the device scale goes into the renderer's own
-     * `DisplayModel`, so the JVM-wide Mapsforge device scale must stay 1.
+     * `DisplayModel`, so the JVM-wide Mapsforge device scale must stay 1. Throws when the theme file
+     * changed since [MapsforgeDriver.loadStyle]: load the style again.
      */
     override fun createRenderer(
         style: MapStyle,
@@ -78,6 +79,9 @@ class MapsforgeDataset internal constructor(
         require(style is MapsforgeStyle) {
             "createRenderer(), not a Mapsforge style: ${style.id}"
         }
+        check(style.file.lastModified() == style.lastModified) {
+            "createRenderer(), ${style.file} changed since loadStyle"
+        }
         check(DisplayModel.getDeviceScaleFactor() == 1.0f) {
             "createRenderer(), Mapsforge device scale ${DisplayModel.getDeviceScaleFactor()}, " +
                 "expected 1; pass it as RenderConfig.deviceScale"
@@ -86,6 +90,8 @@ class MapsforgeDataset internal constructor(
         val displayModel = DisplayModel()
         displayModel.setUserScaleFactor(config.deviceScale)
         displayModel.setFixedTileSize(config.tileSizePx)
+        // larger text wraps later, as in Locus
+        displayModel.setMaxTextWidthFactor(MAX_TEXT_WIDTH_FACTOR * config.textScale)
         val store = openStore(language = config.language)
         val themeFuture = try {
             RenderThemeFuture(
@@ -128,7 +134,8 @@ class MapsforgeDataset internal constructor(
         if (files.size == 1) {
             return CheckedMapFile(file = files[0], language = language)
         }
-        val result = MultiMapDataStore()
+        // as Locus: deduplicating sorts the ways of every tile, which changes the draw order
+        val result = MultiMapDataStore(MultiMapDataStore.DataPolicy.RETURN_ALL)
         try {
             for (file in files) {
                 result.addMapDataStore(CheckedMapFile(file = file, language = language), false, false)
@@ -145,5 +152,8 @@ class MapsforgeDataset internal constructor(
         const val TILE_CACHE_SIZE = 64
 
         const val LABEL_STORE_SIZE = 100
+
+        // Mapsforge's default
+        const val MAX_TEXT_WIDTH_FACTOR = 0.7f
     }
 }

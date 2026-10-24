@@ -21,6 +21,7 @@ interface MapRenderer : Closeable {
      * the driver must support (`IllegalArgumentException` otherwise). Checks `isCancelled` before
      * drawing and, where the driver can, between drawing steps; leaves no label state half-filled.
      * Throws when the data cannot be read or drawn; [RenderResult.EMPTY] only for absent data.
+     * Cancel through `isCancelled`: interrupting the thread may break the renderer for good.
      */
     fun render(tile: TileRequest, target: RenderTarget, isCancelled: () -> Boolean): RenderResult
 }
@@ -54,8 +55,8 @@ data class TileRequest(
 }
 
 /**
- * Host-owned drawing surface; each driver defines target types over its own graphics, such as a
- * `BufferedImage`.
+ * Where a tile is drawn. Each driver defines its target types; a type's KDoc states who owns and
+ * releases the output.
  */
 interface RenderTarget {
 

@@ -97,6 +97,8 @@ object Corpus {
         DisplayModel.setDeviceScaleFactor(set.deviceScale)
         val displayModel = DisplayModel()
         displayModel.setFixedTileSize(TILE_SIZE)
+        // as Locus and the driver
+        displayModel.setMaxTextWidthFactor(0.7f * set.textScale)
         val mapDataStore = MapFile(mapFile(fixturesDir))
         val xmlTheme = ExternalRenderTheme(themeFile(fixturesDir, set.theme), MenuSelection(set.menuLayer))
         val themeFuture = RenderThemeFuture(graphicFactory, xmlTheme, displayModel)

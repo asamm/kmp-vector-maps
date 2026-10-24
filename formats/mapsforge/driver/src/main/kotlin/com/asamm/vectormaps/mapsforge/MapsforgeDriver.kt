@@ -60,6 +60,7 @@ class MapsforgeDriver(
      * symbol is built at the wrong scale; rules are compiled per renderer.
      */
     override fun loadStyle(file: File): MapsforgeStyle {
+        val lastModified = file.lastModified()
         val reader = MenuReader()
         val xmlTheme = ExternalRenderTheme(file, reader)
         xmlTheme.resourceProvider = XmlThemeResourceProvider { _, _ ->
@@ -72,7 +73,8 @@ class MapsforgeDriver(
         }
         return MapsforgeStyle(
             file = file,
-            id = "${file.absolutePath}@${file.lastModified()}",
+            lastModified = lastModified,
+            id = "${file.absolutePath}@$lastModified",
             menu = reader.menu?.let { toStyleMenu(it) },
         )
     }
