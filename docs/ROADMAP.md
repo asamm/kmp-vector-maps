@@ -72,7 +72,9 @@ the second deep review found.
   caught: the test guards render-order independence and gross races, not every lock.
 - Determinism (M2.1, corrected in M2.3): upstream breaks label ties in `HashSet` order, which
   follows identity hashes (A7). Both renders run in their own JVM from one entry point that aligns
-  a sequential identity-hash counter (`-XX:hashCode=3`), with a serial collector on a fixed heap.
+  a sequential identity-hash counter (`-XX:hashCode=3`), with a serial collector on a fixed heap
+  and synchronous JIT (`-Xbatch`): background compilation drew hashes at varying moments and
+  flipped one tie on CI (one run in three).
   The first fix, a constant hash (`-XX:hashCode=2`), made `Closed.YES` and `Closed.NO` collide in
   the theme's matching cache and rendered some areas as lines; M2.3 caught it.
 - M2.4: the 90 corpus tiles through `map-android` under Robolectric native graphics (SDK 35), each

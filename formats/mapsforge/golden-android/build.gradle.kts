@@ -55,6 +55,8 @@ tasks.withType<Test>().configureEach {
     dependsOn(":formats:mapsforge:golden-android-upstream:testDebugUnitTest")
     // same flags as golden-android-upstream, so both renders get the same identity hashes
     jvmArgs(
+        // synchronous JIT: background compilation draws identity hashes at varying moments
+        "-Xbatch",
         "-XX:+UnlockExperimentalVMOptions",
         "-XX:hashCode=3",
         "-XX:+UseSerialGC",

@@ -53,6 +53,8 @@ val expectedDir = layout.buildDirectory.dir("golden/expected").get().asFile
 tasks.withType<Test>().configureEach {
     // same flags as :formats:mapsforge:golden-android; why: IdentityHashes in the harness
     jvmArgs(
+        // synchronous JIT: background compilation draws identity hashes at varying moments
+        "-Xbatch",
         "-XX:+UnlockExperimentalVMOptions",
         "-XX:hashCode=3",
         "-XX:+UseSerialGC",

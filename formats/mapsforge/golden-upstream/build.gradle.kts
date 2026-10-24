@@ -27,6 +27,8 @@ tasks.register<JavaExec>("renderGoldens") {
     mainClass = "com.asamm.mapsforge.golden.MainKt"
     // same flags as :formats:mapsforge:golden:renderVendored; why: IdentityHashes in the harness
     jvmArgs(
+        // synchronous JIT: background compilation draws identity hashes at varying moments
+        "-Xbatch",
         "-XX:+UnlockExperimentalVMOptions",
         "-XX:hashCode=3",
         "-XX:+UseSerialGC",

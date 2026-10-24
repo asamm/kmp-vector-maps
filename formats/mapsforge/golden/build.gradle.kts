@@ -31,6 +31,8 @@ val renderVendored = tasks.register<JavaExec>("renderVendored") {
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass = "com.asamm.mapsforge.golden.MainKt"
     jvmArgs(
+        // synchronous JIT: background compilation draws identity hashes at varying moments
+        "-Xbatch",
         "-XX:+UnlockExperimentalVMOptions",
         "-XX:hashCode=3",
         "-XX:+UseSerialGC",
