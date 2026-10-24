@@ -1,7 +1,7 @@
 # Architecture
 
 Target design: one driver interface every vector format implements, one render pipeline, an
-Android host API shaped for Locus, one viewer. Draft; `bench/` exists since M2.7, the rest comes
+Android host API shaped for Locus, one viewer. Draft; `dev/bench/` exists since M2.7, the rest comes
 from M3 ([ROADMAP](ROADMAP.md)).
 
 **Author:** Menion · **Started:** 2026-10-22 · **Revised:** 2026-10-22, after the Locus integration
@@ -17,7 +17,7 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 | Backends | `render/{android,skia,awt}` | Android `Canvas`; Skia via Skiko (desktop); AWT for upstream parity only | Apache-2.0 |
 | Host API | `android/` | Locus-facing facade on `android.graphics` types | Apache-2.0 |
 | Formats | `formats/<format>/` | one driver each, plus its golden set | per format |
-| Tools | `viewer/` (M3.3), `bench/` | written once for every driver | Apache-2.0 |
+| Tools | `viewer/` (M3.3), `dev/bench/` | written once for every driver | Apache-2.0 |
 
 - Libraries are **Kotlin/JVM**: `java.*` allowed, `android.*` only in Android modules. KMP only
   for the shared Compose viewer UI.

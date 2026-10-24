@@ -18,7 +18,7 @@ dependencies {
     implementation(libs.upstreamMapsforgeAwt)
 }
 
-val fixturesDir = rootProject.layout.projectDirectory.dir("fixtures")
+val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures")
 val expectedDir = layout.buildDirectory.dir("golden/expected")
 
 tasks.register<JavaExec>("renderGoldens") {

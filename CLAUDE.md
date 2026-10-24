@@ -28,12 +28,13 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `formats/mapsforge/golden`, `golden-upstream` | pixel test: vendored vs upstream 0.30.0 (JitPack) |
 | `formats/mapsforge/golden-android`, `golden-android-upstream` | the same through `map-android`, Robolectric |
 | `viewer/*` | throwaway dev viewers; replaced by the kmp-garmin-img viewer in M3 |
-| `fixtures/` | test maps and themes, see [fixtures/README.md](fixtures/README.md) |
-| `bench/` | JMH benchmarks, `./gradlew :bench:jmh`; baseline in ROADMAP M2.7 |
-| `bench/android/` | device benchmarks, `androidx.benchmark`; A54 baseline in ROADMAP M2.7b |
+| `dev/fixtures/` | test maps and themes, see [dev/fixtures/README.md](dev/fixtures/README.md) |
+| `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baseline in ROADMAP M2.7 |
+| `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baseline in ROADMAP M2.7b |
 | `core/`, `render/`, `android/` | from M3 on, see architecture.md |
 
 - New Mapsforge code goes beside `legacy/`, never into it.
+- `dev/` holds development helpers (benchmarks, test data); nothing in it ships.
 - Large local maps stay outside the repo, referenced from `local.properties` (`viewer.mapFile`).
 
 ## Hard rules
@@ -44,7 +45,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
   `Copyright 2026 Asamm Software` ([licence.md](docs/licence.md) L2).
 - New Asamm files: `Copyright 2026 Asamm Software` + SPDX id — `LGPL-3.0-or-later` under
   `formats/mapsforge/` and the throwaway `viewer/`, `Apache-2.0` for `core/`, `render/`,
-  `android/`, `bench/` and the M3.3 viewer.
+  `android/`, `dev/bench/` and the M3.3 viewer.
 - **Formats depend on the core only.** No Locus types anywhere.
 - Kotlin/JVM libraries: `android.*` only in `render/android`, `android/`, `legacy/map-android`.
 - Packages `org.mapsforge.*` until M5, then `com.asamm.*`.

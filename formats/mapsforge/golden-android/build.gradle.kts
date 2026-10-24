@@ -46,7 +46,7 @@ dependencies {
     testImplementation(libs.junit4)
 }
 
-val fixturesDir = rootProject.layout.projectDirectory.dir("fixtures").asFile
+val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures").asFile
 val actualDir = layout.buildDirectory.dir("golden/actual").get().asFile
 val diffDir = layout.buildDirectory.dir("golden/diff").get().asFile
 val upstreamRender = project(":formats:mapsforge:golden-android-upstream").layout.buildDirectory.dir("golden/expected")

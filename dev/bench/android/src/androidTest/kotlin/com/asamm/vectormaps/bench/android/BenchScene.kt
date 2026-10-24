@@ -22,7 +22,7 @@ import java.io.File
 
 /**
  * Map, theme and one long-lived renderer in Locus' primary label mode, set up like the JVM
- * benchmarks in `bench/` (512 px tiles, device scale 1) so the two baselines compare.
+ * benchmarks in `dev/bench/` (512 px tiles, device scale 1) so the two baselines compare.
  */
 class BenchScene : AutoCloseable {
 

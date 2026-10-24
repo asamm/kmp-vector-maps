@@ -30,7 +30,7 @@ val localProps = Properties().apply {
         file.inputStream().use { load(it) }
     }
 }
-val fixtures = rootProject.layout.projectDirectory.dir("fixtures").asFile
+val fixtures = rootProject.layout.projectDirectory.dir("dev/fixtures").asFile
 
 compose.desktop {
     application {

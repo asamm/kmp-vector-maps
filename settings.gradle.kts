@@ -50,8 +50,8 @@ include(":formats:mapsforge:golden-android")
 include(":formats:mapsforge:golden-android-upstream")
 
 // benchmarks
-include(":bench")
-include(":bench:android")
+include(":dev:bench")
+include(":dev:bench:android")
 
 // development tools
 include(":viewer:common")

@@ -59,7 +59,7 @@ the second deep review found.
 | M2.4 | Android pixels via Robolectric native graphics, vendored vs upstream | 🔧 |
 | M2.5 | Text dumps: reader `MapReadResult`, `RenderCallback` output | 🔧 |
 | M2.6 | Paint-count sweep z8–20, proxy for the memory growth F2 | 🔧 |
-| M2.7 | `bench/`: JMH per stage on the JVM, baseline recorded here; adds the Apache-2.0 text | 🔧 |
+| M2.7 | `dev/bench/`: JMH per stage on the JVM, baseline recorded here; adds the Apache-2.0 text | 🔧 |
 | M2.7b | A54 run at N threads (`androidx.benchmark`), baseline recorded here | 🔧 |
 
 - M2.1: 18 tiles × 4 sets covering theme, menu layer, device scale and text scale. Not caught:
@@ -93,7 +93,7 @@ the second deep review found.
   caption offset flipped 45 plus the dump, labels not stored (dump and M2.3), way coordinate +1
   µ° (90 plus `reader.txt`); line stroke +0.1 % (90), caption text size ×1.05 (50) and line dash
   ×1.05 (33), each also in `theme_callbacks.txt`.
-- M2.7: JVM baseline below, `./gradlew :bench:jmh` on 2026-10-23, Ryzen AI 9 HX PRO 375 (24
+- M2.7: JVM baseline below, `./gradlew :dev:bench:jmh` on 2026-10-23, Ryzen AI 9 HX PRO 375 (24
   threads), JDK 17, 512 px tiles, Locus primary mode, LoMaps day theme without menu, p50 ms.
   Czech column: `czech_republic.osm.map` (765,299,145 B, LoMaps of 2026-10-08) with
   `-Pbench.center=50.0875,14.4214`. One fork: theme parse varies ~20 % between runs, so compare
@@ -107,11 +107,11 @@ the second deep review found.
 | 4×4 block at z16, 1 / 2 / 4 / 8 threads | 364 / 188 / 115 / 90 | 595 / 318 / 194 / 135 |
 | allocated per tile render at z12 | 12.7 MB | 31.5 MB |
 
-- M2.7b: A54 baseline below, `bench/android` (`androidx.benchmark` 1.5.0) on 2026-10-23, Galaxy
+- M2.7b: A54 baseline below, `dev/bench/android` (`androidx.benchmark` 1.5.0) on 2026-10-23, Galaxy
   A54 (SM-A546B, Android 16, clocks locked), same setup as M2.7, p50 ms; how to run in
-  `bench/android/build.gradle.kts`. Rendering takes up to ~2× the JVM time (z12); the block stops
-  scaling above 4 threads (4 big cores). Theme parse is XML only on both: symbols rasterise lazily
-  on first render, which no number here isolates.
+  `dev/bench/android/build.gradle.kts`. Rendering takes up to ~2× the JVM time (z12); the block
+  stops scaling above 4 threads (4 big cores). Theme parse is XML only on both: symbols rasterise
+  lazily on first render, which no number here isolates.
 
 | Benchmark | Monaco | Czech map at Prague |
 |---|---|---|

@@ -47,7 +47,7 @@ dependencies {
     testImplementation(libs.junit4)
 }
 
-val fixturesDir = rootProject.layout.projectDirectory.dir("fixtures").asFile
+val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures").asFile
 val expectedDir = layout.buildDirectory.dir("golden/expected").get().asFile
 
 tasks.withType<Test>().configureEach {

@@ -229,7 +229,7 @@ open class MapsforgeBench {
 
         fun requiredProperty(name: String): String {
             return requireNotNull(System.getProperty(name)) {
-                "requiredProperty($name), not set; run through Gradle: ./gradlew :bench:jmh"
+                "requiredProperty($name), not set; run through Gradle: ./gradlew :dev:bench:jmh"
             }
         }
     }

@@ -19,7 +19,7 @@ dependencies {
     testImplementation(kotlin("test-junit5"))
 }
 
-val fixturesDir = rootProject.layout.projectDirectory.dir("fixtures")
+val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures")
 val actualDir = layout.buildDirectory.dir("golden/actual").get().asFile
 val diffDir = layout.buildDirectory.dir("golden/diff").get().asFile
 val upstreamRender = project(":formats:mapsforge:golden-upstream").layout.buildDirectory.dir("golden/expected")

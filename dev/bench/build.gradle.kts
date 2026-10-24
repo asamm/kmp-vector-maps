@@ -1,5 +1,5 @@
 /*
- * JMH benchmarks of the renderers on the JVM. `./gradlew :bench:jmh`; results in
+ * JMH benchmarks of the renderers on the JVM. `./gradlew :dev:bench:jmh`; results in
  * build/results/jmh/results.json. Another map: `-Pbench.mapFile=<path>`, another centre than the
  * map's start position: `-Pbench.center=<lat>,<lon>`. Not published.
  */
@@ -16,7 +16,7 @@ dependencies {
     jmh(project(":formats:mapsforge:legacy:map-awt"))
 }
 
-val fixturesDir = rootProject.layout.projectDirectory.dir("fixtures").asFile
+val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures").asFile
 val mapFile = providers.gradleProperty("bench.mapFile")
     .orElse(File(fixturesDir, "maps/monaco.osm.map").absolutePath)
 val center = providers.gradleProperty("bench.center").orElse("")

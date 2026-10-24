@@ -1,6 +1,6 @@
 /*
  * Android microbenchmarks of the renderers, run on a device as instrumented tests:
- * `./gradlew :bench:android:connectedReleaseAndroidTest`. Another map on the device:
+ * `./gradlew :dev:bench:android:connectedReleaseAndroidTest`. Another map on the device:
  * `-Pandroid.testInstrumentationRunnerArguments.bench.mapFile=<device path>`, a centre:
  * `...bench.center=<lat>,<lon>`; a map in shared storage needs
  * `adb shell appops set com.asamm.vectormaps.bench.android.test MANAGE_EXTERNAL_STORAGE allow`.
@@ -39,7 +39,7 @@ android {
 }
 
 // the fixtures as test assets; the variant API, as AGP 9.4 fails on `sourceSets` in library scripts
-val fixturesPath = rootProject.layout.projectDirectory.dir("fixtures").asFile.absolutePath
+val fixturesPath = rootProject.layout.projectDirectory.dir("dev/fixtures").asFile.absolutePath
 androidComponents {
     onVariants { variant ->
         variant.androidTest?.sources?.assets?.addStaticSourceDirectory(fixturesPath)
