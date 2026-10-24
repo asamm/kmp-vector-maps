@@ -109,6 +109,7 @@ anchors, each with a per-format default.
 - `RenderTarget` is low-level (paths, paint handles, text measuring, clip, transforms, blend,
   shaders) and wraps a host-supplied canvas or bitmap; Garmin's two-pass borders and patterns
   become a small painter on top. Until a driver draws through it (M4.2), it only carries the size;
-  each driver defines target types over its own graphics (Mapsforge: `legacy/map-awt`,
-  `map-android`), and the host hands the driver its backend when it builds the registry.
+  each driver defines target types over its own graphics (Mapsforge: `TileBitmapTarget`, which
+  receives the bitmap Mapsforge allocates until M5), and the host hands the driver its backend
+  when it builds the registry.
 - Paint caching belongs to the renderer, not to a zoom level (locus-core F2/F3).

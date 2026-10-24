@@ -13,11 +13,13 @@ import java.io.File
 import javax.imageio.ImageIO
 
 /**
- * The golden corpus rendered through the public Mapsforge AWT API, plus the text dumps.
+ * The golden corpus as PNG files, plus the label, reader, theme-callback and Paint-count dumps.
  *
  * Compiled twice — against upstream Mapsforge 0.30.0 (`:formats:mapsforge:golden-upstream`) and
  * against the vendored modules (`:formats:mapsforge:golden`) — so both renders run the same code on
- * the same machine.
+ * the same machine. Each module's `SetRenderer` renders the tiles and label stores, the vendored one
+ * through the Mapsforge driver; the reader, theme-callback and Paint-count dumps use the public
+ * Mapsforge AWT API on both sides.
  */
 object GoldenCorpus {
 
@@ -32,11 +34,7 @@ object GoldenCorpus {
         val originalDeviceScale = DisplayModel.getDeviceScaleFactor()
         try {
             for (set in Corpus.SETS) {
-                val labelStore = Corpus.renderSet(
-                    set = set,
-                    fixturesDir = fixturesDir,
-                    graphicFactory = AwtGraphicFactory.INSTANCE,
-                ) { tile, bitmap ->
+                val labelStore = SetRenderer.render(set = set, fixturesDir = fixturesDir) { tile, bitmap ->
                     val file = File(outDir, Corpus.tileFileName(set = set, tile = tile, extension = "png"))
                     ImageIO.write(AwtGraphicFactory.getBitmap(bitmap), "png", file)
                 }

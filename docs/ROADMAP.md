@@ -7,7 +7,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M2 done, M3.1 in review.** Next action: M3.1 review, then M3.2.
+**Status: M0–M2 done, M3.1 merged, M3.2 in review.** Next action: M3.2 review, then M3.3.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -133,8 +133,8 @@ green, 3 of 3 runs on the final commit.*
 
 | PR | Content | Status |
 |---|---|---|
-| M3.1 | `core/` (Kotlin/JVM, Apache-2.0): driver, registry, dataset, style, renderer, render key | 🔧 |
-| M3.2 | Mapsforge driver over the vendored Java; golden test runs through it | ⬜ |
+| M3.1 | `core/` (Kotlin/JVM, Apache-2.0): driver, registry, dataset, style, renderer, render key | ✅ PR #3, `e0c45d8` |
+| M3.2 | Mapsforge driver over the vendored Java; golden test runs through it | 🔧 |
 | M3.3 | kmp-garmin-img viewer moved here, registry-driven tile engine; throwaway viewers deleted | ⬜ |
 
 - M3.1: interfaces and value types only, no implementation yet. Not in v0, added with their first
@@ -146,6 +146,25 @@ green, 3 of 3 runs on the final commit.*
   copy-on-write, since `MultiMapDataStore` is not safe to grow while read; keep the
   `TileDependencies` label path for `IN_TILE` (`MapDataStoreLabelStore` is order-independent but
   changes pixels against the goldens); never map a swallowed render failure to `EMPTY`.
+- M3.2 as built (`formats/mapsforge/driver`):
+  - Device scale goes into each renderer's `DisplayModel` user scale; the JVM-wide Mapsforge
+    device scale must stay 1 (checked), so an Android host resets it after
+    `AndroidGraphicFactory.createInstance` (M8).
+  - `TileBitmapTarget` receives the bitmap Mapsforge allocates; drawing into a host bitmap waits
+    for M5. Never returns `EMPTY`: Mapsforge fills tiles without data with the background.
+  - Reads that Mapsforge logs and turns into null throw instead (`CheckedMapFile`); one bad file
+    of a multi-map fails the tile. Errors inside a block stay swallowed until M5.
+  - In-tile labels ask a key-only tile cache (`DrawnTiles`) which neighbours were drawn; Mapsforge's
+    `InMemoryTileCache`, which Locus uses today, also pins up to its capacity in bitmaps.
+  - Each renderer opens its own readers in its language, so no shared store grows while read (the
+    copy-on-write must); hosts recreate renderers after `addMap` (core KDoc).
+  - Style menus missing a required attribute or naming an absent default layer give `menu = null`
+    and render every category; so does a layer id the theme lacks, as in Locus.
+  - Golden: the vendored AWT corpus tiles and label dumps render through the driver; the text
+    dumps, Paint counts, `ParallelRenderTest` and the Android goldens stay on plain Mapsforge. The
+    upstream side mirrors the driver's menu read and map probe before each set; the two sides
+    still run different code, so a few slots in `identity_hashes.log` differ by class loading and
+    JIT work; the vendored side repeats exactly, the upstream side varies slightly between runs. A driver ignoring the text scale fails the test.
 
 *Verify: golden test green through the driver; viewer renders Monaco and Czech on desktop and A54.*
 
@@ -187,6 +206,8 @@ area, so each conversion PR stays pixel-identical. Every PR gated by goldens, du
 **M8 — Android host API.**
 - M8.1 `android/`: `VectorMapDriver`, `VectorMapRenderer`, `LabelPass`, `ThemeLoader` (D23).
 - M8.2 style-menu ids, Locus-extended attributes and asset themes kept, so prefs migrate as-is.
+- M8 must: Mapsforge's Android SVG cache keys unsized symbols without the scale, so renderers at
+  two device scales share them; key them by scale or clear the cache per scale.
 - M8.3 throwaway locus-core branch wires the adapter end to end (H7).
 
 **M9 — Locus integration** (locus-core side).

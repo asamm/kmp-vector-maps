@@ -17,7 +17,7 @@ interface MapStyle {
     val id: String
 
     /**
-     * Layers a user can choose from; null when the style has no menu.
+     * Layers a user can choose from; null when the style has no usable menu.
      */
     val menu: StyleMenu?
 }

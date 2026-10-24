@@ -21,8 +21,9 @@ import org.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import java.io.File
 
 /**
- * The golden corpus, independent of a graphics backend: render sets, tiles and the render loop,
- * shared by the AWT golden test and the Android one.
+ * The golden corpus, independent of a graphics backend: render sets, tiles and the plain Mapsforge
+ * render loop, used by the upstream AWT side and both Android sides; the vendored AWT side renders
+ * through the driver.
  */
 object Corpus {
 
