@@ -44,6 +44,9 @@ object GoldenCorpus {
                     LabelDump.write(store = labelStore, tiles = Corpus.tiles, file = File(outDir, "${set.name}_labels.txt"))
                 }
             }
+            IdentityHashes.align("dumps")
+            // not compared; tells which slot drew a different count when a tie flips
+            File(outDir, "identity_hashes.log").writeText(IdentityHashes.usage().joinToString(separator = "\n"))
             writeDumps(fixturesDir = fixturesDir, outDir = outDir)
             PaintCount.write(
                 mapFile = Corpus.mapFile(fixturesDir),

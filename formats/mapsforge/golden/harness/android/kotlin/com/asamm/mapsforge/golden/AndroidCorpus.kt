@@ -23,8 +23,8 @@ import java.io.File
 object AndroidCorpus {
 
     /**
-     * Renders the corpus twice and keeps the second pass, which starts from aligned identity hashes
-     * once the SVG file-cache writer threads of the first are done (ROADMAP M2.4).
+     * Renders the corpus twice and keeps the second pass, which runs once the SVG file-cache writer
+     * threads of the first are done; they draw identity hashes at varying moments (ROADMAP M2.4).
      */
     fun renderAll(application: Application, fixturesDir: File, outDir: File) {
         outDir.deleteRecursively()
@@ -36,13 +36,15 @@ object AndroidCorpus {
             val threadsBefore = Thread.getAllStackTraces().keys
             renderSets(fixturesDir = fixturesDir) { _, _, _ -> }
             joinSvgStorers(before = threadsBefore)
-            IdentityHashes.align()
             renderSets(fixturesDir = fixturesDir) { set, tile, bitmap ->
                 val file = File(outDir, Corpus.tileFileName(set = set, tile = tile, extension = "png"))
                 file.outputStream().use { out ->
                     AndroidGraphicFactory.getBitmap(bitmap).compress(Bitmap.CompressFormat.PNG, 100, out)
                 }
             }
+            IdentityHashes.align("end")
+            // not compared; tells which slot drew a different count when a tie flips
+            File(outDir, "identity_hashes.log").writeText(IdentityHashes.usage().joinToString(separator = "\n"))
         } finally {
             DisplayModel.setDeviceScaleFactor(originalDeviceScale)
         }

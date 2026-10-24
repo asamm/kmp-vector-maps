@@ -91,6 +91,7 @@ object Corpus {
         graphicFactory: GraphicFactory,
         onTile: (Tile, TileBitmap) -> Unit,
     ): TileBasedLabelStore? {
+        IdentityHashes.align("${set.name} theme")
         // a static in Mapsforge, read when the theme is parsed and when tiles are drawn
         DisplayModel.setDeviceScaleFactor(set.deviceScale)
         val displayModel = DisplayModel()
@@ -114,6 +115,7 @@ object Corpus {
         )
         try {
             for (tile in tiles) {
+                IdentityHashes.align("${set.name} z${tile.zoomLevel}_${tile.tileX}_${tile.tileY}")
                 val job = RendererJob(tile, mapDataStore, themeFuture, displayModel, set.textScale, false, false)
                 val bitmap = renderer.executeJob(job)
                     ?: throw IllegalStateException("renderSet(${set.name}), no bitmap for $tile")

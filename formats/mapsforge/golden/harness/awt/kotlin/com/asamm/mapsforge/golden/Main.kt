@@ -13,6 +13,5 @@ fun main(args: Array<String>) {
     require(args.size == 2) {
         "usage: <fixturesDir> <outDir>"
     }
-    IdentityHashes.align()
     GoldenCorpus.renderAll(fixturesDir = File(args[0]), outDir = File(args[1]))
 }
