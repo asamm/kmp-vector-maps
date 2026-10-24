@@ -41,7 +41,8 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 - **Threads:** a dataset is thread-safe; a renderer declares `maxParallelism` and bounds itself.
 - **Cancellation** is checked before drawing and, where the format allows, between draw-list
   steps; it never leaves label state half-filled.
-- **No globals:** scales and tile size travel per request (Mapsforge `DisplayModel`, `Parameters`).
+- **No globals:** scales and tile size travel in each renderer's `RenderConfig` (Mapsforge
+  `DisplayModel`, `Parameters`).
 
 ## Android host API
 

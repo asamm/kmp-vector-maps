@@ -143,7 +143,9 @@ green, 3 of 3 runs on the final commit.*
   (built-in and embedded TYP styles M4.2, Android asset themes M8).
 - M3.2 must: take the Mapsforge `GraphicFactory` in the driver's constructor; read labels in the
   renderer's language (vendored `MapFile` fixes it per instance); publish the multi-map store
-  copy-on-write, since `MultiMapDataStore` is not safe to grow while read.
+  copy-on-write, since `MultiMapDataStore` is not safe to grow while read; keep the
+  `TileDependencies` label path for `IN_TILE` (`MapDataStoreLabelStore` is order-independent but
+  changes pixels against the goldens); never map a swallowed render failure to `EMPTY`.
 
 *Verify: golden test green through the driver; viewer renders Monaco and Czech on desktop and A54.*
 

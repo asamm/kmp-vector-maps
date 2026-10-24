@@ -20,6 +20,7 @@ interface MapRenderer : Closeable {
      * Draws `tile` into `target`, whose size must match the configured tile size and whose type
      * the driver must support (`IllegalArgumentException` otherwise). Checks `isCancelled` before
      * drawing and, where the driver can, between drawing steps; leaves no label state half-filled.
+     * Throws when the data cannot be read or drawn; [RenderResult.EMPTY] only for absent data.
      */
     fun render(tile: TileRequest, target: RenderTarget, isCancelled: () -> Boolean): RenderResult
 }

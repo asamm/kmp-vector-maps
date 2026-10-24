@@ -35,7 +35,8 @@ data class RenderConfig(
 enum class LabelMode {
 
     /**
-     * Labels are drawn into the tiles, placed across tile edges.
+     * Labels are drawn into the tiles, placed across tile edges; until M6.1 the result depends on
+     * which neighbour tiles were rendered first.
      */
     IN_TILE,
 
@@ -47,8 +48,8 @@ enum class LabelMode {
 
 /**
  * Everything besides the dataset and the tile that decides a renderer's output: on one dataset,
- * equal keys give equal tiles. Hosts keep one tile cache per dataset, keyed by it, and invalidate
- * it after [MapDataset.addMap].
+ * equal keys give equal tiles, for [LabelMode.IN_TILE] only from M6.1. Hosts keep one tile cache
+ * per dataset, keyed by it, and invalidate it after [MapDataset.addMap].
  */
 data class RenderKey(
     val styleId: String,
