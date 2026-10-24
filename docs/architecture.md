@@ -30,7 +30,7 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 |---|---|
 | `MapFormatDriver` | extensions; `probe(file)` → `MapInfo` or null; `open(files)` → `MapDataset`; `loadStyle(file)` → `MapStyle` |
 | `MapFormats` | registry; probes the drivers claiming the file's extension, first success wins |
-| `MapDataset` | one or more files: Mapsforge multi-map, IMG + TYP; `addMap` at runtime; creates renderers |
+| `MapDataset` | one or more files: Mapsforge multi-map, IMG + TYP; `addMap` at runtime, then hosts recreate renderers; creates renderers |
 | `MapStyle` | style source and menu: Mapsforge theme, Garmin TYP, MVT style; compiled per renderer |
 | `StyleMenu` | layers, overlays, titles; **keeps Mapsforge ids** for Locus prefs; `StyleSelection` = layer + overlays |
 | `MapRenderer` | per (dataset, style, selection, config); `render(tile, target, isCancelled)`, hooks from M6 |
@@ -109,6 +109,7 @@ anchors, each with a per-format default.
 - `RenderTarget` is low-level (paths, paint handles, text measuring, clip, transforms, blend,
   shaders) and wraps a host-supplied canvas or bitmap; Garmin's two-pass borders and patterns
   become a small painter on top. Until a driver draws through it (M4.2), it only carries the size;
-  each driver defines target types over its own graphics (Mapsforge: `legacy/map-awt`,
-  `map-android`), and the host hands the driver its backend when it builds the registry.
+  each driver defines target types over its own graphics (Mapsforge: `TileBitmapTarget`, which
+  receives the bitmap Mapsforge allocates until M5), and the host hands the driver its backend
+  when it builds the registry.
 - Paint caching belongs to the renderer, not to a zoom level (locus-core F2/F3).

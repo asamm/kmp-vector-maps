@@ -25,8 +25,9 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | Path | Content |
 |---|---|
 | `formats/mapsforge/legacy/*` | vendored Mapsforge Java, upstream module split; deleted after M5 |
-| `formats/mapsforge/golden`, `golden-upstream` | pixel test: vendored vs upstream 0.30.0 (JitPack) |
-| `formats/mapsforge/golden-android`, `golden-android-upstream` | the same through `map-android`, Robolectric |
+| `formats/mapsforge/driver` | Mapsforge driver: the `core/` interface over `legacy/` |
+| `formats/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored corpus tiles render through the driver |
+| `formats/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `map-android`, Robolectric; plain Mapsforge, not the driver |
 | `viewer/*` | throwaway dev viewers; replaced by the kmp-garmin-img viewer in M3 |
 | `dev/fixtures/` | test maps and themes, see [dev/fixtures/README.md](dev/fixtures/README.md) |
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baseline in ROADMAP M2.7 |

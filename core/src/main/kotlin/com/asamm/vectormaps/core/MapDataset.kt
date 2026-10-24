@@ -28,7 +28,8 @@ interface MapDataset : Closeable {
     /**
      * Creates a renderer for one style, menu selection and configuration; `style` must come from
      * this dataset's driver. May compile the style, which is costly: reuse renderers per
-     * [RenderKey].
+     * [RenderKey]. A renderer may keep the file set it was created with: close and recreate it after
+     * [addMap]. Closing the dataset leaves its renderers open.
      */
     fun createRenderer(style: MapStyle, selection: StyleSelection, config: RenderConfig): MapRenderer
 }

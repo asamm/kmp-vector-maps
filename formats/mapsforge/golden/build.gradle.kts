@@ -1,6 +1,7 @@
 /*
- * Golden render test: renders the corpus with the vendored modules and compares it pixel by pixel
- * with the upstream 0.30.0 render from `:formats:mapsforge:golden-upstream`. Not published.
+ * Golden render test: renders the corpus with the vendored modules through the Mapsforge driver and
+ * compares it pixel by pixel with the plain upstream 0.30.0 render from
+ * `:formats:mapsforge:golden-upstream`. Not published.
  */
 plugins {
     alias(libs.plugins.kotlinJvm)
@@ -16,6 +17,7 @@ kotlin {
 
 dependencies {
     implementation(project(":formats:mapsforge:legacy:map-awt"))
+    implementation(project(":formats:mapsforge:driver"))
     testImplementation(kotlin("test-junit5"))
 }
 

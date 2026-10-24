@@ -49,7 +49,8 @@ enum class LabelMode {
 /**
  * Everything besides the dataset and the tile that decides a renderer's output: on one dataset,
  * equal keys give equal tiles, for [LabelMode.IN_TILE] only from M6.1. Hosts keep one tile cache
- * per dataset, keyed by it, and invalidate it after [MapDataset.addMap].
+ * per dataset, keyed by it; after [MapDataset.addMap] they clear that cache and recreate their
+ * renderers.
  */
 data class RenderKey(
     val styleId: String,

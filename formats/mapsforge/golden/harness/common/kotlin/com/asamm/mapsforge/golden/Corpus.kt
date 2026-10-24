@@ -21,8 +21,9 @@ import org.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import java.io.File
 
 /**
- * The golden corpus, independent of a graphics backend: render sets, tiles and the render loop,
- * shared by the AWT golden test and the Android one.
+ * The golden corpus, independent of a graphics backend: render sets, tiles and the plain Mapsforge
+ * render loop, used by the upstream AWT side and both Android sides; the vendored AWT side renders
+ * through the driver.
  */
 object Corpus {
 
@@ -96,6 +97,8 @@ object Corpus {
         DisplayModel.setDeviceScaleFactor(set.deviceScale)
         val displayModel = DisplayModel()
         displayModel.setFixedTileSize(TILE_SIZE)
+        // as Locus and the driver
+        displayModel.setMaxTextWidthFactor(0.7f * set.textScale)
         val mapDataStore = MapFile(mapFile(fixturesDir))
         val xmlTheme = ExternalRenderTheme(themeFile(fixturesDir, set.theme), MenuSelection(set.menuLayer))
         val themeFuture = RenderThemeFuture(graphicFactory, xmlTheme, displayModel)
