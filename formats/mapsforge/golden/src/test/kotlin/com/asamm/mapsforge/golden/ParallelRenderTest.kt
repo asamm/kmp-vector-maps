@@ -87,8 +87,8 @@ class ParallelRenderTest {
             }
         }
         for ((suffix, pixels) in listOf("serial" to expected.pixels, "parallel" to actual.pixels, "diff" to diff)) {
-            val image = BufferedImage(TILE_SIZE, TILE_SIZE, BufferedImage.TYPE_INT_ARGB)
-            image.setRGB(0, 0, TILE_SIZE, TILE_SIZE, pixels, 0, TILE_SIZE)
+            val image = BufferedImage(Corpus.TILE_SIZE, Corpus.TILE_SIZE, BufferedImage.TYPE_INT_ARGB)
+            image.setRGB(0, 0, Corpus.TILE_SIZE, Corpus.TILE_SIZE, pixels, 0, Corpus.TILE_SIZE)
             ImageIO.write(image, "png", File(diffDir, "${name}_$suffix.png"))
         }
     }
@@ -101,12 +101,12 @@ class ParallelRenderTest {
 
         private val graphicFactory = AwtGraphicFactory.INSTANCE
         private val displayModel = DisplayModel().apply {
-            setFixedTileSize(TILE_SIZE)
+            setFixedTileSize(Corpus.TILE_SIZE)
         }
-        private val mapDataStore = MapFile(File(TestDirs.fixtures, "maps/monaco.osm.map"))
+        private val mapDataStore = MapFile(Corpus.mapFile(TestDirs.fixtures))
         private val themeFuture = RenderThemeFuture(
             graphicFactory,
-            ExternalRenderTheme(File(TestDirs.fixtures, "themes/lomaps/theme.xml")),
+            ExternalRenderTheme(Corpus.themeFile(TestDirs.fixtures, "theme")),
             displayModel,
         )
         private val labelStore = TileBasedLabelStore(100)
@@ -162,14 +162,11 @@ class ParallelRenderTest {
 
     private companion object {
 
-        const val TILE_SIZE = 512
         const val THREADS = 4
         const val ROUNDS = 5
         const val TIMEOUT_SECONDS = 60L
 
         // Monaco harbour at z16, dense in labels
-        const val CENTER_LAT = 43.7350
-        const val CENTER_LON = 7.4230
         const val ZOOM: Byte = 16
 
         val diffDir: File by lazy {
@@ -177,11 +174,11 @@ class ParallelRenderTest {
         }
 
         val tiles: List<Tile> by lazy {
-            val cx = MercatorProjection.longitudeToTileX(CENTER_LON, ZOOM)
-            val cy = MercatorProjection.latitudeToTileY(CENTER_LAT, ZOOM)
+            val cx = MercatorProjection.longitudeToTileX(Corpus.HARBOUR_LON, ZOOM)
+            val cy = MercatorProjection.latitudeToTileY(Corpus.HARBOUR_LAT, ZOOM)
             (-1..1).flatMap { dy ->
                 (-1..1).map { dx ->
-                    Tile(cx + dx, cy + dy, ZOOM, TILE_SIZE)
+                    Tile(cx + dx, cy + dy, ZOOM, Corpus.TILE_SIZE)
                 }
             }
         }

@@ -164,7 +164,8 @@ area, so each conversion PR stays pixel-identical. Every PR gated by goldens, du
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.
 - M7.2 lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock.
 - M7.3 allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring.
-- M7.4 theme parse (437 ms on the A54): lazy SVG, cached `MapStyle`.
+- M7.4 theme parse (~80 ms on the A54, M2.7b): cached `MapStyle`; SVG rasterising on first
+  render is not measured yet.
 
 **M8 — Android host API.**
 - M8.1 `android/`: `VectorMapDriver`, `VectorMapRenderer`, `LabelPass`, `ThemeLoader` (D23).

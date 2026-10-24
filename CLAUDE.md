@@ -54,7 +54,8 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 ## Versions
 
 Aligned with locus-core: Kotlin 2.4.20, AGP 9.4.1, Gradle 9.7.1, JDK 17, Android min SDK 24,
-compile SDK 37. Tests: JUnit 5 on JVM; JUnit 4 only where Robolectric needs it (`golden-android*`).
+compile SDK 37. Tests: JUnit 5 on JVM; JUnit 4 only where Robolectric or androidx.benchmark
+need it (`golden-android*`, `dev/bench/android`).
 
 ## Reference sources (read-only)
 

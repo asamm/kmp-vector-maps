@@ -76,7 +76,10 @@ object PaintCount {
                         tileSize,
                     )
                     val job = RendererJob(tile, mapDataStore, themeFuture, displayModel, 1.0f, false, false)
-                    renderer.executeJob(job)?.decrementRefCount()
+                    val bitmap = checkNotNull(renderer.executeJob(job)) {
+                        "write(), no bitmap for $tile"
+                    }
+                    bitmap.decrementRefCount()
                     val created = graphicFactory.takeCount()
                     total += created
                     out += "  z$zoom created=$created total=$total live=${graphicFactory.liveCount()}"
