@@ -38,6 +38,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "kmp-vector-maps"
 
+// format-neutral core: driver interface, styles, render configuration
+include(":core")
+
 // Mapsforge format: vendored upstream (legacy/, removed after the Kotlin migration) and golden corpus
 include(":formats:mapsforge:legacy:core")
 include(":formats:mapsforge:legacy:map")

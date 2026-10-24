@@ -31,7 +31,8 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `dev/fixtures/` | test maps and themes, see [dev/fixtures/README.md](dev/fixtures/README.md) |
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baseline in ROADMAP M2.7 |
 | `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baseline in ROADMAP M2.7b |
-| `core/`, `render/`, `android/` | from M3 on, see architecture.md |
+| `core/` | driver interface, registry, styles, render configuration; Apache-2.0, see architecture.md |
+| `render/`, `android/` | `render/skia` from M7.1, `android/` from M8.1, other backends unscheduled; see architecture.md |
 
 - New Mapsforge code goes beside `legacy/`, never into it.
 - `dev/` holds development helpers (benchmarks, test data); nothing in it ships.
