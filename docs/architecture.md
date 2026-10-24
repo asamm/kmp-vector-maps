@@ -1,11 +1,11 @@
 # Architecture
 
 Target design: one driver interface every vector format implements, one render pipeline, an
-Android host API shaped for Locus, one viewer. Draft; `dev/bench/` exists since M2.7, the rest comes
-from M3 ([ROADMAP](ROADMAP.md)).
+Android host API shaped for Locus, one viewer. Draft; `dev/bench/` exists since M2.7, the core
+interfaces since M3.1, the rest comes later ([ROADMAP](ROADMAP.md)).
 
 **Author:** Menion · **Started:** 2026-10-22 · **Revised:** 2026-10-22, after the Locus integration
-analysis
+analysis; 2026-10-24, driver table aligned with the M3.1 core
 
 ## Platforms and layers
 
@@ -28,19 +28,21 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 
 | Type | Role |
 |---|---|
-| `MapFormatDriver` | extensions; `probe(file)` → `MapInfo` or null; `open(specs)` → `MapDataset` |
-| `MapFormats` | registry; picks the driver whose probe succeeds |
-| `MapDataset` | one or more files: Mapsforge multi-map, IMG + TYP; `addMap` at runtime |
-| `MapStyle` | compiled, cached: Mapsforge theme, Garmin TYP, MVT style; day, night, background |
-| `StyleMenu` | layers, overlays, categories, titles; **keeps Mapsforge ids** for Locus prefs |
-| `MapRenderer` | per (dataset, style, selection, config); `render(request, target, hooks, cancel)` |
+| `MapFormatDriver` | extensions; `probe(file)` → `MapInfo` or null; `open(files)` → `MapDataset`; `loadStyle(file)` → `MapStyle` |
+| `MapFormats` | registry; probes the drivers claiming the file's extension, first success wins |
+| `MapDataset` | one or more files: Mapsforge multi-map, IMG + TYP; `addMap` at runtime; creates renderers |
+| `MapStyle` | style source and menu: Mapsforge theme, Garmin TYP, MVT style; compiled per renderer |
+| `StyleMenu` | layers, overlays, titles; **keeps Mapsforge ids** for Locus prefs; `StyleSelection` = layer + overlays |
+| `MapRenderer` | per (dataset, style, selection, config); `render(tile, target, isCancelled)`, hooks from M6 |
 | `RenderConfig` | language, device scale, text scale, label mode, tile size |
 | `RenderKey` | hashable (style, selection, config) for host tile caches |
 | `FeatureQuery` | optional pull API: tags at a zoom → resolved symbol (LoPoints) |
 
 - **Threads:** a dataset is thread-safe; a renderer declares `maxParallelism` and bounds itself.
-- **Cancellation** is checked between draw-list steps and never leaves label state half-filled.
-- **No globals:** scales and tile size travel per request (Mapsforge `DisplayModel`, `Parameters`).
+- **Cancellation** is checked before drawing and, where the format allows, between draw-list
+  steps; it never leaves label state half-filled.
+- **No globals:** scales and tile size travel in each renderer's `RenderConfig` (Mapsforge
+  `DisplayModel`, `Parameters`).
 
 ## Android host API
 
@@ -95,8 +97,8 @@ anchors, each with a per-format default.
 | Layer | Gate | When |
 |---|---|---|
 | Differential pixels | vendored vs upstream 0.30.0, same host | ✅ M0 |
-| Android pixels | Robolectric native graphics, vendored vs upstream | M2.4 |
-| Text dumps | reader output, label store, `RenderCallback`, sorted | M2.2, M2.5 |
+| Android pixels | Robolectric native graphics, vendored vs upstream | ✅ M2.4 |
+| Text dumps | reader output, label store, `RenderCallback`, sorted | ✅ M2.2, M2.5 |
 | Committed pixels | exact in a pinned container, tolerant outside | M6, once output changes |
 
 - An override set per [upstream.md](upstream.md) deviation keeps one intentional change from
@@ -106,5 +108,7 @@ anchors, each with a per-format default.
 
 - `RenderTarget` is low-level (paths, paint handles, text measuring, clip, transforms, blend,
   shaders) and wraps a host-supplied canvas or bitmap; Garmin's two-pass borders and patterns
-  become a small painter on top.
+  become a small painter on top. Until a driver draws through it (M4.2), it only carries the size;
+  each driver defines target types over its own graphics (Mapsforge: `legacy/map-awt`,
+  `map-android`), and the host hands the driver its backend when it builds the registry.
 - Paint caching belongs to the renderer, not to a zoom level (locus-core F2/F3).

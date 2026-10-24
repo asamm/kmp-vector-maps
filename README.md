@@ -18,6 +18,8 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 
 ## Modules
 
+- **`:core`** — format-neutral driver interface, registry, styles, render configuration
+  (Apache-2.0). `./gradlew :core:test`.
 - **`:formats:mapsforge:legacy:core`**, **`:map`**, **`:map-reader`** — vendored Mapsforge,
   platform-independent Java.
 - **`:formats:mapsforge:legacy:map-android`**, **`:map-awt`** — vendored graphics backends.
