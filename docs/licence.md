@@ -10,13 +10,14 @@ the legal check is locus-core plan Q1.
 | Part | Licence |
 |---|---|
 | `formats/mapsforge/**`, including its Kotlin conversion | LGPL-3.0-or-later + §4(d)/(e) waiver |
-| `core/`, `render/`, `android/`, `dev/bench/`, the M3.3 viewer (written fresh) | Apache-2.0 (D19) |
+| `core/`, `render/`, `android/`, `dev/bench/`, `viewer/` (written fresh) | Apache-2.0 (D19) |
 | `formats/garmin-img/` (M4) | LGPL-2.1, -only or -or-later open (Q13) |
 | Fixtures | per [dev/fixtures/README.md](../dev/fixtures/README.md): ODbL map data, Apache-2.0 theme |
 
 - An Apache-2.0 core keeps LGPL-2.1 and LGPL-3.0 code out of one derivative work.
-- The golden harness and the throwaway `viewer/` carry LGPL-3.0-or-later headers; the viewer is
-  deleted in M3.3, not relicensed.
+- The golden harness carries LGPL-3.0-or-later headers, as did the throwaway `viewer/`; that
+  viewer was deleted in M3.3, not relicensed. Neither it nor the kmp-garmin-img viewer gave code to
+  the new one, only its feature list (D18).
 
 ## Mapsforge
 

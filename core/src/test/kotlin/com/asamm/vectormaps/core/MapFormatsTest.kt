@@ -80,6 +80,7 @@ class MapFormatsTest {
     private class FakeDriver(
         override val id: String,
         override val extensions: Set<String> = emptySet(),
+        override val styleExtensions: Set<String> = emptySet(),
         private val info: MapInfo? = null,
         private val failure: Exception? = null,
     ) : MapFormatDriver {

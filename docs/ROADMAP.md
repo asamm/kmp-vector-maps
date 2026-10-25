@@ -7,7 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M2 done, M3.1 merged, M3.2 in review.** Next action: M3.2 review, then M3.3.
+**Status: M0–M2 done, M3.1–M3.2 merged, M3.3 in review.** Next action: M3.3 review; then M4 once
+Q12 and Q13 are answered, else M5.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -134,8 +135,8 @@ green, 3 of 3 runs on the final commit.*
 | PR | Content | Status |
 |---|---|---|
 | M3.1 | `core/` (Kotlin/JVM, Apache-2.0): driver, registry, dataset, style, renderer, render key | ✅ PR #3, `e0c45d8` |
-| M3.2 | Mapsforge driver over the vendored Java; golden test runs through it | 🔧 |
-| M3.3 | kmp-garmin-img viewer moved here, registry-driven tile engine; throwaway viewers deleted | ⬜ |
+| M3.2 | Mapsforge driver over the vendored Java; golden test runs through it | ✅ PR #4, `0189c2c` |
+| M3.3 | Viewer rewritten to the kmp-garmin-img viewer's features, registry-driven tile engine; throwaway viewers deleted | 🔧 |
 
 - M3.1: interfaces and value types only, no implementation yet. Not in v0, added with their first
   user: draw hooks and anchors (M6), `FeatureQuery` (M6), label pass (M6), drawing calls on
@@ -167,6 +168,28 @@ green, 3 of 3 runs on the final commit.*
     upstream side mirrors the driver's menu read and map probe before each set; the two sides
     still run different code, so a few slots in `identity_hashes.log` differ by class loading and
     JIT work; the vendored side repeats exactly, the upstream side varies slightly between runs.
+- M3.3 as built (`viewer/`, Apache-2.0):
+  - Written from scratch to the feature list of the kmp-garmin-img viewer (D18): no code from it
+    or the throwaway viewers (licence.md).
+  - `viewer/common`: Web Mercator `Viewport` and a `TileEngine` over any `MapRenderer`; a tile
+    that leaves the screen before its render starts is skipped through `isCancelled` (Mapsforge
+    checks only before drawing); kept tiles are evicted least recently used; empty and failed
+    tiles wait for Re-render (desktop) or a restart (Android); an old engine closes in the
+    background, since its renderer waits for renders in progress. A `TileImages` per driver and
+    platform turns the driver's target into an image.
+  - Both viewers open a map fitted to its bounds; the Mapsforge header's start position is not in
+    the core API.
+  - Desktop: the session (window, map, style, layer, settings, view) comes back on restart from
+    `~/.kmp-vector-maps/viewer.properties`; Capture writes PNG + properties to `captures/`; Home
+    fits the dataset bounds; style layer menu, text scale, tile size, threads; light and dark
+    theme follow the system.
+  - Both viewers fling: the map glides on after a drag and slows down.
+  - Style files come from the map's driver (`MapFormatDriver.styleExtensions`); opening a map of
+    another format drops the style.
+  - Android takes the device scale into `RenderConfig` and resets the Mapsforge one to 1 (the M8
+    must), 512 px tiles (D20), 4 render threads (M2.7b), 100 kept tiles (~50 MiB RGB_565);
+    rotation keeps the view; setup errors show as text.
+  - Garmin's anti-aliasing, kind toggles and TRE level return with its driver (M4).
 
 *Verify: golden test green through the driver, and red when the driver ignores the text scale
 (the wrap width is not covered: LoMaps sets its own on most captions; a driver test pins it);

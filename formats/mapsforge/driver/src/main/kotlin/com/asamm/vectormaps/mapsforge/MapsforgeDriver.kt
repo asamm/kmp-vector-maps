@@ -33,6 +33,8 @@ class MapsforgeDriver(
 
     override val extensions: Set<String> = setOf("map")
 
+    override val styleExtensions: Set<String> = setOf("xml")
+
     override fun probe(file: File): MapInfo? {
         val mapFile = MapFile(file)
         try {

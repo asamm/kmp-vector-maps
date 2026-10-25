@@ -23,6 +23,11 @@ interface MapFormatDriver {
     val extensions: Set<String>
 
     /**
+     * Lower-case extensions of the style files [loadStyle] reads, such as `xml` or `typ`.
+     */
+    val styleExtensions: Set<String>
+
+    /**
      * Reads the file header; returns null or throws when the file is not in this format or is
      * unreadable.
      */

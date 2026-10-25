@@ -1,5 +1,6 @@
 /*
- * Android viewer — development tool for on-device render checks. Not published.
+ * Android viewer — development tool for on-device render checks, for every registered format. Not
+ * published.
  *
  * `./gradlew :viewer:android:installDebug`. The fixtures (Monaco map, LoMaps theme) ship as assets;
  * another map can be passed as an intent extra, see MainActivity.
@@ -10,11 +11,11 @@ plugins {
 }
 
 android {
-    namespace = "com.asamm.mapsforge.viewer.android"
+    namespace = "com.asamm.vectormaps.viewer.android"
     compileSdk = libs.versions.androidCompileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.asamm.mapsforge.viewer.android"
+        applicationId = "com.asamm.vectormaps.viewer.android"
         minSdk = libs.versions.androidMinSdk.get().toInt()
         targetSdk = libs.versions.androidCompileSdk.get().toInt()
         versionCode = 1
@@ -41,7 +42,7 @@ kotlin {
 }
 
 dependencies {
-    implementation(project(":formats:mapsforge:legacy:map-android"))
     implementation(project(":viewer:common"))
-    implementation(libs.kotlinxCoroutinesAndroid)
+    implementation(project(":formats:mapsforge:driver"))
+    implementation(project(":formats:mapsforge:legacy:map-android"))
 }
