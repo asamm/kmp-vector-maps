@@ -18,5 +18,6 @@ Rendered tiles (golden PNGs, CI artifacts, viewer captures) are ODbL Produced Wo
 
 - Replace a fixture only together with a fresh golden run; the corpus tiles are chosen for this
   Monaco map.
-- Large maps stay outside the repo: the viewers read them from `local.properties`, the
+- Large maps stay outside the repo: the desktop viewer reads them from `local.properties` when no
+  saved session map exists, the Android viewer from `--es map` / `--es theme` intent extras, the
   benchmarks from `-Pbench.mapFile` (JVM) or the `bench.mapFile` instrumentation argument.

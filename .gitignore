@@ -52,3 +52,6 @@ Desktop.ini
 
 ### Claude Code session state ###
 .claude/
+
+### Viewer saved views ###
+/captures/

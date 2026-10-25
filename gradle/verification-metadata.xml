@@ -6,6 +6,8 @@
       <trusted-artifacts>
          <!-- verify only upstream Mapsforge from JitPack: built on demand, and the golden reference -->
          <trust group="^(?!com\.github\.mapsforge\.mapsforge$).*$" regex="true"/>
+         <!-- IDE sync fetches sources; they never reach the render -->
+         <trust file=".*-sources[.]jar" regex="true"/>
       </trusted-artifacts>
    </configuration>
    <components>

@@ -32,7 +32,8 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
   `-Pbench.mapFile=<path>`.
 - **`:dev:bench:android`** — the same on a device (`androidx.benchmark`),
   `./gradlew :dev:bench:android:connectedReleaseAndroidTest`.
-- **`:viewer:desktop`** — Compose Desktop dev tool. `./gradlew :viewer:desktop:run`.
+- **`:viewer:desktop`** — Compose Desktop dev tool for every registered format; restores the last
+  session. `./gradlew :viewer:desktop:run`.
 - **`:viewer:android`** — minimal Android dev tool. `./gradlew :viewer:android:installDebug`.
 
 ## Licence
