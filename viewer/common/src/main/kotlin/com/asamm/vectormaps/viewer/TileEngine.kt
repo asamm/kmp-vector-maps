@@ -204,7 +204,8 @@ class TileEngine<I : Any>(
                 ready.put(tile, image)?.let(images::release)
             }
             onChange()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
+            // an Error too: uncaught on a render thread it would end the Android process
             settled.add(tile)
             if (!closed) {
                 error = "draw(${tile.zoom}/${tile.x}/${tile.y}), ${e.javaClass.simpleName}: ${e.message}"
@@ -255,12 +256,16 @@ class RenderStats {
 
     private var maxNs = 0L
 
+    // drawn every frame, changed only by a sample
+    private var cached: String? = null
+
     @Synchronized
     fun add(ns: Long) {
         latest[(count % WINDOW).toInt()] = ns
         count++
         totalNs += ns
         maxNs = maxOf(maxNs, ns)
+        cached = null
     }
 
     @Synchronized
@@ -268,22 +273,28 @@ class RenderStats {
         count = 0
         totalNs = 0
         maxNs = 0
+        cached = null
     }
 
     @Synchronized
     fun summary(): String {
+        cached?.let {
+            return it
+        }
         if (count == 0L) {
             return "no tiles yet"
         }
         val window = latest.copyOf(minOf(count, WINDOW.toLong()).toInt())
         window.sort()
-        return "%d tiles, mean %.1f ms, median %.1f, p95 %.1f, max %.1f".format(
+        val text = "%d tiles, mean %.1f ms, median %.1f, p95 %.1f, max %.1f".format(
             count,
             totalNs / count / 1e6,
             window[window.size / 2] / 1e6,
             window[(window.size * 95 / 100).coerceAtMost(window.size - 1)] / 1e6,
             maxNs / 1e6,
         )
+        cached = text
+        return text
     }
 
     private companion object {

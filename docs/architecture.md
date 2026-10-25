@@ -2,7 +2,8 @@
 
 Target design: one driver interface every vector format implements, one render pipeline, an
 Android host API shaped for Locus, one viewer. Draft; `dev/bench/` exists since M2.7, the core
-interfaces since M3.1, the rest comes later ([ROADMAP](ROADMAP.md)).
+interfaces since M3.1, the Mapsforge driver since M3.2, `viewer/` since M3.3, the rest comes later
+([ROADMAP](ROADMAP.md)).
 
 **Author:** Menion · **Started:** 2026-10-22 · **Revised:** 2026-10-22, after the Locus integration
 analysis; 2026-10-24, driver table aligned with the M3.1 core
@@ -19,8 +20,9 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 | Formats | `formats/<format>/` | one driver each, plus its golden set | per format |
 | Tools | `viewer/` (M3.3), `dev/bench/` | written once for every driver | Apache-2.0 |
 
-- Libraries are **Kotlin/JVM**: `java.*` allowed, `android.*` only in Android modules. KMP only
-  for the shared Compose viewer UI.
+- Libraries are **Kotlin/JVM**: `java.*` allowed, `android.*` only in Android modules. The M3.3
+  viewer is Kotlin/JVM too (desktop Compose, Android `View`); KMP stays reserved for a shared
+  viewer UI (D22).
 - A format depends on `:core` only. The core is written fresh: kmp-garmin-img's `RenderTarget`
   and `LabelLayout` carry LGPL-2.1 headers and are references, not sources.
 

@@ -11,12 +11,16 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPlacement
 import androidx.compose.ui.window.WindowPosition
+import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import org.mapsforge.map.awt.graphics.AwtGraphicFactory
+import java.awt.GraphicsEnvironment
+import java.awt.Rectangle
 import java.io.File
 
 /**
@@ -30,35 +34,29 @@ fun main() {
     val state = ViewerState(
         formats = formats,
         session = session,
-        capturesDir = File(System.getProperty("viewer.capturesDir") ?: "captures"),
+        capturesDir = System.getProperty("viewer.capturesDir")?.let(::File)
+            ?: File(sessionFile.parentFile, "captures"),
     )
-    state.openMap(fileOr(session.mapPath, "viewer.mapFile"))
-    state.openStyle(fileOr(session.stylePath, "viewer.themeFile"))
+    fileOr(session.mapPath, "viewer.mapFile")?.let(state::openMap)
+    fileOr(session.stylePath, "viewer.themeFile")?.let(state::openStyle)
     application {
         val saved = session.window
         val window = rememberWindowState(
             size = if (saved == null) DpSize(1280.dp, 900.dp) else DpSize(saved.width.dp, saved.height.dp),
-            position = if (saved == null) WindowPosition.PlatformDefault else WindowPosition(saved.x.dp, saved.y.dp),
+            position = if (saved != null && onScreen(saved)) {
+                WindowPosition(saved.x.dp, saved.y.dp)
+            } else {
+                WindowPosition.PlatformDefault
+            },
         )
         Window(
             title = "kmp-vector-maps viewer",
             state = window,
             onCloseRequest = {
-                val position = window.position
-                val bounds = if (position.isSpecified) {
-                    Session.Window(
-                        x = position.x.value.toInt(),
-                        y = position.y.value.toInt(),
-                        width = window.size.width.value.toInt(),
-                        height = window.size.height.value.toInt(),
-                    )
-                } else {
-                    null
-                }
                 try {
-                    state.session().copy(window = bounds).write(sessionFile)
+                    state.session().copy(window = floatingBounds(window) ?: saved).write(sessionFile)
                 } catch (e: Exception) {
-                    System.err.println("Session not saved: $e")
+                    System.err.println("main(), session not saved: $e")
                 }
                 try {
                     state.close()
@@ -75,14 +73,43 @@ fun main() {
 }
 
 /**
- * The file at `path` when it still exists, else the one the system property `property` names.
+ * The window's bounds when it floats; a maximized, full-screen or minimized window reports bounds
+ * that would not restore it.
  */
-private fun fileOr(path: String?, property: String): File {
+private fun floatingBounds(window: WindowState): Session.Window? {
+    val position = window.position
+    if (window.placement != WindowPlacement.Floating
+        || window.isMinimized
+        || !position.isSpecified
+    ) {
+        return null
+    }
+    return Session.Window(
+        x = position.x.value.toInt(),
+        y = position.y.value.toInt(),
+        width = window.size.width.value.toInt(),
+        height = window.size.height.value.toInt(),
+    )
+}
+
+// a monitor the window was on may be gone
+private fun onScreen(window: Session.Window): Boolean {
+    val bounds = Rectangle(window.x, window.y, window.width, window.height)
+    return GraphicsEnvironment.getLocalGraphicsEnvironment().screenDevices.any {
+        it.defaultConfiguration.bounds.intersects(bounds)
+    }
+}
+
+/**
+ * The file at `path` when it still exists, else the one the system property `property` names, if
+ * set; outside the Gradle run task neither may exist.
+ */
+private fun fileOr(path: String?, property: String): File? {
     val previous = path?.let(::File)
     if (previous != null
         && previous.isFile
     ) {
         return previous
     }
-    return File(System.getProperty(property))
+    return System.getProperty(property)?.let(::File)
 }

@@ -77,6 +77,7 @@ fun ViewerApp(state: ViewerState) {
 @Composable
 private fun Controls(state: ViewerState) {
     val hasMap = state.mapFile != null
+    val scope = rememberCoroutineScope()
     val styleExtensions = state.driver?.styleExtensions.orEmpty()
     Surface(tonalElevation = 2.dp) {
         Row(
@@ -119,7 +120,7 @@ private fun Controls(state: ViewerState) {
             }
             GroupDivider()
             Picker("Text", state.textScale, listOf(1.0f, 1.5f, 2.0f), { "×$it" }) { state.changeSettings(textScale = it) }
-            Picker("Tile", state.tileSize, listOf(256, 512), { "$it px" }) { state.changeSettings(tileSize = it) }
+            Picker("Tile", state.tileSize, Session.TILE_SIZES, { "$it px" }) { state.changeSettings(tileSize = it) }
             Picker("Threads", state.threads, listOf(1, 2, 4, 8), { "$it" }) { state.changeSettings(threads = it) }
             GroupDivider()
             TextButton(onClick = state::home, enabled = hasMap) {
@@ -131,7 +132,7 @@ private fun Controls(state: ViewerState) {
             TextButton(onClick = state::rerender, enabled = hasMap) {
                 Text("Re-render")
             }
-            TextButton(onClick = { state.capture() }, enabled = hasMap) {
+            TextButton(onClick = { scope.launch { state.capture() } }, enabled = hasMap) {
                 Text("Capture")
             }
         }
@@ -186,6 +187,7 @@ private fun MapArea(state: ViewerState, modifier: Modifier) {
     val scope = rememberCoroutineScope()
     val fling = remember(state) { Fling(scope, state::drag) }
     val velocity = remember { VelocityTracker() }
+    val wheel = remember { WheelSteps() }
     Canvas(
         modifier = modifier
             .clipToBounds()
@@ -203,11 +205,11 @@ private fun MapArea(state: ViewerState, modifier: Modifier) {
             }
             .onPointerEvent(PointerEventType.Scroll) { event ->
                 val change = event.changes.first()
-                val scroll = change.scrollDelta.y
-                if (scroll != 0f) {
+                // wheel away from the user zooms in
+                val steps = -wheel.add(change.scrollDelta.y)
+                if (steps != 0) {
                     fling.stop()
-                    // wheel away from the user zooms in
-                    state.zoom(steps = if (scroll < 0f) 1 else -1, x = change.position.x, y = change.position.y)
+                    state.zoom(steps = steps, x = change.position.x, y = change.position.y)
                 }
             },
     ) {
@@ -261,6 +263,22 @@ private fun StatusLine(state: ViewerState) {
                 Text(problem, style = text, color = MaterialTheme.colorScheme.error)
             }
         }
+    }
+}
+
+/**
+ * Adds up wheel deltas into whole zoom steps: a mouse wheel notch is one, a touchpad sends
+ * fractions.
+ */
+private class WheelSteps {
+
+    private var pending = 0f
+
+    fun add(delta: Float): Int {
+        pending += delta
+        val steps = pending.toInt()
+        pending -= steps
+        return steps
     }
 }
 

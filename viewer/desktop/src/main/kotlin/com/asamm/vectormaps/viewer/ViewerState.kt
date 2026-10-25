@@ -17,6 +17,8 @@ import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.awt.image.BufferedImage
 import java.io.Closeable
 import java.io.File
@@ -110,7 +112,9 @@ class ViewerState(
         session.mapPath?.let { path -> session.place?.let { path to it } }
 
     val mapExtensions: Set<String>
-        get() = formats.drivers.flatMapTo(HashSet()) { it.extensions }
+        get() {
+            return formats.drivers.flatMapTo(HashSet()) { it.extensions }
+        }
 
     /**
      * The state to restore on the next start; window bounds are the caller's.
@@ -129,8 +133,8 @@ class ViewerState(
     }
 
     /**
-     * Opens `file` with the first driver that reads it; keeps the current style when the format
-     * stays the same.
+     * Opens `file` with the first driver that reads it; keeps the current style when that driver
+     * reads it too.
      */
     fun openMap(file: File) {
         val probed = formats.probe(file)
@@ -150,43 +154,47 @@ class ViewerState(
         if (mapFile?.absolutePath != file.absolutePath) {
             viewport = null
         }
-        if (driver != probed.driver) {
-            styleFile = null
-            style = null
-        }
+        val keptStyle = styleFile?.takeIf { it.extension.lowercase() in probed.driver.styleExtensions }
+        style = null
+        styleFile = keptStyle
         mapFile = file
         driver = probed.driver
         error = null
-        val current = styleFile
-        if (current == null) {
-            buildEngine()
+        if (viewport == null) {
+            startView()
+        }
+        if (keptStyle == null) {
+            notice = "Choose a style"
         } else {
-            openStyle(current)
+            openStyle(keptStyle)
         }
     }
 
     /**
      * Loads `file` with the map's driver and renders with it; returns false when it cannot be
-     * read, and the current style stays.
+     * read or compiled, and the current style and map stay. With no map open, `file` waits for
+     * the next one.
      */
     fun openStyle(file: File): Boolean {
-        val driver = dataset?.driver ?: return false
+        val dataset = dataset
+        if (dataset == null) {
+            styleFile = file
+            return false
+        }
         val loaded = try {
-            driver.loadStyle(file)
+            dataset.driver.loadStyle(file)
         } catch (e: Exception) {
             error = "openStyle(${file.name}), ${e.message}"
             return false
         }
+        val layer = layerId?.takeIf { loaded.menu?.layer(it) != null }
+        // the rules compile only in createRenderer, so nothing is committed before it succeeded
+        val built = createEngine(dataset = dataset, style = loaded, layerId = layer) ?: return false
         styleFile = file
         style = loaded
-        val layer = layerId
-        if (layer != null
-            && loaded.menu?.layer(layer) == null
-        ) {
-            layerId = null
-        }
+        layerId = layer
         error = null
-        buildEngine()
+        install(built)
         return true
     }
 
@@ -263,26 +271,23 @@ class ViewerState(
 
     /**
      * Writes the screen as `<time>.png` with the view in `<time>.properties` to the captures folder;
-     * returns the image file, or null when nothing is shown.
+     * returns the image file, or null when nothing is shown or the write failed. Call from the UI
+     * thread; the image is composed and written on the IO dispatcher.
      */
-    fun capture(): File? {
+    suspend fun capture(): File? {
         val engine = engine ?: return null
         val vp = viewport ?: return null
         val map = mapFile ?: return null
-        val image = BufferedImage(screenWidth, screenHeight, BufferedImage.TYPE_INT_ARGB)
-        val g = image.createGraphics()
-        try {
-            for (tile in vp.tiles(screenWidth, screenHeight)) {
-                val bitmap = engine[tile] ?: continue
-                g.drawImage(
-                    bitmap.toAwtImage(),
-                    floor(vp.screenX(tile.x, screenWidth)).toInt(),
-                    floor(vp.screenY(tile.y, screenHeight)).toInt(),
-                    null,
+        val width = screenWidth
+        val height = screenHeight
+        val shown = vp.tiles(width, height).mapNotNull { tile ->
+            engine[tile]?.let { image ->
+                ShownTile(
+                    image = image,
+                    x = floor(vp.screenX(tile.x, width)).toInt(),
+                    y = floor(vp.screenY(tile.y, height)).toInt(),
                 )
             }
-        } finally {
-            g.dispose()
         }
         val name = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"))
         val png = File(capturesDir, "$name.png")
@@ -293,15 +298,26 @@ class ViewerState(
         view["zoom"] = vp.zoom.toString()
         view["lat"] = String.format(Locale.ROOT, "%.6f", vp.lat)
         view["lon"] = String.format(Locale.ROOT, "%.6f", vp.lon)
-        view["screen"] = "${screenWidth}x$screenHeight"
+        view["screen"] = "${width}x$height"
         view["tileSize"] = vp.tileSize.toString()
         view["textScale"] = textScale.toString()
         try {
-            capturesDir.mkdirs()
-            check(ImageIO.write(image, "PNG", png)) {
-                "no PNG writer"
+            withContext(Dispatchers.IO) {
+                val image = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
+                val g = image.createGraphics()
+                try {
+                    for (tile in shown) {
+                        g.drawImage(tile.image.toAwtImage(), tile.x, tile.y, null)
+                    }
+                } finally {
+                    g.dispose()
+                }
+                capturesDir.mkdirs()
+                check(ImageIO.write(image, "PNG", png)) {
+                    "capture(), no PNG writer"
+                }
+                File(capturesDir, "$name.properties").outputStream().use { view.store(it, null) }
             }
-            File(capturesDir, "$name.properties").outputStream().use { view.store(it, null) }
         } catch (e: Exception) {
             error = "capture(), ${e.javaClass.simpleName}: ${e.message}"
             notice = null
@@ -324,22 +340,24 @@ class ViewerState(
     // reads the style again, so an edit on disk applies and never fails the renderer's freshness check
     private fun rebuild() {
         val style = styleFile
-        if (style == null) {
-            buildEngine()
-            return
-        }
         // the old engine renders the old settings; the controls already show the new ones
-        if (!openStyle(style)) {
+        if (style == null
+            || !openStyle(style)
+        ) {
             dropEngine()
+            setupMs = null
         }
     }
 
-    private fun buildEngine() {
-        dropEngine()
-        notice = null
-        setupMs = null
-        val dataset = dataset ?: return
-        val style = style ?: return
+    /**
+     * A new engine for the current settings, or null with `error` set when the renderer cannot be
+     * built; changes nothing else.
+     */
+    private fun createEngine(
+        dataset: MapDataset,
+        style: MapStyle,
+        layerId: String?,
+    ): TileEngine<ImageBitmap>? {
         try {
             val images = imagesFor(dataset.driver)
             val started = System.nanoTime()
@@ -349,13 +367,24 @@ class ViewerState(
                 config = RenderConfig(tileSizePx = tileSize, textScale = textScale),
             )
             setupMs = (System.nanoTime() - started) / 1_000_000
-            engine = TileEngine(renderer = renderer, images = images, threads = threads) {
+            return TileEngine(
+                renderer = renderer,
+                images = images,
+                threads = threads,
+                capacity = (CACHE_BYTES / (4L * tileSize * tileSize)).toInt().coerceAtLeast(1),
+            ) {
                 frame = frames.incrementAndGet()
             }
         } catch (e: Exception) {
-            error = "buildEngine(), ${e.message}"
-            return
+            error = "createEngine(), ${e.message}"
+            return null
         }
+    }
+
+    private fun install(built: TileEngine<ImageBitmap>) {
+        dropEngine()
+        engine = built
+        notice = null
         if (viewport == null) {
             startView()
         }
@@ -402,5 +431,17 @@ class ViewerState(
             is MapsforgeDriver -> AwtTileImages
             else -> throw IllegalArgumentException("imagesFor(), no images for driver ${driver.id}")
         }
+    }
+
+    private class ShownTile(
+        val image: ImageBitmap,
+        val x: Int,
+        val y: Int,
+    )
+
+    private companion object {
+
+        // native pixels the kept tiles may hold: 256 tiles at 512 px
+        const val CACHE_BYTES = 256L shl 20
     }
 }

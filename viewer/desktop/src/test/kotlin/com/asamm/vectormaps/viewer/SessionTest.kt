@@ -11,7 +11,6 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 class SessionTest {
@@ -41,7 +40,7 @@ class SessionTest {
         session.write(file)
 
         assertEquals(session, Session.read(file))
-        assertFalse(File(temp, "viewer.properties.tmp").exists())
+        assertEquals(listOf("viewer.properties"), temp.list()?.toList())
     }
 
     @Test
@@ -60,16 +59,19 @@ class SessionTest {
         assertFailsWith<IOException> {
             Session(layerId = "car").write(file)
         }
-        assertFalse(File(temp, "viewer.properties.tmp").exists())
+        assertEquals(listOf("viewer.properties"), temp.list()?.toList())
     }
 
     @Test
     fun badValuesKeepTheirDefaults() {
         file.writeText("tileSize=0\ntextScale=-1\nplace=50.0,14.0\nwindow=1,2,0,4\nthreads=x\n")
+        val unusable = File(temp, "unusable.properties")
+        unusable.writeText("tileSize=300\ntextScale=NaN\nplace=NaN,NaN,12\nthreads=0\n")
 
         val session = Session.read(file)
 
         assertEquals(Session(), session)
         assertNull(session.place)
+        assertEquals(Session(), Session.read(unusable))
     }
 }

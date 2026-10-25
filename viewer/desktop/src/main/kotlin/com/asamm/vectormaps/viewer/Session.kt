@@ -56,23 +56,32 @@ data class Session(
         window?.let {
             props["window"] = "${it.x},${it.y},${it.width},${it.height}"
         }
-        file.parentFile?.mkdirs()
-        val temp = File(file.path + ".tmp")
+        val folder = file.absoluteFile.parentFile
+        folder.mkdirs()
+        // a name of its own, so two viewers closing at once never write into one temporary file
+        val temp = Files.createTempFile(folder.toPath(), "viewer", ".properties.tmp")
         try {
-            temp.outputStream().use { props.store(it, "kmp-vector-maps viewer") }
-            Files.move(temp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            Files.newOutputStream(temp).use { props.store(it, "kmp-vector-maps viewer") }
+            Files.move(temp, file.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
         } finally {
-            temp.delete()
+            Files.deleteIfExists(temp)
         }
     }
 
     companion object {
 
         /**
+         * Tile sizes the viewer offers.
+         */
+        val TILE_SIZES = listOf(256, 512)
+
+        /**
          * `~/.kmp-vector-maps/viewer.properties`, shared by every checkout.
          */
         val userFile: File
-            get() = File(System.getProperty("user.home"), ".kmp-vector-maps/viewer.properties")
+            get() {
+                return File(System.getProperty("user.home"), ".kmp-vector-maps/viewer.properties")
+            }
 
         /**
          * Reads `file`; any missing or unreadable value keeps its default, an unreadable file gives
@@ -96,6 +105,8 @@ data class Session(
                 if (lat == null
                     || lon == null
                     || zoom == null
+                    || !lat.isFinite()
+                    || !lon.isFinite()
                 ) {
                     null
                 } else {
@@ -109,9 +120,11 @@ data class Session(
                 mapPath = props.getProperty("map"),
                 stylePath = props.getProperty("style"),
                 layerId = props.getProperty("layer"),
-                textScale = props.getProperty("textScale")?.toFloatOrNull()?.takeIf { it > 0f } ?: defaults.textScale,
-                tileSize = props.getProperty("tileSize")?.toIntOrNull()?.takeIf { it > 0 } ?: defaults.tileSize,
-                threads = props.getProperty("threads")?.toIntOrNull() ?: defaults.threads,
+                textScale = props.getProperty("textScale")?.toFloatOrNull()
+                    ?.takeIf { it.isFinite() && it > 0f }
+                    ?: defaults.textScale,
+                tileSize = props.getProperty("tileSize")?.toIntOrNull()?.takeIf { it in TILE_SIZES } ?: defaults.tileSize,
+                threads = props.getProperty("threads")?.toIntOrNull()?.takeIf { it > 0 } ?: defaults.threads,
                 place = place,
                 window = window,
             )

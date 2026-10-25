@@ -6,6 +6,7 @@ package com.asamm.vectormaps.viewer
 
 import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
+import kotlinx.coroutines.runBlocking
 import org.mapsforge.map.awt.graphics.AwtGraphicFactory
 import java.io.File
 import java.util.Properties
@@ -14,8 +15,10 @@ import kotlin.io.path.createTempDirectory
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 
 class ViewerStateTest {
 
@@ -48,7 +51,7 @@ class ViewerStateTest {
             assertNull(state.error)
             assertNull(engine.error)
 
-            val png = assertNotNull(state.capture())
+            val png = assertNotNull(runBlocking { state.capture() })
             assertEquals(600, ImageIO.read(png).width)
             val view = Properties()
             File(temp, png.nameWithoutExtension + ".properties").inputStream().use { view.load(it) }
@@ -66,7 +69,7 @@ class ViewerStateTest {
             state.openStyle(theme)
             state.resize(width = 600, height = 400)
 
-            assertNull(state.capture())
+            assertNull(runBlocking { state.capture() })
             assertNotNull(state.error)
             assertNull(state.notice)
         }
@@ -132,6 +135,53 @@ class ViewerStateTest {
             assertNotNull(state.error)
             assertNull(state.engine)
             assertEquals(512, state.viewport?.tileSize)
+        }
+    }
+
+    @Test
+    fun styleThatDoesNotCompileKeepsTheWorkingOne() {
+        val styleDir = File(temp, "lomaps")
+        theme.parentFile.copyRecursively(styleDir)
+        val broken = File(styleDir, "broken.xml")
+        // the menu still reads; the unknown element fails only when the rules compile
+        broken.writeText(theme.readText().replace("</rendertheme>", "<bogus/></rendertheme>"))
+        ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp).use { state ->
+            state.openMap(map)
+            state.openStyle(theme)
+            val working = assertNotNull(state.engine)
+
+            assertFalse(state.openStyle(broken))
+
+            assertNotNull(state.error)
+            assertEquals(theme, state.styleFile)
+            assertSame(working, state.engine)
+        }
+    }
+
+    @Test
+    fun styleOpenedBeforeAMapWaitsForIt() {
+        ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp).use { state ->
+            state.openMap(File(temp, "missing.map"))
+            assertFalse(state.openStyle(theme))
+
+            state.openMap(map)
+
+            assertEquals(theme, state.styleFile)
+            assertNotNull(state.engine)
+            assertNull(state.error)
+        }
+    }
+
+    @Test
+    fun mapWithoutStyleShowsWhereItIs() {
+        ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp).use { state ->
+            state.resize(width = 600, height = 400)
+
+            state.openMap(map)
+
+            assertNotNull(state.viewport)
+            assertNull(state.engine)
+            assertNotNull(state.notice)
         }
     }
 

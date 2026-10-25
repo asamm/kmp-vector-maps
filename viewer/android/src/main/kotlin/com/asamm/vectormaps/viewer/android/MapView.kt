@@ -9,6 +9,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.os.Build
+import android.text.StaticLayout
 import android.text.TextPaint
 import android.text.TextUtils
 import android.view.GestureDetector
@@ -36,6 +37,8 @@ import java.io.File
 /**
  * The map on a plain view: drag pans and glides on after release, pinch and double tap zoom by
  * whole levels, and a panel at the top shows the zoom and render timings.
+ *
+ * @param startView the view to show first; null fits the map's bounds
  */
 @SuppressLint("ViewConstructor")
 class MapView(
@@ -44,6 +47,7 @@ class MapView(
     mapFile: File,
     styleFile: File,
     config: RenderConfig,
+    startView: Viewport?,
 ) : View(context) {
 
     private val dataset: MapDataset
@@ -52,7 +56,11 @@ class MapView(
 
     private val setupMs: Long
 
-    private var viewport: Viewport? = null
+    /**
+     * What the screen shows; null until the first draw fits the map.
+     */
+    var viewport: Viewport? = startView
+        private set
 
     private val density = resources.displayMetrics.density
 
@@ -257,21 +265,34 @@ class MapView(
     }
 
     private fun drawPanel(canvas: Canvas, vp: Viewport) {
-        val lines = listOfNotNull(
+        val lines = listOf(
             "z${vp.zoom}, ${vp.tileSize} px tiles, setup $setupMs ms",
             engine.stats.summary(),
-            engine.error,
         )
         val lineHeight = textPaint.textSize * 1.4f
         val left = insetLeft + 12f * density
         val available = width - insetRight - 12f * density - left
-        val bottom = insetTop + lineHeight * (lines.size + 0.5f)
+        // an error gets a few lines, so its cause and the pointer to the log stay readable
+        val error = engine.error?.let { text ->
+            StaticLayout.Builder.obtain(text, 0, text.length, textPaint, available.toInt().coerceAtLeast(1))
+                .setMaxLines(ERROR_LINES)
+                .setEllipsize(TextUtils.TruncateAt.END)
+                .build()
+        }
+        val errorTop = insetTop + lineHeight * (lines.size + 0.3f)
+        val bottom = errorTop + (error?.height ?: 0) + lineHeight * 0.2f
         canvas.drawRect(0f, 0f, width.toFloat(), bottom, panelPaint)
         var baseline = insetTop + lineHeight
         for (line in lines) {
             val fitted = TextUtils.ellipsize(line, textPaint, available, TextUtils.TruncateAt.END)
             canvas.drawText(fitted, 0, fitted.length, left, baseline, textPaint)
             baseline += lineHeight
+        }
+        if (error != null) {
+            canvas.save()
+            canvas.translate(left, errorTop)
+            error.draw(canvas)
+            canvas.restore()
         }
     }
 
@@ -289,6 +310,8 @@ class MapView(
 
         // 512 px RGB_565 tiles, about 50 MiB
         const val KEPT_TILES = 100
+
+        const val ERROR_LINES = 3
     }
 
     /**

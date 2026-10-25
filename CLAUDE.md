@@ -37,7 +37,8 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 
 - New Mapsforge code goes beside `legacy/`, never into it.
 - `dev/` holds development helpers (benchmarks, test data); nothing in it ships.
-- Large local maps stay outside the repo, referenced from `local.properties` (`viewer.mapFile`).
+- Large local maps stay outside the repo, referenced from `local.properties` (`viewer.mapFile`,
+  read by the desktop viewer when no saved session map exists; see `dev/fixtures/README.md`).
 
 ## Hard rules
 

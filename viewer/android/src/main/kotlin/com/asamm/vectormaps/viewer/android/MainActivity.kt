@@ -14,14 +14,15 @@ import android.widget.TextView
 import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
+import com.asamm.vectormaps.viewer.Viewport
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 import org.mapsforge.map.model.DisplayModel
 import java.io.File
 
 /**
  * Shows the bundled Monaco map with the LoMaps theme. Other files, readable by the app:
- * `adb shell am start -n com.asamm.vectormaps.viewer.android/.MainActivity --es map <path>
- * --es theme <path>`.
+ * `adb shell am start -S -n com.asamm.vectormaps.viewer.android/.MainActivity --es map <path>
+ * --es theme <path>`; `-S` stops a running viewer, which would otherwise ignore the extras.
  */
 class MainActivity : Activity() {
 
@@ -35,10 +36,22 @@ class MainActivity : Activity() {
             // through the decor view, which `window.insetsController` does not create yet
             window.decorView.windowInsetsController?.setSystemBarsAppearance(light, light)
         }
-        AndroidGraphicFactory.createInstance(application)
-        // createInstance sets Mapsforge's global scale; the driver takes it per renderer
-        val density = DisplayModel.getDeviceScaleFactor()
-        DisplayModel.setDeviceScaleFactor(1.0f)
+        // createInstance sets Mapsforge's global scale, which the driver wants at 1 and takes per
+        // renderer; once per process, as an old engine may still be rendering
+        if (!factoryReady) {
+            AndroidGraphicFactory.createInstance(application)
+            DisplayModel.setDeviceScaleFactor(1.0f)
+            factoryReady = true
+        }
+        val density = resources.displayMetrics.density
+        val startView = savedInstanceState?.takeIf { it.containsKey(STATE_ZOOM) }?.let {
+            Viewport(
+                zoom = it.getInt(STATE_ZOOM),
+                x = it.getDouble(STATE_X),
+                y = it.getDouble(STATE_Y),
+                tileSize = TILE_SIZE,
+            )
+        }
         val view = try {
             val fixtures = unpackFixtures()
             val map = intent.getStringExtra("map")?.let(::File) ?: File(fixtures, "maps/monaco.osm.map")
@@ -48,8 +61,8 @@ class MainActivity : Activity() {
                 formats = MapFormats(listOf(MapsforgeDriver(AndroidGraphicFactory.INSTANCE))),
                 mapFile = map,
                 styleFile = theme,
-                // 512 px tiles as everywhere in this repo (D20)
-                config = RenderConfig(tileSizePx = 512, deviceScale = density),
+                config = RenderConfig(tileSizePx = TILE_SIZE, deviceScale = density),
+                startView = startView,
             )
         } catch (e: Exception) {
             showError(e)
@@ -57,6 +70,15 @@ class MainActivity : Activity() {
         }
         mapView = view
         setContentView(view)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        mapView?.viewport?.let {
+            outState.putInt(STATE_ZOOM, it.zoom)
+            outState.putDouble(STATE_X, it.x)
+            outState.putDouble(STATE_Y, it.y)
+        }
     }
 
     override fun onDestroy() {
@@ -115,5 +137,20 @@ class MainActivity : Activity() {
         }
         stamp.writeText(installed)
         return root
+    }
+
+    private companion object {
+
+        // 512 px tiles as everywhere in this repo (D20)
+        const val TILE_SIZE = 512
+
+        const val STATE_ZOOM = "zoom"
+
+        const val STATE_X = "x"
+
+        const val STATE_Y = "y"
+
+        // Mapsforge's graphic factory is process-wide
+        var factoryReady = false
     }
 }

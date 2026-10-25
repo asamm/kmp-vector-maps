@@ -28,13 +28,17 @@ data class Viewport(
 ) {
 
     val lat: Double
-        get() = Math.toDegrees(atan(sinh(PI * (1.0 - 2.0 * y))))
+        get() {
+            return Math.toDegrees(atan(sinh(PI * (1.0 - 2.0 * y))))
+        }
 
     val lon: Double
         get() = x * 360.0 - 180.0
 
     private val worldPx: Double
-        get() = worldPx(zoom)
+        get() {
+            return worldPx(zoom)
+        }
 
     /**
      * Moves the map content by `dx`, `dy` screen pixels, as a drag does; the centre stays on the
