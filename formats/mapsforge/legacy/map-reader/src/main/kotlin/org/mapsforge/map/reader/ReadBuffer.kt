@@ -69,7 +69,8 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
     }
 
     /**
-     * Reads `length` bytes from `offset` in the file into the buffer, as [readFromFile].
+     * Reads `length` bytes from `offset` in the file into the buffer, as [readFromFile] but
+     * positional: the channel position stays, so concurrent readers need no lock.
      */
     @Throws(IOException::class)
     fun readFromFile(offset: Long, length: Int): Boolean {
@@ -79,10 +80,8 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
         bufferPosition = 0
         val wrapper = checkNotNull(bufferWrapper)
         wrapper.clear()
-        synchronized(inputChannel) {
-            inputChannel.position(offset)
-            return inputChannel.read(wrapper) == length
-        }
+        wrapper.limit(length)
+        return inputChannel.readFully(wrapper, offset) == length
     }
 
     fun readInt(): Int {
@@ -206,8 +205,9 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
      */
     fun readUTF8EncodedString(stringLength: Int): String? {
         val data = data()
+        // a subtraction, so a length near Int.MAX_VALUE cannot wrap past the check
         if (stringLength > 0
-            && bufferPosition + stringLength <= data.size
+            && stringLength <= data.size - bufferPosition
         ) {
             bufferPosition += stringLength
             return String(data, bufferPosition - stringLength, stringLength, Charsets.UTF_8)
@@ -256,4 +256,21 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
 
         val LOGGER: Logger = Logger.getLogger(ReadBuffer::class.java.name)
     }
+}
+
+/**
+ * Reads from `position` until `buffer` is full or the file ends, without moving the channel's own
+ * position; returns the bytes read.
+ */
+internal fun FileChannel.readFully(buffer: ByteBuffer, position: Long): Int {
+    var total = 0
+    while (buffer.hasRemaining()) {
+        val read = read(buffer, position + total)
+        // the contract allows 0; a short total fails the caller instead of spinning here
+        if (read <= 0) {
+            break
+        }
+        total += read
+    }
+    return total
 }

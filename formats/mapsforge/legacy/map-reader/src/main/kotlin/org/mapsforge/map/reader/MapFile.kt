@@ -46,9 +46,8 @@ import java.util.logging.Level
 import java.util.logging.Logger
 
 /**
- * Reads binary map files. Reads may run concurrently except for the index cache race (fixed after
- * M5.1); keep them few, each holds a block in memory. Open, as Locus overrides
- * `wayAsLabelTagFilter` in a subclass.
+ * Reads binary map files. Reads may run concurrently; keep them few, each holds a block in memory.
+ * Open, as Locus overrides `wayAsLabelTagFilter` in a subclass.
  *
  * See the [specification](https://github.com/mapsforge/mapsforge/blob/master/docs/Specification-Binary-Map-File.md).
  */
@@ -285,7 +284,9 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
         if (mapFileHeader.mapFileInfo.debugFile) {
             // get and check the block signature
             val signatureBlock = readBuffer.readUTF8EncodedString(SIGNATURE_LENGTH_BLOCK.toInt())
-            if (!signatureBlock!!.startsWith("###TileStart")) {
+            if (signatureBlock == null
+                || !signatureBlock.startsWith("###TileStart")
+            ) {
                 LOGGER.warning("invalid block signature: $signatureBlock")
                 return false
             }
@@ -354,7 +355,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
                     return null
                 }
 
-                // seek to the current block in the map file and read it into the buffer
+                // read the current block into the buffer
                 val readBuffer = ReadBuffer(inputChannel)
                 if (!readBuffer.readFromFile(subFileParameter.startAddress + currentBlockPointer, currentBlockSize)) {
                     // skip the current block
@@ -412,7 +413,9 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
             if (mapFileHeader.mapFileInfo.debugFile) {
                 // get and check the POI signature
                 val signaturePoi = readBuffer.readUTF8EncodedString(SIGNATURE_LENGTH_POI.toInt())
-                if (!signaturePoi!!.startsWith("***POIStart")) {
+                if (signaturePoi == null
+                    || !signaturePoi.startsWith("***POIStart")
+                ) {
                     LOGGER.warning("invalid POI signature: $signaturePoi")
                     return null
                 }
@@ -537,7 +540,9 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
             if (mapFileHeader.mapFileInfo.debugFile) {
                 // get and check the way signature
                 val signatureWay = readBuffer.readUTF8EncodedString(SIGNATURE_LENGTH_WAY.toInt())
-                if (!signatureWay!!.startsWith("---WayStart")) {
+                if (signatureWay == null
+                    || !signatureWay.startsWith("---WayStart")
+                ) {
                     LOGGER.warning("invalid way signature: $signatureWay")
                     return null
                 }

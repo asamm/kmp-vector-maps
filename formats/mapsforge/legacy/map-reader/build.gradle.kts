@@ -29,4 +29,13 @@ tasks.withType<JavaCompile>().configureEach {
 
 dependencies {
     api(project(":formats:mapsforge:legacy:map"))
+    testImplementation(kotlin("test-junit5"))
+}
+
+val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures")
+
+tasks.test {
+    useJUnitPlatform()
+    inputs.dir(fixturesDir)
+    systemProperty("fixturesDir", fixturesDir.asFile.absolutePath)
 }

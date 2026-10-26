@@ -62,13 +62,15 @@ API differences of the reader (M5.1):
   `readTags`, `skipBytes`) are `internal` and name-mangled. Constructors are never mangled.
 - K7 Dropped as dead: `MapFile.TEST_MAP_FILE` (test-only, unused), the water-flag computation, the
   never-thrown `IllegalArgumentException` in `readMapData`.
-- K8 Added: the facade class `MapFileKt` holds `clampLongitude`.
+- K8 Added: the facade classes `MapFileKt` (`clampLongitude`) and `ReadBufferKt` (`readFully`).
 
 ## Code deviations
 
 | ID | Where | What | Why |
 |---|---|---|---|
-| — | — | none yet | — |
+| C1 | reader `IndexCache` | the LRU map is read and written under its lock | upstream races on it from concurrent reads (M5.1) |
+| C2 | reader `IndexCache`, `ReadBuffer` | positional reads until full, no seek under a lock | concurrent block reads no longer queue in the reader; on Windows the JDK still serialises them (M5.1) |
+| C3 | reader `ReadBuffer`, `MapFile`, `IndexCache` | overflow-safe string length and index block size; a missing debug signature handled like a wrong one | an overflowing string or index size no longer throws; other malformed data still fails the tile (M5.1) |
 
 ## Build deviations
 
