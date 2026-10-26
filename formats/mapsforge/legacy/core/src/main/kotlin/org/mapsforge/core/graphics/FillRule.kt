@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,18 +13,8 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
+package org.mapsforge.core.graphics
 
-package org.mapsforge.core.graphics;
-
-/**
- * At least on Android, loading graphic resources can fail because the input stream is corrupted. This can result in
- * undocumented checked exceptions (should not, but it does). In the Android code base these exceptions are caught and
- * transformed into this CorruptedInputStream exception.
- */
-public class CorruptedInputStreamException extends RuntimeException {
-    private static final long serialVersionUID = 1L;
-
-    public CorruptedInputStreamException(String detailMessage, Throwable throwable) {
-        super(detailMessage, throwable);
-    }
+enum class FillRule {
+    EVEN_ODD, NON_ZERO
 }

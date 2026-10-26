@@ -1,7 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
- * Copyright 2016 devemux86
- * Copyright 2024 Sublimis
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -14,38 +13,26 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.core.graphics;
+package org.mapsforge.core.graphics
 
-import java.io.IOException;
-import java.io.OutputStream;
-
-public interface Bitmap {
-    /**
-     * Can be used to prevent concurrent modification.
-     * On Android this is required.
-     * AWT has a global lock so this isn't necessary (but won't hurt).
-     */
-    Object getMutex();
-
-    void compress(OutputStream outputStream) throws IOException;
-
-    void decrementRefCount();
+interface TileBitmap : Bitmap {
 
     /**
-     * @return the height of this bitmap in pixels.
+     * True once the expiration time has passed, never for an expiration of 0; the tile may still
+     * show until a fresh copy is available.
      */
-    int getHeight();
+    val isExpired: Boolean
 
     /**
-     * @return the width of this bitmap in pixels.
+     * When the tile's source data was last retrieved, in milliseconds since the epoch, 0 when
+     * unknown: the map file date for a rendered tile, the file time for a cached one, else the
+     * creation time, which implementations store until it is set.
      */
-    int getWidth();
+    var timestamp: Long
 
-    void incrementRefCount();
-
-    boolean isDestroyed();
-
-    void scaleTo(int width, int height);
-
-    void setBackgroundColor(int color);
+    /**
+     * When the tile expires, in milliseconds since the epoch, 0 when unknown: the server's
+     * expiration for a download, else now plus a TTL.
+     */
+    fun setExpiration(expiration: Long)
 }

@@ -1,5 +1,6 @@
 /*
- * Copyright 2014 Ludwig M Brinckmann
+ * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,23 +13,19 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.core.graphics;
+package org.mapsforge.core.graphics
 
 /**
- * Specifies the shape to be used for the endpoints of a line.
+ * A graphic resource failed to load from a corrupted input stream; Android turns the undocumented
+ * checked exceptions this can raise into this one.
  */
-public enum Join {
-    BEVEL, MITER, ROUND;
+open class CorruptedInputStreamException(
+    detailMessage: String?,
+    throwable: Throwable?,
+) : RuntimeException(detailMessage, throwable) {
 
-    public static Join fromString(String value) {
-        if ("bevel".equals(value)) {
-            return BEVEL;
-        } else if (("round").equals(value)) {
-            return ROUND;
-        } else if ("miter".equals(value)) {
-            return MITER;
-        }
-        throw new IllegalArgumentException("Invalid value for Join: " + value);
+    private companion object {
+
+        private const val serialVersionUID = 1L
     }
-
 }

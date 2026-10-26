@@ -1,5 +1,7 @@
 /*
- * Copyright 2024 Sublimis
+ * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2015 Andreas Schildbach
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,14 +14,25 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.core.graphics;
+package org.mapsforge.core.graphics
 
-public abstract class BaseBitmap implements Bitmap {
+interface Path {
 
-   protected final Object mutex = new Object();
+    val isEmpty: Boolean
 
-   @Override
-   public Object getMutex() {
-      return this.mutex;
-   }
+    fun clear()
+
+    fun close()
+
+    fun lineTo(x: Float, y: Float)
+
+    fun moveTo(x: Float, y: Float)
+
+    /**
+     * A quadratic bezier from the last point towards control point (x1, y1), ending at (x2, y2);
+     * without a [moveTo] in this contour it starts at (0, 0).
+     */
+    fun quadTo(x1: Float, y1: Float, x2: Float, y2: Float)
+
+    fun setFillRule(fillRule: FillRule)
 }

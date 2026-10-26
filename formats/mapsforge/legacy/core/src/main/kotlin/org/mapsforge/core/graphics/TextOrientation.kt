@@ -1,5 +1,6 @@
 /*
  * Copyright mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,40 +13,43 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.core.graphics;
+package org.mapsforge.core.graphics
 
-public enum TextOrientation {
+enum class TextOrientation {
 
     /**
-     * Automatic rotation of texts along the line with requirement to be always readable.
+     * Rotated along the line, always readable.
      */
     AUTO,
 
     /**
-     * Same as "AUTO" just everything is upside-down.
+     * As [AUTO], upside down.
      */
     AUTO_DOWN,
 
     /**
-     * Rotate the texts up when the path segment (where the text is to be placed) is facing east/right.
+     * Rotated up where the path segment faces east.
      */
     RIGHT,
 
     /**
-     * Rotate text up when path segment the text goes to the west/left.
+     * Rotated up where the path segment faces west.
      */
     LEFT;
 
-    public static TextOrientation fromString(String value) {
-        switch (value) {
-            case "auto_down":
-                return AUTO_DOWN;
-            case "right":
-                return RIGHT;
-            case "left":
-                return LEFT;
-            default: // "auto"
-                return AUTO;
+    companion object {
+
+        /**
+         * The orientation for `value`, [AUTO] for "auto" and any unknown value.
+         */
+        @JvmStatic
+        fun fromString(value: String): TextOrientation {
+            return when (value) {
+                "auto_down" -> AUTO_DOWN
+                "right" -> RIGHT
+                "left" -> LEFT
+                else -> AUTO
+            }
         }
     }
 }

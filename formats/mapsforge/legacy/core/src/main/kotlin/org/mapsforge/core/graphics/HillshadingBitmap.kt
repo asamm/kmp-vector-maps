@@ -1,5 +1,7 @@
 /*
- * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2017 usrusr
+ * Copyright 2024 Sublimis
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,8 +14,28 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.core.graphics;
+package org.mapsforge.core.graphics
 
-public enum Color {
-    BLACK, BLUE, GREEN, RED, TRANSPARENT, WHITE;
+import org.mapsforge.core.model.BoundingBox
+
+interface HillshadingBitmap : Bitmap {
+
+    enum class Border(@JvmField val vertical: Boolean) {
+        WEST(true), NORTH(false), EAST(true), SOUTH(false)
+    }
+
+    /**
+     * The geographic bounds of the area inside the padding.
+     */
+    val areaRect: BoundingBox?
+
+    /**
+     * Optional padding, outside [areaRect].
+     */
+    val padding: Int
+
+    /**
+     * The size of this bitmap in bytes.
+     */
+    val sizeBytes: Long
 }

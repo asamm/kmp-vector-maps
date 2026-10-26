@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,22 +13,32 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.core.graphics;
+package org.mapsforge.core.graphics
 
-public enum FontStyle {
-    BOLD, BOLD_ITALIC, ITALIC, NORMAL;
+enum class Curve {
 
-    public static FontStyle fromString(String value) {
-        if ("bold".equals(value)) {
-            return BOLD;
-        } else if (("bold_italic").equals(value)) {
-            return BOLD_ITALIC;
-        } else if ("italic".equals(value)) {
-            return ITALIC;
-        } else if ("normal".equals(value)) {
-            return NORMAL;
+    /**
+     * A straight line.
+     */
+    NO,
+
+    /**
+     * A cubic spline.
+     */
+    CUBIC;
+
+    companion object {
+
+        /**
+         * [CUBIC] for "cubic", else [NO].
+         */
+        @JvmStatic
+        fun fromString(value: String?): Curve {
+            return if ("cubic" == value) {
+                CUBIC
+            } else {
+                NO
+            }
         }
-        throw new IllegalArgumentException("Invalid value for FontStyle: " + value);
     }
-
 }
