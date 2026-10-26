@@ -5,8 +5,8 @@ render pipeline and viewer shared by every format.
 
 ## Status
 
-**Pre-release.** Mapsforge 0.30.0 render subset vendored, the reader converted to Kotlin (M5.1,
-pixel-identical); golden corpus green, desktop and Android viewers running. Not published yet.
+**Pre-release.** Mapsforge 0.30.0 render subset vendored, converting to Kotlin one area at a time
+(M5, pixel-identical); golden corpus green, desktop and Android viewers running. Not published yet.
 Milestones: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 | Format | State |
@@ -22,7 +22,8 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 - **`:core`** — format-neutral driver interface, registry, styles, render configuration
   (Apache-2.0). `./gradlew :core:test`.
 - **`:formats:mapsforge:legacy:core`**, **`:map`**, **`:map-reader`** — vendored Mapsforge,
-  platform-independent; `:map-reader` converted to Kotlin (M5.1), the rest Java.
+  platform-independent; `:map-reader` and core model and util converted to Kotlin (M5.1, M5.2a),
+  the rest Java.
 - **`:formats:mapsforge:legacy:map-android`**, **`:map-awt`** — vendored graphics backends.
   `legacy/` goes once the Kotlin conversion replaces it.
 - **`:formats:mapsforge:driver`** — the `:core` driver over the vendored Mapsforge; the host

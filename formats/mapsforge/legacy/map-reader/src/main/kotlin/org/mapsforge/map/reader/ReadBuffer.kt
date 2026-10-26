@@ -150,14 +150,16 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
         val tags = ArrayList<Tag>()
         for (tagId in tagIds) {
             var tag = tagsArray[tagId]
+            // as upstream: header tags always have a key and a value
+            val tagValue = tag.value!!
             // Decode variable values of tags
-            if (tag.value.length == 2
-                && tag.value[0] == '%'
+            if (tagValue.length == 2
+                && tagValue[0] == '%'
             ) {
-                var value: String? = tag.value
-                when (tag.value[1]) {
+                var value: String? = tagValue
+                when (tagValue[1]) {
                     'b' -> value = readByte().toString()
-                    'i' -> value = if (tag.key.contains(":colour")) {
+                    'i' -> value = if (tag.key!!.contains(":colour")) {
                         "#" + Integer.toHexString(readInt())
                     } else {
                         readInt().toString()
