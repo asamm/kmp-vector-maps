@@ -21,14 +21,19 @@ import org.mapsforge.map.rendertheme.ThemeCallback
 
 /**
  * Display settings: tile size from the device and user scale factors, background color, label
- * width. The scale statics are process-wide.
+ * width, line, symbol and text scales. A new model takes its scales from the statics; changing a
+ * static later leaves existing models alone.
  */
 open class DisplayModel : Observable() {
 
     private var backgroundColorValue = DEFAULT_BACKGROUND_COLOR
+    private var deviceScaleValue = getDeviceScaleFactor()
     private var fixedTileSize = 0
+    private var lineScaleValue = lineScale
     private var maxTextWidthValue = DEFAULT_MAX_TEXT_WIDTH
     private var maxTextWidthFactor = DEFAULT_MAX_TEXT_WIDTH_FACTOR
+    private var symbolScaleValue = symbolScale
+    private var textScaleValue = textScale
     private var themeCallbackValue: ThemeCallback? = null
     private var tileSizeValue = DEFAULT_TILE_SIZE
     private var tileSizeMultipleValue = 64
@@ -52,6 +57,10 @@ open class DisplayModel : Observable() {
             && tileSizeValue == other.tileSizeValue
             && tileSizeMultipleValue == other.tileSizeMultipleValue
             && java.lang.Float.floatToIntBits(userScaleFactorValue) == java.lang.Float.floatToIntBits(other.userScaleFactorValue)
+            && java.lang.Float.floatToIntBits(deviceScaleValue) == java.lang.Float.floatToIntBits(other.deviceScaleValue)
+            && java.lang.Float.floatToIntBits(lineScaleValue) == java.lang.Float.floatToIntBits(other.lineScaleValue)
+            && java.lang.Float.floatToIntBits(symbolScaleValue) == java.lang.Float.floatToIntBits(other.symbolScaleValue)
+            && java.lang.Float.floatToIntBits(textScaleValue) == java.lang.Float.floatToIntBits(other.textScaleValue)
     }
 
     /**
@@ -68,6 +77,34 @@ open class DisplayModel : Observable() {
         }
 
     /**
+     * The device scale factor, e.g. the screen density, which also scales the tile size; set it
+     * before the theme is parsed.
+     */
+    var deviceScale: Float
+        @Synchronized
+        get() {
+            return deviceScaleValue
+        }
+        @Synchronized
+        set(scaleFactor) {
+            deviceScaleValue = scaleFactor
+            setTileSize()
+        }
+
+    /**
+     * Multiplies the theme's stroke widths; set it before the theme is parsed.
+     */
+    var lineScaleFactor: Float
+        @Synchronized
+        get() {
+            return lineScaleValue
+        }
+        @Synchronized
+        set(scale) {
+            lineScaleValue = scale
+        }
+
+    /**
      * The maximum width of a text label in pixels.
      */
     val maxTextWidth: Int
@@ -81,7 +118,34 @@ open class DisplayModel : Observable() {
     val scaleFactor: Float
         @Synchronized
         get() {
-            return deviceScaleFactor * userScaleFactorValue
+            return deviceScaleValue * userScaleFactorValue
+        }
+
+    /**
+     * Multiplies the size of theme symbols, as `Parameters.SYMBOL_SCALING` selects; set it before
+     * the theme is parsed.
+     */
+    var symbolScaleFactor: Float
+        @Synchronized
+        get() {
+            return symbolScaleValue
+        }
+        @Synchronized
+        set(scale) {
+            symbolScaleValue = scale
+        }
+
+    /**
+     * Multiplies the theme's text sizes; set it before the theme is parsed.
+     */
+    var textScaleFactor: Float
+        @Synchronized
+        get() {
+            return textScaleValue
+        }
+        @Synchronized
+        set(scale) {
+            textScaleValue = scale
         }
 
     var themeCallback: ThemeCallback?
@@ -141,6 +205,10 @@ open class DisplayModel : Observable() {
         result = prime * result + tileSizeValue
         result = prime * result + tileSizeMultipleValue
         result = prime * result + java.lang.Float.floatToIntBits(userScaleFactorValue)
+        result = prime * result + java.lang.Float.floatToIntBits(deviceScaleValue)
+        result = prime * result + java.lang.Float.floatToIntBits(lineScaleValue)
+        result = prime * result + java.lang.Float.floatToIntBits(symbolScaleValue)
+        result = prime * result + java.lang.Float.floatToIntBits(textScaleValue)
         return result
     }
 
@@ -166,7 +234,7 @@ open class DisplayModel : Observable() {
 
     private fun setTileSize() {
         if (fixedTileSize == 0) {
-            val temp = DEFAULT_TILE_SIZE * deviceScaleFactor * userScaleFactorValue
+            val temp = DEFAULT_TILE_SIZE * deviceScaleValue * userScaleFactorValue
             // clamps to the nearest multiple of the tileSizeMultiple, and never to 0
             tileSizeValue = Math.max(
                 tileSizeMultipleValue,
@@ -189,12 +257,21 @@ open class DisplayModel : Observable() {
 
         private val DEFAULT_MAX_TEXT_WIDTH = (DEFAULT_TILE_SIZE * DEFAULT_MAX_TEXT_WIDTH_FACTOR).toInt()
 
+        /**
+         * The line scale new models start with.
+         */
         @JvmField
         var lineScale = 1f
 
+        /**
+         * The symbol scale new models start with.
+         */
         @JvmField
         var symbolScale = 1f
 
+        /**
+         * The text scale new models start with.
+         */
         @JvmField
         var textScale = 1f
 
@@ -212,7 +289,7 @@ open class DisplayModel : Observable() {
         }
 
         /**
-         * The device scale factor, e.g. the screen density; process-wide.
+         * The device scale factor new models start with.
          */
         @JvmStatic
         @Synchronized

@@ -68,8 +68,8 @@ class MapsforgeDataset internal constructor(
 
     /**
      * Opens the readers and compiles the theme; the device scale goes into the renderer's own
-     * `DisplayModel`, so the JVM-wide Mapsforge device scale must stay 1. Throws when the theme file
-     * changed since [MapsforgeDriver.loadStyle]: load the style again.
+     * `DisplayModel`, whatever the Mapsforge statics hold. Throws when the theme file changed since
+     * [MapsforgeDriver.loadStyle]: load the style again.
      */
     override fun createRenderer(
         style: MapStyle,
@@ -82,12 +82,13 @@ class MapsforgeDataset internal constructor(
         check(style.file.lastModified() == style.lastModified) {
             "createRenderer(), ${style.file} changed since loadStyle"
         }
-        check(DisplayModel.getDeviceScaleFactor() == 1.0f) {
-            "createRenderer(), Mapsforge device scale ${DisplayModel.getDeviceScaleFactor()}, " +
-                "expected 1; pass it as RenderConfig.deviceScale"
-        }
         // same order as a plain Mapsforge setup, which the golden test compares against
         val displayModel = DisplayModel()
+        // new models copy the Mapsforge statics; AndroidGraphicFactory sets the device scale
+        displayModel.deviceScale = 1.0f
+        displayModel.lineScaleFactor = 1.0f
+        displayModel.symbolScaleFactor = 1.0f
+        displayModel.textScaleFactor = 1.0f
         displayModel.userScaleFactor = config.deviceScale
         displayModel.setFixedTileSize(config.tileSizePx)
         // larger text wraps later, as in Locus

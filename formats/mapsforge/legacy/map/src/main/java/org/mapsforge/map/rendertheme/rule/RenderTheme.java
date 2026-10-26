@@ -4,6 +4,7 @@
  * Copyright 2016 devemux86
  * Copyright 2017 usrusr
  * Copyright 2024 Sublimis
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -44,6 +45,7 @@ public class RenderTheme {
 
     private final float baseStrokeWidth;
     private final float baseTextSize;
+    private final DisplayModel displayModel;
     private final boolean hasBackgroundOutside;
     private volatile int levels;
     private final int mapBackground;
@@ -61,6 +63,7 @@ public class RenderTheme {
     RenderTheme(RenderThemeBuilder renderThemeBuilder) {
         this.baseStrokeWidth = renderThemeBuilder.baseStrokeWidth;
         this.baseTextSize = renderThemeBuilder.baseTextSize;
+        this.displayModel = renderThemeBuilder.displayModel;
         this.hasBackgroundOutside = renderThemeBuilder.hasBackgroundOutside;
         this.mapBackground = renderThemeBuilder.mapBackground;
         this.mapBackgroundOutside = renderThemeBuilder.mapBackgroundOutside;
@@ -188,7 +191,7 @@ public class RenderTheme {
                 for (int i = 0, n = this.rulesList.size(); i < n; ++i) {
                     Rule rule = this.rulesList.get(i);
                     if (rule.zoomMin <= zoomLevel && rule.zoomMax >= zoomLevel) {
-                        rule.scaleStrokeWidth(scaleFactor * this.baseStrokeWidth * DisplayModel.lineScale, zoomLevel);
+                        rule.scaleStrokeWidth(scaleFactor * this.baseStrokeWidth * this.displayModel.getLineScaleFactor(), zoomLevel);
                     }
                 }
                 strokeScales.put(zoomLevel, scaleFactor);
@@ -208,7 +211,7 @@ public class RenderTheme {
                 for (int i = 0, n = this.rulesList.size(); i < n; ++i) {
                     Rule rule = this.rulesList.get(i);
                     if (rule.zoomMin <= zoomLevel && rule.zoomMax >= zoomLevel) {
-                        rule.scaleTextSize(scaleFactor * this.baseTextSize * DisplayModel.textScale, zoomLevel);
+                        rule.scaleTextSize(scaleFactor * this.baseTextSize * this.displayModel.getTextScaleFactor(), zoomLevel);
                     }
                 }
                 textScales.put(zoomLevel, scaleFactor);

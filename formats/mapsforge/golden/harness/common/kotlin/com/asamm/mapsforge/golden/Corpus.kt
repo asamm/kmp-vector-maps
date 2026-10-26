@@ -93,7 +93,8 @@ object Corpus {
         onTile: (Tile, TileBitmap) -> Unit,
     ): TileBasedLabelStore? {
         IdentityHashes.align("${set.name} theme")
-        // a static in Mapsforge, read when the theme is parsed and when tiles are drawn
+        // a static upstream, read when the theme is parsed and when tiles are drawn; vendored
+        // models copy it when created (C4)
         DisplayModel.setDeviceScaleFactor(set.deviceScale)
         val displayModel = DisplayModel()
         displayModel.setFixedTileSize(TILE_SIZE)

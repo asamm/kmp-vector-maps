@@ -16,7 +16,6 @@ import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.viewer.Viewport
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory
-import org.mapsforge.map.model.DisplayModel
 import java.io.File
 
 /**
@@ -36,11 +35,9 @@ class MainActivity : Activity() {
             // through the decor view, which `window.insetsController` does not create yet
             window.decorView.windowInsetsController?.setSystemBarsAppearance(light, light)
         }
-        // createInstance sets Mapsforge's global scale, which the driver wants at 1 and takes per
-        // renderer; once per process, as an old engine may still be rendering
+        // once per process, as an old engine may still be rendering
         if (!factoryReady) {
             AndroidGraphicFactory.createInstance(application)
-            DisplayModel.setDeviceScaleFactor(1.0f)
             factoryReady = true
         }
         val density = resources.displayMetrics.density
