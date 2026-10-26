@@ -479,7 +479,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
         tileLongitude: Double,
         doubleDeltaEncoding: Boolean,
         readBuffer: ReadBuffer,
-    ): Array<Array<LatLong?>?>? {
+    ): Array<Array<LatLong>>? {
         // get and check the number of way coordinate blocks (VBE-U)
         val numberOfWayCoordinateBlocks = readBuffer.readUnsignedInt()
         if (numberOfWayCoordinateBlocks < 1
@@ -516,7 +516,9 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
             wayCoordinates[coordinateBlock] = waySegment
         }
 
-        return wayCoordinates
+        // every block and node is set above
+        @Suppress("UNCHECKED_CAST")
+        return wayCoordinates as Array<Array<LatLong>>
     }
 
     private fun processWays(
@@ -639,7 +641,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
                 ) {
                     var labelLatLong: LatLong? = null
                     if (labelPosition != null) {
-                        val first = wayNodes[0]!![0]!!
+                        val first = wayNodes[0][0]
                         labelLatLong = LatLong(
                             first.latitude + LatLongUtils.microdegreesToDegrees(labelPosition[1]),
                             first.longitude + LatLongUtils.microdegreesToDegrees(labelPosition[0]),

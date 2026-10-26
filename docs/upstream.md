@@ -8,11 +8,11 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 15 now Kotlin |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 32 now Kotlin |
 
 ## Sync routine
 
-The routine compares the 162 files still in Java; the Kotlin ones are listed under "Converted to
+The routine compares the 145 files still in Java; the Kotlin ones are listed under "Converted to
 Kotlin".
 
 - Check the vendored files against the tag, from anywhere in this repo; it prints the count and
@@ -40,6 +40,7 @@ changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream p
 | Area | Step | Upstream path |
 |---|---|---|
 | reader, 15 files | M5.1 | `mapsforge-map-reader/src/main/java/org/mapsforge/map/reader` |
+| core model and util, 17 files | M5.2a | `mapsforge-core/src/main/java/org/mapsforge/core/{model,util}` |
 
 API differences of the reader (M5.1):
 
@@ -63,6 +64,25 @@ API differences of the reader (M5.1):
 - K7 Dropped as dead: `MapFile.TEST_MAP_FILE` (test-only, unused), the water-flag computation, the
   never-thrown `IllegalArgumentException` in `readMapData`.
 - K8 Added: the facade classes `MapFileKt` (`clampLongitude`) and `ReadBufferKt` (`readFully`).
+
+API differences of core model and util (M5.2a); fields, statics and getter names stay as Java sees
+them (`@JvmField`, `@JvmStatic`, `const`):
+
+- M1 Properties for Kotlin: the no-argument getters (`Tile.getOrigin()`, `Rectangle.getWidth()`,
+  `BoundingBox.getCenterPoint()` and the like) are Kotlin properties.
+- M2 `LatLongUtils`, `MercatorProjection`, `Parameters`, `Utils`, `IOUtils` are `object`s; Java still
+  calls them statically.
+- M3 Nullability declared: `Tag.key` and `Tag.value`, `Tile.parent`, `LineString.interpolate`,
+  `LineSegment.clipToRectangle`; `Utils.deduplicate*` take `MutableCollection<T?>`.
+- M4 `Tile`'s cached box and origin fields are renamed, so its serialized form differs from upstream.
+- M5 Finality: the classes stay open, their members are final, except `equals`, `hashCode`,
+  `toString`, `compareTo`, `removeEldestEntry` and `WorkingSetCache.setWorkingSet`. `LRUCache`'s
+  `size()`, `keySet()`, `values()` and `entrySet()` are Kotlin's final collection bridges.
+- M6 Added statics: public `Companion` fields, `INSTANCE` on the objects, `getEntries()` on the
+  `Parameters` enums, `Rotation.rotate$default`.
+- M7 Non-null parameters throw at entry: `Rotation.rotate(Point)` / `rotate(Rectangle)` with no
+  rotation, `Tile.tileAreasOverlap` across zoom levels and `LineSegment(Point, Point)` accepted
+  null upstream; elsewhere null failed already, now with Kotlin's message.
 
 ## Code deviations
 
