@@ -53,16 +53,15 @@ object Utils {
      * find them, so it suits collections with fast removal and few duplicates.
      */
     @JvmStatic
-    @Suppress("UNCHECKED_CAST")
-    fun <T : Comparable<in T>> deduplicate(collection: MutableCollection<T?>): MutableCollection<T?> {
+    fun <T : Comparable<T>?> deduplicate(collection: MutableCollection<T>): MutableCollection<T> {
         if (collection.isEmpty()) {
             return collection
         }
         val sortedList = ArrayList(collection)
         // as upstream: sorting throws on a null its compareTo cannot take
-        Collections.sort(sortedList as MutableList<T>)
+        Collections.sort(sortedList)
 
-        var pivot: T? = sortedList[0]
+        var pivot = sortedList[0]
         for (i in 1 until sortedList.size) {
             val item = sortedList[i]
             if (pivot === item
@@ -82,8 +81,7 @@ object Utils {
      * iterates it once, so it suits collections with fast removal.
      */
     @JvmStatic
-    @Suppress("UNCHECKED_CAST")
-    fun <T : Comparable<in T>> deduplicateSorted(sortedCollection: MutableCollection<T?>): MutableCollection<T?> {
+    fun <T : Comparable<T>?> deduplicateSorted(sortedCollection: MutableCollection<T>): MutableCollection<T> {
         if (sortedCollection.isEmpty()) {
             return sortedCollection
         }
@@ -92,7 +90,7 @@ object Utils {
         while (sortedIterator.hasNext()) {
             val item = sortedIterator.next()
             if (pivot === item
-                || (pivot != null && pivot.compareTo(item as T) == 0)
+                || (pivot != null && pivot.compareTo(item) == 0)
             ) {
                 // removing duplicates is cheaper than building a new list when they are few
                 sortedIterator.remove()

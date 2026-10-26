@@ -65,24 +65,26 @@ API differences of the reader (M5.1):
   never-thrown `IllegalArgumentException` in `readMapData`.
 - K8 Added: the facade classes `MapFileKt` (`clampLongitude`) and `ReadBufferKt` (`readFully`).
 
-API differences of core model and util (M5.2a); fields, statics and getter names stay as Java sees
+API differences of core model and util (M5.2a, K9–K15); fields, statics and getter names stay as Java sees
 them (`@JvmField`, `@JvmStatic`, `const`):
 
-- M1 Properties for Kotlin: the no-argument getters (`Tile.getOrigin()`, `Rectangle.getWidth()`,
-  `BoundingBox.getCenterPoint()` and the like) are Kotlin properties.
-- M2 `LatLongUtils`, `MercatorProjection`, `Parameters`, `Utils`, `IOUtils` are `object`s; Java still
+- K9 Properties for Kotlin: the no-argument getters (`Tile.getOrigin()`, `Rectangle.getWidth()`,
+  `BoundingBox.getCenterPoint()` and the like) are Kotlin properties, except `LatLong.getLatitude()`
+  and `getLongitude()`, which stay functions beside the fields.
+- K10 `LatLongUtils`, `MercatorProjection`, `Parameters`, `Utils`, `IOUtils` are `object`s; Java still
   calls them statically.
-- M3 Nullability declared: `Tag.key` and `Tag.value`, `Tile.parent`, `LineString.interpolate`,
+- K11 Nullability declared: `Tag.key` and `Tag.value`, `Tile.parent`, `LineString.interpolate`,
   `LineSegment.clipToRectangle`; `Utils.deduplicate*` take `MutableCollection<T?>`.
-- M4 `Tile`'s cached box and origin fields are renamed, so its serialized form differs from upstream.
-- M5 Finality: the classes stay open, their members are final, except `equals`, `hashCode`,
+- K12 `Tile`'s cached box and origin fields are renamed, so its serialized form differs from upstream.
+- K13 Finality: the classes stay open, their members are final, except `equals`, `hashCode`,
   `toString`, `compareTo`, `removeEldestEntry` and `WorkingSetCache.setWorkingSet`. `LRUCache`'s
-  `size()`, `keySet()`, `values()` and `entrySet()` are Kotlin's final collection bridges.
-- M6 Added statics: public `Companion` fields, `INSTANCE` on the objects, `getEntries()` on the
+  `size()`, `keySet()`, `values()` and `entrySet()` are Kotlin's final collection bridges over new
+  open `getSize()`, `getKeys()`, `getValues()` and `getEntries()`.
+- K14 Added statics: public `Companion` fields, `INSTANCE` on the objects, `getEntries()` on the
   `Parameters` enums, `Rotation.rotate$default`.
-- M7 Non-null parameters throw at entry: `Rotation.rotate(Point)` / `rotate(Rectangle)` with no
-  rotation, `Tile.tileAreasOverlap` across zoom levels and `LineSegment(Point, Point)` accepted
-  null upstream; elsewhere null failed already, now with Kotlin's message.
+- K15 Non-null parameters throw at entry: `Rotation.rotate(Point)` / `rotate(Rectangle)` with no
+  rotation, `Tile.tileAreasOverlap` across zoom levels, `LineSegment(Point, Point)` and
+  `LatLongUtils.contains` with an empty polygon accepted null upstream; elsewhere null failed already, now with Kotlin's message.
 
 ## Code deviations
 
@@ -94,15 +96,15 @@ them (`@JvmField`, `@JvmStatic`, `const`):
 
 ## Build deviations
 
-The Java sources are identical; how they are built is not. The JVM modules (`core`, `map`,
-`map-awt`) build like upstream: `--release 8`, UTF-8. `map-reader` is Kotlin since M5.1 and keeps
-the Java 8 target (B6).
+The Java sources are identical; how they are built is not. The JVM modules `map` and `map-awt`
+build like upstream: `--release 8`, UTF-8. `map-reader` (M5.1) and `core` (M5.2a) are Kotlin, `core`
+with its remaining Java, and keep the Java 8 target (B6).
 
 | ID | What | Upstream | Here |
 |---|---|---|---|
 | B1 | Bytecode level, `map-android` | `--release 8` | Java 17; D8 at min-api 24 rewrites `ByteBuffer.clear()` (verified) |
 | B2 | `map-android` packaging | plain JAR against `android.jar` | Android library (AAR), minSdk 24 in its manifest |
-| B3 | Kotlin stdlib | none | AGP's built-in Kotlin adds `kotlin-stdlib` to `map-android` |
+| B3 | Kotlin stdlib | none | `kotlin-stdlib` on every legacy module: through `core` (B6) and AGP's built-in Kotlin in `map-android` |
 | B4 | Source encoding | `UTF-8` set explicitly | resolved: JVM modules set UTF-8, `map-android` gets it as AGP's default |
 | B5 | Line endings | CRLF in the upstream tree | LF via `.gitattributes`; the sync routine ignores CR |
-| B6 | `map-reader` language | Java, `--release 8` | Kotlin, `jvmTarget` 1.8 and `-Xjdk-release=1.8`; depends on `kotlin-stdlib` |
+| B6 | `map-reader` and `core` language | Java, `--release 8` | Kotlin, `jvmTarget` 1.8 and `-Xjdk-release=1.8`, `core`'s Java with `--release 8`; depends on `kotlin-stdlib` |

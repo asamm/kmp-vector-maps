@@ -62,7 +62,7 @@ object LatLongUtils {
 
     /**
      * True if `latLong` lies inside the polygon `latLongs` (ray casting); the polygon need not be
-     * closed.
+     * closed. See http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html.
      */
     @JvmStatic
     fun contains(latLongs: Array<LatLong>, latLong: LatLong): Boolean {
@@ -84,7 +84,7 @@ object LatLongUtils {
 
     /**
      * True if `latLong` lies inside the polygon `latLongs` (ray casting); the polygon need not be
-     * closed.
+     * closed. See http://www.ecse.rpi.edu/Homepages/wrf/Research/Short_Notes/pnpoly.html.
      */
     @JvmStatic
     fun contains(latLongs: List<LatLong>, latLong: LatLong): Boolean {
@@ -295,7 +295,10 @@ object LatLongUtils {
 
     /**
      * The ellipsoidal distance in meters (Vincenty); 0 for coincident points or when the formula
-     * does not converge. See http://www.movable-type.co.uk/scripts/latlong-vincenty.html.
+     * does not converge. Adaptation of Chris Veness' JavaScript code on
+     * http://www.movable-type.co.uk/scripts/latlong-vincenty.html; paper: T Vincenty, "Direct and
+     * Inverse Solutions of Geodesics on the Ellipsoid with application of nested equations", Survey
+     * Review, vol XXII no 176, 1975 (http://www.ngs.noaa.gov/PUBS_LIB/inverse.pdf).
      */
     @JvmStatic
     fun vincentyDistance(latLong1: LatLong, latLong2: LatLong): Double {

@@ -49,7 +49,8 @@ class LineSegment(
     }
 
     /**
-     * The part inside `r` (Cohen-Sutherland), null when none.
+     * The part inside `r` (Cohen-Sutherland, https://en.wikipedia.org/wiki/Cohen%E2%80%93Sutherland_algorithm),
+     * null when none.
      */
     fun clipToRectangle(r: Rectangle): LineSegment? {
         var a = start

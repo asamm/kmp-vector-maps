@@ -20,7 +20,8 @@ package org.mapsforge.core.util
 import org.mapsforge.core.model.Tag
 
 /**
- * Process-wide rendering switches; read on every use, so a change applies to later renders.
+ * Process-wide rendering switches; set them before creating renderers and parsing themes, as Paints
+ * and symbols read some of them once.
  */
 object Parameters {
 
@@ -65,7 +66,7 @@ object Parameters {
     var PARENT_TILES_RENDERING = ParentTilesRendering.SPEED
 
     /**
-     * Tags whose ways are polygons even when not closed.
+     * Tags whose closed ways still render below [POLYGON_ZOOM_MIN].
      */
     @JvmField
     val POLYGON_EXCEPTIONS: MutableSet<Tag> = HashSet()

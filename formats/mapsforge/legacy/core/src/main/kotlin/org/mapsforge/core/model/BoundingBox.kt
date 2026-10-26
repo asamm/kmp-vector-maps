@@ -23,8 +23,8 @@ import org.mapsforge.core.util.Parameters
 import java.io.Serializable
 
 /**
- * An immutable geographic box in degrees; the extend operations clip to the Mercator latitude
- * range and to ±180.
+ * An immutable geographic box in degrees; `extendCoordinates`, `extendDegrees`, `extendMargin` and
+ * `extendMeters` clip to the Mercator latitude range and to ±180, `extendBoundingBox` does not.
  */
 open class BoundingBox : Serializable {
 

@@ -23,7 +23,7 @@ open class WorkingSetCache<K, V>(capacity: Int) : LRUCache<K, V>(capacity) {
     /**
      * Touches every key of `workingSet`, so they are evicted last; locks the set while reading it.
      */
-    open fun setWorkingSet(workingSet: Set<K>) {
+    open fun setWorkingSet(workingSet: Set<@JvmSuppressWildcards K>) {
         synchronized(workingSet) {
             for (key in workingSet) {
                 this[key]

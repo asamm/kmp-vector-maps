@@ -5,8 +5,8 @@ render pipeline and viewer shared by every format.
 
 ## Status
 
-**Pre-release.** Mapsforge 0.30.0 render subset vendored, the reader converted to Kotlin (M5.1,
-pixel-identical); golden corpus green, desktop and Android viewers running. Not published yet.
+**Pre-release.** Mapsforge 0.30.0 render subset vendored, converting to Kotlin one area at a time
+(M5, pixel-identical); golden corpus green, desktop and Android viewers running. Not published yet.
 Milestones: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 | Format | State |
