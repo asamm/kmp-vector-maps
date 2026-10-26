@@ -5,7 +5,7 @@ Asamm-owned vector map renderers for Locus Map behind one driver interface: Maps
 product; JVM desktop runs benchmarks and tools; no iOS.
 
 **Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, commit-sized
-steps, decisions D1–D25, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
+steps, decisions D1–D26, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
 not relitigate a decision without asking. Update the roadmap status in the same commit as the work.
 
 ## Scope
@@ -24,7 +24,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 
 | Path | Content |
 |---|---|
-| `formats/mapsforge/legacy/*` | vendored Mapsforge Java, upstream module split; deleted after M5 |
+| `formats/mapsforge/legacy/*` | vendored Mapsforge, upstream module split; Kotlin per area from M5.1 (`map-reader`), deleted after M5 |
 | `formats/mapsforge/driver` | Mapsforge driver: the `core/` interface over `legacy/` |
 | `formats/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored corpus tiles render through the driver |
 | `formats/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `map-android`, Robolectric; plain Mapsforge, not the driver |

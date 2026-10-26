@@ -1,5 +1,7 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2014 Ludwig M Brinckmann
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,20 +14,27 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.reader.header;
+package org.mapsforge.map.reader.header
 
-import org.mapsforge.core.model.BoundingBox;
+import org.mapsforge.core.model.BoundingBox
+import org.mapsforge.core.model.Tag
 
-class SubFileParameterBuilder {
-    byte baseZoomLevel;
-    BoundingBox boundingBox;
-    long indexStartAddress;
-    long startAddress;
-    long subFileSize;
-    byte zoomLevelMax;
-    byte zoomLevelMin;
+internal class MapFileInfoBuilder {
 
-    SubFileParameter build() {
-        return new SubFileParameter(this);
+    lateinit var boundingBox: BoundingBox
+    var fileSize = 0L
+    var fileVersion = 0
+    var mapDate = 0L
+    var numberOfSubFiles: Byte = 0
+    lateinit var optionalFields: OptionalFields
+    lateinit var poiTags: Array<Tag>
+    lateinit var projectionName: String
+    var tilePixelSize = 0
+    lateinit var wayTags: Array<Tag>
+    var zoomLevelMin: Byte = 0
+    var zoomLevelMax: Byte = 0
+
+    fun build(): MapFileInfo {
+        return MapFileInfo(this)
     }
 }

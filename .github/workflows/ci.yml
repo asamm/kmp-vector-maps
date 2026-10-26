@@ -2,9 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/m5]
+  # feature/m5: the M5 umbrella, step PRs merge there until M5.7 (ROADMAP)
   pull_request:
-    branches: [main]
+    branches: [main, feature/m5]
 
 permissions:
   contents: read

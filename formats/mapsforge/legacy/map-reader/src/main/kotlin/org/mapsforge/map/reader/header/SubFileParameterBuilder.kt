@@ -1,6 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
- * Copyright 2014 Ludwig M Brinckmann
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -13,15 +13,21 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.reader.header;
+package org.mapsforge.map.reader.header
 
-/**
- * A MapFileException is thrown if a file is opened as a MapFile that is somehow invalid.
- */
-public class MapFileException extends IllegalArgumentException {
-    private static final long serialVersionUID = 1L;
+import org.mapsforge.core.model.BoundingBox
 
-    public MapFileException(String errorMessage) {
-        super(errorMessage);
+internal class SubFileParameterBuilder {
+
+    var baseZoomLevel: Byte = 0
+    lateinit var boundingBox: BoundingBox
+    var indexStartAddress = 0L
+    var startAddress = 0L
+    var subFileSize = 0L
+    var zoomLevelMax: Byte = 0
+    var zoomLevelMin: Byte = 0
+
+    fun build(): SubFileParameter {
+        return SubFileParameter(this)
     }
 }
