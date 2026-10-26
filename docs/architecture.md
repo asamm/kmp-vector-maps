@@ -114,4 +114,5 @@ anchors, each with a per-format default.
   each driver defines target types over its own graphics (Mapsforge: `TileBitmapTarget`, which
   receives the bitmap Mapsforge allocates until M5), and the host hands the driver its backend
   when it builds the registry.
-- Paint caching belongs to the renderer, not to a zoom level (locus-core F2/F3).
+- Paint caches belong to the renderer and are bounded to a window of 4 zoom levels, the rendering
+  zoom pinned (D29, locus-core F2/F3).
