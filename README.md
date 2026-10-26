@@ -31,7 +31,10 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 - **`:dev:bench`** — JMH benchmarks per render stage. `./gradlew :dev:bench:jmh`, another map with
   `-Pbench.mapFile=<path>`.
 - **`:dev:bench:android`** — the same on a device (`androidx.benchmark`),
-  `./gradlew :dev:bench:android:connectedReleaseAndroidTest`.
+  `./gradlew :dev:bench:android:connectedReleaseAndroidTest`; also the M5 soak `SoakTest`, skipped
+  unless run alone with
+  `-Pandroid.testInstrumentationRunnerArguments.class=com.asamm.vectormaps.bench.android.SoakTest
+  -Pandroid.testInstrumentationRunnerArguments.soak.minutes=<n>`.
 - **`:viewer:desktop`** — Compose Desktop dev tool for every registered format; restores the last
   session. `./gradlew :viewer:desktop:run`.
 - **`:viewer:android`** — minimal Android dev tool. `./gradlew :viewer:android:installDebug`.
