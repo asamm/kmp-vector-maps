@@ -7,9 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3, M5.0, M5.1 and M5.2a done; M5.2b (map model, util and datastore in Kotlin) in
-review; M5 runs on `feature/m5` (D26).** Next action: M5.2 fixes, `DisplayModel` / `Parameters`
-statics to per-renderer config; M4 waits for Q12 and Q13.
+**Status: M0–M3, M5.0, M5.1, M5.2a and M5.2b done; M5.2 fixes (per-model scales, D28) in review;
+M5 runs on `feature/m5` (D26).** Next action: M5.3, graphics; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -150,8 +149,7 @@ green, 3 of 3 runs on the final commit.*
   changes pixels against the goldens); never map a swallowed render failure to `EMPTY`.
 - M3.2 as built (`formats/mapsforge/driver`):
   - Device scale goes into each renderer's `DisplayModel` user scale; the JVM-wide Mapsforge
-    device scale must stay 1 (checked), so an Android host resets it after
-    `AndroidGraphicFactory.createInstance` (M8).
+    device scale had to stay 1 (checked) until M5.2, where C4 made the renderer's scales its own.
   - `TileBitmapTarget` receives the bitmap Mapsforge allocates; drawing into a host bitmap waits
     for M5. Never returns `EMPTY`: Mapsforge fills tiles without data with the background.
   - Reads that Mapsforge logs and turns into null throw instead (`CheckedMapFile`); one bad file
@@ -188,8 +186,8 @@ green, 3 of 3 runs on the final commit.*
   - Both viewers fling: the map glides on after a drag and slows down.
   - Style files come from the map's driver (`MapFormatDriver.styleExtensions`); a map keeps the
     style when its driver reads that file; a style is committed only once its renderer builds.
-  - Android takes the device scale into `RenderConfig` and resets the Mapsforge one to 1 (the M8
-    must), 512 px tiles (D20), 4 render threads (M2.7b), 100 kept tiles (~50 MiB RGB_565);
+  - Android takes the device scale into `RenderConfig`; the Mapsforge static keeps the density
+    `AndroidGraphicFactory` sets, which the driver ignores since M5.2 (C4); 512 px tiles (D20), 4 render threads (M2.7b), 100 kept tiles (~50 MiB RGB_565);
     rotation keeps the view; setup errors show as text.
   - Garmin's anti-aliasing, kind toggles and TRE level return with its driver (M4).
 
@@ -217,11 +215,11 @@ without labels (D25; the locus-core PR #1635 soak ran in Locus by hand). From M5
 | M5.0 | soak harness (D25), no conversion | — | ✅ PR #6, `cc5dbce` |
 | M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek, malformed-input guards | ✅ PRs #7–#9, `6c64044` |
 | M5.2a | core model, util (17 files) | — | ✅ PR #10, `2bab7d9` |
-| M5.2b | map model, util, datastore (12 files) | `DisplayModel` / `Parameters` statics → per-renderer config | 🔧 |
-| M5.3 | graphics | bounded Paint caches, native cost per Paint (F1–F3) | ⬜ |
-| M5.4 | renderer | hillshading classes and thread pool removed | ⬜ |
+| M5.2b | map model, util, datastore (12 files) | `DisplayModel` scales per model (C4, D28) | ✅ PR #11, `4346dbd`; fixes 🔧 |
+| M5.3 | graphics | bounded Paint caches, native cost per Paint (F1–F3); `ANTI_ALIASING` per renderer (D28) | ⬜ |
+| M5.4 | renderer | hillshading classes and thread pool removed; `POLYGON_*`, `NUMBER_OF_THREADS` per renderer (D28) | ⬜ |
 | M5.5 | labels; first, the soak compares each tile's label store entry | — (replaced in M6) | ⬜ |
-| M5.6 | theme rules, instructions | hash-only matching cache key | ⬜ |
+| M5.6 | theme rules, instructions | hash-only matching cache key; `SYMBOL_SCALING` per renderer (D28) | ⬜ |
 | M5.7 | XML parser; `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
 
 - M5.1 fixes (upstream.md C1–C3): the index cache is locked, block reads are positional (measure
@@ -229,6 +227,8 @@ without labels (D25; the locus-core PR #1635 soak ran in Locus by hand). From M5
   length or index block size no longer throws. A missing debug signature skips its block, as a
   wrong one did upstream. The per-block catch stays narrow: other malformed data fails the tile, as
   the driver prefers a visible error to a blank tile.
+- M5.2 fixes (upstream.md C4, D28): device, line, symbol and text scales are per `DisplayModel`;
+  the statics only seed new models, so the driver no longer needs the global scale at 1.
 
 *M5.0 baseline, Java code, 2026-10-26: A54 (SM-A546B, Android 16, clocks not locked), bundled
 Monaco map, `soak.minutes=15` (7.5 per label mode), seed 20261025. `SEPARATE`: 59,746 renders
@@ -248,6 +248,9 @@ renders, all compared, 0 differed; `IN_TILE` 68,851, no failure; goldens and dum
 46,382, no failure; soak on the code before the review fixes, goldens and dumps byte-exact
 after them.*
 
+*M5.2 fixes, same AVD, 2026-10-26: `SEPARATE` 81,022 renders, all compared, 0 differed; `IN_TILE`
+101,501, no failure; goldens and dumps byte-exact.*
+
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
 - M6.2 `HILLSHADE` anchor: theme `<hillshading>` element, else after features (D13, D16).
@@ -265,7 +268,9 @@ after them.*
 - M8.2 style-menu ids, Locus-extended attributes and asset themes kept, so prefs migrate as-is.
 - M8 must: Mapsforge's Android SVG cache keys unsized symbols without the scale, so renderers at
   two device scales share them; key them by scale or clear the cache per scale.
-- M8 must: reset the Mapsforge device scale to 1 after `AndroidGraphicFactory.createInstance`.
+- M8 must, while Locus still renders through Mapsforge directly: its `DISPLAY_MODEL` exists before
+  `setDeviceScaleFactor(BASE_DENSITY)`, and models no longer read the static later (C4); set
+  `DISPLAY_MODEL.deviceScale = BASE_DENSITY` instead of the `tileSizeMultiple` refresh.
 - M8 must: on `addMap`, close and recreate the renderers and clear the tile cache; closing a
   dataset leaves its renderers, and their readers, open.
 - M8 must: transparent tiles (a `RenderConfig` option), so a backup map shows through as in Locus.
@@ -286,7 +291,7 @@ after them.*
 
 ## Decisions
 
-D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D27 2026-10-26.
+D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D28 2026-10-26.
 
 | ID | Decision |
 |---|---|
@@ -317,6 +322,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D27 2026-10-26.
 | D25 | The M5 soak is `dev/bench/android` `SoakTest`: driver plus viewer engine, pixel check of every `SEPARATE` render |
 | D26 | M5 PRs from M5.1 merge into `feature/m5`; one PR to `main` after M5.7 and the owner's review |
 | D27 | From M5.2 the device soak runs on the dev AVD `VectorMaps_Soak_API36`; the A54 serves other work |
+| D28 | `DisplayModel` scales are per model from M5.2, the statics only seed new models, so the shared golden harness and Locus still compile; a model created before a static is set keeps the old value (Locus, see M8 must); each pixel-relevant `Parameters` field moves to per-renderer config with its area (M5.3, M5.4, M5.6); `MAXIMUM_BUFFER_SIZE`, `VALIDATE_COORDINATES` and the view flags stay global |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.

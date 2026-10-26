@@ -99,7 +99,10 @@ API differences of map model, util and datastore (M5.2b, K16–K22), on the same
   the three area reads is dropped, as in K7.
 - K17 `DisplayModel` getters with setters are properties (`backgroundColor`, `themeCallback`,
   `tileSizeMultiple`, `userScaleFactor`; read-only `maxTextWidth`, `scaleFactor`, `tileSize`); its
-  static scale-factor accessors lock the companion, and Java callers also the class.
+  static scale-factor accessors lock the companion, and Java callers also the class. Since C4 the
+  device, line, symbol and text scales are per model (`deviceScale`, `lineScaleFactor`,
+  `symbolScaleFactor`, `textScaleFactor`, all in `equals`/`hashCode`); the statics only seed new
+  models, so a model created before a static is set keeps the old value.
 - K18 `Way` and `PointOfInterest` compare to a nullable other (`Comparable<Way?>`), so a null still
   sorts last; `Way.labelPosition` is nullable.
 - K19 `PoiWayBundle`'s package-private fields are `internal`, public in bytecode.
@@ -116,6 +119,7 @@ API differences of map model, util and datastore (M5.2b, K16–K22), on the same
 | C1 | reader `IndexCache` | the LRU map is read and written under its lock | upstream races on it from concurrent reads (M5.1) |
 | C2 | reader `IndexCache`, `ReadBuffer` | positional reads until full, no seek under a lock | concurrent block reads no longer queue in the reader; on Windows the JDK still serialises them (M5.1) |
 | C3 | reader `ReadBuffer`, `MapFile`, `IndexCache` | overflow-safe string length and index block size; a missing debug signature handled like a wrong one | an overflowing string or index size no longer throws; other malformed data still fails the tile (M5.1) |
+| C4 | `DisplayModel`, theme `RenderTheme`, `RenderThemeBuilder`, `RenderInstruction` | device, line, symbol and text scales per model; the theme reads them from its model; the statics seed new models | a static set by one host (`AndroidGraphicFactory` sets the density) no longer changes other renderers (M5.2, D28) |
 
 ## Build deviations
 

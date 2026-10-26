@@ -232,17 +232,21 @@ class MapsforgeDriverTest {
     }
 
     @Test
-    fun createRendererRefusesGlobalDeviceScale() {
+    fun createRendererIgnoresGlobalDeviceScale() {
         val original = DisplayModel.getDeviceScaleFactor()
+        val originalLineScale = DisplayModel.lineScale
         DisplayModel.setDeviceScaleFactor(2.0f)
+        DisplayModel.lineScale = 2.0f
         try {
             driver.open(listOf(monaco)).use { dataset ->
-                assertFailsWith<IllegalStateException> {
-                    dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, config)
+                dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, config).use { renderer ->
+                    assertEquals(config.deviceScale, renderer.displayModel.scaleFactor)
+                    assertEquals(1.0f, renderer.displayModel.lineScaleFactor)
                 }
             }
         } finally {
             DisplayModel.setDeviceScaleFactor(original)
+            DisplayModel.lineScale = originalLineScale
         }
     }
 

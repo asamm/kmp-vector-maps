@@ -3,6 +3,7 @@
  * Copyright 2014-2015 Ludwig M Brinckmann
  * Copyright 2016-2020 devemux86
  * Copyright 2020 Adrian Batzill
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -127,12 +128,12 @@ public abstract class RenderInstruction {
         switch (Parameters.SYMBOL_SCALING) {
             case ALL:
                 if (this instanceof Symbol || this instanceof LineSymbol) {
-                    symbolScale = DisplayModel.symbolScale;
+                    symbolScale = displayModel.getSymbolScaleFactor();
                 }
                 break;
             case POI:
                 if (this instanceof Symbol) {
-                    symbolScale = DisplayModel.symbolScale;
+                    symbolScale = displayModel.getSymbolScaleFactor();
                 }
                 break;
         }
