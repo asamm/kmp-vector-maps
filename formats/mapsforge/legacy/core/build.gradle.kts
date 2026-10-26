@@ -1,5 +1,5 @@
 /*
- * Mapsforge core: model and util in Kotlin since M5.2a (D24), graphics and map elements still Java.
+ * Mapsforge core: model and util (M5.2a) and graphics (M5.3a) in Kotlin (D24), map elements still Java.
  */
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 

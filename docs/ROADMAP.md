@@ -253,8 +253,8 @@ after them.*
 101,501, no failure; goldens and dumps byte-exact.*
 
 *M5.3a, same AVD, 2026-10-26: `SEPARATE` 59,331 renders, all compared, 0 differed; `IN_TILE`
-88,376, no failure; goldens and dumps byte-exact; soak before the review fixes (KDoc, nullability
-of one parameter).*
+88,376, no failure; soak on the code before the review fixes, goldens and dumps byte-exact after
+them.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).

@@ -30,10 +30,13 @@ interface Matrix {
     fun rotate(theta: Float, pivotX: Float, pivotY: Float)
 
     /**
-     * Scales around the center.
+     * Scales around the origin; the pivot overload scales around a point.
      */
     fun scale(scaleX: Float, scaleY: Float)
 
+    /**
+     * Scales around the pivot.
+     */
     fun scale(scaleX: Float, scaleY: Float, pivotX: Float, pivotY: Float)
 
     fun translate(translateX: Float, translateY: Float)
