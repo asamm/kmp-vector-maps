@@ -1,5 +1,6 @@
 /*
- * Copyright 2024 devemux86
+ * Copyright 2015 Ludwig M Brinckmann
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,14 +13,11 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.datastore;
+package org.mapsforge.map.model.common
 
-/**
- * Callback methods for map reader.
- */
-public interface MapCallback {
-    /**
-     * @return the query zoom level
-     */
-    byte getQueryZoomLevel(byte zoomLevel);
+interface ObservableInterface {
+
+    fun addObserver(observer: Observer?)
+
+    fun removeObserver(observer: Observer?)
 }

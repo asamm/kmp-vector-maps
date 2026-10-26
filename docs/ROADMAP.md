@@ -7,8 +7,9 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3, M5.0 and M5.1 done; M5.2a (core model and util in Kotlin) in review; M5 runs on
-`feature/m5` (D26).** Next action: M5.2b, map model, util and datastore; M4 waits for Q12 and Q13.
+**Status: M0–M3, M5.0, M5.1 and M5.2a done; M5.2b (map model, util and datastore in Kotlin) in
+review; M5 runs on `feature/m5` (D26).** Next action: M5.2 fixes, `DisplayModel` / `Parameters`
+statics to per-renderer config; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -215,8 +216,8 @@ without labels (D25; the locus-core PR #1635 soak ran in Locus by hand). From M5
 |---|---|---|---|
 | M5.0 | soak harness (D25), no conversion | — | ✅ PR #6, `cc5dbce` |
 | M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek, malformed-input guards | ✅ PRs #7–#9, `6c64044` |
-| M5.2a | core model, util (17 files) | — | 🔧 |
-| M5.2b | map model, util, datastore (12 files) | `DisplayModel` / `Parameters` statics → per-renderer config | ⬜ |
+| M5.2a | core model, util (17 files) | — | ✅ PR #10, `2bab7d9` |
+| M5.2b | map model, util, datastore (12 files) | `DisplayModel` / `Parameters` statics → per-renderer config | 🔧 |
 | M5.3 | graphics | bounded Paint caches, native cost per Paint (F1–F3) | ⬜ |
 | M5.4 | renderer | hillshading classes and thread pool removed | ⬜ |
 | M5.5 | labels; first, the soak compares each tile's label store entry | — (replaced in M6) | ⬜ |
@@ -242,6 +243,10 @@ differed; `IN_TILE` 66,591, no failure; goldens and dumps byte-exact.*
 
 *M5.2a on the dev AVD (`VectorMaps_Soak_API36`, API 36 x86_64, D27), 2026-10-26: `SEPARATE` 52,431
 renders, all compared, 0 differed; `IN_TILE` 68,851, no failure; goldens and dumps byte-exact.*
+
+*M5.2b, same AVD, 2026-10-26: `SEPARATE` 37,401 renders, all compared, 0 differed; `IN_TILE`
+46,382, no failure; soak on the code before the review fixes, goldens and dumps byte-exact
+after them.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).

@@ -88,7 +88,7 @@ class MapsforgeDataset internal constructor(
         }
         // same order as a plain Mapsforge setup, which the golden test compares against
         val displayModel = DisplayModel()
-        displayModel.setUserScaleFactor(config.deviceScale)
+        displayModel.userScaleFactor = config.deviceScale
         displayModel.setFixedTileSize(config.tileSizePx)
         // larger text wraps later, as in Locus
         displayModel.setMaxTextWidthFactor(MAX_TEXT_WIDTH_FACTOR * config.textScale)

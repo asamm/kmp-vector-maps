@@ -8,11 +8,11 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 32 now Kotlin |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 44 now Kotlin |
 
 ## Sync routine
 
-The routine compares the 145 files still in Java; the Kotlin ones are listed under "Converted to
+The routine compares the 133 files still in Java; the Kotlin ones are listed under "Converted to
 Kotlin".
 
 - Check the vendored files against the tag, from anywhere in this repo; it prints the count and
@@ -41,6 +41,7 @@ changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream p
 |---|---|---|
 | reader, 15 files | M5.1 | `mapsforge-map-reader/src/main/java/org/mapsforge/map/reader` |
 | core model and util, 17 files | M5.2a | `mapsforge-core/src/main/java/org/mapsforge/core/{model,util}` |
+| map model, util and datastore, 12 files | M5.2b | `mapsforge-map/src/main/java/org/mapsforge/map/{model,util,datastore}` |
 
 API differences of the reader (M5.1):
 
@@ -86,6 +87,28 @@ them (`@JvmField`, `@JvmStatic`, `const`):
   rotation, `Tile.tileAreasOverlap` across zoom levels, `LineSegment(Point, Point)` and
   `LatLongUtils.contains` with an empty polygon accepted null upstream; elsewhere null failed already, now with Kotlin's message.
 
+API differences of map model, util and datastore (M5.2b, K16–K22), on the same pattern as K9–K15:
+
+- K16 `MapDataStore` declares what upstream returns: `boundingBox()`, `startPosition()`,
+  `startZoomLevel()` and the `read*` are nullable; the `Tile`, `BoundingBox` and tag-list
+  parameters are non-null; `language`, `extract` and `extractLocalized` stay nullable as upstream.
+  Its non-abstract members stay open; `mapCallback` is a property; `priority` stays a protected
+  field, so Kotlin outside a subclass calls `getPriority()`. A
+  Kotlin override must use the declared types: Locus's `wayAsLabelTagFilter(MutableList<Tag>?)` in
+  `MapsForgeV4RendererCore` becomes `(List<Tag>)`. The never-thrown `IllegalArgumentException` in
+  the three area reads is dropped, as in K7.
+- K17 `DisplayModel` getters with setters are properties (`backgroundColor`, `themeCallback`,
+  `tileSizeMultiple`, `userScaleFactor`; read-only `maxTextWidth`, `scaleFactor`, `tileSize`); its
+  static scale-factor accessors lock the companion, and Java callers also the class.
+- K18 `Way` and `PointOfInterest` compare to a nullable other (`Comparable<Way?>`), so a null still
+  sorts last; `Way.labelPosition` is nullable.
+- K19 `PoiWayBundle`'s package-private fields are `internal`, public in bytecode.
+- K20 `Observable` and the `ObservableInterface` take a nullable observer and throw
+  `IllegalArgumentException` for null, as upstream.
+- K21 `MultiMapDataStore(null)` throws at entry; upstream failed on the first read. Its six
+  `readAll*` share one loop; behaviour is unchanged.
+- K22 `LayerUtil` is an `object`, as K10; its private constructor no longer throws.
+
 ## Code deviations
 
 | ID | Where | What | Why |
@@ -96,9 +119,9 @@ them (`@JvmField`, `@JvmStatic`, `const`):
 
 ## Build deviations
 
-The Java sources are identical; how they are built is not. The JVM modules `map` and `map-awt`
-build like upstream: `--release 8`, UTF-8. `map-reader` (M5.1) and `core` (M5.2a) are Kotlin, `core`
-with its remaining Java, and keep the Java 8 target (B6).
+The Java sources are identical; how they are built is not. The JVM module `map-awt` builds
+like upstream: `--release 8`, UTF-8. `map-reader` (M5.1), `core` (M5.2a) and `map` (M5.2b) are
+Kotlin, `core` and `map` with their remaining Java, and keep the Java 8 target (B6).
 
 | ID | What | Upstream | Here |
 |---|---|---|---|
@@ -107,4 +130,4 @@ with its remaining Java, and keep the Java 8 target (B6).
 | B3 | Kotlin stdlib | none | `kotlin-stdlib` on every legacy module: through `core` (B6) and AGP's built-in Kotlin in `map-android` |
 | B4 | Source encoding | `UTF-8` set explicitly | resolved: JVM modules set UTF-8, `map-android` gets it as AGP's default |
 | B5 | Line endings | CRLF in the upstream tree | LF via `.gitattributes`; the sync routine ignores CR |
-| B6 | `map-reader` and `core` language | Java, `--release 8` | Kotlin, `jvmTarget` 1.8 and `-Xjdk-release=1.8`, `core`'s Java with `--release 8`; depends on `kotlin-stdlib` |
+| B6 | `map-reader`, `core` and `map` language | Java, `--release 8` | Kotlin, `jvmTarget` 1.8 and `-Xjdk-release=1.8`, the remaining Java with `--release 8`; depends on `kotlin-stdlib` |

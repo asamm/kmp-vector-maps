@@ -43,7 +43,9 @@ object MapDataDump {
     fun writeReader(store: MapDataStore, tiles: List<Tile>, file: File) {
         val out = mutableListOf<String>()
         for (tile in tiles) {
-            val result = store.readMapData(tile)
+            val result = checkNotNull(store.readMapData(tile)) {
+                "writeReader(), no data for $tile"
+            }
             out += "tile ${tile.zoomLevel}/${tile.tileX}/${tile.tileY} water=${result.isWater}"
             result.pois.forEach { out += "  poi ${describePoi(it)}" }
             result.ways.forEach { out += "  way ${describeWay(it)}" }
