@@ -15,15 +15,22 @@ build intentionally differs from it.
 The routine compares the 133 files still in Java; the Kotlin ones are listed under "Converted to
 Kotlin".
 
-- Check the vendored files against the tag, from anywhere in this repo; it prints the count and
-  exits non-zero on any difference:
+- Check the vendored files against the tag, from anywhere in this repo; it prints the count, marks
+  the files a C-row changes as `EXPECTED` and exits non-zero on any other difference:
 
   ```sh
   M=<path to a mapsforge clone>; root=$(git rev-parse --show-toplevel); n=0; fail=0
+  # changed by C4
+  r=map/src/main/java/org/mapsforge/map/rendertheme
+  expected=" $r/rule/RenderTheme.java $r/rule/RenderThemeBuilder.java \
+  $r/renderinstruction/RenderInstruction.java "
   for f in $(git -C "$root" ls-files 'formats/mapsforge/legacy/*/src/main/java/*'); do
     n=$((n+1)); u=mapsforge-${f#formats/mapsforge/legacy/}
-    git -C "$M" show 54e8654f:"$u" | diff -q --strip-trailing-cr - "$root/$f" >/dev/null \
-      || { echo "DIFF $f"; fail=1; }
+    git -C "$M" show 54e8654f:"$u" | diff -q --strip-trailing-cr - "$root/$f" >/dev/null && continue
+    case "$expected" in
+      *" ${f#formats/mapsforge/legacy/} "*) echo "EXPECTED $f" ;;
+      *) echo "DIFF $f"; fail=1 ;;
+    esac
   done; echo "$n files compared"; [ "$fail" = 0 ]
   ```
 
@@ -102,7 +109,8 @@ API differences of map model, util and datastore (M5.2b, K16–K22), on the same
   static scale-factor accessors lock the companion, and Java callers also the class. Since C4 the
   device, line, symbol and text scales are per model (`deviceScale`, `lineScaleFactor`,
   `symbolScaleFactor`, `textScaleFactor`, all in `equals`/`hashCode`); the statics only seed new
-  models, so a model created before a static is set keeps the old value.
+  models, so a model created before a static is set keeps the old value. Java `model.lineScale`
+  still compiles and reads the static; use `getLineScaleFactor()`.
 - K18 `Way` and `PointOfInterest` compare to a nullable other (`Comparable<Way?>`), so a null still
   sorts last; `Way.labelPosition` is nullable.
 - K19 `PoiWayBundle`'s package-private fields are `internal`, public in bytecode.
@@ -123,7 +131,7 @@ API differences of map model, util and datastore (M5.2b, K16–K22), on the same
 
 ## Build deviations
 
-The Java sources are identical; how they are built is not. The JVM module `map-awt` builds
+The Java sources are identical except the C-rows; how they are built is not. The JVM module `map-awt` builds
 like upstream: `--release 8`, UTF-8. `map-reader` (M5.1), `core` (M5.2a) and `map` (M5.2b) are
 Kotlin, `core` and `map` with their remaining Java, and keep the Java 8 target (B6).
 

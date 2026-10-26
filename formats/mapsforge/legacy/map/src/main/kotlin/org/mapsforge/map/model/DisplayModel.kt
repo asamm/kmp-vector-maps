@@ -77,7 +77,8 @@ open class DisplayModel : Observable() {
         }
 
     /**
-     * The device scale factor, e.g. the screen density, which also scales the tile size.
+     * The device scale factor, e.g. the screen density, which also scales the tile size; set it
+     * before the theme is parsed.
      */
     var deviceScale: Float
         @Synchronized

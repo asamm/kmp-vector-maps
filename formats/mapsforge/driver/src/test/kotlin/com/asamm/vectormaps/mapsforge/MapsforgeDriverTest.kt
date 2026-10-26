@@ -235,18 +235,26 @@ class MapsforgeDriverTest {
     fun createRendererIgnoresGlobalDeviceScale() {
         val original = DisplayModel.getDeviceScaleFactor()
         val originalLineScale = DisplayModel.lineScale
+        val originalSymbolScale = DisplayModel.symbolScale
+        val originalTextScale = DisplayModel.textScale
         DisplayModel.setDeviceScaleFactor(2.0f)
         DisplayModel.lineScale = 2.0f
+        DisplayModel.symbolScale = 2.0f
+        DisplayModel.textScale = 2.0f
         try {
             driver.open(listOf(monaco)).use { dataset ->
                 dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, config).use { renderer ->
                     assertEquals(config.deviceScale, renderer.displayModel.scaleFactor)
                     assertEquals(1.0f, renderer.displayModel.lineScaleFactor)
+                    assertEquals(1.0f, renderer.displayModel.symbolScaleFactor)
+                    assertEquals(1.0f, renderer.displayModel.textScaleFactor)
                 }
             }
         } finally {
             DisplayModel.setDeviceScaleFactor(original)
             DisplayModel.lineScale = originalLineScale
+            DisplayModel.symbolScale = originalSymbolScale
+            DisplayModel.textScale = originalTextScale
         }
     }
 
