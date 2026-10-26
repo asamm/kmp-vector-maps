@@ -8,9 +8,12 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, closure of the classes locus-core imports, see [ROADMAP](ROADMAP.md) M0; 15 converted to Kotlin, see below |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 15 now Kotlin |
 
 ## Sync routine
+
+The routine compares the 162 files still in Java; the Kotlin ones are listed under "Converted to
+Kotlin".
 
 - Check the vendored files against the tag, from anywhere in this repo; it prints the count and
   exits non-zero on any difference:
@@ -34,9 +37,32 @@ M5 converts one area per PR in place (D24); a converted file keeps its upstream 
 package, and the sync routine above skips it, as it lists `.java` files only. Port upstream
 changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream path>`.
 
-| Area | Step | Upstream path | API differences |
-|---|---|---|---|
-| reader, 15 files | M5.1 | `mapsforge-map-reader/src/main/java/org/mapsforge/map/reader` | getters and the public fields of `MapFileInfo` / `SubFileParameter` are Kotlin properties (Java calls getters); classes final except `MapFile`; `MapFile.TEST_MAP_FILE` (test-only, unused) and the dead water-flag code dropped; package-private classes `internal` |
+| Area | Step | Upstream path |
+|---|---|---|
+| reader, 15 files | M5.1 | `mapsforge-map-reader/src/main/java/org/mapsforge/map/reader` |
+
+API differences of the reader (M5.1):
+
+- K1 Properties: getters and the public fields of `MapFileInfo` / `SubFileParameter` are Kotlin
+  properties; Java calls getters.
+- K2 Finality: classes are final except `MapFile`; its own members (`mapFileHeader`, `mapFileInfo`,
+  `mapLanguages`, `restrictToZoomRange`) are final, the `MapDataStore` overrides stay open.
+- K3 Statics: `Deserializer`, `QueryCalculations` and `RequiredFields` are `object`s, Java calls go
+  through `INSTANCE`; `OptionalFields.readOptionalFields` is in its `Companion`; `MapFile` and
+  `SubFileParameter` have a public `Companion`, while `wayFilterEnabled`, `wayFilterDistance` and
+  `BYTES_PER_INDEX_ENTRY` stay static fields.
+- K4 Nullability: `MapFile(String)` takes a non-null path; the six `read*` return `MapReadResult?`;
+  `startPosition()` and `startZoomLevel()` are non-null. Nullable: `mapLanguages`,
+  `readUTF8EncodedString()`, `getSubFileParameter()`, and the optional `MapFileInfo` fields
+  `comment`, `createdBy`, `languagesPreference`, `startPosition`, `startZoomLevel`.
+- K5 `MapFileHeader.mapFileInfo` is `lateinit`: read before `readHeader` it throws, where Java
+  returned null.
+- K6 Visibility: the 9 formerly package-private classes are `internal`, public in bytecode with
+  plain member names; `ReadBuffer`'s package-private members (`bufferPosition`, `bufferSize`,
+  `readTags`, `skipBytes`) are `internal` and name-mangled. Constructors are never mangled.
+- K7 Dropped as dead: `MapFile.TEST_MAP_FILE` (test-only, unused), the water-flag computation, the
+  never-thrown `IllegalArgumentException` in `readMapData`.
+- K8 Added: the facade class `MapFileKt` holds `clampLongitude`.
 
 ## Code deviations
 

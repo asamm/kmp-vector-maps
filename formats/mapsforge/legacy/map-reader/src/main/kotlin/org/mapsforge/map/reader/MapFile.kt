@@ -200,7 +200,8 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
     }
 
     /**
-     * The creation timestamp of the map file, the same for every tile.
+     * The file's modification time, the caller's `lastModified`, or the open time when none is
+     * given; the same for every tile.
      */
     override fun getDataTimestamp(tile: Tile?): Long {
         return timestamp

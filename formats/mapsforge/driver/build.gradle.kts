@@ -1,5 +1,5 @@
 /*
- * Mapsforge driver: the `:core` driver interface over the vendored Mapsforge Java. Takes the
+ * Mapsforge driver: the `:core` driver interface over the vendored Mapsforge in `legacy/`. Takes the
  * graphics backend (AWT, Android) from the host as a Mapsforge `GraphicFactory`.
  */
 plugins {

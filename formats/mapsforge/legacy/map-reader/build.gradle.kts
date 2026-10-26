@@ -21,6 +21,12 @@ kotlin {
     }
 }
 
+// a Java source here would build as the other JVM legacy modules do
+tasks.withType<JavaCompile>().configureEach {
+    options.release = 8
+    options.encoding = "UTF-8"
+}
+
 dependencies {
     api(project(":formats:mapsforge:legacy:map"))
 }
