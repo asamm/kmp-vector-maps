@@ -25,7 +25,7 @@ import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 
 /**
- * An LRU cache of index blocks read from a map file.
+ * An LRU cache of index blocks read from a map file; safe for concurrent reads.
  *
  * @param capacity the maximum number of cached blocks; negative throws
  */
@@ -40,7 +40,9 @@ internal class IndexCache(
      * Empties the cache at the end of its lifetime.
      */
     fun destroy() {
-        map.clear()
+        synchronized(map) {
+            map.clear()
+        }
     }
 
     /**
@@ -59,25 +61,23 @@ internal class IndexCache(
 
         val indexCacheEntryKey = IndexCacheEntryKey(subFileParameter, indexBlockNumber)
 
-        // check for cached index block
-        var indexBlock = map[indexCacheEntryKey]
+        // check for cached index block; the access-ordered map changes on every get
+        var indexBlock = synchronized(map) { map[indexCacheEntryKey] }
         if (indexBlock == null) {
-            // cache miss, seek to the correct index block in the file and read it
+            // cache miss: read the block outside the lock, a racing reader at worst reads it twice
             val indexBlockPosition = subFileParameter.indexStartAddress + indexBlockNumber * SIZE_OF_INDEX_BLOCK
 
-            val remainingIndexSize = (subFileParameter.indexEndAddress - indexBlockPosition).toInt()
-            val indexBlockSize = minOf(SIZE_OF_INDEX_BLOCK, remainingIndexSize)
+            // in Long: a crafted block count would wrap an Int to any size, also a too small one
+            val remainingIndexSize = subFileParameter.indexEndAddress - indexBlockPosition
+            val indexBlockSize = minOf(SIZE_OF_INDEX_BLOCK.toLong(), remainingIndexSize).toInt()
             indexBlock = ByteArray(indexBlockSize)
-            val indexBlockWrapper = ByteBuffer.wrap(indexBlock, 0, indexBlockSize)
-
-            synchronized(fileChannel) {
-                fileChannel.position(indexBlockPosition)
-                if (fileChannel.read(indexBlockWrapper) != indexBlockSize) {
-                    throw IOException("could not read index block with size: $indexBlockSize")
-                }
+            if (fileChannel.readFully(ByteBuffer.wrap(indexBlock), indexBlockPosition) != indexBlockSize) {
+                throw IOException("could not read index block with size: $indexBlockSize")
             }
 
-            map[indexCacheEntryKey] = indexBlock
+            synchronized(map) {
+                map[indexCacheEntryKey] = indexBlock
+            }
         }
 
         // calculate the address of the index entry inside the index block

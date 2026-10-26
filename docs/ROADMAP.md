@@ -7,9 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5.0 done; M5.1 reader in Kotlin, PR #7 merged into `feature/m5`.** Next
-action: M5.1 fixes (`IndexCache` race, positional reads, malformed-input guards); M4 waits for Q12
-and Q13.
+**Status: M0–M3, M5.0 and M5.1 done; M5 runs on `feature/m5` (D26).** Next action: M5.2, model
+and util in Kotlin; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -214,7 +213,7 @@ soak ran in Locus by hand). From M5.1 the PRs merge into the umbrella `feature/m
 | PR | Area | Fixes after conversion | Status |
 |---|---|---|---|
 | M5.0 | soak harness (D25), no conversion | — | ✅ PR #6, `cc5dbce` |
-| M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek, malformed-input guards | 🔧 PR #7 |
+| M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek, malformed-input guards | ✅ PRs #7–#9 |
 | M5.2 | model, util | `DisplayModel` / `Parameters` statics → per-renderer config | ⬜ |
 | M5.3 | graphics | bounded Paint caches, native cost per Paint (F1–F3) | ⬜ |
 | M5.4 | renderer | hillshading classes and thread pool removed | ⬜ |
@@ -222,8 +221,11 @@ soak ran in Locus by hand). From M5.1 the PRs merge into the umbrella `feature/m
 | M5.6 | theme rules, instructions | hash-only matching cache key | ⬜ |
 | M5.7 | XML parser; `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
 
-- M5.1 malformed-input guards: a string length near `Int.MAX_VALUE` overflows the bounds check, and
-  `processBlocks` catches only `ArrayIndexOutOfBoundsException`, so one bad block fails the tile.
+- M5.1 fixes (upstream.md C1–C3): the index cache is locked, block reads are positional (measure
+  the gain on Android or Linux: the JDK on Windows still serialises them), and an overflowing string
+  length or index block size no longer throws. A missing debug signature skips its block, as a
+  wrong one did upstream. The per-block catch stays narrow: other malformed data fails the tile, as
+  the driver prefers a visible error to a blank tile.
 
 *M5.0 baseline, Java code, 2026-10-26: A54 (SM-A546B, Android 16, clocks not locked), bundled
 Monaco map, `soak.minutes=15` (7.5 per label mode), seed 20261025. `SEPARATE`: 59,746 renders
@@ -232,6 +234,9 @@ no failure.*
 
 *M5.1, reader in Kotlin, same setup, 2026-10-26: `SEPARATE` 56,558 renders, all compared, 0
 differed; `IN_TILE` 66,591, no failure; goldens and dumps byte-exact.*
+
+*M5.1 fixes, same setup, 2026-10-26: `SEPARATE` 59,962 renders, all compared, 0 differed;
+`IN_TILE` 66,427, no failure; goldens and dumps byte-exact.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
