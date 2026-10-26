@@ -7,8 +7,9 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5.0 done; M5.1 (reader in Kotlin) in review.** Next action: M5.1 review,
-then its fixes (`IndexCache` race, positional reads); M4 waits for Q12 and Q13.
+**Status: M0–M3 and M5.0 done; M5.1 reader in Kotlin, PR #7 merged into `feature/m5`.** Next
+action: M5.1 fixes (`IndexCache` race, positional reads, malformed-input guards); M4 waits for Q12
+and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -213,13 +214,16 @@ soak ran in Locus by hand). From M5.1 the PRs merge into the umbrella `feature/m
 | PR | Area | Fixes after conversion | Status |
 |---|---|---|---|
 | M5.0 | soak harness (D25), no conversion | — | ✅ PR #6, `cc5dbce` |
-| M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek; malformed-input guards (string length overflow, per-block catch) | 🔧 |
+| M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek, malformed-input guards | 🔧 PR #7 |
 | M5.2 | model, util | `DisplayModel` / `Parameters` statics → per-renderer config | ⬜ |
 | M5.3 | graphics | bounded Paint caches, native cost per Paint (F1–F3) | ⬜ |
 | M5.4 | renderer | hillshading classes and thread pool removed | ⬜ |
 | M5.5 | labels; first, the soak compares each tile's label store entry | — (replaced in M6) | ⬜ |
 | M5.6 | theme rules, instructions | hash-only matching cache key | ⬜ |
 | M5.7 | XML parser; `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
+
+- M5.1 malformed-input guards: a string length near `Int.MAX_VALUE` overflows the bounds check, and
+  `processBlocks` catches only `ArrayIndexOutOfBoundsException`, so one bad block fails the tile.
 
 *M5.0 baseline, Java code, 2026-10-26: A54 (SM-A546B, Android 16, clocks not locked), bundled
 Monaco map, `soak.minutes=15` (7.5 per label mode), seed 20261025. `SEPARATE`: 59,746 renders
