@@ -94,7 +94,6 @@ class BenchScene : AutoCloseable {
                 ?.split(",")
                 ?.let { LatLong(it[0].trim().toDouble(), it[1].trim().toDouble()) }
                 ?: store.startPosition()
-                ?: store.boundingBox().centerPoint
             check(store.boundingBox().contains(center)) {
                 "centerTile($center), outside the map ${store.boundingBox()}"
             }

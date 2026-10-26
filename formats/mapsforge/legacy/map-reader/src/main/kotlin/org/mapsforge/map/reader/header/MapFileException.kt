@@ -1,6 +1,7 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
  * Copyright 2014 Ludwig M Brinckmann
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -13,26 +14,15 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.reader.header;
+package org.mapsforge.map.reader.header
 
-import org.mapsforge.core.model.BoundingBox;
-import org.mapsforge.core.model.Tag;
+/**
+ * Thrown when a file opened as a map file is invalid.
+ */
+class MapFileException(errorMessage: String?) : IllegalArgumentException(errorMessage) {
 
-class MapFileInfoBuilder {
-    BoundingBox boundingBox;
-    long fileSize;
-    int fileVersion;
-    long mapDate;
-    byte numberOfSubFiles;
-    OptionalFields optionalFields;
-    Tag[] poiTags;
-    String projectionName;
-    int tilePixelSize;
-    Tag[] wayTags;
-    byte zoomLevelMin;
-    byte zoomLevelMax;
+    private companion object {
 
-    MapFileInfo build() {
-        return new MapFileInfo(this);
+        private const val serialVersionUID = 1L
     }
 }

@@ -8,7 +8,7 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, closure of the classes locus-core imports, see [ROADMAP](ROADMAP.md) M0 |
+| Scope | 177 files, closure of the classes locus-core imports, see [ROADMAP](ROADMAP.md) M0; 15 converted to Kotlin, see below |
 
 ## Sync routine
 
@@ -28,6 +28,16 @@ build intentionally differs from it.
 - Diff a module directory against the tag: `git -C <mapsforge> diff 54e8654f <newTag> -- <module>`.
 - Update the table above and both deviation lists in the same change.
 
+## Converted to Kotlin
+
+M5 converts one area per PR in place (D24); a converted file keeps its upstream licence header and
+package, and the sync routine above skips it, as it lists `.java` files only. Port upstream
+changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream path>`.
+
+| Area | Step | Upstream path | API differences |
+|---|---|---|---|
+| reader, 15 files | M5.1 | `mapsforge-map-reader/src/main/java/org/mapsforge/map/reader` | getters and the public fields of `MapFileInfo` / `SubFileParameter` are Kotlin properties (Java calls getters); classes final except `MapFile`; `MapFile.TEST_MAP_FILE` (test-only, unused) and the dead water-flag code dropped; package-private classes `internal` |
+
 ## Code deviations
 
 | ID | Where | What | Why |
@@ -36,8 +46,9 @@ build intentionally differs from it.
 
 ## Build deviations
 
-The sources are identical; how they are built is not. The JVM modules (`core`, `map`,
-`map-reader`, `map-awt`) build like upstream: `--release 8`, UTF-8.
+The Java sources are identical; how they are built is not. The JVM modules (`core`, `map`,
+`map-awt`) build like upstream: `--release 8`, UTF-8. `map-reader` is Kotlin since M5.1 and keeps
+the Java 8 target (B6).
 
 | ID | What | Upstream | Here |
 |---|---|---|---|
@@ -46,3 +57,4 @@ The sources are identical; how they are built is not. The JVM modules (`core`, `
 | B3 | Kotlin stdlib | none | AGP's built-in Kotlin adds `kotlin-stdlib` to `map-android` |
 | B4 | Source encoding | `UTF-8` set explicitly | resolved: JVM modules set UTF-8, `map-android` gets it as AGP's default |
 | B5 | Line endings | CRLF in the upstream tree | LF via `.gitattributes`; the sync routine ignores CR |
+| B6 | `map-reader` language | Java, `--release 8` | Kotlin, `jvmTarget` 1.8 and `-Xjdk-release=1.8`; depends on `kotlin-stdlib` |

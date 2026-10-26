@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 done; M5.0 (soak harness) in review, PR #6.** Next action: merge M5.0, then
-M5.1, the reader in Kotlin; M4 waits for Q12 and Q13.
+**Status: M0–M3 and M5.0 done; M5.1 (reader in Kotlin) in review.** Next action: M5.1 review,
+then its fixes (`IndexCache` race, positional reads); M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -207,12 +207,13 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 **M5 — Mapsforge to Kotlin.** One area per PR, its hot-spot fixes in a follow-up PR on the same
 area, so each conversion PR stays pixel-identical. Every PR gated by goldens, dumps and an A54
 15-minute zoom soak with pixel check of the tiles without labels (D25; the locus-core PR #1635
-soak ran in Locus by hand).
+soak ran in Locus by hand). From M5.1 the PRs merge into the umbrella `feature/m5`, which reaches
+`main` in one PR after M5.7 (D26).
 
 | PR | Area | Fixes after conversion | Status |
 |---|---|---|---|
-| M5.0 | soak harness (D25), no conversion | — | 🔧 PR #6 |
-| M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek | ⬜ |
+| M5.0 | soak harness (D25), no conversion | — | ✅ PR #6, `cc5dbce` |
+| M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek | 🔧 |
 | M5.2 | model, util | `DisplayModel` / `Parameters` statics → per-renderer config | ⬜ |
 | M5.3 | graphics | bounded Paint caches, native cost per Paint (F1–F3) | ⬜ |
 | M5.4 | renderer | hillshading classes and thread pool removed | ⬜ |
@@ -224,6 +225,9 @@ soak ran in Locus by hand).
 Monaco map, `soak.minutes=15` (7.5 per label mode), seed 20261025. `SEPARATE`: 59,746 renders
 drawn, all compared, 0 differed (render time includes the hash). `IN_TILE`: 66,756 renders drawn,
 no failure.*
+
+*M5.1, reader in Kotlin, same setup, 2026-10-26: `SEPARATE` 56,558 renders, all compared, 0
+differed; `IN_TILE` 66,591, no failure; goldens and dumps byte-exact.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
@@ -263,7 +267,7 @@ no failure.*
 
 ## Decisions
 
-D1–D23 taken 2026-10-22; D24–D25 2026-10-25.
+D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26 2026-10-26.
 
 | ID | Decision |
 |---|---|
@@ -292,6 +296,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25.
 | D23 | Host API mirrors Locus' `MapSourceRenderer` seam |
 | D24 | M5 converts each area in place, in the `legacy/*` modules under `org.mapsforge.*`; M5.7 renames to `com.asamm.*` and moves the modules |
 | D25 | The M5 soak is `dev/bench/android` `SoakTest`: driver plus viewer engine, pixel check of every `SEPARATE` render |
+| D26 | M5 PRs from M5.1 merge into `feature/m5`; one PR to `main` after M5.7 and the owner's review |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.

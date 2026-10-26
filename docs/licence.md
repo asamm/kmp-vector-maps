@@ -34,8 +34,11 @@ the legal check is locus-core plan Q1.
 - A Kotlin translation is a modification (GPL-3.0 §0): the converted code stays LGPL-3.0-or-later.
   Relicensing needs every copyright holder; only a clean-room rewrite (rejected O4) escapes it.
 - Open (Q14): 40 of 66 upstream authors committed only before the waiver; vendored headers name
-  mapsforge.org (122 files) and Ludwig M Brinckmann (75 files), counted with
-  `git ls-files 'formats/mapsforge/legacy/*.java' | xargs grep -l 'Copyright.*<name>' | wc -l`.
+  mapsforge.org (122 files) and Ludwig M Brinckmann (75 files), counted with:
+
+  ```sh
+  git ls-files 'formats/mapsforge/legacy/*.java' 'formats/mapsforge/legacy/*.kt' | xargs grep -l 'Copyright.*<name>' | wc -l
+  ```
 
 ## Obligations of this repo
 
