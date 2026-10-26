@@ -61,11 +61,11 @@ internal class DrawnTiles(private val capacity: Int) : TileCache {
         // no working set: keys only
     }
 
-    override fun addObserver(observer: Observer) {
+    override fun addObserver(observer: Observer?) {
         // nothing observes a key cache
     }
 
-    override fun removeObserver(observer: Observer) {
+    override fun removeObserver(observer: Observer?) {
         // nothing observes a key cache
     }
 }

@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,16 +13,12 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.datastore;
+package org.mapsforge.map.datastore
 
-import java.util.List;
-
-public class PoiWayBundle {
-    final List<PointOfInterest> pois;
-    final List<Way> ways;
-
-    public PoiWayBundle(List<PointOfInterest> pois, List<Way> ways) {
-        this.pois = pois;
-        this.ways = ways;
-    }
-}
+/**
+ * The POIs and ways of one map block.
+ */
+open class PoiWayBundle(
+    @JvmField internal val pois: List<PointOfInterest>,
+    @JvmField internal val ways: List<Way>,
+)

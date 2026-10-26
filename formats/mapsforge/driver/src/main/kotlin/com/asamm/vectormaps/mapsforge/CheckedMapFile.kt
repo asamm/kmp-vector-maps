@@ -37,13 +37,13 @@ internal class CheckedMapFile(
         return inner.getDataTimestamp(tile)
     }
 
-    override fun getMapCallback(): MapCallback? {
-        return inner.mapCallback
-    }
-
-    override fun setMapCallback(mapCallback: MapCallback?) {
-        inner.mapCallback = mapCallback
-    }
+    override var mapCallback: MapCallback?
+        get() {
+            return inner.mapCallback
+        }
+        set(mapCallback) {
+            inner.mapCallback = mapCallback
+        }
 
     override fun readMapData(tile: Tile): MapReadResult {
         return checked(inner.readMapData(tile), tile)
