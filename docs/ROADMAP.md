@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3, M5.0, M5.1, M5.2a and M5.2b done; M5.2 fixes (per-model scales, D28) in review;
-M5 runs on `feature/m5` (D26).** Next action: M5.3, graphics; M4 waits for Q12 and Q13.
+**Status: M0–M3, M5.0–M5.2 done; M5.3a (core graphics in Kotlin) in review; M5 runs on
+`feature/m5` (D26).** Next action: M5.3b, the Android and AWT graphics; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -93,7 +93,7 @@ review found.
   Monaco map: explicit way label positions, water tiles, `readLabels` / `readPoiData`.
 - M2.6: `paint_counts.txt` from one long-lived renderer (`hike_bike`) sweeping z8–20 twice, Paints
   created and still alive after a full GC: 3,359 alive after the theme parse, ~3,100 more per new
-  zoom, 43,494 after z20, unchanged in the second sweep — the never-evicted caches of F2/F3. M5.3
+  zoom, 43,494 after z20, unchanged in the second sweep — the never-evicted caches of F2/F3. M5.3b
   bounds `live`. Caught only here, no pixel changed: stroke scaling not cached per zoom (~2,100
   Paints per zoom in the second sweep); per-zoom eviction changes `live`.
 - Mutations caught (90 renders, 5 sets): menu rule filter 90 of 90, device scale ignored 54,
@@ -215,8 +215,9 @@ without labels (D25; the locus-core PR #1635 soak ran in Locus by hand). From M5
 | M5.0 | soak harness (D25), no conversion | — | ✅ PR #6, `cc5dbce` |
 | M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek, malformed-input guards | ✅ PRs #7–#9, `6c64044` |
 | M5.2a | core model, util (17 files) | — | ✅ PR #10, `2bab7d9` |
-| M5.2b | map model, util, datastore (12 files) | `DisplayModel` scales per model (C4, D28) | ✅ PR #11, `4346dbd`; fixes 🔧 |
-| M5.3 | graphics | bounded Paint caches, native cost per Paint (F1–F3); `ANTI_ALIASING` per renderer (D28) | ⬜ |
+| M5.2b | map model, util, datastore (12 files) | `DisplayModel` scales per model (C4, D28) | ✅ PR #11, `4346dbd`; fixes PR #12, `ee52c8d` |
+| M5.3a | core graphics (27 files) | — | 🔧 |
+| M5.3b | Android and AWT graphics, `AndroidParameters` (25 files) | bounded Paint caches, native cost per Paint (F1–F3); `ANTI_ALIASING` per renderer (D28) | ⬜ |
 | M5.4 | renderer | hillshading classes and thread pool removed; `POLYGON_*`, `NUMBER_OF_THREADS` per renderer (D28) | ⬜ |
 | M5.5 | labels; first, the soak compares each tile's label store entry | — (replaced in M6) | ⬜ |
 | M5.6 | theme rules, instructions | hash-only matching cache key; `SYMBOL_SCALING` per renderer (D28) | ⬜ |
@@ -250,6 +251,10 @@ after them.*
 
 *M5.2 fixes, same AVD, 2026-10-26: `SEPARATE` 81,022 renders, all compared, 0 differed; `IN_TILE`
 101,501, no failure; goldens and dumps byte-exact.*
+
+*M5.3a, same AVD, 2026-10-26: `SEPARATE` 59,331 renders, all compared, 0 differed; `IN_TILE`
+88,376, no failure; soak on the code before the review fixes, goldens and dumps byte-exact after
+them.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
@@ -322,7 +327,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D28 2026-10-26.
 | D25 | The M5 soak is `dev/bench/android` `SoakTest`: driver plus viewer engine, pixel check of every `SEPARATE` render |
 | D26 | M5 PRs from M5.1 merge into `feature/m5`; one PR to `main` after M5.7 and the owner's review |
 | D27 | From M5.2 the device soak runs on the dev AVD `VectorMaps_Soak_API36`; the A54 serves other work |
-| D28 | `DisplayModel` scales are per model from M5.2, the statics only seed new models, so the shared golden harness and Locus still compile; a model created before a static is set keeps the old value (Locus, see M8 must); each pixel-relevant `Parameters` field moves to per-renderer config with its area (M5.3, M5.4, M5.6); `MAXIMUM_BUFFER_SIZE`, `VALIDATE_COORDINATES` and the view flags stay global |
+| D28 | `DisplayModel` scales are per model from M5.2, the statics only seed new models, so the shared golden harness and Locus still compile; a model created before a static is set keeps the old value (Locus, see M8 must); each pixel-relevant `Parameters` field moves to per-renderer config with its area (M5.3b, M5.4, M5.6); `MAXIMUM_BUFFER_SIZE`, `VALIDATE_COORDINATES` and the view flags stay global |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.

@@ -22,7 +22,7 @@ import java.lang.ref.WeakReference
 /**
  * Paints created and still alive while one long-lived renderer sweeps the zoom levels twice, as
  * Locus' renderer lives through zooming; a deterministic proxy for the per-zoom Paint caches behind
- * locus-core finding F2. `live` is what a cache bound (M5.3) has to limit.
+ * locus-core finding F2. `live` is what a cache bound (M5.3b) has to limit.
  */
 object PaintCount {
 

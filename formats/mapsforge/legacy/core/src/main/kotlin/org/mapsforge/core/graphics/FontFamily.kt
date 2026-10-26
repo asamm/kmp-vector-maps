@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,24 +13,22 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.core.graphics;
+package org.mapsforge.core.graphics
 
-public enum Curve {
+enum class FontFamily {
+    DEFAULT, MONOSPACE, SANS_SERIF, SERIF;
 
-    /**
-     * No curvature to draw, so draw line as direct line.
-     */
-    NO,
-    /**
-     * Curve line with cubic spline.
-     */
-    CUBIC;
+    companion object {
 
-    public static Curve fromString(String value) {
-        if ("cubic".equals(value)) {
-            return CUBIC;
-        } else {
-            return NO;
+        @JvmStatic
+        fun fromString(value: String?): FontFamily {
+            return when (value) {
+                "default" -> DEFAULT
+                "monospace" -> MONOSPACE
+                "sans_serif" -> SANS_SERIF
+                "serif" -> SERIF
+                else -> throw IllegalArgumentException("Invalid value for FontFamily: $value")
+            }
         }
     }
 }

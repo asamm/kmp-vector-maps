@@ -1,6 +1,6 @@
 /*
- * Copyright 2017 usrusr
- * Copyright 2024 Sublimis
+ * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -13,33 +13,22 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.core.graphics;
+package org.mapsforge.core.graphics
 
-import org.mapsforge.core.model.BoundingBox;
+enum class FontStyle {
+    BOLD, BOLD_ITALIC, ITALIC, NORMAL;
 
-public interface HillshadingBitmap extends Bitmap {
-    enum Border {
-        WEST(true), NORTH(false), EAST(true), SOUTH(false);
+    companion object {
 
-        public final boolean vertical;
-
-        Border(boolean vertical) {
-            this.vertical = vertical;
+        @JvmStatic
+        fun fromString(value: String?): FontStyle {
+            return when (value) {
+                "bold" -> BOLD
+                "bold_italic" -> BOLD_ITALIC
+                "italic" -> ITALIC
+                "normal" -> NORMAL
+                else -> throw IllegalArgumentException("Invalid value for FontStyle: $value")
+            }
         }
     }
-
-    /**
-     * Return geo bounds of the area within the padding.
-     */
-    BoundingBox getAreaRect();
-
-    /**
-     * Optional padding (lies outside of areaRect).
-     */
-    int getPadding();
-
-    /**
-     * @return Size of this bitmap. [bytes]
-     */
-    long getSizeBytes();
 }

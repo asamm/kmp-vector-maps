@@ -1,5 +1,8 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2016 devemux86
+ * Copyright 2024 Sublimis
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,21 +15,33 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.core.graphics;
+package org.mapsforge.core.graphics
 
-public enum FontFamily {
-    DEFAULT, MONOSPACE, SANS_SERIF, SERIF;
+import java.io.IOException
+import java.io.OutputStream
 
-    public static FontFamily fromString(String value) {
-        if ("default".equals(value)) {
-            return DEFAULT;
-        } else if (("monospace").equals(value)) {
-            return MONOSPACE;
-        } else if ("sans_serif".equals(value)) {
-            return SANS_SERIF;
-        } else if ("serif".equals(value)) {
-            return SERIF;
-        }
-        throw new IllegalArgumentException("Invalid value for FontFamily: " + value);
-    }
+interface Bitmap {
+
+    /**
+     * Guards concurrent modification; required on Android, harmless on AWT, which has a global
+     * lock.
+     */
+    val mutex: Any
+
+    val height: Int
+
+    val isDestroyed: Boolean
+
+    val width: Int
+
+    @Throws(IOException::class)
+    fun compress(outputStream: OutputStream)
+
+    fun decrementRefCount()
+
+    fun incrementRefCount()
+
+    fun scaleTo(width: Int, height: Int)
+
+    fun setBackgroundColor(color: Int)
 }

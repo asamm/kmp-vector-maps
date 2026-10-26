@@ -8,11 +8,11 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 44 now Kotlin |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 71 now Kotlin |
 
 ## Sync routine
 
-The routine compares the 133 files still in Java; the Kotlin ones are listed under "Converted to
+The routine compares the 106 files still in Java; the Kotlin ones are listed under "Converted to
 Kotlin".
 
 - Check the vendored files against the tag, from anywhere in this repo; it prints the count, marks
@@ -49,6 +49,7 @@ changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream p
 | reader, 15 files | M5.1 | `mapsforge-map-reader/src/main/java/org/mapsforge/map/reader` |
 | core model and util, 17 files | M5.2a | `mapsforge-core/src/main/java/org/mapsforge/core/{model,util}` |
 | map model, util and datastore, 12 files | M5.2b | `mapsforge-map/src/main/java/org/mapsforge/map/{model,util,datastore}` |
+| core graphics, 27 files | M5.3a | `mapsforge-core/src/main/java/org/mapsforge/core/graphics` |
 
 API differences of the reader (M5.1):
 
@@ -119,6 +120,24 @@ API differences of map model, util and datastore (M5.2b, K16–K22), on the same
 - K21 `MultiMapDataStore(null)` throws at entry; upstream failed on the first read. Its six
   `readAll*` share one loop; behaviour is unchanged.
 - K22 `LayerUtil` is an `object`, as K10; its private constructor no longer throws.
+
+API differences of core graphics (M5.3a, K23–K25), on the same pattern:
+
+- K23 Interface getters are properties with the same Java names: `Bitmap` `mutex`, `height`,
+  `width`, `isDestroyed`; `Canvas` `dimension`, `height`, `width`; `GraphicContext` `isAntiAlias`,
+  `isFilterBitmap`; `Paint` `color`, `strokeWidth`, `isComplexStyle`, `isTransparent`; `Path`
+  `isEmpty`; `HillshadingBitmap` `areaRect`, `padding`, `sizeBytes`; `TileBitmap` `timestamp`,
+  `isExpired`; `Position` `isOn*`. Parameters are non-null except where upstream passes or
+  accepts null: `Canvas.setBitmap` (AWT), `shadeBitmap`, `createMonoBitmap` buffer and area, the
+  back paint and symbol of `createPointTextContainer`, `setBitmapShader`, `setDashPathEffect`, the
+  prefix and result of `platformSpecificSources`; `HillshadingBitmap.areaRect` is nullable, as the
+  area passed in.
+- K24 `BaseBitmap.mutex` is no longer a protected field, only a final `getMutex()`; `GraphicUtils` is an
+  `object` (K10); `Paint.FONT_PADDING_FACTOR` stays a static field of the interface, from a
+  companion.
+- K25 `fromString` is static through a companion; `Align.fromString` stays an instance method, as
+  upstream. `SymbolOrientation` and `TextOrientation.fromString(null)` throw at entry; upstream's
+  `switch` threw too.
 
 ## Code deviations
 
