@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M2 done, M3.1–M3.2 merged, M3.3 in review.** Next action: M3.3 review; then M4 once
-Q12 and Q13 are answered, else M5.
+**Status: M0–M3 done; M5.0 (soak harness) in review.** Next action: M5.1, the reader in Kotlin;
+M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -22,9 +22,9 @@ settles, labels before speed, the Locus-facing API last.
 | M0 | Foundation: vendored Mapsforge 0.30.0, golden test, CI | S | ✅ `d41acf5` |
 | M1 | Review hardening: CI, supply chain, licence docs, this plan | S | ✅ PR #1, `42f1598` |
 | M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | ✅ PR #2, `5e5b037` |
-| M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | 🔧 |
+| M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PR #5, `028d746` |
 | M4 | Garmin IMG joins | M | ⬜ needs Q12, Q13 |
-| M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ⬜ |
+| M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | 🔧 |
 | M6 | Core features: label model, hillshade anchor, feature query | M | ⬜ |
 | M7 | Performance and Skia desktop backend | L | ⬜ needs Q15 |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⬜ |
@@ -130,13 +130,13 @@ review found.
 *Verified: each step's new test fails on a targeted mutation; `./gradlew build` and the PR CI run
 green, 3 of 3 runs on the final commit.*
 
-**M3 — Core v0 and shared viewer.**
+**M3 — Core v0 and shared viewer. DONE 2026-10-25** (PRs #3–#5, merged as `028d746`)
 
 | PR | Content | Status |
 |---|---|---|
 | M3.1 | `core/` (Kotlin/JVM, Apache-2.0): driver, registry, dataset, style, renderer, render key | ✅ PR #3, `e0c45d8` |
 | M3.2 | Mapsforge driver over the vendored Java; golden test runs through it | ✅ PR #4, `0189c2c` |
-| M3.3 | Viewer rewritten to the kmp-garmin-img viewer's features, registry-driven tile engine; throwaway viewers deleted | 🔧 |
+| M3.3 | Viewer rewritten to the kmp-garmin-img viewer's features, registry-driven tile engine; throwaway viewers deleted | ✅ PR #5, `028d746` |
 
 - M3.1: interfaces and value types only, no implementation yet. Not in v0, added with their first
   user: draw hooks and anchors (M6), `FeatureQuery` (M6), label pass (M6), drawing calls on
@@ -184,8 +184,8 @@ green, 3 of 3 runs on the final commit.*
     fits the dataset bounds; style layer menu, text scale, tile size, threads; light and dark
     theme follow the system.
   - Both viewers fling: the map glides on after a drag and slows down.
-  - Style files come from the map's driver (`MapFormatDriver.styleExtensions`); opening a map of
-    another format drops the style.
+  - Style files come from the map's driver (`MapFormatDriver.styleExtensions`); a map keeps the
+    style when its driver reads that file; a style is committed only once its renderer builds.
   - Android takes the device scale into `RenderConfig` and resets the Mapsforge one to 1 (the M8
     must), 512 px tiles (D20), 4 render threads (M2.7b), 100 kept tiles (~50 MiB RGB_565);
     rotation keeps the view; setup errors show as text.
@@ -206,17 +206,21 @@ viewer renders Monaco and Czech on desktop and A54.*
 
 **M5 — Mapsforge to Kotlin.** One area per PR, its hot-spot fixes in a follow-up PR on the same
 area, so each conversion PR stays pixel-identical. Every PR gated by goldens, dumps and an A54
-15-minute zoom soak with pixel check (locus-core PR #1635).
+15-minute zoom soak with pixel check (D25; the locus-core PR #1635 soak ran in Locus by hand).
 
 | PR | Area | Fixes after conversion |
 |---|---|---|
+| M5.0 | soak harness (D25), no conversion | — |
 | M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek |
 | M5.2 | model, util | `DisplayModel` / `Parameters` statics → per-renderer config |
 | M5.3 | graphics | bounded Paint caches, native cost per Paint (F1–F3) |
 | M5.4 | renderer | hillshading classes and thread pool removed |
 | M5.5 | labels | — (replaced in M6) |
 | M5.6 | theme rules, instructions | hash-only matching cache key |
-| M5.7 | XML parser; `legacy/` deleted | — |
+| M5.7 | XML parser; `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — |
+
+*M5.0 baseline, Java code, A54, 15 minutes on 2026-10-26: `SEPARATE` 58,292 tiles drawn,
+58,291 compared, 0 differed; `IN_TILE` 60,532 tiles drawn.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
@@ -256,13 +260,13 @@ area, so each conversion PR stays pixel-identical. Every PR gated by goldens, du
 
 ## Decisions
 
-All taken 2026-10-22.
+D1–D23 taken 2026-10-22; D24–D25 2026-10-25.
 
 | ID | Decision |
 |---|---|
 | D1 | ~~Repo `kmp-mapsforge`~~ → one repo for all formats (D10) |
 | D2 | Vendored Mapsforge mirrors the upstream module split |
-| D3 | Packages `org.mapsforge.*` until M5, then `com.asamm.*` |
+| D3 | Packages `org.mapsforge.*` until ~~M5~~ → M5.7, then `com.asamm.*` (D24) |
 | D4 | Vendored from commit `54e8654f` (tag 0.30.0) |
 | D5 | Test theme LoMaps 1.8.0 (Apache-2.0) |
 | D6 | Locus consumes GitHub Packages builds |
@@ -283,6 +287,8 @@ All taken 2026-10-22.
 | D21 | Speed work after the Kotlin conversion, against a Java baseline |
 | D22 | No iOS; Kotlin/JVM libraries, KMP only for the viewer UI |
 | D23 | Host API mirrors Locus' `MapSourceRenderer` seam |
+| D24 | M5 converts each area in place under `org.mapsforge.*`; M5.7 renames to `com.asamm.*` and moves the modules |
+| D25 | The M5 soak is `dev/bench/android` `SoakTest`: driver plus viewer engine, pixel check in `SEPARATE` mode |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.
@@ -292,6 +298,10 @@ All taken 2026-10-22.
 - D22, rejected: KMP `commonMain` for the libraries. iOS Locus uses MapLibre with Asamm's vector
   tiles, and kmp-garmin-img uses no KMP feature (no `expect`/`actual`, dead `kotlinx-io`).
 - D23: Locus changes shrink to an adapter plus type swaps; see [architecture.md](architecture.md).
+- D24: a pure conversion per PR diffs cleanly and leaves the Java areas' imports alone; one rename
+  at the end touches every file once.
+- D25: `IN_TILE` labels depend on render order until M6.1, so that mode is only checked to render;
+  a reference at a different device scale makes 598 of 3,017 compared tiles differ in a minute, so the check bites.
 - The former "Java hot spots" milestone is folded into M5: with no early switch it was double work.
 
 ## Hazards

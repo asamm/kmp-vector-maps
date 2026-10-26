@@ -74,7 +74,7 @@ class BenchScene : AutoCloseable {
 
         fun parseTheme(displayModel: DisplayModel): RenderThemeFuture {
             // before reading INSTANCE: the first access to fixtures creates the graphic factory
-            val themeFile = File(fixtures, "themes/lomaps/theme.xml")
+            val themeFile = themeFile()
             val future = RenderThemeFuture(
                 AndroidGraphicFactory.INSTANCE,
                 ExternalRenderTheme(themeFile),
@@ -106,8 +106,17 @@ class BenchScene : AutoCloseable {
             )
         }
 
-        private fun mapFile(): File {
-            return argument("bench.mapFile")?.let(::File) ?: File(fixtures, "maps/monaco.osm.map")
+        /**
+         * The `bench.mapFile` argument, else the bundled Monaco map; prepares the fixtures and
+         * the graphic factory on first use.
+         */
+        fun mapFile(): File {
+            val dir = fixtures
+            return argument("bench.mapFile")?.let(::File) ?: File(dir, "maps/monaco.osm.map")
+        }
+
+        fun themeFile(): File {
+            return File(fixtures, "themes/lomaps/theme.xml")
         }
 
         private fun argument(name: String): String? {
