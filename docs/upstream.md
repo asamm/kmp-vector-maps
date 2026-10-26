@@ -8,7 +8,7 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, closure of the classes locus-core imports, see [ROADMAP](ROADMAP.md) M0; 15 converted to Kotlin, see below |
+| Scope | 177 files, closure of the classes locus-core imports, see [ROADMAP](ROADMAP.md) M0; 15 converted to Kotlin, see below; the sync routine compares the other 162 |
 
 ## Sync routine
 
@@ -34,9 +34,25 @@ M5 converts one area per PR in place (D24); a converted file keeps its upstream 
 package, and the sync routine above skips it, as it lists `.java` files only. Port upstream
 changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream path>`.
 
-| Area | Step | Upstream path | API differences |
-|---|---|---|---|
-| reader, 15 files | M5.1 | `mapsforge-map-reader/src/main/java/org/mapsforge/map/reader` | getters and the public fields of `MapFileInfo` / `SubFileParameter` are Kotlin properties (Java calls getters); classes final except `MapFile`; `MapFile.TEST_MAP_FILE` (test-only, unused) and the dead water-flag code dropped; package-private classes `internal` |
+| Area | Step | Upstream path |
+|---|---|---|
+| reader, 15 files | M5.1 | `mapsforge-map-reader/src/main/java/org/mapsforge/map/reader` |
+
+API differences of the reader (M5.1):
+
+- Getters and the public fields of `MapFileInfo` / `SubFileParameter` are Kotlin properties; Java
+  calls getters.
+- Classes are final except `MapFile`; its own members (`mapFileHeader`, `mapFileInfo`,
+  `mapLanguages`, `restrictToZoomRange`) are final, the `MapDataStore` overrides stay open.
+- Declared nullability: `MapFile(String)` takes a non-null path; the six `read*` return
+  `MapReadResult?`; `startPosition()` and `startZoomLevel()` are non-null.
+- `MapFileHeader.mapFileInfo` is `lateinit`: read before `readHeader` it throws, where Java returned
+  null.
+- Package-private classes and members are `internal`, which is public in bytecode (members
+  name-mangled), so Java can reach them.
+- Dropped as dead: `MapFile.TEST_MAP_FILE` (test-only, unused), the water-flag computation, the
+  never-thrown `IllegalArgumentException` in `readMapData`. New facade class `MapFileKt` holds
+  `clampLongitude`.
 
 ## Code deviations
 

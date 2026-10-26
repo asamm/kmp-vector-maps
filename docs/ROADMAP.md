@@ -213,7 +213,7 @@ soak ran in Locus by hand). From M5.1 the PRs merge into the umbrella `feature/m
 | PR | Area | Fixes after conversion | Status |
 |---|---|---|---|
 | M5.0 | soak harness (D25), no conversion | — | ✅ PR #6, `cc5dbce` |
-| M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek | 🔧 |
+| M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek; malformed-input guards (string length overflow, per-block catch) | 🔧 |
 | M5.2 | model, util | `DisplayModel` / `Parameters` statics → per-renderer config | ⬜ |
 | M5.3 | graphics | bounded Paint caches, native cost per Paint (F1–F3) | ⬜ |
 | M5.4 | renderer | hillshading classes and thread pool removed | ⬜ |

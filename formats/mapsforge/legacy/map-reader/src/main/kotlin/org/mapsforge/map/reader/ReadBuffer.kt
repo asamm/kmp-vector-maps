@@ -41,7 +41,9 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
     private val tagIds = ArrayList<Int>()
 
     internal val bufferSize: Int
-        get() = data().size
+        get() {
+            return data().size
+        }
 
     fun readByte(): Byte {
         return data()[bufferPosition++]

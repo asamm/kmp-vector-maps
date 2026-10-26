@@ -20,7 +20,7 @@ import org.mapsforge.core.model.Tile
 import org.mapsforge.map.reader.header.SubFileParameter
 
 /**
- * The base tiles and index blocks one read covers.
+ * The base tiles and sub-file blocks one read covers.
  */
 internal class QueryParameters {
 

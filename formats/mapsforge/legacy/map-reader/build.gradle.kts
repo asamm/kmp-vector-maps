@@ -21,6 +21,11 @@ kotlin {
     }
 }
 
+// a Java source here would compile against the Java 8 API too
+tasks.withType<JavaCompile>().configureEach {
+    options.release = 8
+}
+
 dependencies {
     api(project(":formats:mapsforge:legacy:map"))
 }
