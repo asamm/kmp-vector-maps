@@ -18,7 +18,7 @@ package org.mapsforge.map.datastore
 /**
  * Callback methods for the map reader.
  */
-interface MapCallback {
+fun interface MapCallback {
 
     /**
      * The zoom level to query for a requested `zoomLevel`.

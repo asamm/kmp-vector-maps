@@ -90,8 +90,10 @@ them (`@JvmField`, `@JvmStatic`, `const`):
 API differences of map model, util and datastore (M5.2b, K16–K22), on the same pattern as K9–K15:
 
 - K16 `MapDataStore` declares what upstream returns: `boundingBox()`, `startPosition()`,
-  `startZoomLevel()` and the `read*` are nullable; `getDataTimestamp(Tile)` and the other
-  parameters are non-null. Its non-abstract members stay open; `mapCallback` is a property. A
+  `startZoomLevel()` and the `read*` are nullable; the `Tile`, `BoundingBox` and tag-list
+  parameters are non-null; `language`, `extract` and `extractLocalized` stay nullable as upstream.
+  Its non-abstract members stay open; `mapCallback` is a property; `priority` stays a protected
+  field, so Kotlin outside a subclass calls `getPriority()`. A
   Kotlin override must use the declared types: Locus's `wayAsLabelTagFilter(MutableList<Tag>?)` in
   `MapsForgeV4RendererCore` becomes `(List<Tag>)`. The never-thrown `IllegalArgumentException` in
   the three area reads is dropped, as in K7.
@@ -105,7 +107,7 @@ API differences of map model, util and datastore (M5.2b, K16–K22), on the same
   `IllegalArgumentException` for null, as upstream.
 - K21 `MultiMapDataStore(null)` throws at entry; upstream failed on the first read. Its six
   `readAll*` share one loop; behaviour is unchanged.
-- K22 `LayerUtil` is an `object`, as K14; its private constructor no longer throws.
+- K22 `LayerUtil` is an `object`, as K10; its private constructor no longer throws.
 
 ## Code deviations
 

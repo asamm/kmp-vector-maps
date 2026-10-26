@@ -15,7 +15,7 @@
  */
 package org.mapsforge.map.model.common
 
-interface Observer {
+fun interface Observer {
 
     /**
      * Called whenever the observed object has changed; do slow work on another thread.

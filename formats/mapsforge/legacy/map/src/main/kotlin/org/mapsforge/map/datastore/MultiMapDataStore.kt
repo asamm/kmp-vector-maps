@@ -283,11 +283,11 @@ open class MultiMapDataStore @JvmOverloads constructor(
     }
 
     private fun coversArea(mdb: MapDataStore, upperLeft: Tile, lowerRight: Tile): Boolean {
-        return mdb.supportsArea(upperLeft.boundingBox.extendBoundingBox(lowerRight.boundingBox), upperLeft.zoomLevel)
+        return mdb.supportsArea(Tile.getBoundingBox(upperLeft, lowerRight), upperLeft.zoomLevel)
     }
 
     private fun coversFullArea(mdb: MapDataStore, upperLeft: Tile, lowerRight: Tile): Boolean {
-        return mdb.supportsFullArea(upperLeft.boundingBox.extendBoundingBox(lowerRight.boundingBox), upperLeft.zoomLevel)
+        return mdb.supportsFullArea(Tile.getBoundingBox(upperLeft, lowerRight), upperLeft.zoomLevel)
     }
 
     fun setStartPosition(startPosition: LatLong?) {

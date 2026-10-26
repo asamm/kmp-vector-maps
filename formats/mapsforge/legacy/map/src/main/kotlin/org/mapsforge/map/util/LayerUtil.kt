@@ -136,7 +136,7 @@ object LayerUtil {
         input: MutableList<MapElementContainer>,
         rotation: Rotation?,
         ascendingOrder: Boolean,
-    ): List<MapElementContainer> {
+    ): MutableList<MapElementContainer> {
         val output = LinkedList<MapElementContainer>()
 
         // sort items by priority (highest first)
@@ -164,7 +164,10 @@ object LayerUtil {
     }
 
     @JvmStatic
-    fun collisionFreeOrdered(input: MutableList<MapElementContainer>, rotation: Rotation?): List<MapElementContainer> {
+    fun collisionFreeOrdered(
+        input: MutableList<MapElementContainer>,
+        rotation: Rotation?,
+    ): MutableList<MapElementContainer> {
         return collisionFreeOrdered(input, rotation, true)
     }
 
@@ -178,7 +181,7 @@ object LayerUtil {
         tile: Tile,
         rotation: Rotation?,
         ascendingOrder: Boolean,
-    ): List<MapElementContainer> {
+    ): MutableList<MapElementContainer> {
         val output = LinkedList<MapElementContainer>()
 
         Collections.sort(input, Collections.reverseOrder())
@@ -211,7 +214,7 @@ object LayerUtil {
         input: MutableList<MapElementContainer>,
         tile: Tile,
         rotation: Rotation?,
-    ): List<MapElementContainer> {
+    ): MutableList<MapElementContainer> {
         return collisionAndContestingFreeOrdered(input, tile, rotation, true)
     }
 

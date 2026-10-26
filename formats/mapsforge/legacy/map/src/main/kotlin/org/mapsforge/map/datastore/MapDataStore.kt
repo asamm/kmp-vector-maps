@@ -175,12 +175,15 @@ abstract class MapDataStore @JvmOverloads constructor(language: String? = null) 
                 return null
             }
 
-            val langNames = splitJava(s, '\r')
             if (language == null
                 || language.trim { it <= ' ' }.isEmpty()
             ) {
-                return langNames[0]
+                // the default name without splitting, the common case
+                val end = s.indexOf('\r')
+                return if (end < 0) s else s.substring(0, end)
             }
+
+            val langNames = splitJava(s, '\r')
 
             var fallback: String? = null
             for (i in 1 until langNames.size) {
