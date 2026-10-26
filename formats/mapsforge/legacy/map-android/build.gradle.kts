@@ -1,3 +1,7 @@
+/*
+ * Mapsforge Android graphics and `AndroidParameters`, in Kotlin since M5.3b (D24), through AGP 9
+ * built-in Kotlin.
+ */
 plugins {
     alias(libs.plugins.androidLibrary)
 }

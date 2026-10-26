@@ -54,7 +54,7 @@ internal open class AwtPath : Path {
         this.path2D.windingRule = getWindingRule(fillRule)
     }
 
-    companion object {
+    private companion object {
 
         private fun getWindingRule(fillRule: FillRule): Int {
             return when (fillRule) {

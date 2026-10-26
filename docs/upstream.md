@@ -153,18 +153,23 @@ API differences of the Android and AWT graphics (M5.3b, K26–K30):
   stroke, style and texture paint) and the factories' `getColor`, `getMatrix`, `getPath`,
   `getAffineTransform`, mangled for Java. `AndroidBitmap.bitmap` goes from protected to `internal`,
   `AwtPointTextContainer.drawClashBounds` from protected to `internal`; the package-private
-  constructors of `AwtPaint`, `AwtResourceBitmap` and `AwtPointTextContainer`, the `MonoColorModel`
-  constructor and fields and the `HillshadingTemps` constructor are wider.
+  constructors of `AwtPaint`, `AwtResourceBitmap`, `AwtPointTextContainer`, `AndroidBitmap(width,
+  height, config)`, `AndroidResourceBitmap`, `AndroidPointTextContainer` and both
+  `AndroidTileBitmap` ones, the `MonoColorModel` constructor and fields and the `HillshadingTemps`
+  constructor are wider.
 - K28 Classes stay open, overrides and public members are final (K13); Android's protected
   `destroy`, `destroyBitmap`, `getBoundary` and `drawClashBounds` stay open. `AwtPaint`'s Java
   color field is `awtColor`, clear of `Paint.color`.
 - K29 Declared nullability: `AndroidGraphicFactory.getBitmap()` and `getCanvas()` are null once
   destroyed; `AwtGraphicFactory.getGraphics()` and `AwtCanvas.getGraphicObject()` nullable;
   `AwtBitmap.bufferedImage`, both `getPaint()` non-null. Null that upstream returned on now throws
-  at entry: the text of `drawText`, `drawPathText`, `drawTextRotated` and `AndroidCanvas.rotate`
+  at entry: the text of `drawText`, `drawPathText`, `drawTextRotated` and both canvases' `rotate`
   (non-null in K23), `getBytesPerPixel(null)`, `convertToAndroidBitmap` of a bitmap-less drawable
   before Android P, `createTileBitmap` from a null stream (upstream threw
-  `CorruptedInputStreamException`).
+  `CorruptedInputStreamException` on Android, `IllegalArgumentException` on AWT),
+  `AwtSvgBitmap.getResourceBitmap` from a null stream (upstream wrapped it in `IOException`). The
+  `AwtBitmap` family (`AwtTileBitmap`, `AwtHillshadingBitmap`) takes a non-null image; upstream
+  accepted null as destroyed, so `isDestroyed` is always false.
 - K30 Dropped as dead (K7): the `unknown ...` throws after exhaustive enum mappings, AWT's
   `UNKNOWN_STYLE`, a write-only local in `TextStroke`. AWT overrides declare `@Throws(IOException)`.
 

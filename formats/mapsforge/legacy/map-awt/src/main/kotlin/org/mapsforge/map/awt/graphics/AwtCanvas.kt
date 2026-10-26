@@ -535,7 +535,7 @@ internal open class AwtCanvas : Canvas {
         }
     }
 
-    companion object {
+    private companion object {
 
         private val NEUTRAL_HILLS: java.awt.Color = AwtGraphicFactory.getColor(Color.TRANSPARENT)
 
