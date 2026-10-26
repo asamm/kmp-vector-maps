@@ -24,7 +24,8 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 - **`:formats:mapsforge:legacy:core`**, **`:map`**, **`:map-reader`** — vendored Mapsforge,
   platform-independent; `:map-reader`, the model, util and datastore areas and core graphics
   converted to Kotlin (M5.1–M5.3a), the rest Java.
-- **`:formats:mapsforge:legacy:map-android`**, **`:map-awt`** — vendored graphics backends.
+- **`:formats:mapsforge:legacy:map-android`**, **`:map-awt`** — vendored graphics backends, in
+  Kotlin since M5.3b.
   `legacy/` goes once the Kotlin conversion replaces it.
 - **`:formats:mapsforge:driver`** — the `:core` driver over the vendored Mapsforge; the host
   passes its `GraphicFactory`. `./gradlew :formats:mapsforge:driver:test`.

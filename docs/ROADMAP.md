@@ -7,8 +7,9 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3, M5.0–M5.2 done; M5.3a (core graphics in Kotlin) in review; M5 runs on
-`feature/m5` (D26).** Next action: M5.3b, the Android and AWT graphics; M4 waits for Q12 and Q13.
+**Status: M0–M3, M5.0–M5.2 and M5.3a done; M5.3b (Android and AWT graphics in Kotlin) in review;
+M5 runs on `feature/m5` (D26).** Next action: M5.3 fixes, bounded Paint caches and `ANTI_ALIASING`
+per renderer; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -93,8 +94,8 @@ review found.
   Monaco map: explicit way label positions, water tiles, `readLabels` / `readPoiData`.
 - M2.6: `paint_counts.txt` from one long-lived renderer (`hike_bike`) sweeping z8–20 twice, Paints
   created and still alive after a full GC: 3,359 alive after the theme parse, ~3,100 more per new
-  zoom, 43,494 after z20, unchanged in the second sweep — the never-evicted caches of F2/F3. M5.3b
-  bounds `live`. Caught only here, no pixel changed: stroke scaling not cached per zoom (~2,100
+  zoom, 43,494 after z20, unchanged in the second sweep — the never-evicted caches of F2/F3. The M5.3
+  fixes bound `live`. Caught only here, no pixel changed: stroke scaling not cached per zoom (~2,100
   Paints per zoom in the second sweep); per-zoom eviction changes `live`.
 - Mutations caught (90 renders, 5 sets): menu rule filter 90 of 90, device scale ignored 54,
   caption offset flipped 45 plus the dump, labels not stored (dump and M2.3), way coordinate +1
@@ -216,8 +217,8 @@ without labels (D25; the locus-core PR #1635 soak ran in Locus by hand). From M5
 | M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek, malformed-input guards | ✅ PRs #7–#9, `6c64044` |
 | M5.2a | core model, util (17 files) | — | ✅ PR #10, `2bab7d9` |
 | M5.2b | map model, util, datastore (12 files) | `DisplayModel` scales per model (C4, D28) | ✅ PR #11, `4346dbd`; fixes PR #12, `ee52c8d` |
-| M5.3a | core graphics (27 files) | — | 🔧 |
-| M5.3b | Android and AWT graphics, `AndroidParameters` (25 files) | bounded Paint caches, native cost per Paint (F1–F3); `ANTI_ALIASING` per renderer (D28) | ⬜ |
+| M5.3a | core graphics (27 files) | — | ✅ PR #13, `6841d56` |
+| M5.3b | Android and AWT graphics, `AndroidParameters` (25 files) | bounded Paint caches, native cost per Paint (F1–F3); `ANTI_ALIASING` per renderer (D28) | 🔧 |
 | M5.4 | renderer | hillshading classes and thread pool removed; `POLYGON_*`, `NUMBER_OF_THREADS` per renderer (D28) | ⬜ |
 | M5.5 | labels; first, the soak compares each tile's label store entry | — (replaced in M6) | ⬜ |
 | M5.6 | theme rules, instructions | hash-only matching cache key; `SYMBOL_SCALING` per renderer (D28) | ⬜ |
@@ -255,6 +256,11 @@ after them.*
 *M5.3a, same AVD, 2026-10-26: `SEPARATE` 59,331 renders, all compared, 0 differed; `IN_TILE`
 88,376, no failure; soak on the code before the review fixes, goldens and dumps byte-exact after
 them.*
+
+*M5.3b, same AVD, 2026-10-26: `SEPARATE` 54,531 renders, all compared, 0 differed; `IN_TILE`
+61,443, no failure; goldens and dumps byte-exact. A first run had the test process die about a
+minute into `IN_TILE` (`SEPARATE` 48,832 renders, 0 differed); no stack trace was captured. An
+`IN_TILE` rerun and this full run with logcat streamed showed no crash (Q17).*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
@@ -383,3 +389,4 @@ A1–A6 found in locus-core `development` @ `79226d9`, A7 in upstream Mapsforge 
 | Q14 | Does the Mapsforge README waiver cover pre-2018 contributors? (locus-core Q1) | M9 |
 | Q15 | Desktop backend Skia via Skiko (recommended) or AWT only? | M7 |
 | Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? | M9 |
+| Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed. | M5 → `main` (D26) |

@@ -340,7 +340,7 @@ class SoakTest {
         }
 
         fun pixelHash(bitmap: TileBitmap): Long {
-            val android = AndroidGraphicFactory.getBitmap(bitmap)
+            val android = AndroidGraphicFactory.getBitmap(bitmap)!!
             val pixels = IntArray(android.width * android.height)
             android.getPixels(pixels, 0, android.width, 0, 0, android.width, android.height)
             // FNV-1a over the ARGB words
