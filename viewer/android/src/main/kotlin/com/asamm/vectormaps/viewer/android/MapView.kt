@@ -215,7 +215,7 @@ class MapView(
             val top = vp.screenY(tile.y, height)
             val bitmap = engine[tile]
             if (bitmap != null) {
-                canvas.drawBitmap(AndroidGraphicFactory.getBitmap(bitmap), left, top, null)
+                canvas.drawBitmap(AndroidGraphicFactory.getBitmap(bitmap)!!, left, top, null)
             } else {
                 canvas.drawRect(left + 1f, top + 1f, left + size - 1f, top + size - 1f, missingPaint)
             }

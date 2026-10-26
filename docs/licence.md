@@ -27,7 +27,7 @@ the legal check is locus-core plan Q1.
 | Waiver | §4(d) and §4(e), upstream `README.md` only, commit `c78c1d79` (2018-10-31) |
 | Headers | 176 of 177 vendored files; `TileDependencies.java` has none upstream |
 | Dependencies | androidsvg Apache-2.0; kxml2 BSD + public domain; svgSalamander BSD (1.1.3 POM) |
-| Embedded code | `TextStroke.java` and the libGDX-marked parts of `LatLongUtils.kt`: Apache-2.0 |
+| Embedded code | `TextStroke.kt` and the libGDX-marked parts of `LatLongUtils.kt`: Apache-2.0 |
 
 - The waiver is a GPL-3.0 §7 additional permission a redistributor may drop, so this repo carries
   it in [LICENSE.md](../LICENSE.md) and grants it for Asamm's changes.

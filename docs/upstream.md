@@ -8,11 +8,11 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 71 now Kotlin |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 96 now Kotlin |
 
 ## Sync routine
 
-The routine compares the 106 files still in Java; the Kotlin ones are listed under "Converted to
+The routine compares the 81 files still in Java; the Kotlin ones are listed under "Converted to
 Kotlin".
 
 - Check the vendored files against the tag, from anywhere in this repo; it prints the count, marks
@@ -50,6 +50,7 @@ changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream p
 | core model and util, 17 files | M5.2a | `mapsforge-core/src/main/java/org/mapsforge/core/{model,util}` |
 | map model, util and datastore, 12 files | M5.2b | `mapsforge-map/src/main/java/org/mapsforge/map/{model,util,datastore}` |
 | core graphics, 27 files | M5.3a | `mapsforge-core/src/main/java/org/mapsforge/core/graphics` |
+| Android and AWT graphics, 25 files | M5.3b | `mapsforge-map-android/src/main/java/org/mapsforge/map/android/{graphics,util}`, `mapsforge-map-awt/src/main/java/org/mapsforge/map/awt/graphics` |
 
 API differences of the reader (M5.1):
 
@@ -139,6 +140,34 @@ API differences of core graphics (M5.3a, K23–K25), on the same pattern:
   upstream. `SymbolOrientation` and `TextOrientation.fromString(null)` throw at entry; upstream's
   `switch` threw too.
 
+API differences of the Android and AWT graphics (M5.3b, K26–K30):
+
+- K26 Interface getters are overriding properties, as K23; also
+  `AndroidGraphicFactory.nonTransparentBitmapConfig`. Statics sit in companions with the same Java
+  names (`INSTANCE`, `TRANSPARENT`, `TRANSPARENT_BITMAP`, `MONO_ALPHA_BITMAP`, `DEBUG_BITMAPS`,
+  `KEEP_RESOURCE_BITMAPS`, `DEFAULT_SIZE`, `getBitmap`, `getPaint`, `getFontPadding`, ...);
+  `AndroidParameters` and `AndroidSvgBitmapStore` are objects (K10).
+- K27 Package-private becomes `internal`, public in bytecode (K6): `AwtCanvas`, `AwtMatrix`,
+  `AwtPath`, `AndroidCanvas`, `AndroidMatrix`, `AndroidPaint`, `AndroidPath`, the platform objects
+  they wrap (`canvas`, `paint`, `path`, `matrix`, `AwtBitmap.bufferedImage`, the `AwtPaint` font,
+  stroke, style and texture paint) and the factories' `getColor`, `getMatrix`, `getPath`,
+  `getAffineTransform`, mangled for Java. `AndroidBitmap.bitmap` goes from protected to `internal`,
+  `AwtPointTextContainer.drawClashBounds` from protected to `internal`; the package-private
+  constructors of `AwtPaint`, `AwtResourceBitmap` and `AwtPointTextContainer`, the `MonoColorModel`
+  constructor and fields and the `HillshadingTemps` constructor are wider.
+- K28 Classes stay open, overrides and public members are final (K13); Android's protected
+  `destroy`, `destroyBitmap`, `getBoundary` and `drawClashBounds` stay open. `AwtPaint`'s Java
+  color field is `awtColor`, clear of `Paint.color`.
+- K29 Declared nullability: `AndroidGraphicFactory.getBitmap()` and `getCanvas()` are null once
+  destroyed; `AwtGraphicFactory.getGraphics()` and `AwtCanvas.getGraphicObject()` nullable;
+  `AwtBitmap.bufferedImage`, both `getPaint()` non-null. Null that upstream returned on now throws
+  at entry: the text of `drawText`, `drawPathText`, `drawTextRotated` and `AndroidCanvas.rotate`
+  (non-null in K23), `getBytesPerPixel(null)`, `convertToAndroidBitmap` of a bitmap-less drawable
+  before Android P, `createTileBitmap` from a null stream (upstream threw
+  `CorruptedInputStreamException`).
+- K30 Dropped as dead (K7): the `unknown ...` throws after exhaustive enum mappings, AWT's
+  `UNKNOWN_STYLE`, a write-only local in `TextStroke`. AWT overrides declare `@Throws(IOException)`.
+
 ## Code deviations
 
 | ID | Where | What | Why |
@@ -150,15 +179,15 @@ API differences of core graphics (M5.3a, K23–K25), on the same pattern:
 
 ## Build deviations
 
-The Java sources are identical except the C-rows; how they are built is not. The JVM module `map-awt` builds
-like upstream: `--release 8`, UTF-8. `map-reader` (M5.1), `core` (M5.2a) and `map` (M5.2b) are
-Kotlin, `core` and `map` with their remaining Java, and keep the Java 8 target (B6).
+The Java sources are identical except the C-rows; how they are built is not. `map-reader` (M5.1),
+`core` (M5.2a, M5.3a), `map` (M5.2b) and `map-awt` (M5.3b) are Kotlin, `core` and `map` with their
+remaining Java, and keep the Java 8 target and UTF-8 (B6); `map-android` is Kotlin from M5.3b.
 
 | ID | What | Upstream | Here |
 |---|---|---|---|
-| B1 | Bytecode level, `map-android` | `--release 8` | Java 17; D8 at min-api 24 rewrites `ByteBuffer.clear()` (verified) |
+| B1 | Bytecode level, `map-android` | `--release 8` | Java 17, Kotlin from M5.3b; D8 at min-api 24 rewrites `ByteBuffer.clear()` (verified) |
 | B2 | `map-android` packaging | plain JAR against `android.jar` | Android library (AAR), minSdk 24 in its manifest |
 | B3 | Kotlin stdlib | none | `kotlin-stdlib` on every legacy module: through `core` (B6) and AGP's built-in Kotlin in `map-android` |
 | B4 | Source encoding | `UTF-8` set explicitly | resolved: JVM modules set UTF-8, `map-android` gets it as AGP's default |
 | B5 | Line endings | CRLF in the upstream tree | LF via `.gitattributes`; the sync routine ignores CR |
-| B6 | `map-reader`, `core` and `map` language | Java, `--release 8` | Kotlin, `jvmTarget` 1.8 and `-Xjdk-release=1.8`, the remaining Java with `--release 8`; depends on `kotlin-stdlib` |
+| B6 | `map-reader`, `core`, `map` and `map-awt` language | Java, `--release 8` | Kotlin, `jvmTarget` 1.8 and `-Xjdk-release=1.8`, the remaining Java with `--release 8`; depends on `kotlin-stdlib` |

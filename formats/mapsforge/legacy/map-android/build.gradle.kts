@@ -16,6 +16,10 @@ android {
     }
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 dependencies {
     api(project(":formats:mapsforge:legacy:map-reader"))
     api(libs.androidSvg)

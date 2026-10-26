@@ -39,7 +39,7 @@ object AndroidCorpus {
             renderSets(fixturesDir = fixturesDir) { set, tile, bitmap ->
                 val file = File(outDir, Corpus.tileFileName(set = set, tile = tile, extension = "png"))
                 file.outputStream().use { out ->
-                    AndroidGraphicFactory.getBitmap(bitmap).compress(Bitmap.CompressFormat.PNG, 100, out)
+                    AndroidGraphicFactory.getBitmap(bitmap)!!.compress(Bitmap.CompressFormat.PNG, 100, out)
                 }
             }
             IdentityHashes.align("end")
