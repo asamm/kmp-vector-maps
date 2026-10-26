@@ -70,7 +70,7 @@ API differences of the reader (M5.1):
 |---|---|---|---|
 | C1 | reader `IndexCache` | the LRU map is read and written under its lock | upstream races on it from concurrent reads (M5.1) |
 | C2 | reader `IndexCache`, `ReadBuffer` | positional reads until full, no seek under a lock | concurrent block reads no longer queue in the reader; on Windows the JDK still serialises them (M5.1) |
-| C3 | reader `ReadBuffer`, `MapFile`, `IndexCache` | overflow-safe string length and index block size; a missing debug signature handled like a wrong one | crafted maps no longer throw out of the read: a bad string reads as null, a bad signature skips its block (M5.1) |
+| C3 | reader `ReadBuffer`, `MapFile`, `IndexCache` | overflow-safe string length and index block size; a missing debug signature handled like a wrong one | an overflowing string or index size no longer throws; other malformed data still fails the tile (M5.1) |
 
 ## Build deviations
 

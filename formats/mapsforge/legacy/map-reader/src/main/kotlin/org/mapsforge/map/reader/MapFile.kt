@@ -355,7 +355,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
                     return null
                 }
 
-                // seek to the current block in the map file and read it into the buffer
+                // read the current block into the buffer
                 val readBuffer = ReadBuffer(inputChannel)
                 if (!readBuffer.readFromFile(subFileParameter.startAddress + currentBlockPointer, currentBlockSize)) {
                     // skip the current block

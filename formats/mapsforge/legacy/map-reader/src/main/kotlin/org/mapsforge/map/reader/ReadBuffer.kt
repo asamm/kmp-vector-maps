@@ -266,7 +266,8 @@ internal fun FileChannel.readFully(buffer: ByteBuffer, position: Long): Int {
     var total = 0
     while (buffer.hasRemaining()) {
         val read = read(buffer, position + total)
-        if (read < 0) {
+        // the contract allows 0; a short total fails the caller instead of spinning here
+        if (read <= 0) {
             break
         }
         total += read

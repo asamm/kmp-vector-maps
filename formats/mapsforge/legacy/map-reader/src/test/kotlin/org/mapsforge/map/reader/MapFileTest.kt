@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class MapFileTest {
 
@@ -23,10 +24,19 @@ class MapFileTest {
 
     @Test
     fun concurrentReadsMatchSerialReads() {
-        val mapFile = MapFile(File(fixtures, "maps/monaco.osm.map"))
+        val file = File(fixtures, "maps/monaco.osm.map")
+        // the reference reads on its own instance, so the shared one starts with a cold cache
+        val reference = MapFile(file)
+        val tiles = tiles(reference, zooms = 0..16)
+        val serial = try {
+            tiles.associateWith { digest(reference.readMapData(it)) }
+        } finally {
+            reference.close()
+        }
+        assertTrue(serial.values.all { it != null }, "a serial read failed")
+        assertTrue(serial.values.sumOf { it!!.second.size } > 0, "no ways read")
+        val mapFile = MapFile(file)
         try {
-            val tiles = tiles(mapFile, zooms = 12..16)
-            val serial = tiles.associateWith { digest(mapFile.readMapData(it)) }
             val pool = Executors.newFixedThreadPool(THREADS)
             try {
                 val jobs = (0 until THREADS).map { thread ->
@@ -68,7 +78,7 @@ class MapFileTest {
         }
     }
 
-    private fun digest(result: MapReadResult?): Pair<Any?, Any?>? {
+    private fun digest(result: MapReadResult?): Pair<List<*>, List<*>>? {
         if (result == null) {
             return null
         }
