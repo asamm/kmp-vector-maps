@@ -35,14 +35,16 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `core/` | driver interface, registry, styles, render configuration; Apache-2.0, see architecture.md |
 | `render/`, `android/` | `render/skia` from M7.1, `android/` from M8.1, other backends unscheduled; see architecture.md |
 
-- New Mapsforge code goes beside `legacy/`, never into it.
+- New Mapsforge code goes beside `legacy/`; an M5 conversion replaces its area's Java inside
+  `legacy/*` (D24).
 - `dev/` holds development helpers (benchmarks, test data); nothing in it ships.
 - Large local maps stay outside the repo, referenced from `local.properties` (`viewer.mapFile`,
   read by the desktop viewer when no saved session map exists; see `dev/fixtures/README.md`).
 
 ## Hard rules
 
-- **Vendored Mapsforge stays upstream-identical** except rows in [docs/upstream.md](docs/upstream.md).
+- **Vendored Mapsforge stays upstream-identical** until its area's M5 conversion, except rows in
+  [docs/upstream.md](docs/upstream.md).
 - **`./gradlew :formats:mapsforge:golden:test` before and after every Mapsforge change.**
 - **Never remove a licence header** or `COPYING*`; on a vendored file's first change, append
   `Copyright 2026 Asamm Software` ([licence.md](docs/licence.md) L2).

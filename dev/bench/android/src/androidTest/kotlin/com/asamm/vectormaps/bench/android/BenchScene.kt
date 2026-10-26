@@ -112,7 +112,12 @@ class BenchScene : AutoCloseable {
          */
         fun mapFile(): File {
             val dir = fixtures
-            return argument("bench.mapFile")?.let(::File) ?: File(dir, "maps/monaco.osm.map")
+            val file = argument("bench.mapFile")?.let(::File) ?: File(dir, "maps/monaco.osm.map")
+            require(file.canRead()) {
+                "mapFile(), cannot read $file; shared storage needs `adb shell appops set " +
+                    "com.asamm.vectormaps.bench.android.test MANAGE_EXTERNAL_STORAGE allow`"
+            }
+            return file
         }
 
         fun themeFile(): File {

@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 done; M5.0 (soak harness) in review.** Next action: M5.1, the reader in Kotlin;
-M4 waits for Q12 and Q13.
+**Status: M0–M3 done; M5.0 (soak harness) in review, PR #6.** Next action: merge M5.0, then
+M5.1, the reader in Kotlin; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -22,7 +22,7 @@ settles, labels before speed, the Locus-facing API last.
 | M0 | Foundation: vendored Mapsforge 0.30.0, golden test, CI | S | ✅ `d41acf5` |
 | M1 | Review hardening: CI, supply chain, licence docs, this plan | S | ✅ PR #1, `42f1598` |
 | M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | ✅ PR #2, `5e5b037` |
-| M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PR #5, `028d746` |
+| M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PRs #3–#5, `028d746` |
 | M4 | Garmin IMG joins | M | ⬜ needs Q12, Q13 |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | 🔧 |
 | M6 | Core features: label model, hillshade anchor, feature query | M | ⬜ |
@@ -191,9 +191,9 @@ green, 3 of 3 runs on the final commit.*
     rotation keeps the view; setup errors show as text.
   - Garmin's anti-aliasing, kind toggles and TRE level return with its driver (M4).
 
-*Verify: golden test green through the driver, and red when the driver ignores the text scale
-(the wrap width is not covered: LoMaps sets its own on most captions; a driver test pins it);
-viewer renders Monaco and Czech on desktop and A54.*
+*Verified: `./gradlew build` green on PRs #3–#5; golden test byte-exact through the driver, and
+red when the driver ignores the text scale (the wrap width is not covered: LoMaps sets its own on
+most captions; a driver test pins it); viewer GUI pass on desktop and on the A54 (Android 16).*
 
 **M4 — Garmin IMG.** Blocked by Q12 (visibility) and Q13 (licence wording).
 
@@ -206,21 +206,24 @@ viewer renders Monaco and Czech on desktop and A54.*
 
 **M5 — Mapsforge to Kotlin.** One area per PR, its hot-spot fixes in a follow-up PR on the same
 area, so each conversion PR stays pixel-identical. Every PR gated by goldens, dumps and an A54
-15-minute zoom soak with pixel check (D25; the locus-core PR #1635 soak ran in Locus by hand).
+15-minute zoom soak with pixel check of the tiles without labels (D25; the locus-core PR #1635
+soak ran in Locus by hand).
 
-| PR | Area | Fixes after conversion |
-|---|---|---|
-| M5.0 | soak harness (D25), no conversion | — |
-| M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek |
-| M5.2 | model, util | `DisplayModel` / `Parameters` statics → per-renderer config |
-| M5.3 | graphics | bounded Paint caches, native cost per Paint (F1–F3) |
-| M5.4 | renderer | hillshading classes and thread pool removed |
-| M5.5 | labels | — (replaced in M6) |
-| M5.6 | theme rules, instructions | hash-only matching cache key |
-| M5.7 | XML parser; `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — |
+| PR | Area | Fixes after conversion | Status |
+|---|---|---|---|
+| M5.0 | soak harness (D25), no conversion | — | 🔧 PR #6 |
+| M5.1 | reader | `IndexCache` race, positional reads instead of a locked seek | ⬜ |
+| M5.2 | model, util | `DisplayModel` / `Parameters` statics → per-renderer config | ⬜ |
+| M5.3 | graphics | bounded Paint caches, native cost per Paint (F1–F3) | ⬜ |
+| M5.4 | renderer | hillshading classes and thread pool removed | ⬜ |
+| M5.5 | labels; first, the soak compares each tile's label store entry | — (replaced in M6) | ⬜ |
+| M5.6 | theme rules, instructions | hash-only matching cache key | ⬜ |
+| M5.7 | XML parser; `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
 
-*M5.0 baseline, Java code, A54, 15 minutes on 2026-10-26: `SEPARATE` 58,292 tiles drawn,
-58,291 compared, 0 differed; `IN_TILE` 60,532 tiles drawn.*
+*M5.0 baseline, Java code, 2026-10-26: A54 (SM-A546B, Android 16, clocks not locked), bundled
+Monaco map, `soak.minutes=15` (7.5 per label mode), seed 20261025. `SEPARATE`: 59,746 renders
+drawn, all compared, 0 differed (render time includes the hash). `IN_TILE`: 66,756 renders drawn,
+no failure.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
@@ -287,8 +290,8 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25.
 | D21 | Speed work after the Kotlin conversion, against a Java baseline |
 | D22 | No iOS; Kotlin/JVM libraries, KMP only for the viewer UI |
 | D23 | Host API mirrors Locus' `MapSourceRenderer` seam |
-| D24 | M5 converts each area in place under `org.mapsforge.*`; M5.7 renames to `com.asamm.*` and moves the modules |
-| D25 | The M5 soak is `dev/bench/android` `SoakTest`: driver plus viewer engine, pixel check in `SEPARATE` mode |
+| D24 | M5 converts each area in place, in the `legacy/*` modules under `org.mapsforge.*`; M5.7 renames to `com.asamm.*` and moves the modules |
+| D25 | The M5 soak is `dev/bench/android` `SoakTest`: driver plus viewer engine, pixel check of every `SEPARATE` render |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.
@@ -301,7 +304,9 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25.
 - D24: a pure conversion per PR diffs cleanly and leaves the Java areas' imports alone; one rename
   at the end touches every file once.
 - D25: `IN_TILE` labels depend on render order until M6.1, so that mode is only checked to render;
-  a reference at a different device scale makes 598 of 3,017 compared tiles differ in a minute, so the check bites.
+  a reference at a different device scale makes 1,670 of 3,036 compared renders (610 distinct
+  tiles) differ in a minute, so the check bites. Labels go to the label store, not the tile, so
+  they are compared only once M5.5 adds a label store check.
 - The former "Java hot spots" milestone is folded into M5: with no early switch it was double work.
 
 ## Hazards
