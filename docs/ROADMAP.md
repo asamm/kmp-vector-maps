@@ -7,8 +7,9 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5.0–M5.5 done; M5.6a (theme rules in Kotlin) in review; M5 runs on `feature/m5` (D26).**
-Next action: M5.6b, render instructions in Kotlin; M4 waits for Q12 and Q13.
+**Status: M0–M3, M5.0–M5.5 and M5.6a done; M5.6b (render instructions in Kotlin) in review; M5
+runs on `feature/m5` (D26).** Next action: M5.6 fixes (cache key, Paint caches, per-renderer
+`ANTI_ALIASING`); M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -223,8 +224,9 @@ PR after M5.7 (D26).
 | M5.4b | renderer, cache, queue (17 files) | `POLYGON_*`, `NUMBER_OF_THREADS` per renderer (D28); the graphics hillshading API (`shadeBitmap`, `createMonoBitmap`, `HillshadingBitmap` and its two implementations) removed | ✅ PR #17, `33d9a1c`; fixes PR #18, `099eb6d` |
 | M5.5a | soak label store check (D31), no conversion | — | ✅ PR #19, `ab70bdf` |
 | M5.5b | labels (7 files) | — (replaced in M6) | ✅ PR #20, `54f8d0e` |
-| M5.6a | theme rules, matchers, `RenderTheme`, `RenderContext`, callbacks (20 files) | — | 🔧 |
-| M5.6b | render instructions (9 files) | hash-only matching cache key; Paint caches bounded to 4 zoom levels with in-use pinning (F1–F3); `ANTI_ALIASING` per renderer, Android Paints and AWT canvas, and `SYMBOL_SCALING` (D28, D29) | ⬜ |
+| M5.6a | theme rules, matchers, `RenderTheme`, `RenderContext`, callbacks (20 files) | — | ✅ PR #21, `e37f872` |
+| M5.6b | render instructions (9 files) | — | 🔧 |
+| M5.6 fixes | theme fixes after the conversion | hash-only matching cache key; Paint caches bounded to 4 zoom levels with in-use pinning (F1–F3); `ANTI_ALIASING` per renderer, Android Paints and AWT canvas, and `SYMBOL_SCALING` (D28, D29); upstream bugs kept in M5.6b, fixing them changes pixels (ask first): `computeBoundary` scales top by width, `Line` with `scale="all"` and no dasharray throws | ⬜ |
 | M5.7 | XML parser (11 files); `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
 
 - M5.1 fixes (upstream.md C1–C3): the index cache is locked, block reads are positional (measure
@@ -306,6 +308,10 @@ review fixes (KDoc, an initializer), goldens and label dumps byte-exact after th
 *M5.6a, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 54,151 renders, all compared, 0
 differed, labels of 0 differed (27,332 with labels); `IN_TILE` 70,813, no failure; review fixes
 were docs only.*
+
+*M5.6b, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 59,536 renders, all compared, 0
+differed, labels of 0 differed (30,194 with labels); `IN_TILE` 65,788, no failure; soak before the
+review fixes (comments, a guard split), goldens byte-exact after them.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
