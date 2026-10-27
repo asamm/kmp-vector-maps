@@ -21,12 +21,11 @@ import org.mapsforge.map.datastore.MapDataStore
 import org.mapsforge.map.layer.queue.Job
 import org.mapsforge.map.model.DisplayModel
 import org.mapsforge.map.rendertheme.rule.RenderThemeFuture
-import java.lang.Float.floatToIntBits
 
 /**
  * A tile to render from a map data store with a theme; the hash code leaves out alpha, the display
- * model and [labelsOnly], equality does not. A null `mapFile` or a non-positive or NaN `textScale` throws
- * [IllegalArgumentException].
+ * model and `labelsOnly`, equality does not. A null `mapFile` or a non-positive or NaN `textScale`
+ * throws [IllegalArgumentException].
  */
 open class RendererJob(
     tile: Tile?,
@@ -81,21 +80,23 @@ open class RendererJob(
         } else if (other !is RendererJob) {
             return false
         }
-        if (!mapDataStore.equals(other.mapDataStore)) {
+        if (mapDataStore != other.mapDataStore) {
             return false
-        } else if (floatToIntBits(textScale) != floatToIntBits(other.textScale)) {
+        } else if (java.lang.Float.floatToIntBits(textScale)
+            != java.lang.Float.floatToIntBits(other.textScale)
+        ) {
             return false
         } else if (renderThemeFuture == null
             && other.renderThemeFuture != null
         ) {
             return false
         } else if (renderThemeFuture != null
-            && !renderThemeFuture.equals(other.renderThemeFuture)
+            && renderThemeFuture != other.renderThemeFuture
         ) {
             return false
         } else if (labelsOnly != other.labelsOnly) {
             return false
-        } else if (!displayModel.equals(other.displayModel)) {
+        } else if (displayModel != other.displayModel) {
             return false
         }
         return true
@@ -131,7 +132,7 @@ open class RendererJob(
         val prime = 31
         var result = super.hashCode()
         result = prime * result + mapDataStore.hashCode()
-        result = prime * result + floatToIntBits(textScale)
+        result = prime * result + java.lang.Float.floatToIntBits(textScale)
         if (renderThemeFuture != null) {
             result = prime * result + renderThemeFuture.hashCode()
         }

@@ -51,7 +51,7 @@ changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream p
 | map model, util and datastore, 12 files | M5.2b | `mapsforge-map/src/main/java/org/mapsforge/map/{model,util,datastore}` |
 | core graphics, 27 files | M5.3a | `mapsforge-core/src/main/java/org/mapsforge/core/graphics` |
 | Android and AWT graphics, 25 files | M5.3b | `mapsforge-map-android/src/main/java/org/mapsforge/map/android/{graphics,util}`, `mapsforge-map-awt/src/main/java/org/mapsforge/map/awt/graphics` |
-| renderer, tile cache, job queue, `TilePosition`, 17 files | M5.4b | `mapsforge-map/src/main/java/org/mapsforge/map/layer/{renderer,cache,queue}`, `layer/TilePosition.java` |
+| renderer, tile cache, job queue, `TilePosition`, 17 files | M5.4b | `mapsforge-map/src/main/java/org/mapsforge/map/layer/{renderer,cache,queue}`, `mapsforge-map/src/main/java/org/mapsforge/map/layer/TilePosition.java` |
 
 API differences of the reader (M5.1):
 
@@ -194,12 +194,16 @@ API differences of the renderer, tile cache and job queue (M5.4b, K31–K38):
   result, `WayDecorator.renderText`'s stroke, the cache observers, `TileCache.get` and
   `getImmediately`. The rest is non-null and throws at entry: `InMemoryTileCache.put` (an NPE where
   upstream threw `IllegalArgumentException`), the render callbacks (except the symbol `boundary`),
-  the `TileCache` keys (upstream returned null or false) and `RendererJob`'s `displayModel`
-  (upstream accepted it).
+  the `TileCache` keys (upstream returned null or false), `RendererJob.otherTile` (an NPE where
+  upstream threw `IllegalArgumentException`), and, where upstream accepted null: `RendererJob`'s
+  `displayModel`, the `PolylineContainer` `upperLeft`, `lowerRight` and `tags`, the `TilePosition`
+  tile and point, the `ShapePaintContainer` container, paint and curve style, the renderers'
+  `graphicFactory` (upstream failed per tile, logged) and `CanvasRasterer`'s `renderContext`.
 - K34 Package-private becomes `internal`, public in bytecode (K6): `CircleContainer`,
-  `GeometryUtils`, `WayDecorator`, `BitmapLRUCache`, the `ShapePaintContainer` fields,
-  `TileDependencies`, `CanvasRasterer` `drawMapElements`, `fill`, both `fillOutsideAreas` and
-  `setCanvasBitmap`, `StandardRenderer.renderBitmap`;
+  `GeometryUtils`, `WayDecorator`, `BitmapLRUCache`; mangled for Java: the `ShapePaintContainer`
+  fields, the `TileDependencies` constructor and members (the class stays public, as
+  `DatabaseRenderer.tileDependencies` exposes it), `CanvasRasterer` `drawMapElements`, `fill`, both
+  `fillOutsideAreas` and `setCanvasBitmap`, `StandardRenderer.renderBitmap`;
   `ShapeType` is public, as `ShapeContainer.shapeType` exposes it.
 - K35 Classes stay open, except the internal `CircleContainer` and `BitmapLRUCache`, now final, and
   the objects of K32 and K34; public members are final (K13); the protected render hooks,

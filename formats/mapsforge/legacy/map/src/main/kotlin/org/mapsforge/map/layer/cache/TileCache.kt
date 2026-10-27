@@ -31,7 +31,7 @@ interface TileCache : ObservableInterface {
 
     /**
      * Destroys this cache; call it when the cache is no longer needed. To empty a cache that stays
-     * in use, call [purge] instead.
+     * in use, call `purge` instead.
      */
     fun destroy()
 

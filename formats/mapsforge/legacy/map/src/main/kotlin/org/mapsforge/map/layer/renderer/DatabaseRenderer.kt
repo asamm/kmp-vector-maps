@@ -75,7 +75,10 @@ open class DatabaseRenderer(
         }
 
     /**
-     * Renders `rendererJob`; null for a labels-only job or if rendering failed (the cause is logged).
+     * Renders `rendererJob` and caches a full tile. Null for a labels-only job inside the map or if
+     * rendering failed (the cause is logged); outside the map, with a theme background outside, the
+     * background tile comes back uncached, labels-only or not. A null job is logged, then throws
+     * [NullPointerException].
      */
     fun executeJob(rendererJob: RendererJob?): TileBitmap? {
         var output: TileBitmap? = null
@@ -202,7 +205,7 @@ open class DatabaseRenderer(
                 // first we need to get the labels from the adjacent tiles if they have already been
                 // drawn as those overlapping items must also be drawn on the current tile. They must
                 // be drawn regardless of priority clashes as a part of them has alread been drawn.
-                // Tile.neighbours builds a new HashSet, so its iterator can remove
+                // relies on Tile.neighbours building a new HashSet, so its iterator can remove
                 val neighbours = renderContext.rendererJob.tile.neighbours as MutableSet<Tile>
                 val tileIterator = neighbours.iterator()
                 val undrawableElements: MutableSet<MapElementContainer> = HashSet()

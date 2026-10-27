@@ -149,7 +149,8 @@ internal object WayDecorator {
 
     /**
      * Finds the parts of a way along which `text` fits and adds a WayTextContainer for each to the
-     * labels of `renderContext`; `upperLeft` and `lowerRight` are unused.
+     * labels of `renderContext`; `upperLeft`, `lowerRight` and `repeat` are unused: the text repeats
+     * every `repeatGap` regardless of `repeat`.
      *
      * @param dy if not 0, a line parallel to the coordinates is computed first
      * @param stroke stroke paint for the text, null to measure with `fill`
