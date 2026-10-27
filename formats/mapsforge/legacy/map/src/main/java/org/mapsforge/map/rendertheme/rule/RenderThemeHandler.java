@@ -6,6 +6,7 @@
  * Copyright 2017 MarcelHeckel
  * Copyright 2021 eddiemuc
  * Copyright 2024 Sublimis
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -53,11 +54,6 @@ public final class RenderThemeHandler {
     private static final String ELEMENT_NAME_RULE = "rule";
     private static final String UNEXPECTED_ELEMENT = "unexpected element: ";
     private static XmlPullParserFactory xmlPullParserFactory = null;
-
-    // Override hillshading values
-    public static int HILLSHADING_MAGNITUDE = -1;
-    public static byte HILLSHADING_ZOOM_MIN = -1;
-    public static byte HILLSHADING_ZOOM_MAX = -1;
 
     public static RenderTheme getRenderTheme(GraphicFactory graphicFactory, DisplayModel displayModel,
                                              XmlRenderTheme xmlRenderTheme) throws IOException, XmlPullParserException {
@@ -278,47 +274,23 @@ public final class RenderThemeHandler {
                     this.symbols.put(symbolId, symbol);
                 }
             } else if ("hillshading".equals(qName)) {
+                // not rendered: the element is still validated and takes its level, as upstream
                 checkState(qName, Element.RULE);
-                String category = null;
-                byte minZoom = 9;
-                byte maxZoom = 17;
-                byte layer = 5;
-                int magnitude = 128;
-                int color = 0xff000000;
-
                 for (int i = 0; i < pullParser.getAttributeCount(); ++i) {
                     String name = pullParser.getAttributeName(i);
                     String value = pullParser.getAttributeValue(i);
 
-                    if ("cat".equals(name)) {
-                        category = value;
-                    } else if ("zoom-min".equals(name)) {
-                        minZoom = XmlUtils.parseNonNegativeByte(name, value);
-                    } else if ("zoom-max".equals(name)) {
-                        maxZoom = XmlUtils.parseNonNegativeByte(name, value);
+                    if ("zoom-min".equals(name) || "zoom-max".equals(name) || "layer".equals(name)) {
+                        XmlUtils.parseNonNegativeByte(name, value);
                     } else if ("magnitude".equals(name)) {
-                        magnitude = XmlUtils.parseNonNegativeInteger(name, value);
+                        int magnitude = XmlUtils.parseNonNegativeInteger(name, value);
                         if (magnitude > 255)
                             throw new XmlPullParserException("Attribute 'magnitude' must not be > 255");
                     } else if ("color".equals(name)) {
-                        color = XmlUtils.getColor(this.graphicFactory, value);
-                    } else if ("layer".equals(name)) {
-                        layer = XmlUtils.parseNonNegativeByte(name, value);
+                        XmlUtils.getColor(this.graphicFactory, value);
                     }
                 }
-
-                // Override hillshading values
-                minZoom = HILLSHADING_ZOOM_MIN != -1 ? HILLSHADING_ZOOM_MIN : minZoom;
-                maxZoom = HILLSHADING_ZOOM_MAX != -1 ? HILLSHADING_ZOOM_MAX : maxZoom;
-                magnitude = HILLSHADING_MAGNITUDE != -1 ? HILLSHADING_MAGNITUDE : magnitude;
-
-                int hillShadingLevel = this.level++;
-                Hillshading hillshading = new Hillshading(minZoom, maxZoom, magnitude, color, layer, hillShadingLevel, this.graphicFactory);
-
-                if (this.categories == null || category == null
-                        || this.categories.contains(category)) {
-                    this.renderTheme.addHillShadings(hillshading);
-                }
+                this.level++;
             } else {
                 throw new XmlPullParserException("unknown element: " + qName);
             }

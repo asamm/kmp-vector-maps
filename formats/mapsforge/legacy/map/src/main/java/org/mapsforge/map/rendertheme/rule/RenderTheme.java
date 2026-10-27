@@ -23,12 +23,10 @@ import org.mapsforge.core.model.Tag;
 import org.mapsforge.core.util.LRUCache;
 import org.mapsforge.core.util.Utils;
 import org.mapsforge.map.datastore.PointOfInterest;
-import org.mapsforge.map.layer.hills.HillsRenderConfig;
 import org.mapsforge.map.layer.renderer.PolylineContainer;
 import org.mapsforge.map.model.DisplayModel;
 import org.mapsforge.map.rendertheme.RenderCallback;
 import org.mapsforge.map.rendertheme.RenderContext;
-import org.mapsforge.map.rendertheme.renderinstruction.Hillshading;
 import org.mapsforge.map.rendertheme.renderinstruction.RenderInstruction;
 
 import java.util.ArrayList;
@@ -53,9 +51,8 @@ public class RenderTheme {
     private final LRUCache<Integer, RenderInstruction[]> wayMatchingCache;
     private final LRUCache<Integer, RenderInstruction[]> poiMatchingCache;
 
-    // Note: rulesList and hillShadings are not synchronized because it seems they are not being updated once the theme is loaded.
+    // Note: rulesList is not synchronized because it seems it is not being updated once the theme is loaded.
     private final ArrayList<Rule> rulesList; // NOPMD we need specific interface
-    private final ArrayList<Hillshading> hillShadings = new ArrayList<>(); // NOPMD specific interface for trimToSize
 
     private final Map<Byte, Float> strokeScales = new HashMap<>();
     private final Map<Byte, Float> textScales = new HashMap<>();
@@ -223,13 +220,8 @@ public class RenderTheme {
         this.rulesList.add(rule);
     }
 
-    void addHillShadings(Hillshading hillshading) {
-        this.hillShadings.add(hillshading);
-    }
-
     void complete() {
         this.rulesList.trimToSize();
-        this.hillShadings.trimToSize();
         for (int i = 0, n = this.rulesList.size(); i < n; ++i) {
             this.rulesList.get(i).onComplete();
         }
@@ -268,11 +260,6 @@ public class RenderTheme {
         for (Rule rule : this.rulesList) {
             rule.apply(visitor);
         }
-    }
-
-    public void matchHillShadings(RenderContext renderContext, HillsRenderConfig hillsRenderConfig) {
-        for (Hillshading hillShading : hillShadings)
-            hillShading.render(renderContext, hillsRenderConfig);
     }
 
     private static final int keyCodeName = Utils.hashTagParameter("name");
