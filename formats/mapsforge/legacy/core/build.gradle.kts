@@ -1,5 +1,5 @@
 /*
- * Mapsforge core: model and util (M5.2a) and graphics (M5.3a) in Kotlin (D24), map elements still Java.
+ * Mapsforge core in Kotlin (D24): model and util (M5.2a), graphics (M5.3a), map elements (M5.5b).
  */
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -21,6 +21,7 @@ kotlin {
     }
 }
 
+// a Java source here would build as the other JVM legacy modules do
 tasks.withType<JavaCompile>().configureEach {
     options.release = 8
     options.encoding = "UTF-8"

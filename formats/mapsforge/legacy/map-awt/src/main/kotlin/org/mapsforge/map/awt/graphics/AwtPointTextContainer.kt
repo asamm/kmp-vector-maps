@@ -100,11 +100,14 @@ open class AwtPointTextContainer internal constructor(
     }
 
     final override fun draw(canvas: Canvas?, origin: Point?, matrix: Matrix?, rotation: Rotation?) {
-        if (this.isNotVisible()) {
+        if (this.isNotVisible) {
             return
         }
 
         val awtCanvas = canvas as AwtCanvas
+
+        // a local, as the field of another module cannot be smart cast
+        val paintBack = this.paintBack
 
         val rotRelPosition = getRotatedRelativePosition(origin!!.x, origin.y, rotation)
 
@@ -194,8 +197,8 @@ open class AwtPointTextContainer internal constructor(
                         throw IllegalArgumentException("No position for drawing PointTextContainer")
                     }
                 }
-                if (this.paintBack != null) {
-                    awtCanvas.setColorAndStroke(AwtGraphicFactory.getPaint(this.paintBack))
+                if (paintBack != null) {
+                    awtCanvas.setColorAndStroke(AwtGraphicFactory.getPaint(paintBack))
                     val affineTransform = AffineTransform()
                     affineTransform.translate(posX.toDouble(), posY.toDouble())
                     awtCanvas.getGraphicObject()!!.draw(layout.getOutline(affineTransform))
@@ -215,8 +218,8 @@ open class AwtPointTextContainer internal constructor(
             // Because the origin of our text is the baseline
             y += -textBounds.bottom
 
-            if (this.paintBack != null) {
-                canvas.drawText(this.text, Math.round(x).toInt(), Math.round(y).toInt(), this.paintBack)
+            if (paintBack != null) {
+                canvas.drawText(this.text, Math.round(x).toInt(), Math.round(y).toInt(), paintBack)
             }
             canvas.drawText(this.text, Math.round(x).toInt(), Math.round(y).toInt(), this.paintFront)
         }
