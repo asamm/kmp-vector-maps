@@ -1,6 +1,5 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
- * Copyright 2017 usrusr
  * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
@@ -14,8 +13,20 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.layer.renderer;
+package org.mapsforge.map.layer.renderer
 
-enum ShapeType {
-    CIRCLE, POLYLINE
+import org.mapsforge.core.model.Point
+
+/**
+ * A circle at a point relative to the tile.
+ */
+internal class CircleContainer(
+    val point: Point,
+    val radius: Float,
+) : ShapeContainer {
+
+    override val shapeType: ShapeType
+        get() {
+            return ShapeType.CIRCLE
+        }
 }

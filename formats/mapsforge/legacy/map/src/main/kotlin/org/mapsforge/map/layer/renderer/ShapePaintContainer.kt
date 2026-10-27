@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,17 +13,20 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.layer;
+package org.mapsforge.map.layer.renderer
 
-import org.mapsforge.core.model.Point;
-import org.mapsforge.core.model.Tile;
+import org.mapsforge.core.graphics.Curve
+import org.mapsforge.core.graphics.Paint
 
-public class TilePosition {
-    public final Point point;
-    public final Tile tile;
+/**
+ * A shape with the paint to draw it, offset by `dy` and drawn in `curveStyle`.
+ */
+open class ShapePaintContainer(
+    internal val shapeContainer: ShapeContainer,
+    internal val paint: Paint,
+    internal val dy: Float,
+    internal val curveStyle: Curve,
+) {
 
-    public TilePosition(Tile tile, Point point) {
-        this.tile = tile;
-        this.point = point;
-    }
+    constructor(shapeContainer: ShapeContainer, paint: Paint) : this(shapeContainer, paint, 0f, Curve.NO)
 }

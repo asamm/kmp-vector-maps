@@ -8,11 +8,11 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 96 now Kotlin, 17 hillshading files removed (C5) |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 113 now Kotlin, 17 hillshading files removed (C5) |
 
 ## Sync routine
 
-The routine compares the 64 files still in Java; the Kotlin ones are listed under "Converted to
+The routine compares the 47 files still in Java; the Kotlin ones are listed under "Converted to
 Kotlin".
 
 - Check the vendored files against the tag, from anywhere in this repo; it prints the count, marks
@@ -21,11 +21,9 @@ Kotlin".
   ```sh
   M=<path to a mapsforge clone>; root=$(git rev-parse --show-toplevel); n=0; fail=0
   # changed by C4, C5
-  r=map/src/main/java/org/mapsforge/map/rendertheme; l=map/src/main/java/org/mapsforge/map/layer
+  r=map/src/main/java/org/mapsforge/map/rendertheme
   expected=" $r/rule/RenderTheme.java $r/rule/RenderThemeBuilder.java \
-  $r/renderinstruction/RenderInstruction.java $r/rule/RenderThemeHandler.java \
-  $l/renderer/CanvasRasterer.java $l/renderer/DatabaseRenderer.java \
-  $l/renderer/StandardRenderer.java $l/renderer/ShapeType.java "
+  $r/renderinstruction/RenderInstruction.java $r/rule/RenderThemeHandler.java "
   for f in $(git -C "$root" ls-files 'formats/mapsforge/legacy/*/src/main/java/*'); do
     n=$((n+1)); u=mapsforge-${f#formats/mapsforge/legacy/}
     git -C "$M" show 54e8654f:"$u" | diff -q --strip-trailing-cr - "$root/$f" >/dev/null && continue
@@ -53,6 +51,7 @@ changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream p
 | map model, util and datastore, 12 files | M5.2b | `mapsforge-map/src/main/java/org/mapsforge/map/{model,util,datastore}` |
 | core graphics, 27 files | M5.3a | `mapsforge-core/src/main/java/org/mapsforge/core/graphics` |
 | Android and AWT graphics, 25 files | M5.3b | `mapsforge-map-android/src/main/java/org/mapsforge/map/android/{graphics,util}`, `mapsforge-map-awt/src/main/java/org/mapsforge/map/awt/graphics` |
+| renderer, tile cache, job queue, `TilePosition`, 17 files | M5.4b | `mapsforge-map/src/main/java/org/mapsforge/map/layer/{renderer,cache,queue}`, `layer/TilePosition.java` |
 
 API differences of the reader (M5.1):
 
@@ -175,6 +174,45 @@ API differences of the Android and AWT graphics (M5.3b, K26–K30):
 - K30 Dropped as dead (K7): the `unknown ...` throws after exhaustive enum mappings, AWT's
   `UNKNOWN_STYLE`, a write-only local in `TextStroke`. AWT overrides declare `@Throws(IOException)`.
 
+API differences of the renderer, tile cache and job queue (M5.4b, K31–K38):
+
+- K31 Getters are properties with the same Java names: `Job.key`; `PolylineContainer` `tags`,
+  `layer`, `upperLeft`, `lowerRight`, `isClosedWay`, `centerAbsolute`, `coordinatesAbsolute`,
+  `coordinatesRelativeToOrigin`; `ShapeContainer.shapeType`; `StandardRenderer` `startPosition`,
+  `startZoomLevel`, `zoomLevelMax`; `DatabaseRenderer.mapDatabase`. `TileCache.getCapacity()`,
+  `getCapacityFirstLevel()` stay functions, which leaves the driver's `DrawnTiles` unchanged;
+  `StandardRenderer.getRenderCallback()` stays one as the golden harness, also compiled against
+  upstream, overrides it.
+- K32 Statics: `RendererUtils` is an object (K10), `GeometryUtils` and `WayDecorator` internal
+  objects; `Job.composeKey` sits in a companion;
+  `StandardRenderer.DEFAULT_START_ZOOM_LEVEL` is a primitive `const` (upstream a boxed `Byte`),
+  `ZOOM_MAX` a `const`, `TAG_NATURAL_WATER` and `DatabaseRenderer.LOGGER` protected fields.
+- K33 Declared nullability: nullable are the `tile` of `Job` and `RendererJob` and `RendererJob`'s
+  `mapFile` (upstream's `IllegalArgumentException` kept), `RendererJob.renderThemeFuture`,
+  `StandardRenderer.mapDataStore`, `startPosition`, `startZoomLevel`, the `DatabaseRenderer` tile
+  cache, label store and `mapDatabase`, `executeJob`'s job and result, `processReadMapData`'s
+  result, `WayDecorator.renderText`'s stroke, the cache observers, `TileCache.get` and
+  `getImmediately`. The rest is non-null and throws at entry: `InMemoryTileCache.put` (an NPE where
+  upstream threw `IllegalArgumentException`), the render callbacks (except the symbol `boundary`),
+  the `TileCache` keys (upstream returned null or false) and `RendererJob`'s `displayModel`
+  (upstream accepted it).
+- K34 Package-private becomes `internal`, public in bytecode (K6): `CircleContainer`,
+  `GeometryUtils`, `WayDecorator`, `BitmapLRUCache`, the `ShapePaintContainer` fields,
+  `TileDependencies`, `CanvasRasterer` `drawMapElements`, `fill`, both `fillOutsideAreas` and
+  `setCanvasBitmap`, `StandardRenderer.renderBitmap`;
+  `ShapeType` is public, as `ShapeContainer.shapeType` exposes it.
+- K35 Classes stay open, except the internal `CircleContainer` and `BitmapLRUCache`, now final, and
+  the objects of K32 and K34; public members are final (K13); the protected render hooks,
+  `getRenderCallback`, `MyRenderCallback` and `equals`/`hashCode` of `Job` and `RendererJob` stay
+  open.
+- K36 `DatabaseRenderer`'s own `renderLabels` field is `drawLabels`: Kotlin cannot hide
+  `StandardRenderer.renderLabels`, which on a `DatabaseRenderer` reads
+  `renderLabels || cacheLabels`.
+- K37 `StandardRenderer`'s 3-argument constructor comes from `@JvmOverloads`;
+  `CanvasRasterer.DEBUG_COUNTS` is a private constant.
+- K38 The private constructors of `GeometryUtils`, `RendererUtils` and `WayDecorator` that threw
+  are gone (K22).
+
 ## Code deviations
 
 | ID | Where | What | Why |
@@ -183,7 +221,7 @@ API differences of the Android and AWT graphics (M5.3b, K26–K30):
 | C2 | reader `IndexCache`, `ReadBuffer` | positional reads until full, no seek under a lock | concurrent block reads no longer queue in the reader; on Windows the JDK still serialises them (M5.1) |
 | C3 | reader `ReadBuffer`, `MapFile`, `IndexCache` | overflow-safe string length and index block size; a missing debug signature handled like a wrong one | an overflowing string or index size no longer throws; other malformed data still fails the tile (M5.1) |
 | C4 | `DisplayModel`, theme `RenderTheme`, `RenderThemeBuilder`, `RenderInstruction` | device, line, symbol and text scales per model; the theme reads them from its model; the statics seed new models | a static set by one host (`AndroidGraphicFactory` sets the density) no longer changes other renderers (M5.2, D28) |
-| C5 | `layer/hills` (15 files), `HillshadingContainer`, `Hillshading`; `CanvasRasterer`, `ShapeType`, `RenderTheme`, `RenderThemeHandler`, `DatabaseRenderer`, `StandardRenderer` | the 17 files removed; `DatabaseRenderer`, `StandardRenderer` take the hills config as an ignored `Object`; `ShapeType.HILLSHADING`, `CanvasRasterer.drawHillshading`, `RenderTheme.matchHillShadings`, `StandardRenderer.hillsRenderConfig` and the `RenderThemeHandler.HILLSHADING_*` statics removed; `interruptAndDestroy()` is a no-op; `RenderThemeHandler` still validates `<hillshading>` and gives it its level, then drops it | hillshading is out of scope and unused by any consumer; the constructor keeps the upstream arity for the golden harness shared with upstream (M5.4a, D30) |
+| C5 | `layer/hills` (15 files), `HillshadingContainer`, `Hillshading`; `CanvasRasterer`, `ShapeType`, `RenderTheme`, `RenderThemeHandler`, `DatabaseRenderer`, `StandardRenderer` | the 17 files removed; `DatabaseRenderer`, `StandardRenderer` take the hills config as an ignored `Object` (`Any?` in Kotlin); `ShapeType.HILLSHADING`, `CanvasRasterer.drawHillshading`, `RenderTheme.matchHillShadings`, `StandardRenderer.hillsRenderConfig` and the `RenderThemeHandler.HILLSHADING_*` statics removed; `interruptAndDestroy()` is a no-op; `RenderThemeHandler` still validates `<hillshading>` and gives it its level, then drops it | hillshading is out of scope and unused by any consumer; the constructor keeps the upstream arity for the golden harness shared with upstream (M5.4a, D30) |
 
 ## Build deviations
 

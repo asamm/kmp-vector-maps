@@ -24,7 +24,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 
 | Path | Content |
 |---|---|
-| `formats/mapsforge/legacy/*` | vendored Mapsforge, upstream module split; Kotlin per area from M5.1 (`map-reader`, core and map model, util, datastore, graphics and its backends), deleted after M5 |
+| `formats/mapsforge/legacy/*` | vendored Mapsforge, upstream module split; Kotlin per area from M5.1 (`map-reader`, core and map model, util, datastore, graphics and its backends, renderer), deleted after M5 |
 | `formats/mapsforge/driver` | Mapsforge driver: the `core/` interface over `legacy/` |
 | `formats/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored corpus tiles render through the driver |
 | `formats/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `map-android`, Robolectric; plain Mapsforge, not the driver |

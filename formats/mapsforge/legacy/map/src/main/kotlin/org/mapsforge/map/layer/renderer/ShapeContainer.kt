@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,25 +13,12 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.layer.renderer;
+package org.mapsforge.map.layer.renderer
 
-import org.mapsforge.core.graphics.Curve;
-import org.mapsforge.core.graphics.Paint;
+/**
+ * A shape the [CanvasRasterer] draws.
+ */
+interface ShapeContainer {
 
-public class ShapePaintContainer {
-    final float dy;
-    final Paint paint;
-    final ShapeContainer shapeContainer;
-    final Curve curveStyle;
-
-    public ShapePaintContainer(ShapeContainer shapeContainer, Paint paint) {
-        this(shapeContainer, paint, 0f, Curve.NO);
-    }
-
-    public ShapePaintContainer(ShapeContainer shapeContainer, Paint paint, float dy, Curve curveStyle) {
-        this.shapeContainer = shapeContainer;
-        this.paint = paint;
-        this.dy = dy;
-        this.curveStyle = curveStyle;
-    }
+    val shapeType: ShapeType
 }
