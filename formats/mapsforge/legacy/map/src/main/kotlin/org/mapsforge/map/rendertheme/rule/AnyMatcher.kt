@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,22 +13,29 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.rendertheme.rule;
+package org.mapsforge.map.rendertheme.rule
 
-final class ClosedWayMatcher implements ClosedMatcher {
-    static final ClosedWayMatcher INSTANCE = new ClosedWayMatcher();
+import org.mapsforge.core.model.Tag
 
-    private ClosedWayMatcher() {
-        // do nothing
+internal object AnyMatcher : ElementMatcher, AttributeMatcher, ClosedMatcher {
+
+    override fun isCoveredBy(closedMatcher: ClosedMatcher): Boolean {
+        return closedMatcher === this
     }
 
-    @Override
-    public boolean isCoveredBy(ClosedMatcher closedMatcher) {
-        return closedMatcher.matches(Closed.YES);
+    override fun isCoveredBy(elementMatcher: ElementMatcher): Boolean {
+        return elementMatcher === this
     }
 
-    @Override
-    public boolean matches(Closed closed) {
-        return closed == Closed.YES;
+    override fun matches(closed: Closed): Boolean {
+        return true
+    }
+
+    override fun matches(element: Element): Boolean {
+        return true
+    }
+
+    override fun matches(tag: Tag): Boolean {
+        return true
     }
 }

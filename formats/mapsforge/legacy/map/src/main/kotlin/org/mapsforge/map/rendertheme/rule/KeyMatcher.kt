@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,22 +13,16 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.rendertheme.rule;
+package org.mapsforge.map.rendertheme.rule
 
-final class ElementWayMatcher implements ElementMatcher {
-    static final ElementWayMatcher INSTANCE = new ElementWayMatcher();
+import org.mapsforge.core.model.Tag
+import org.mapsforge.core.util.Utils
 
-    private ElementWayMatcher() {
-        // do nothing
-    }
+internal open class KeyMatcher(keys: List<String>) : AttributeMatcher {
 
-    @Override
-    public boolean isCoveredBy(ElementMatcher elementMatcher) {
-        return elementMatcher.matches(Element.WAY);
-    }
+    private val keys: IntArray = Utils.convertListString(keys)
 
-    @Override
-    public boolean matches(Element element) {
-        return element == Element.WAY;
+    final override fun matches(tag: Tag): Boolean {
+        return Utils.contains(keys, tag.keyCode)
     }
 }

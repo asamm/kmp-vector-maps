@@ -22,8 +22,8 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 - **`:core`** — format-neutral driver interface, registry, styles, render configuration
   (Apache-2.0). `./gradlew :core:test`.
 - **`:formats:mapsforge:legacy:core`**, **`:map`**, **`:map-reader`** — vendored Mapsforge,
-  platform-independent; all of `:core` and `:map-reader` and all of `:map` but the theme converted
-  to Kotlin (M5.1–M5.5b).
+  platform-independent; all of `:core` and `:map-reader` and all of `:map` but the render
+  instructions and the XML theme parser converted to Kotlin (M5.1–M5.6a).
 - **`:formats:mapsforge:legacy:map-android`**, **`:map-awt`** — vendored graphics backends, in
   Kotlin since M5.3b.
   `legacy/` goes once the Kotlin conversion replaces it.

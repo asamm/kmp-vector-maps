@@ -84,9 +84,9 @@ open class DatabaseRenderer(
         var output: TileBitmap? = null
         var renderContext: RenderContext? = null
         try {
-            renderContext = RenderContext(rendererJob, graphicFactory)
-            // the context dereferences the job, so it is not null from here
+            // a null job throws here, inside the try, as upstream's context did
             val job = rendererJob!!
+            renderContext = RenderContext(job, graphicFactory)
 
             if (renderBitmap(renderContext)) {
                 var bitmap: TileBitmap? = null
