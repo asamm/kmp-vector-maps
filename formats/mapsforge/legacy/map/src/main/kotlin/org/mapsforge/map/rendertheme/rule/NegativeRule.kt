@@ -22,12 +22,12 @@ import org.mapsforge.core.model.Tag
  *
  * - (-) 'exclusive negation' matches when either KEY is not present or KEY is present and any
  *   VALUE is NOT present.
- * - (\) 'except negation' matches when KEY is present none items of VALUE is present (TODO);
+ * - (\\) 'except negation' matches when KEY is present none items of VALUE is present (TODO);
  *   can be emulated by `<rule k="a"><rule k=a v="-|b|c">...</rule></rule>`.
  * - (~) 'non-exclusive negation' matches when either KEY is not present or KEY is present and any
  *   VALUE is present.
  */
-internal open class NegativeRule internal constructor(
+internal open class NegativeRule(
     ruleBuilder: RuleBuilder,
     internal val attributeMatcher: NegativeMatcher,
     internal val exclusive: Boolean,

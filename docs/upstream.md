@@ -53,7 +53,7 @@ changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream p
 | Android and AWT graphics, 25 files (23 after C6) | M5.3b | `mapsforge-map-android/src/main/java/org/mapsforge/map/android/{graphics,util}`, `mapsforge-map-awt/src/main/java/org/mapsforge/map/awt/graphics` |
 | renderer, tile cache, job queue, `TilePosition`, 17 files | M5.4b | `mapsforge-map/src/main/java/org/mapsforge/map/layer/{renderer,cache,queue}`, `mapsforge-map/src/main/java/org/mapsforge/map/layer/TilePosition.java` |
 | map elements and label stores, 7 files | M5.5b | `mapsforge-core/src/main/java/org/mapsforge/core/mapelements`, `mapsforge-map/src/main/java/org/mapsforge/map/layer/labels/{LabelStore,MapDataStoreLabelStore,TileBasedLabelStore}.java` |
-| theme rules, matchers, `RenderTheme`, `RenderContext`, `RenderCallback`, `ThemeCallback`, 20 files | M5.6a | `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/rule/` (all but `RenderThemeBuilder`, `RenderThemeFuture`, `RenderThemeHandler`, `RuleBuilder`), `rendertheme/{RenderCallback,RenderContext,ThemeCallback}.java` |
+| theme rules, matchers, `RenderTheme`, `RenderContext`, `RenderCallback`, `ThemeCallback`, 20 files | M5.6a | `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/rule/` (all but `RenderThemeBuilder`, `RenderThemeFuture`, `RenderThemeHandler`, `RuleBuilder`), `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/{RenderCallback,RenderContext,ThemeCallback}.java` |
 
 API differences of the reader (M5.1):
 
@@ -258,7 +258,7 @@ API differences of the theme rules (M5.6a, K46–K51):
   `complete`, `Rule.addRenderingInstruction`, `addSubRule` and `Element.fromString` are public;
   `Rule.cat` and the `Rule` matcher caches are `@JvmField internal`, fields for Java.
 - K48 Package-private becomes `internal` (K6): the matcher and enum classes, `PositiveRule` and
-  `NegativeRule` with their matcher fields; the constructors of these, `Rule` and `RenderTheme`
+  `NegativeRule` with their matcher fields and `exclusive`; the constructors of these, `Rule` and `RenderTheme`
   (not mangled); `Rule`'s zoom and matcher fields and its matching, scaling and lifecycle
   members, mangled for Java.
 - K49 The stateless matchers (`AnyMatcher`, `ClosedWayMatcher`, `LinearWayMatcher`,
@@ -269,7 +269,8 @@ API differences of the theme rules (M5.6a, K46–K51):
 - K51 Declared nullability: `RenderCallback` parameters are non-null except the symbol
   `boundary`; a Kotlin implementer must match, so LoPoints' `PointGeneratorV4Theme` drops `?` on
   its overrides when Locus adopts this library (as K16). `ThemeCallback.getColor` takes a nullable
-  origin (the theme builder passes null) and `getBitmap` returns `Bitmap?`. `RenderTheme`
+  origin (the theme builder passes null) and `getBitmap` returns `Bitmap?`; its other parameters
+  and the `getText` result are non-null, and a Kotlin implementer must match. `RenderTheme`
   and `Rule` check their builder's display model and matchers at construction, where upstream
   failed at first use.
 

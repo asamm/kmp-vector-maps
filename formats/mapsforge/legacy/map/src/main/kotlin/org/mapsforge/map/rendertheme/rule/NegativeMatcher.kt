@@ -18,7 +18,7 @@ package org.mapsforge.map.rendertheme.rule
 import org.mapsforge.core.model.Tag
 import org.mapsforge.core.util.Utils
 
-internal open class NegativeMatcher internal constructor(
+internal open class NegativeMatcher(
     keyList: List<String>,
     valueList: List<String>,
 ) : AttributeMatcher {

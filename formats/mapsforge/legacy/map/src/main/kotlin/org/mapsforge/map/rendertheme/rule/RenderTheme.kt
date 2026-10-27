@@ -30,8 +30,8 @@ import org.mapsforge.map.rendertheme.RenderContext
 import org.mapsforge.map.rendertheme.renderinstruction.RenderInstruction
 
 /**
- * A RenderTheme defines how ways and nodes are drawn. Matches are cached per tag set (without
- * `name`), zoom level and closed state; stroke and text scales are applied once per zoom level and
+ * A RenderTheme defines how ways and nodes are drawn. Matches are cached by a hash of the tags
+ * (without `name`), zoom level and closed state; stroke and text scales are applied once per zoom level and
  * factor.
  */
 open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuilder) {

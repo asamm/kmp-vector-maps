@@ -18,7 +18,7 @@ package org.mapsforge.map.rendertheme.rule
 import org.mapsforge.core.model.Tag
 import org.mapsforge.core.util.Utils
 
-internal open class KeyMatcher internal constructor(keys: List<String>) : AttributeMatcher {
+internal open class KeyMatcher(keys: List<String>) : AttributeMatcher {
 
     private val keys: IntArray = Utils.convertListString(keys)
 

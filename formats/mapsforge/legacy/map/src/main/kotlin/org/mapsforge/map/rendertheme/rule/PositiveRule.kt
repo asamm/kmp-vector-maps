@@ -17,7 +17,7 @@ package org.mapsforge.map.rendertheme.rule
 
 import org.mapsforge.core.model.Tag
 
-internal open class PositiveRule internal constructor(
+internal open class PositiveRule(
     ruleBuilder: RuleBuilder,
     internal val keyMatcher: AttributeMatcher,
     internal val valueMatcher: AttributeMatcher,

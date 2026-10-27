@@ -18,7 +18,7 @@ package org.mapsforge.map.rendertheme.rule
 import org.mapsforge.core.model.Tag
 import org.mapsforge.core.util.Utils
 
-internal open class ValueMatcher internal constructor(values: List<String>) : AttributeMatcher {
+internal open class ValueMatcher(values: List<String>) : AttributeMatcher {
 
     private val values: IntArray = Utils.convertListString(values)
 
