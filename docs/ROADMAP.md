@@ -7,9 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3, M5.0–M5.2 and M5.3a done; M5.3b (Android and AWT graphics in Kotlin) in review;
-M5 runs on `feature/m5` (D26).** Next action: M5.3 fixes, bounded Paint caches and `ANTI_ALIASING`
-per renderer; M4 waits for Q12 and Q13.
+**Status: M0–M3, M5.0–M5.2 and M5.3a–b done; M5.3 fixes (Paint cost measured, D29) in review;
+M5 runs on `feature/m5` (D26).** Next action: M5.4, renderer; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -94,8 +93,8 @@ review found.
   Monaco map: explicit way label positions, water tiles, `readLabels` / `readPoiData`.
 - M2.6: `paint_counts.txt` from one long-lived renderer (`hike_bike`) sweeping z8–20 twice, Paints
   created and still alive after a full GC: 3,359 alive after the theme parse, ~3,100 more per new
-  zoom, 43,494 after z20, unchanged in the second sweep — the never-evicted caches of F2/F3. The M5.3
-  fixes bound `live`. Caught only here, no pixel changed: stroke scaling not cached per zoom (~2,100
+  zoom, 43,494 after z20, unchanged in the second sweep — the never-evicted caches of F2/F3. M5.6
+  bounds `live` (D29). Caught only here, no pixel changed: stroke scaling not cached per zoom (~2,100
   Paints per zoom in the second sweep); per-zoom eviction changes `live`.
 - Mutations caught (90 renders, 5 sets): menu rule filter 90 of 90, device scale ignored 54,
   caption offset flipped 45 plus the dump, labels not stored (dump and M2.3), way coordinate +1
@@ -218,10 +217,10 @@ without labels (D25; the locus-core PR #1635 soak ran in Locus by hand). From M5
 | M5.2a | core model, util (17 files) | — | ✅ PR #10, `2bab7d9` |
 | M5.2b | map model, util, datastore (12 files) | `DisplayModel` scales per model (C4, D28) | ✅ PR #11, `4346dbd`; fixes PR #12, `ee52c8d` |
 | M5.3a | core graphics (27 files) | — | ✅ PR #13, `6841d56` |
-| M5.3b | Android and AWT graphics, `AndroidParameters` (25 files) | bounded Paint caches, native cost per Paint (F1–F3); `ANTI_ALIASING` per renderer (D28) | 🔧 |
+| M5.3b | Android and AWT graphics, `AndroidParameters` (25 files) | native cost per Paint measured (F2); caches and `ANTI_ALIASING` moved to M5.6 (D29) | ✅ PR #14, `cc24934`; fixes 🔧 |
 | M5.4 | renderer | hillshading classes and thread pool removed; `POLYGON_*`, `NUMBER_OF_THREADS` per renderer (D28) | ⬜ |
 | M5.5 | labels; first, the soak compares each tile's label store entry | — (replaced in M6) | ⬜ |
-| M5.6 | theme rules, instructions | hash-only matching cache key; `SYMBOL_SCALING` per renderer (D28) | ⬜ |
+| M5.6 | theme rules, instructions | hash-only matching cache key; Paint caches bounded to 4 zoom levels with in-use pinning (F1–F3); `ANTI_ALIASING` per renderer, Android Paints and AWT canvas, and `SYMBOL_SCALING` (D28, D29) | ⬜ |
 | M5.7 | XML parser; `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
 
 - M5.1 fixes (upstream.md C1–C3): the index cache is locked, block reads are positional (measure
@@ -231,6 +230,10 @@ without labels (D25; the locus-core PR #1635 soak ran in Locus by hand). From M5
   the driver prefers a visible error to a blank tile.
 - M5.2 fixes (upstream.md C4, D28): device, line, symbol and text scales are per `DisplayModel`;
   the statics only seed new models, so the driver no longer needs the global scale at 1.
+- M5.3 fixes (D29): `PaintCostTest` measures heap per Mapsforge Paint, each drawn once. The
+  Paints' native heap (224–320 B × ~68k new Paints) explains ~15–22 MB of F1's native +93–170 MB;
+  their Java heap (~16 MB) is outside F1. Most of the growth is unexplained (Q18); M5.6 bounds the
+  Paint caches regardless. No soak, goldens or dumps: no library code changed.
 
 *M5.0 baseline, Java code, 2026-10-26: A54 (SM-A546B, Android 16, clocks not locked), bundled
 Monaco map, `soak.minutes=15` (7.5 per label mode), seed 20261025. `SEPARATE`: 59,746 renders
@@ -261,6 +264,12 @@ them.*
 61,443, no failure; goldens and dumps byte-exact. A first run had the test process die about a
 minute into `IN_TILE` (`SEPARATE` 48,832 renders, 0 differed); no stack trace was captured. An
 `IN_TILE` rerun and this full run with logcat streamed showed no crash (Q17).*
+
+*M5.3 fixes, `PaintCostTest` on the same AVD (x86_64), 2026-10-26, 20,000 Paints, second of two
+runs: native / Java bytes per Paint 224 / 240, with a dash effect 320 / 296, with a bitmap shader
+544 / 384; a typeface or text size adds nothing. F2's 1.4–2.5 KB is F1's native growth divided by
+the Paint count, on the A54; `PaintCostTest` has not run on the A54 yet. No soak, goldens or
+dumps: no library code changed.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
@@ -302,7 +311,7 @@ minute into `IN_TILE` (`SEPARATE` 48,832 renders, 0 differed); no stack trace wa
 
 ## Decisions
 
-D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D28 2026-10-26.
+D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26.
 
 | ID | Decision |
 |---|---|
@@ -333,7 +342,8 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D28 2026-10-26.
 | D25 | The M5 soak is `dev/bench/android` `SoakTest`: driver plus viewer engine, pixel check of every `SEPARATE` render |
 | D26 | M5 PRs from M5.1 merge into `feature/m5`; one PR to `main` after M5.7 and the owner's review |
 | D27 | From M5.2 the device soak runs on the dev AVD `VectorMaps_Soak_API36`; the A54 serves other work |
-| D28 | `DisplayModel` scales are per model from M5.2, the statics only seed new models, so the shared golden harness and Locus still compile; a model created before a static is set keeps the old value (Locus, see M8 must); each pixel-relevant `Parameters` field moves to per-renderer config with its area (M5.3b, M5.4, M5.6); `MAXIMUM_BUFFER_SIZE`, `VALIDATE_COORDINATES` and the view flags stay global |
+| D28 | `DisplayModel` scales are per model from M5.2, the statics only seed new models, so the shared golden harness and Locus still compile; a model created before a static is set keeps the old value (Locus, see M8 must); each pixel-relevant `Parameters` field moves to per-renderer config with its area (M5.4, M5.6; D29); `MAXIMUM_BUFFER_SIZE`, `VALIDATE_COORDINATES` and the view flags stay global, as do `ANDROID_32BIT_COLOR` (the host's tile format until the host-bitmap target) and `AndroidParameters.ANDROID_LIBHWUI_FIX` (a per-device workaround) |
+| D29 | The Paint caches (F1–F3) are bounded in M5.6, in Kotlin: a window of 4 zoom levels, and each render job pins its zoom so a drawing tile never sees an unscaled Paint; where the window lives is M5.6's call. `ANTI_ALIASING` per renderer moves to M5.6 too, as on Android it is set on each theme Paint; on AWT the canvas reads it (`AwtCanvas`, set from `CanvasRasterer`), changed in the same step |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.
@@ -390,3 +400,4 @@ A1–A6 found in locus-core `development` @ `79226d9`, A7 in upstream Mapsforge 
 | Q15 | Desktop backend Skia via Skiko (recommended) or AWT only? | M7 |
 | Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? | M9 |
 | Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed. | M5 → `main` (D26) |
+| Q18 | F1: the Paints' native heap explains ~15–22 MB of the native +93–170 MB zoom growth (M5.3 fixes); what holds the rest? A phone zoom soak after M5.6 shows how much the cache bound removes. | M5 → `main` (D26) |
