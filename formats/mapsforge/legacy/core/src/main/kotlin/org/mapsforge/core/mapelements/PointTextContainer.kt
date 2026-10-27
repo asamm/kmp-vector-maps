@@ -192,11 +192,8 @@ abstract class PointTextContainer protected constructor(
     }
 
     /**
-     * See org.mapsforge.map.rendertheme.renderinstruction.Caption#Caption,
-     * org.mapsforge.map.android.graphics.AndroidPointTextContainer#AndroidPointTextContainer,
-     * or org.mapsforge.map.awt.graphics.AwtPointTextContainer#AwtPointTextContainer.
-     *
-     * @return Clash rectangle in absolute coordinate space
+     * The clash rectangle in absolute coordinates; see the constructors of `Caption`,
+     * `AndroidPointTextContainer` and `AwtPointTextContainer`.
      */
     final override fun getClashRect(rotation: Rotation?): Rectangle? {
         val pointTextContainer = this
@@ -353,9 +350,7 @@ abstract class PointTextContainer protected constructor(
         }
 
         /**
-         * Mainly used for debugging purposes.
-         *
-         * @return Clash rectangle transformed back to label space
+         * The clash rectangle transformed back to label space, mainly for debugging.
          */
         @JvmStatic
         fun getClashRectangleTransformed(

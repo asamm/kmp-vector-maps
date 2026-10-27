@@ -237,8 +237,9 @@ API differences of the map elements and label stores (M5.5b, K39–K45):
   `getClashRectangleTransformed` and `getBoundary`, the back paints, `PointTextContainer`'s
   symbol, the `SymbolContainer` boundary and both tiles of `LabelStore.getVisibleItems` (locus-core
   passes nullable ones). The rest is non-null and throws at entry; a null
-  `MapDataStoreLabelStore` store, theme future or display model throws in the constructor, where
-  upstream's every query returned an empty list (the query swallows the exception).
+  `MapDataStoreLabelStore` store, theme future, display model or graphic factory throws in the
+  constructor, where upstream's every query returned an empty list (the query swallows the
+  exception; the graphic factory since K33).
 - K43 `getVisibleItems` returns and `storeMapItems` takes a `MutableList`; `TileBasedLabelStore`
   keeps read-only values.
 - K44 Package-private becomes `internal` (K6): the `MapDataStoreLabelStore` fields, mangled for
