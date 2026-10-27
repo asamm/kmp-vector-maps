@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5.0–M5.3 done; M5.4a (hillshading removed, D30) in review;
-M5 runs on `feature/m5` (D26).** Next action: M5.4b, renderer in Kotlin; M4 waits for Q12 and Q13.
+**Status: M0–M3, M5.0–M5.3 and M5.4a done; M5.4b (renderer in Kotlin) in review;
+M5 runs on `feature/m5` (D26).** Next action: M5.4 fixes; M5.5, labels; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -218,8 +218,8 @@ without labels (D25; the locus-core PR #1635 soak ran in Locus by hand). From M5
 | M5.2b | map model, util, datastore (12 files) | `DisplayModel` scales per model (C4, D28) | ✅ PR #11, `4346dbd`; fixes PR #12, `ee52c8d` |
 | M5.3a | core graphics (27 files) | — | ✅ PR #13, `6841d56` |
 | M5.3b | Android and AWT graphics, `AndroidParameters` (25 files) | native cost per Paint measured (F2); caches and `ANTI_ALIASING` moved to M5.6 (D29) | ✅ PR #14, `cc24934`; fixes PR #15, `dd4d89c` |
-| M5.4a | hillshading and its thread pool removed before the conversion (17 files, C5, D30) | — | 🔧 |
-| M5.4b | renderer, cache, queue | `POLYGON_*`, `NUMBER_OF_THREADS` per renderer (D28); the graphics hillshading API (`shadeBitmap`, `createMonoBitmap`, `HillshadingBitmap` and its two implementations) removed | ⬜ |
+| M5.4a | hillshading and its thread pool removed before the conversion (17 files, C5, D30) | — | ✅ PR #16, `70710a3` |
+| M5.4b | renderer, cache, queue (17 files) | `POLYGON_*`, `NUMBER_OF_THREADS` per renderer (D28); the graphics hillshading API (`shadeBitmap`, `createMonoBitmap`, `HillshadingBitmap` and its two implementations) removed | 🔧 |
 | M5.5 | labels; first, the soak compares each tile's label store entry | — (replaced in M6) | ⬜ |
 | M5.6 | theme rules, instructions | hash-only matching cache key; Paint caches bounded to 4 zoom levels with in-use pinning (F1–F3); `ANTI_ALIASING` per renderer, Android Paints and AWT canvas, and `SYMBOL_SCALING` (D28, D29) | ⬜ |
 | M5.7 | XML parser; `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
@@ -274,6 +274,10 @@ dumps: no library code changed.*
 
 *M5.4a, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 54,271 renders, all compared, 0
 differed; `IN_TILE` 71,578, no failure, no test-process crash; goldens and dumps byte-exact.*
+
+*M5.4b, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 43,780 renders, all compared, 0
+differed; `IN_TILE` 58,583, no failure, no test-process crash; soak on the code before the review
+fixes (KDoc, docs, a licence notice), goldens and dumps byte-exact after them.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
