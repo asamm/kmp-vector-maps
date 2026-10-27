@@ -23,7 +23,6 @@
 package org.mapsforge.core.graphics
 
 import org.mapsforge.core.model.Point
-import org.mapsforge.core.model.Rectangle
 
 interface GraphicContext {
 
@@ -89,19 +88,4 @@ interface GraphicContext {
     fun setClip(left: Int, top: Int, width: Int, height: Int, intersect: Boolean)
 
     fun setClipDifference(left: Float, top: Float, width: Float, height: Float)
-
-    /**
-     * Shades the whole tile when `tileRect` is null (then `bitmap` and `shadeRect` are null too),
-     * `tileRect` neutrally when `bitmap` is null, else `tileRect` with `bitmap`.
-     *
-     * @param external for external use, like producing transparent bitmap tiles
-     */
-    fun shadeBitmap(
-        bitmap: Bitmap?,
-        shadeRect: Rectangle?,
-        tileRect: Rectangle?,
-        magnitude: Float,
-        color: Int,
-        external: Boolean,
-    )
 }

@@ -10,6 +10,7 @@ import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
+import org.mapsforge.core.util.Parameters
 import org.mapsforge.map.awt.graphics.AwtGraphicFactory
 import org.mapsforge.map.model.DisplayModel
 import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu
@@ -255,6 +256,26 @@ class MapsforgeDriverTest {
             DisplayModel.lineScale = originalLineScale
             DisplayModel.symbolScale = originalSymbolScale
             DisplayModel.textScale = originalTextScale
+        }
+    }
+
+    @Test
+    fun createRendererIgnoresGlobalParameters() {
+        val originalZoomMin = Parameters.POLYGON_ZOOM_MIN
+        val originalThreads = Parameters.NUMBER_OF_THREADS
+        Parameters.POLYGON_ZOOM_MIN = 20
+        // a value the renderer's parallelism cannot have
+        Parameters.NUMBER_OF_THREADS = Runtime.getRuntime().availableProcessors() + 7
+        try {
+            driver.open(listOf(monaco)).use { dataset ->
+                dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, config).use { renderer ->
+                    assertEquals(-1, renderer.displayModel.polygonZoomMin)
+                    assertEquals(renderer.maxParallelism, renderer.displayModel.numberOfThreads)
+                }
+            }
+        } finally {
+            Parameters.POLYGON_ZOOM_MIN = originalZoomMin
+            Parameters.NUMBER_OF_THREADS = originalThreads
         }
     }
 

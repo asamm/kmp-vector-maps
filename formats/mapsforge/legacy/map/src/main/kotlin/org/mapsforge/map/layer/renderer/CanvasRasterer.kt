@@ -33,7 +33,6 @@ import org.mapsforge.core.model.Point
 import org.mapsforge.core.model.Rectangle
 import org.mapsforge.core.model.Rotation
 import org.mapsforge.core.model.Tile
-import org.mapsforge.core.util.Parameters
 import org.mapsforge.map.rendertheme.RenderContext
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -151,7 +150,7 @@ open class CanvasRasterer(
 
     private fun drawPath(shapePaintContainer: ShapePaintContainer) {
         if (!path.isEmpty) {
-            if (Parameters.NUMBER_OF_THREADS > 1) {
+            if (renderContext.rendererJob.displayModel.numberOfThreads > 1) {
                 // Make sure setting the shader shift and actual drawing is synchronized,
                 // since the paint object is shared between multiple threads.
                 synchronized(shapePaintContainer.paint) {
@@ -173,7 +172,7 @@ open class CanvasRasterer(
         coordinates: Array<Array<Point>>,
         dy: Float,
     ) {
-        if (Parameters.NUMBER_OF_THREADS > 1) {
+        if (renderContext.rendererJob.displayModel.numberOfThreads > 1) {
             // Make sure setting the shader shift and actual drawing is synchronized,
             // since the paint object is shared between multiple threads.
             synchronized(shapePaintContainer.paint) {

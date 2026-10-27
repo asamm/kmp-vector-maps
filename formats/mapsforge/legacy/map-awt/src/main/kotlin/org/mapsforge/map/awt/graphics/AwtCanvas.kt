@@ -31,11 +31,9 @@ import org.mapsforge.core.graphics.Path
 import org.mapsforge.core.graphics.Style
 import org.mapsforge.core.model.Dimension
 import org.mapsforge.core.model.Point
-import org.mapsforge.core.model.Rectangle
 import org.mapsforge.core.model.Rotation
 import org.mapsforge.core.util.Parameters
 import java.awt.AlphaComposite
-import java.awt.Composite
 import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.font.TextLayout
@@ -44,14 +42,11 @@ import java.awt.geom.Area
 import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 import java.awt.image.IndexColorModel
-import java.util.AbstractMap
 
 internal open class AwtCanvas : Canvas {
 
     private var bufferedImage: BufferedImage? = null
     private var graphics2D: Graphics2D? = null
-
-    private val transform = AffineTransform()
 
     // throws without a bitmap
     private val graphics: Graphics2D
@@ -73,8 +68,8 @@ internal open class AwtCanvas : Canvas {
     final override fun drawBitmap(bitmap: Bitmap, left: Int, top: Int) {
         val awtBitmap = AwtGraphicFactory.getBitmap(bitmap)
         if (awtBitmap.colorModel is IndexColorModel) {
-            // We need to clear the existing alpha to get a clean overwrite
-            // (this is currently expected only for hill shading bitmaps)
+            // clears the existing alpha for a clean overwrite, for palette images such as an
+            // indexed PNG
             fillColor(Color.TRANSPARENT)
         }
         this.graphics.drawImage(awtBitmap, left, top, null)
@@ -441,79 +436,6 @@ internal open class AwtCanvas : Canvas {
         this.graphics.setClip(clip)
     }
 
-    final override fun shadeBitmap(
-        bitmap: Bitmap?,
-        shadeRect: Rectangle?,
-        tileRect: Rectangle?,
-        magnitude: Float,
-        color: Int,
-        external: Boolean,
-    ) {
-        val oldComposite = this.graphics.composite
-        val composite = getHillshadingComposite(magnitude, external)
-        this.graphics.composite = composite
-
-        if (bitmap == null) {
-            // apply flat shading
-            if (tileRect != null) {
-                // subtract in after rounding to get same error as on neighbor tile
-                this.graphics.setClip(
-                    Math.round(tileRect.left).toInt(),
-                    Math.round(tileRect.top).toInt(),
-                    Math.round(tileRect.right - tileRect.left.toInt()).toInt(),
-                    Math.round(tileRect.bottom).toInt() - Math.round(tileRect.top).toInt(),
-                )
-            }
-            this.graphics.color = NEUTRAL_HILLS
-            this.graphics.fillRect(0, 0, width, height)
-            this.graphics.composite = oldComposite
-            this.graphics.setClip(null)
-            return
-        }
-
-        if (shadeRect!!.width != 0.0
-            && shadeRect.height != 0.0
-        ) {
-            val horizontalScale = tileRect!!.width / shadeRect.width
-            val verticalScale = tileRect.height / shadeRect.height
-
-            // Using a rectangle slightly larger than necessary to prevent resize artifacts
-            val srcLeft = Math.max(0, shadeRect.left.toInt() - 1)
-            val srcTop = Math.max(0, shadeRect.top.toInt() - 1)
-            val srcWidth = Math.min(bitmap.width - srcLeft, shadeRect.width.toInt() + 4)
-            val srcHeight = Math.min(bitmap.height - srcTop, shadeRect.height.toInt() + 4)
-
-            // (2024-10) Sub-image is extracted to prevent needless upscaling of the entire hill
-            // shading bitmap with the transform below. This would waste large amounts of memory
-            // and CPU time when only a small part of the bitmap is really needed, and could
-            // potentially cause an OOM exception, especially on larger zoom levels when
-            // horizontalScale and verticalScale become very large.
-            // Note: It appears that Android is not susceptible to this problem, only AWT.
-            val subImage = AwtGraphicFactory
-                .getBitmap(bitmap)
-                .getSubimage(srcLeft, srcTop, srcWidth, srcHeight)
-
-            transform.setToIdentity()
-            transform.translate(tileRect.left, tileRect.top)
-            transform.scale(horizontalScale, verticalScale)
-            transform.translate(-(shadeRect.left - srcLeft), -(shadeRect.top - srcTop))
-
-            // subtract in after rounding to get same error as on neighbor tile
-            this.graphics.setClip(
-                Math.round(tileRect.left).toInt(),
-                Math.round(tileRect.top).toInt(),
-                Math.round(tileRect.right).toInt() - Math.round(tileRect.left).toInt(),
-                Math.round(tileRect.bottom).toInt() - Math.round(tileRect.top).toInt(),
-            )
-
-            this.graphics.drawRenderedImage(subImage, transform)
-
-            this.graphics.setClip(null)
-        }
-
-        this.graphics.composite = oldComposite
-    }
-
     final override fun translate(dx: Float, dy: Float) {
         this.graphics.translate(dx.toDouble(), dy.toDouble())
     }
@@ -532,39 +454,6 @@ internal open class AwtCanvas : Canvas {
         this.graphics.color = awtPaint.awtColor
         if (awtPaint.stroke != null) {
             this.graphics.stroke = awtPaint.stroke
-        }
-    }
-
-    private companion object {
-
-        private val NEUTRAL_HILLS: java.awt.Color = AwtGraphicFactory.getColor(Color.TRANSPARENT)
-
-        private var sizeOneShadingCompositeCache: Map.Entry<Float, Composite>? = null
-
-        private fun getHillshadingComposite(magnitude: Float, external: Boolean): Composite {
-            val existing = sizeOneShadingCompositeCache
-            if (existing != null
-                && existing.key == magnitude
-            ) {
-                // JMM says: "A thread-safe immutable object is seen as immutable by all threads,
-                // even if a data race is used to pass references to the immutable object between
-                // threads" worst case we construct more than strictly needed
-                return existing.value
-            }
-
-            val selected: Composite = AlphaComposite.getInstance(
-                if (external) AlphaComposite.SRC_OVER else AlphaComposite.SRC_ATOP,
-                magnitude,
-            )
-
-            if (sizeOneShadingCompositeCache == null) {
-                // only cache the first magnitude value, in the rare instance that more than one
-                // magnitude value would be used in a process lifecycle it would be better to create
-                // new Composite instances than create new instances _and_ new cache entries
-                sizeOneShadingCompositeCache = AbstractMap.SimpleImmutableEntry(magnitude, selected)
-            }
-
-            return selected
         }
     }
 }

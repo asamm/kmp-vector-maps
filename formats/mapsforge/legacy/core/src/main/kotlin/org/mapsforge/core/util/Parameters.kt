@@ -21,7 +21,8 @@ import org.mapsforge.core.model.Tag
 
 /**
  * Process-wide rendering switches; set them before creating renderers and parsing themes, as Paints
- * and symbols read some of them once.
+ * and symbols read some of them once. `NUMBER_OF_THREADS` and the polygon settings only seed new
+ * `DisplayModel`s, which the renderer reads.
  */
 object Parameters {
 
@@ -57,7 +58,8 @@ object Parameters {
     var MAXIMUM_BUFFER_SIZE = 10000000
 
     /**
-     * One more than the processors, as one thread is likely blocked reading map data.
+     * The thread count new `DisplayModel`s start with; one more than the processors, as one thread
+     * is likely blocked reading map data. Changing it leaves existing models alone.
      */
     @JvmField
     var NUMBER_OF_THREADS = Runtime.getRuntime().availableProcessors() + 1
@@ -66,13 +68,15 @@ object Parameters {
     var PARENT_TILES_RENDERING = ParentTilesRendering.SPEED
 
     /**
-     * Tags whose closed ways still render below [POLYGON_ZOOM_MIN].
+     * The polygon exceptions new `DisplayModel`s start with: tags whose closed ways still render
+     * below the polygon zoom. Changing it leaves existing models alone.
      */
     @JvmField
     val POLYGON_EXCEPTIONS: MutableSet<Tag> = HashSet()
 
     /**
-     * Lowest zoom level that renders polygons, e.g. 10 for speed; -1 for all.
+     * The lowest polygon zoom new `DisplayModel`s start with, e.g. 10 for speed; -1 for all.
+     * Changing it leaves existing models alone.
      */
     @JvmField
     var POLYGON_ZOOM_MIN = -1

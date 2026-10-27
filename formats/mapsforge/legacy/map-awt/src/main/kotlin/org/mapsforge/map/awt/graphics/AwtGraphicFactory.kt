@@ -36,34 +36,18 @@ import org.mapsforge.core.graphics.ResourceBitmap
 import org.mapsforge.core.graphics.TileBitmap
 import org.mapsforge.core.mapelements.PointTextContainer
 import org.mapsforge.core.mapelements.SymbolContainer
-import org.mapsforge.core.model.BoundingBox
 import org.mapsforge.core.model.Point
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
-import java.awt.image.ColorModel
-import java.awt.image.DataBuffer
-import java.awt.image.DataBufferByte
-import java.awt.image.IndexColorModel
-import java.awt.image.Raster
-import java.awt.image.SampleModel
-import java.awt.image.WritableRaster
 import java.io.IOException
 import java.io.InputStream
-import java.util.Arrays
 
 /**
  * The AWT [GraphicFactory], a singleton: use [INSTANCE].
  */
 open class AwtGraphicFactory private constructor() : GraphicFactory {
-
-    @JvmField
-    protected val monoColorModelSync = Any()
-
-    @Volatile
-    @JvmField
-    protected var monoColorModel: MonoColorModel? = null
 
     final override fun createBitmap(width: Int, height: Int): Bitmap {
         return AwtBitmap(width, height)
@@ -87,70 +71,6 @@ open class AwtGraphicFactory private constructor() : GraphicFactory {
 
     final override fun createMatrix(): Matrix {
         return AwtMatrix()
-    }
-
-    final override fun createMonoBitmap(
-        width: Int,
-        height: Int,
-        buffer: ByteArray?,
-        padding: Int,
-        area: BoundingBox?,
-        color: Int,
-    ): AwtHillshadingBitmap {
-        var myMonoColorModel = this.monoColorModel
-
-        if (myMonoColorModel == null
-            || color != myMonoColorModel.color
-        ) {
-            myMonoColorModel = synchronized(this.monoColorModelSync) {
-                val current = this.monoColorModel
-
-                if (current == null
-                    || color != current.color
-                ) {
-                    val awtColor = java.awt.Color(color, true)
-
-                    val alpha = awtColor.alpha
-
-                    val reds = ByteArray(256)
-                    val greens = ByteArray(256)
-                    val blues = ByteArray(256)
-                    val alphas = ByteArray(256)
-
-                    Arrays.fill(reds, awtColor.red.toByte())
-                    Arrays.fill(greens, awtColor.green.toByte())
-                    Arrays.fill(blues, awtColor.blue.toByte())
-
-                    // use a lookup color model on the AWT side so that the android implementation
-                    // can take the bytes without any twiddling (the only 8 bit bitmaps android
-                    // knows are alpha masks, so we have to define our mono bitmap bytes in a way
-                    // that are easy for android to understand)
-                    for (i in 0 until 256) {
-                        alphas[i] = (i * alpha / 255).toByte()
-                    }
-
-                    val created = MonoColorModel(
-                        IndexColorModel(8, 256, reds, greens, blues, alphas),
-                        color,
-                    )
-                    this.monoColorModel = created
-                    created
-                } else {
-                    current
-                }
-            }
-        }
-
-        val dataBuffer: DataBuffer = DataBufferByte(buffer, buffer!!.size)
-        val singleByteSampleModel: SampleModel = myMonoColorModel.model.createCompatibleSampleModel(
-            width + 2 * padding,
-            height + 2 * padding,
-        )
-        val writableRaster: WritableRaster =
-            Raster.createWritableRaster(singleByteSampleModel, dataBuffer, null)
-        val bufferedImage = BufferedImage(myMonoColorModel.model, writableRaster, false, null)
-
-        return AwtHillshadingBitmap(bufferedImage, padding, area)
     }
 
     final override fun createPaint(): Paint {
@@ -234,12 +154,6 @@ open class AwtGraphicFactory private constructor() : GraphicFactory {
     ): ResourceBitmap {
         return AwtSvgBitmap(inputStream, hash, scaleFactor, width, height, percent)
     }
-
-    // the constructor is not protected as upstream: Kotlin hides it from the outer class then
-    protected open class MonoColorModel(
-        @JvmField internal val model: ColorModel,
-        @JvmField internal val color: Int,
-    )
 
     companion object {
 
