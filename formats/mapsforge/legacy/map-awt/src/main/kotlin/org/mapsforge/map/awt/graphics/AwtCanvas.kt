@@ -68,8 +68,8 @@ internal open class AwtCanvas : Canvas {
     final override fun drawBitmap(bitmap: Bitmap, left: Int, top: Int) {
         val awtBitmap = AwtGraphicFactory.getBitmap(bitmap)
         if (awtBitmap.colorModel is IndexColorModel) {
-            // We need to clear the existing alpha to get a clean overwrite
-            // (this is currently expected only for hill shading bitmaps)
+            // clears the existing alpha for a clean overwrite, for palette images such as an
+            // indexed PNG
             fillColor(Color.TRANSPARENT)
         }
         this.graphics.drawImage(awtBitmap, left, top, null)

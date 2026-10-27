@@ -123,7 +123,7 @@ open class DisplayModel : Observable() {
      * shader shift is set and drawn. Starts from `Parameters.NUMBER_OF_THREADS`; at least 1.
      */
     @Volatile
-    var numberOfThreads: Int = Parameters.NUMBER_OF_THREADS
+    var numberOfThreads: Int = Parameters.NUMBER_OF_THREADS.coerceAtLeast(1)
         set(threads) {
             require(threads >= 1) {
                 "numberOfThreads, $threads, must be at least 1"

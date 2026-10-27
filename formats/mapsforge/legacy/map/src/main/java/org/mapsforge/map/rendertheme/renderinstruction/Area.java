@@ -146,7 +146,7 @@ public class Area extends RenderInstruction {
                 }
             }
 
-            if (displayModel.getNumberOfThreads() == 1) {
+            if (renderContext.rendererJob.displayModel.getNumberOfThreads() == 1) {
                 fillPaint.setBitmapShaderShift(way.getUpperLeft().getOrigin());
             }
 
