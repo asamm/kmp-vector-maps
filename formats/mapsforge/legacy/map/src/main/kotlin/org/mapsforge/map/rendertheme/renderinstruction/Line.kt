@@ -72,7 +72,7 @@ open class Line @Throws(IOException::class, XmlPullParserException::class) const
         this.relativePathPrefix = relativePathPrefix
         this.resourceProvider = resourceProvider
 
-        this.stroke = graphicFactory.createPaint()
+        this.stroke = createPaint()
         this.stroke.setColor(Color.BLACK)
         this.stroke.setStyle(Style.STROKE)
         this.stroke.setStrokeCap(Cap.ROUND)
@@ -82,6 +82,13 @@ open class Line @Throws(IOException::class, XmlPullParserException::class) const
         this.curve = Curve.NO
 
         extractValues(graphicFactory, displayModel, elementName, pullParser)
+    }
+
+    final override fun evictZoom(zoomLevel: Byte) {
+        synchronized(mySync) {
+            this.strokes.remove(zoomLevel)
+            this.dyScaled.remove(zoomLevel)
+        }
     }
 
     final override fun destroy() {

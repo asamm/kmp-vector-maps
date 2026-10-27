@@ -72,12 +72,12 @@ open class Caption @Throws(XmlPullParserException::class) constructor(
     private val mySync = Any()
 
     init {
-        this.fill = graphicFactory.createPaint()
+        this.fill = createPaint()
         this.fill.setColor(Color.BLACK)
         this.fill.setStyle(Style.FILL)
         this.fills = HashMap()
 
-        this.stroke = graphicFactory.createPaint()
+        this.stroke = createPaint()
         this.stroke.setColor(Color.BLACK)
         this.stroke.setStyle(Style.STROKE)
         this.strokes = HashMap()
@@ -123,7 +123,7 @@ open class Caption @Throws(XmlPullParserException::class) constructor(
 
     private fun computeVerticalOffset(zoomLevel: Byte): Float {
         val boundary = this.boundary!!
-        var verticalOffset: Float = this.dyScaled[zoomLevel]!!
+        var verticalOffset: Float = this.dyScaled[zoomLevel] ?: this.dy
 
         if (this.position.isOnUpperSide) {
             verticalOffset = (verticalOffset + (boundary.top - this.gap)).toFloat()
@@ -133,6 +133,14 @@ open class Caption @Throws(XmlPullParserException::class) constructor(
             verticalOffset = (verticalOffset + (boundary.top + boundary.bottom) / 2).toFloat()
         }
         return verticalOffset
+    }
+
+    final override fun evictZoom(zoomLevel: Byte) {
+        synchronized(mySync) {
+            this.fills.remove(zoomLevel)
+            this.strokes.remove(zoomLevel)
+            this.dyScaled.remove(zoomLevel)
+        }
     }
 
     final override fun destroy() {

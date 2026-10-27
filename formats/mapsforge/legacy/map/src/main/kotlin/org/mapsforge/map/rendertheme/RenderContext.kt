@@ -63,6 +63,8 @@ open class RenderContext @Throws(InterruptedException::class, ExecutionException
         this.renderTheme.scaleTextSize(rendererJob.textScale, rendererJob.tile.zoomLevel)
         this.ways = createWayLists()
         setScaleStrokeWidth(this.rendererJob.tile.zoomLevel)
+        // after scaling, so a zoom evicted meanwhile re-enters the window with its Paints
+        this.renderTheme.useZoom(rendererJob.tile.zoomLevel, 0)
     }
 
     fun destroy() {

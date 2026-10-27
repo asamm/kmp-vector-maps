@@ -263,19 +263,23 @@ class MapsforgeDriverTest {
     fun createRendererIgnoresGlobalParameters() {
         val originalZoomMin = Parameters.POLYGON_ZOOM_MIN
         val originalThreads = Parameters.NUMBER_OF_THREADS
+        val originalAntiAliasing = Parameters.ANTI_ALIASING
         Parameters.POLYGON_ZOOM_MIN = 20
+        Parameters.ANTI_ALIASING = false
         // a value the renderer's parallelism cannot have
         Parameters.NUMBER_OF_THREADS = Runtime.getRuntime().availableProcessors() + 7
         try {
             driver.open(listOf(monaco)).use { dataset ->
                 dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, config).use { renderer ->
                     assertEquals(-1, renderer.displayModel.polygonZoomMin)
+                    assertTrue(renderer.displayModel.antiAliasing)
                     assertEquals(renderer.maxParallelism, renderer.displayModel.numberOfThreads)
                 }
             }
         } finally {
             Parameters.POLYGON_ZOOM_MIN = originalZoomMin
             Parameters.NUMBER_OF_THREADS = originalThreads
+            Parameters.ANTI_ALIASING = originalAntiAliasing
         }
     }
 

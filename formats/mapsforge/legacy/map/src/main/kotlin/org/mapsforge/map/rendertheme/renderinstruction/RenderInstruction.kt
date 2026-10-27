@@ -20,6 +20,7 @@ package org.mapsforge.map.rendertheme.renderinstruction
 
 import org.mapsforge.core.graphics.Bitmap
 import org.mapsforge.core.graphics.GraphicFactory
+import org.mapsforge.core.graphics.Paint
 import org.mapsforge.core.graphics.Position
 import org.mapsforge.core.graphics.TextTransform
 import org.mapsforge.core.model.Rectangle
@@ -106,6 +107,15 @@ abstract class RenderInstruction protected constructor(
         return Rectangle(left, top, left + width, top + height)
     }
 
+    /**
+     * A Paint anti-aliased as [displayModel] sets.
+     */
+    protected fun createPaint(): Paint {
+        val paint = graphicFactory.createPaint()
+        paint.setAntiAlias(displayModel.antiAliasing)
+        return paint
+    }
+
     @Throws(IOException::class)
     protected fun createBitmap(
         relativePathPrefix: String?,
@@ -119,7 +129,7 @@ abstract class RenderInstruction protected constructor(
         }
 
         var symbolScale = 1f
-        when (Parameters.SYMBOL_SCALING) {
+        when (displayModel.symbolScaling) {
             Parameters.SymbolScaling.ALL -> {
                 if (this is Symbol || this is LineSymbol) {
                     symbolScale = displayModel.symbolScaleFactor
@@ -144,6 +154,13 @@ abstract class RenderInstruction protected constructor(
     }
 
     abstract fun destroy()
+
+    /**
+     * Drops what [scaleStrokeWidth] and [scaleTextSize] cached for [zoomLevel].
+     */
+    internal open fun evictZoom(zoomLevel: Byte) {
+        // nothing scaled per zoom level
+    }
 
     /**
      * Renders this instruction for [poi] through [renderCallback], the receiver of all render

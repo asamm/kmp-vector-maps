@@ -76,6 +76,12 @@ open class LineSymbol @Throws(IOException::class, XmlPullParserException::class)
         extractValues(elementName, pullParser)
     }
 
+    final override fun evictZoom(zoomLevel: Byte) {
+        synchronized(mySync) {
+            this.dyScaled.remove(zoomLevel)
+        }
+    }
+
     final override fun destroy() {
         synchronized(mySync) {
             this.bitmap?.decrementRefCount()

@@ -172,6 +172,10 @@ open class AwtPaint : Paint {
         }
     }
 
+    final override fun setAntiAlias(antiAlias: Boolean) {
+        // the canvas anti-aliases
+    }
+
     final override fun setColor(color: Color) {
         this.awtColor = AwtGraphicFactory.getColor(color)
     }
