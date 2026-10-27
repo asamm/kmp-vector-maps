@@ -7,8 +7,9 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5.0–M5.4 done; M5.5a (soak label check, D31) in review;
-M5 runs on `feature/m5` (D26).** Next action: M5.5b, labels in Kotlin; M4 waits for Q12 and Q13.
+**Status: M0–M3, M5.0–M5.4 and M5.5a done; M5.5b (labels in Kotlin) in review;
+M5 runs on `feature/m5` (D26).** Next action: M5.6, theme rules and instructions; M4 waits for Q12
+and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -221,8 +222,8 @@ PR after M5.7 (D26).
 | M5.3b | Android and AWT graphics, `AndroidParameters` (25 files) | native cost per Paint measured (F2); caches and `ANTI_ALIASING` moved to M5.6 (D29) | ✅ PR #14, `cc24934`; fixes PR #15, `dd4d89c` |
 | M5.4a | hillshading and its thread pool removed before the conversion (17 files, C5, D30) | — | ✅ PR #16, `70710a3` |
 | M5.4b | renderer, cache, queue (17 files) | `POLYGON_*`, `NUMBER_OF_THREADS` per renderer (D28); the graphics hillshading API (`shadeBitmap`, `createMonoBitmap`, `HillshadingBitmap` and its two implementations) removed | ✅ PR #17, `33d9a1c`; fixes PR #18, `099eb6d` |
-| M5.5a | soak label store check (D31), no conversion | — | 🔧 |
-| M5.5b | labels | — (replaced in M6) | ⬜ |
+| M5.5a | soak label store check (D31), no conversion | — | ✅ PR #19, `ab70bdf` |
+| M5.5b | labels (7 files) | — (replaced in M6) | 🔧 |
 | M5.6 | theme rules, instructions | hash-only matching cache key; Paint caches bounded to 4 zoom levels with in-use pinning (F1–F3); `ANTI_ALIASING` per renderer, Android Paints and AWT canvas, and `SYMBOL_SCALING` (D28, D29) | ⬜ |
 | M5.7 | XML parser; `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
 
@@ -296,6 +297,11 @@ compared, 0 differed, labels of 0 differed; `IN_TILE` 62,407, no failure; render
 the label hashing. After the review fixes a 2-minute `SEPARATE` run: 5,699 renders, 2,863 with
 labels, 0 differed. With way-label text and visibility added (PR #19 review), a 2-minute run:
 11,229 renders, 5,723 with labels, 0 differed.*
+
+*M5.5b, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 47,615 renders, all compared, 0
+differed, labels of 0 differed (24,265 with labels); `IN_TILE` 66,731, no failure; soak before the
+review fixes (KDoc, an initializer), goldens and label dumps byte-exact after them.
+`MapDataStoreLabelStore` has no caller, so neither the goldens nor the soak reach it.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).

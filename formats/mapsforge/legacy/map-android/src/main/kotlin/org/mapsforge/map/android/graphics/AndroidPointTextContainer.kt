@@ -112,8 +112,8 @@ open class AndroidPointTextContainer internal constructor(
 
             val frontTextPaint = TextPaint(AndroidGraphicFactory.getPaint(this.paintFront))
             var backTextPaint: TextPaint? = null
-            if (this.paintBack != null) {
-                backTextPaint = TextPaint(AndroidGraphicFactory.getPaint(this.paintBack))
+            if (paintBack != null) {
+                backTextPaint = TextPaint(AndroidGraphicFactory.getPaint(paintBack))
             }
 
             // strange Android behaviour: if alignment is set to center, then
@@ -246,7 +246,7 @@ open class AndroidPointTextContainer internal constructor(
     }
 
     final override fun draw(canvas: Canvas?, origin: Point?, matrix: Matrix?, rotation: Rotation?) {
-        if (this.isNotVisible()) {
+        if (this.isNotVisible) {
             return
         }
 
@@ -298,12 +298,14 @@ open class AndroidPointTextContainer internal constructor(
             y += boundary.height
             y += -fontPadding - textBounds.bottom
 
-            if (this.paintBack != null) {
+            // a local, as the field of another module cannot be smart cast
+            val paintBack = this.paintBack
+            if (paintBack != null) {
                 androidCanvas.drawText(
                     this.text,
                     x.toFloat(),
                     y.toFloat(),
-                    AndroidGraphicFactory.getPaint(this.paintBack),
+                    AndroidGraphicFactory.getPaint(paintBack),
                 )
             }
 

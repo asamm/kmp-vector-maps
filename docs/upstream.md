@@ -8,11 +8,11 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 110 now Kotlin, 20 hillshading files removed (C5, C6) |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 117 now Kotlin, 20 hillshading files removed (C5, C6) |
 
 ## Sync routine
 
-The routine compares the 47 files still in Java; the Kotlin ones are listed under "Converted to
+The routine compares the 40 files still in Java; the Kotlin ones are listed under "Converted to
 Kotlin".
 
 - Check the vendored files against the tag, from anywhere in this repo; it prints the count, marks
@@ -53,6 +53,7 @@ changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream p
 | core graphics, 27 files (26 after C6) | M5.3a | `mapsforge-core/src/main/java/org/mapsforge/core/graphics` |
 | Android and AWT graphics, 25 files (23 after C6) | M5.3b | `mapsforge-map-android/src/main/java/org/mapsforge/map/android/{graphics,util}`, `mapsforge-map-awt/src/main/java/org/mapsforge/map/awt/graphics` |
 | renderer, tile cache, job queue, `TilePosition`, 17 files | M5.4b | `mapsforge-map/src/main/java/org/mapsforge/map/layer/{renderer,cache,queue}`, `mapsforge-map/src/main/java/org/mapsforge/map/layer/TilePosition.java` |
+| map elements and label stores, 7 files | M5.5b | `mapsforge-core/src/main/java/org/mapsforge/core/mapelements`, `mapsforge-map/src/main/java/org/mapsforge/map/layer/labels/{LabelStore,MapDataStoreLabelStore,TileBasedLabelStore}.java` |
 
 API differences of the reader (M5.1):
 
@@ -218,6 +219,35 @@ API differences of the renderer, tile cache and job queue (M5.4b, K31–K38):
 - K38 The private constructors of `GeometryUtils`, `RendererUtils` and `WayDecorator` that threw
   are gone (K22).
 
+API differences of the map elements and label stores (M5.5b, K39–K45):
+
+- K39 Getters are properties with the same Java names: `MapElementContainer` `priority`, `point`,
+  `isNotVisible` (the protected `priority` field is gone, `PointTextContainer`'s public
+  `isNotVisible` field is an overriding property); `LabelStore.getVersion()` stays a function, as
+  locus-core calls it.
+- K40 Fields read elsewhere stay `@JvmField`: the protected `xy`, `display`, `boundaryAbsolute`,
+  `clashRect`, `clashRotationDegrees`, the public `PointTextContainer` fields, `SymbolContainer`
+  `alignCanvas`, `symbol`, `theta`, the protected `boundary` of `SymbolContainer` and
+  `WayTextContainer`. `PointTextContainer.DEBUG_CLASH_BOUNDS` is a protected constant,
+  `getRotatedRelativePosition` and `getClashRectangleTransformed` sit in its companion.
+- K41 Added: an internal `displayInternal` on `MapElementContainer`, for `clashesWith` to read
+  another container's protected `display`, which Java reached through package access.
+- K42 Declared nullability: nullable are the `draw` parameters (as the Android and AWT overrides),
+  the `rotation` of the clash and position helpers, the results of `getClashRect`,
+  `getClashRectangleTransformed` and `getBoundary`, the back paints, `PointTextContainer`'s
+  symbol, the `SymbolContainer` boundary and both tiles of `LabelStore.getVisibleItems` (locus-core
+  passes nullable ones). The rest is non-null and throws at entry; a null
+  `MapDataStoreLabelStore` store, theme future or display model throws in the constructor, where
+  upstream's every query returned an empty list (the query swallows the exception).
+- K43 `getVisibleItems` returns and `storeMapItems` takes a `MutableList`; `TileBasedLabelStore`
+  keeps read-only values.
+- K44 Package-private becomes `internal` (K6): the `MapDataStoreLabelStore` fields, mangled for
+  Java.
+- K45 Classes stay open or abstract, public members are final (K13); `equals`, `hashCode`,
+  `toString`, `compareTo`, `clashesWith`, `getClashRect`, `isNotVisible` (the last three final in
+  `PointTextContainer`), the protected boundary and position hooks and `removeEldestEntry` stay
+  open. `toString` is unchanged, as the soak reads the way text from it (D31).
+
 ## Code deviations
 
 | ID | Where | What | Why |
@@ -232,8 +262,9 @@ API differences of the renderer, tile cache and job queue (M5.4b, K31–K38):
 ## Build deviations
 
 The Java sources are identical except the C-rows; how they are built is not. `map-reader` (M5.1),
-`core` (M5.2a, M5.3a), `map` (M5.2b) and `map-awt` (M5.3b) are Kotlin, `core` and `map` with their
-remaining Java, and keep the Java 8 target and UTF-8 (B6); `map-android` is Kotlin from M5.3b.
+`core` (M5.2a, M5.3a, M5.5b), `map` (M5.2b to M5.5b) and `map-awt` (M5.3b) are Kotlin, `map` with
+its remaining Java (the theme), and keep the Java 8 target and UTF-8 (B6); `map-android` is Kotlin
+from M5.3b.
 
 | ID | What | Upstream | Here |
 |---|---|---|---|
