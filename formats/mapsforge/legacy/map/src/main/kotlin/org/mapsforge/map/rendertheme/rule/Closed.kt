@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,23 +13,23 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.rendertheme.rule;
+package org.mapsforge.map.rendertheme.rule
 
-import org.mapsforge.core.model.Tag;
-import org.mapsforge.core.util.Utils;
+internal enum class Closed {
+    ANY, NO, YES;
 
-import java.util.List;
+    companion object {
 
-class ValueMatcher implements AttributeMatcher {
-
-    private final int[] values;
-
-    ValueMatcher(List<String> values) {
-        this.values = Utils.convertListString(values);
-    }
-
-    @Override
-    public boolean matches(Tag tag) {
-        return Utils.contains(values, tag.valueCode);
+        @JvmStatic
+        fun fromString(value: String?): Closed {
+            if ("any" == value) {
+                return ANY
+            } else if ("no" == value) {
+                return NO
+            } else if ("yes" == value) {
+                return YES
+            }
+            throw IllegalArgumentException("Invalid value for Closed: $value")
+        }
     }
 }

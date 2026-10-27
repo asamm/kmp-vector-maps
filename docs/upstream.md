@@ -8,11 +8,11 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 117 now Kotlin, 20 hillshading files removed (C5, C6) |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 137 now Kotlin, 20 hillshading files removed (C5, C6) |
 
 ## Sync routine
 
-The routine compares the 40 files still in Java; the Kotlin ones are listed under "Converted to
+The routine compares the 20 files still in Java; the Kotlin ones are listed under "Converted to
 Kotlin".
 
 - Check the vendored files against the tag, from anywhere in this repo; it prints the count, marks
@@ -22,9 +22,8 @@ Kotlin".
   M=<path to a mapsforge clone>; root=$(git rev-parse --show-toplevel); n=0; fail=0
   # changed by C4, C5, C6
   r=map/src/main/java/org/mapsforge/map/rendertheme
-  expected=" $r/rule/RenderTheme.java $r/rule/RenderThemeBuilder.java \
-  $r/renderinstruction/RenderInstruction.java $r/rule/RenderThemeHandler.java \
-  $r/renderinstruction/Area.java "
+  expected=" $r/rule/RenderThemeBuilder.java $r/renderinstruction/RenderInstruction.java \
+  $r/rule/RenderThemeHandler.java $r/renderinstruction/Area.java "
   for f in $(git -C "$root" ls-files 'formats/mapsforge/legacy/*/src/main/java/*'); do
     n=$((n+1)); u=mapsforge-${f#formats/mapsforge/legacy/}
     git -C "$M" show 54e8654f:"$u" | diff -q --strip-trailing-cr - "$root/$f" >/dev/null && continue
@@ -54,6 +53,7 @@ changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream p
 | Android and AWT graphics, 25 files (23 after C6) | M5.3b | `mapsforge-map-android/src/main/java/org/mapsforge/map/android/{graphics,util}`, `mapsforge-map-awt/src/main/java/org/mapsforge/map/awt/graphics` |
 | renderer, tile cache, job queue, `TilePosition`, 17 files | M5.4b | `mapsforge-map/src/main/java/org/mapsforge/map/layer/{renderer,cache,queue}`, `mapsforge-map/src/main/java/org/mapsforge/map/layer/TilePosition.java` |
 | map elements and label stores, 7 files | M5.5b | `mapsforge-core/src/main/java/org/mapsforge/core/mapelements`, `mapsforge-map/src/main/java/org/mapsforge/map/layer/labels/{LabelStore,MapDataStoreLabelStore,TileBasedLabelStore}.java` |
+| theme rules, matchers, `RenderTheme`, `RenderContext`, `RenderCallback`, `ThemeCallback`, 20 files | M5.6a | `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/rule/` (all but `RenderThemeBuilder`, `RenderThemeFuture`, `RenderThemeHandler`, `RuleBuilder`), `rendertheme/{RenderCallback,RenderContext,ThemeCallback}.java` |
 
 API differences of the reader (M5.1):
 
@@ -249,6 +249,30 @@ API differences of the map elements and label stores (M5.5b, K39–K45):
   `PointTextContainer`), the protected boundary and position hooks and `removeEldestEntry` stay
   open. `toString` is unchanged, as the soak reads the way text from it (D31).
 
+API differences of the theme rules (M5.6a, K46–K51):
+
+- K46 Getters are properties with the same Java names: `RenderTheme` `levels`, `mapBackground`,
+  `mapBackgroundOutside`; `hasMapBackgroundOutside()` and `RenderContext.getLabels()` stay
+  functions.
+- K47 Widened, as the theme parser is still Java (M5.7): `RenderTheme.setLevels`, `addRule`,
+  `complete`, `Rule.addRenderingInstruction`, `addSubRule` and `Element.fromString` are public;
+  `Rule.cat` and the `Rule` matcher caches are `@JvmField internal`, fields for Java.
+- K48 Package-private becomes `internal` (K6): the matcher and enum classes, `PositiveRule` and
+  `NegativeRule` with their matcher fields; the constructors of these, `Rule` and `RenderTheme`
+  (not mangled); `Rule`'s zoom and matcher fields and its matching, scaling and lifecycle
+  members, mangled for Java.
+- K49 The stateless matchers (`AnyMatcher`, `ClosedWayMatcher`, `LinearWayMatcher`,
+  `ElementNodeMatcher`, `ElementWayMatcher`) are objects (K10), Java still uses `INSTANCE`;
+  `Rule`, `Closed` and `Element` gain companions, the enums `getEntries()`.
+- K50 Classes stay open or abstract, public members are final (K13); `RuleVisitor.apply` stays
+  open as the visitor's hook.
+- K51 Declared nullability: `RenderCallback` parameters are non-null except the symbol
+  `boundary`; a Kotlin implementer must match, so LoPoints' `PointGeneratorV4Theme` drops `?` on
+  its overrides when Locus adopts this library (as K16). `ThemeCallback.getColor` takes a nullable
+  origin (the theme builder passes null) and `getBitmap` returns `Bitmap?`. `RenderTheme`
+  and `Rule` check their builder's display model and matchers at construction, where upstream
+  failed at first use.
+
 ## Code deviations
 
 | ID | Where | What | Why |
@@ -263,9 +287,9 @@ API differences of the map elements and label stores (M5.5b, K39–K45):
 ## Build deviations
 
 The Java sources are identical except the C-rows; how they are built is not. `map-reader` (M5.1),
-`core` (M5.2a, M5.3a, M5.5b), `map` (M5.2b to M5.5b) and `map-awt` (M5.3b) are Kotlin, `map` with
-its remaining Java (the theme), and keep the Java 8 target and UTF-8 (B6); `map-android` is Kotlin
-from M5.3b.
+`core` (M5.2a, M5.3a, M5.5b), `map` (M5.2b to M5.6a) and `map-awt` (M5.3b) are Kotlin, `map` with
+its remaining Java (render instructions and the XML theme parser), and keep the Java 8 target and
+UTF-8 (B6); `map-android` is Kotlin from M5.3b.
 
 | ID | What | Upstream | Here |
 |---|---|---|---|

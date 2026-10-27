@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,22 +13,15 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.rendertheme.rule;
+package org.mapsforge.map.rendertheme.rule
 
-final class LinearWayMatcher implements ClosedMatcher {
-    static final LinearWayMatcher INSTANCE = new LinearWayMatcher();
+internal object ElementNodeMatcher : ElementMatcher {
 
-    private LinearWayMatcher() {
-        // do nothing
+    override fun isCoveredBy(elementMatcher: ElementMatcher): Boolean {
+        return elementMatcher.matches(Element.NODE)
     }
 
-    @Override
-    public boolean isCoveredBy(ClosedMatcher closedMatcher) {
-        return closedMatcher.matches(Closed.NO);
-    }
-
-    @Override
-    public boolean matches(Closed closed) {
-        return closed == Closed.NO;
+    override fun matches(element: Element): Boolean {
+        return element == Element.NODE
     }
 }

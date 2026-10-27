@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,10 +13,15 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.rendertheme.rule;
+package org.mapsforge.map.rendertheme.rule
 
-interface ClosedMatcher {
-    boolean isCoveredBy(ClosedMatcher closedMatcher);
+internal object ClosedWayMatcher : ClosedMatcher {
 
-    boolean matches(Closed closed);
+    override fun isCoveredBy(closedMatcher: ClosedMatcher): Boolean {
+        return closedMatcher.matches(Closed.YES)
+    }
+
+    override fun matches(closed: Closed): Boolean {
+        return closed == Closed.YES
+    }
 }

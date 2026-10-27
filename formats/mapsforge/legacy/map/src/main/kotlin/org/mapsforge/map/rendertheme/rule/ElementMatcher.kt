@@ -1,5 +1,6 @@
 /*
  * Copyright 2010, 2011, 2012, 2013 mapsforge.org
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,22 +13,11 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.rendertheme.rule;
+package org.mapsforge.map.rendertheme.rule
 
-enum Element {
-    ANY, NODE, WAY;
+internal interface ElementMatcher {
 
-    static Element fromString(String value) {
-        if ("any".equals(value)) {
-            return ANY;
-        }
-        if ("node".equals(value)) {
-            return NODE;
-        }
-        if ("way".equals(value)) {
-            return WAY;
-        }
-        throw new IllegalArgumentException("Invalid value for Element: " + value);
-    }
+    fun isCoveredBy(elementMatcher: ElementMatcher): Boolean
 
+    fun matches(element: Element): Boolean
 }
