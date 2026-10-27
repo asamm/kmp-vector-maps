@@ -8,11 +8,11 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 137 now Kotlin, 20 hillshading files removed (C5, C6) |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 146 now Kotlin, 20 hillshading files removed (C5, C6) |
 
 ## Sync routine
 
-The routine compares the 20 files still in Java; the Kotlin ones are listed under "Converted to
+The routine compares the 11 files still in Java; the Kotlin ones are listed under "Converted to
 Kotlin".
 
 - Check the vendored files against the tag, from anywhere in this repo; it prints the count, marks
@@ -20,10 +20,9 @@ Kotlin".
 
   ```sh
   M=<path to a mapsforge clone>; root=$(git rev-parse --show-toplevel); n=0; fail=0
-  # changed by C4, C5, C6
+  # changed by C4, C5
   r=map/src/main/java/org/mapsforge/map/rendertheme
-  expected=" $r/rule/RenderThemeBuilder.java $r/renderinstruction/RenderInstruction.java \
-  $r/rule/RenderThemeHandler.java $r/renderinstruction/Area.java "
+  expected=" $r/rule/RenderThemeBuilder.java $r/rule/RenderThemeHandler.java "
   for f in $(git -C "$root" ls-files 'formats/mapsforge/legacy/*/src/main/java/*'); do
     n=$((n+1)); u=mapsforge-${f#formats/mapsforge/legacy/}
     git -C "$M" show 54e8654f:"$u" | diff -q --strip-trailing-cr - "$root/$f" >/dev/null && continue
@@ -54,6 +53,7 @@ changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream p
 | renderer, tile cache, job queue, `TilePosition`, 17 files | M5.4b | `mapsforge-map/src/main/java/org/mapsforge/map/layer/{renderer,cache,queue}`, `mapsforge-map/src/main/java/org/mapsforge/map/layer/TilePosition.java` |
 | map elements and label stores, 7 files | M5.5b | `mapsforge-core/src/main/java/org/mapsforge/core/mapelements`, `mapsforge-map/src/main/java/org/mapsforge/map/layer/labels/{LabelStore,MapDataStoreLabelStore,TileBasedLabelStore}.java` |
 | theme rules, matchers, `RenderTheme`, `RenderContext`, `RenderCallback`, `ThemeCallback`, 20 files | M5.6a | `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/rule/` (all but `RenderThemeBuilder`, `RenderThemeFuture`, `RenderThemeHandler`, `RuleBuilder`), `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/{RenderCallback,RenderContext,ThemeCallback}.java` |
+| render instructions, 9 files | M5.6b | `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/renderinstruction` |
 
 API differences of the reader (M5.1):
 
@@ -274,6 +274,28 @@ API differences of the theme rules (M5.6a, K46–K51):
   and `Rule` check their builder's display model and matchers at construction, where upstream
   failed at first use.
 
+API differences of the render instructions (M5.6b, K52–K57):
+
+- K52 Getters are properties with the same Java names: `RenderInstruction.category` (protected
+  setter), `Symbol` `boundary` and `id`; `Symbol.getBitmap()` stays a function, as it creates the
+  bitmap lazily under its lock.
+- K53 Fields read elsewhere stay `@JvmField`: `RenderInstruction` `displayModel`,
+  `graphicFactory`, and the protected `height`, `percent`, `width`. `Caption.DEFAULT_GAP` is a
+  public constant; `RenderInstruction` and `Caption` gain public companions (K14).
+- K54 Package-private and protected become `internal` (K6): `TextKey`, `RenderInstruction.Scale`,
+  `scaleFromValue` (an internal type cannot leave a protected function) and the attribute-name
+  constants; in bytecode all are public with plain names (the constants as static fields of
+  `RenderInstruction`) except `scaleFromValue`, which is mangled.
+- K55 Classes stay open or abstract, members and overrides are final (K13), including the
+  protected `computeBoundary`, `createBitmap`, `transformText`, and `Symbol.getBitmap()`.
+- K56 Declared nullability: constructor arguments are non-null except `relativePathPrefix` and
+  `resourceProvider`, and throw at entry; `createBitmap` takes and returns nullable values,
+  `TextKey.getValue` and `Symbol.getBitmap()` return nullable ones. A Java `ThemeCallback.getText`
+  returning null fails at `transformText` entry instead of inside it.
+- K57 The never-null `stroke` checks in `Area`, `Circle` and `Line` are gone (K7); `Area`,
+  `Caption` and `PathText` read `displayModel.themeCallback` once per render instead of at each use
+  (in `Area` also once per scaled stroke Paint).
+
 ## Code deviations
 
 | ID | Where | What | Why |
@@ -288,9 +310,9 @@ API differences of the theme rules (M5.6a, K46–K51):
 ## Build deviations
 
 The Java sources are identical except the C-rows; how they are built is not. `map-reader` (M5.1),
-`core` (M5.2a, M5.3a, M5.5b), `map` (M5.2b to M5.6a) and `map-awt` (M5.3b) are Kotlin, `map` with
-its remaining Java (render instructions and the XML theme parser), and keep the Java 8 target and
-UTF-8 (B6); `map-android` is Kotlin from M5.3b.
+`core` (M5.2a, M5.3a, M5.5b), `map` (M5.2b to M5.6b) and `map-awt` (M5.3b) are Kotlin, `map` with
+its remaining Java (the XML theme parser), and keep the Java 8 target and UTF-8 (B6);
+`map-android` is Kotlin from M5.3b.
 
 | ID | What | Upstream | Here |
 |---|---|---|---|

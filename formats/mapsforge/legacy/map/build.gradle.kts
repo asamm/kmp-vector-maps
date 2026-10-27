@@ -1,7 +1,7 @@
 /*
  * Mapsforge map: model, util and datastore (M5.2b), renderer, tile cache, job queue (M5.4b), label
- * stores (M5.5b) and theme rules (M5.6a) in Kotlin (D24); render instructions and the XML parser
- * still Java.
+ * stores (M5.5b), theme rules (M5.6a) and render instructions (M5.6b) in Kotlin (D24); the XML
+ * theme parser still Java.
  */
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
