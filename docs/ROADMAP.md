@@ -7,9 +7,9 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3, M5.0–M5.5 and M5.6a done; M5.6b (render instructions in Kotlin) in review; M5
-runs on `feature/m5` (D26).** Next action: M5.6 fixes (cache key, Paint caches, per-renderer
-`ANTI_ALIASING`); M4 waits for Q12 and Q13.
+**Status: M0–M3 and M5.0–M5.6b done; M5.6 fixes (cache key, Paint cache window, per-model
+`ANTI_ALIASING` and `SYMBOL_SCALING`) in review; M5 runs on `feature/m5` (D26).** Next action: M5.7, XML parser in
+Kotlin; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -95,8 +95,9 @@ review found.
 - M2.6: `paint_counts.txt` from one long-lived renderer (`hike_bike`) sweeping z8–20 twice, Paints
   created and still alive after a full GC: 3,359 alive after the theme parse, ~3,100 more per new
   zoom, 43,494 after z20, unchanged in the second sweep — the never-evicted caches of F2/F3. M5.6
-  bounds `live` (D29). Caught only here, no pixel changed: stroke scaling not cached per zoom (~2,100
-  Paints per zoom in the second sweep); per-zoom eviction changes `live`.
+  bounds `live` (D29). Caught here, no pixel changed: stroke scaling not cached per zoom (~2,100
+  Paints per zoom in the second sweep; from M5.6, with every zoom evicted between sweeps,
+  `ThemeCachesTest` catches it); per-zoom eviction changes `live`.
 - Mutations caught (90 renders, 5 sets): menu rule filter 90 of 90, device scale ignored 54,
   caption offset flipped 45 plus the dump, labels not stored (dump and M2.3), way coordinate +1
   µ° (90 plus `reader.txt`); line stroke +0.1 % (90), caption text size ×1.05 (50) and line dash
@@ -225,8 +226,8 @@ PR after M5.7 (D26).
 | M5.5a | soak label store check (D31), no conversion | — | ✅ PR #19, `ab70bdf` |
 | M5.5b | labels (7 files) | — (replaced in M6) | ✅ PR #20, `54f8d0e` |
 | M5.6a | theme rules, matchers, `RenderTheme`, `RenderContext`, callbacks (20 files) | — | ✅ PR #21, `e37f872` |
-| M5.6b | render instructions (9 files) | — | 🔧 |
-| M5.6 fixes | theme fixes after the conversion | hash-only matching cache key; Paint caches bounded to 4 zoom levels with in-use pinning (F1–F3); `ANTI_ALIASING` per renderer, Android Paints and AWT canvas, and `SYMBOL_SCALING` (D28, D29); upstream bugs A8, A9 (pixel change, ask first) | ⬜ |
+| M5.6b | render instructions (9 files) | — | ✅ PR #22, `6475f90` |
+| M5.6 fixes | matching cache key compares tags in full; Paint caches bounded to a window of 4 zoom levels, a rendering job holds its zoom (F1–F3, D29); `ANTI_ALIASING` and `SYMBOL_SCALING` per `DisplayModel` (D28) | — | 🔧 |
 | M5.7 | XML parser (11 files); `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
 
 - M5.1 fixes (upstream.md C1–C3): the index cache is locked, block reads are positional (measure
@@ -243,6 +244,12 @@ PR after M5.7 (D26).
 - M5.4 fixes (upstream.md C6): `NUMBER_OF_THREADS` and the polygon settings are per
   `DisplayModel`, the driver pins them to its parallelism and upstream's default; the graphics
   hillshading API is gone, as the host draws hillshading at the `HILLSHADE` anchor (D13).
+- M5.6 fixes (upstream.md C7, D29): the matching caches compare tags, not only their hash. The
+  theme keeps scaled Paints for its 4 most recently used zoom levels no job holds, plus
+  those a `DatabaseRenderer` job holds; `paint_counts.txt` (M2.6) peaks at 18,966 live Paints, upstream
+  43,494, and the golden test checks that bound instead of equality with upstream. Other
+  `RenderContext` users (LoPoints) only mark their zoom used. `ANTI_ALIASING` and
+  `SYMBOL_SCALING` seed per-model settings.
 - M5.5a (D31): `SoakTest` compares each `SEPARATE` render's label store entry with the
   serial render's. A reference at text scale 1.5 left all 5,026 renders' pixels equal but 2,563
   label entries different in two minutes, so the check catches what the pixel check misses.
@@ -313,10 +320,15 @@ were docs only.*
 differed, labels of 0 differed (30,194 with labels); `IN_TILE` 65,788, no failure; soak before the
 review fixes (comments, a guard split), goldens and dumps byte-exact after them.*
 
+*M5.6 fixes, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 58,166 renders, all compared,
+0 differed, labels of 0 differed (29,505 with labels); `IN_TILE` 65,068, no failure; on the final
+code, after a first soak before the review fixes (62,204 renders, 0 differed).*
+
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
 - M6.2 `HILLSHADE` anchor: theme `<hillshading>` element, else after features (D13, D16); re-capture its position, dropped in M5.4a (D30).
 - M6.3 pull-based `FeatureQuery` returning a symbol bitmap, for LoPoints.
+- M6.4 upstream bugs A8 and A9 fixed.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.
@@ -385,7 +397,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D26 | M5 PRs from M5.1 merge into `feature/m5`; one PR to `main` after M5.7 and the owner's review |
 | D27 | From M5.2 the device soak runs on the dev AVD `VectorMaps_Soak_API36`; the A54 serves other work |
 | D28 | `DisplayModel` scales are per model from M5.2, the statics only seed new models, so the shared golden harness and Locus still compile; a model created before a static is set keeps the old value (Locus, see M8 must); each pixel-relevant `Parameters` field moves to per-renderer config with its area (M5.4, M5.6; D29); `MAXIMUM_BUFFER_SIZE`, `VALIDATE_COORDINATES` and the view flags stay global, as do `ANDROID_32BIT_COLOR` (the host's tile format until the host-bitmap target) and `AndroidParameters.ANDROID_LIBHWUI_FIX` (a per-device workaround) |
-| D29 | The Paint caches (F1–F3) are bounded in M5.6, in Kotlin: a window of 4 zoom levels, and each render job pins its zoom so a drawing tile never sees an unscaled Paint; where the window lives is M5.6's call. `ANTI_ALIASING` per renderer moves to M5.6 too, as on Android it is set on each theme Paint; on AWT the canvas reads it (`AwtCanvas`, set from `CanvasRasterer`), changed in the same step |
+| D29 | The Paint caches (F1–F3) are bounded in M5.6, in Kotlin: a window of 4 zoom levels, and each render job pins its zoom so a drawing tile never sees an unscaled Paint; where the window lives is M5.6's call. `ANTI_ALIASING` per renderer moves to M5.6 too, as on Android it is set on each theme Paint; on AWT the canvas reads it (`AwtCanvas`, set from `CanvasRasterer`), changed in the same step. 2026-10-27, M5.6 fixes: the window lives in `RenderTheme`, which owns the scaled maps; `DatabaseRenderer` holds the zoom of each job, a bare `RenderContext` only marks it used, so a context never destroyed (LoPoints) cannot pin a zoom forever |
 | D30 | M5.4 removes the unused hillshading code before converting the renderer, rather than converting it first; the renderer constructors keep their hills parameter as an ignored `Object`, so the golden harness shared with upstream still compiles; M6.2 re-captures the `<hillshading>` layer, level and `cat` in `RenderThemeHandler`, dropped here |
 | D31 | The M5 soak compares each `SEPARATE` render's label store entry with a serial render's: kind, text, priority, position, clash box, visibility, standalone symbol size (way-label text through `toString`, as its field is private; the display mode itself is protected in Mapsforge); the soak fails if no render had labels. Not compared: `IN_TILE` labels (render order, M6.1), placement across tiles (the label pass, M6.1), fonts, colours and symbol pixels |
 
@@ -422,7 +434,7 @@ See the locus-core plan, R1–R7. Repo-specific:
 ## Adjacent, out of scope
 
 A1–A6 found in locus-core `development` @ `79226d9`, A7–A9 in upstream Mapsforge 0.30.0; not fixed
-here, except A8 and A9, planned for the M5.6 fixes.
+here, except A8 and A9 in M6.4, as fixing them changes pixels.
 
 | ID | Finding |
 |---|---|

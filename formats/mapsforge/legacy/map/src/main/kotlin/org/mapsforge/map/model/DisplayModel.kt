@@ -24,9 +24,9 @@ import java.util.Collections
 
 /**
  * Display settings: tile size from the device and user scale factors, background color, label
- * width, line, symbol and text scales, thread count, polygon zoom and exceptions. A new model takes
- * its scales from the statics and its settings from `Parameters`; changing them later leaves
- * existing models alone.
+ * width, line, symbol and text scales, thread count, polygon zoom and exceptions, anti-aliasing and
+ * symbol scaling. A new model takes its scales from the statics and its settings from `Parameters`;
+ * changing them later leaves existing models alone.
  */
 open class DisplayModel : Observable() {
 
@@ -67,6 +67,8 @@ open class DisplayModel : Observable() {
             && java.lang.Float.floatToIntBits(textScaleValue) == java.lang.Float.floatToIntBits(other.textScaleValue)
             && polygonZoomMin == other.polygonZoomMin
             && polygonExceptions == other.polygonExceptions
+            && antiAliasing == other.antiAliasing
+            && symbolScaling == other.symbolScaling
     }
 
     /**
@@ -119,6 +121,20 @@ open class DisplayModel : Observable() {
         }
 
     /**
+     * Anti-aliasing of the theme's Paints (Android) and of the tile canvas; starts from
+     * `Parameters.ANTI_ALIASING`, set it before the theme is parsed.
+     */
+    @Volatile
+    var antiAliasing: Boolean = Parameters.ANTI_ALIASING
+
+    /**
+     * Which theme symbols [symbolScaleFactor] scales; starts from `Parameters.SYMBOL_SCALING`, set
+     * it before the theme is parsed.
+     */
+    @Volatile
+    var symbolScaling: Parameters.SymbolScaling = Parameters.SYMBOL_SCALING
+
+    /**
      * Threads that may render with this model at once; above 1, a shared Paint is locked while its
      * shader shift is set and drawn. Starts from `Parameters.NUMBER_OF_THREADS`; at least 1.
      */
@@ -158,8 +174,8 @@ open class DisplayModel : Observable() {
         }
 
     /**
-     * Multiplies the size of theme symbols, as `Parameters.SYMBOL_SCALING` selects; set it before
-     * the theme is parsed.
+     * Multiplies the size of theme symbols, as [symbolScaling] selects; set it before the theme is
+     * parsed.
      */
     var symbolScaleFactor: Float
         @Synchronized
@@ -247,6 +263,8 @@ open class DisplayModel : Observable() {
         result = prime * result + java.lang.Float.floatToIntBits(textScaleValue)
         result = prime * result + polygonZoomMin
         result = prime * result + polygonExceptions.hashCode()
+        result = prime * result + antiAliasing.hashCode()
+        result = prime * result + symbolScaling.hashCode()
         return result
     }
 

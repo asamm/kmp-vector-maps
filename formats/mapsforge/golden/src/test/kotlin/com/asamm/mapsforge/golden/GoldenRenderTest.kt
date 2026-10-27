@@ -15,7 +15,8 @@ import kotlin.test.fail
 /**
  * Compares the vendored render (`:formats:mapsforge:golden:renderVendored`) with the upstream 0.30.0
  * render (`:formats:mapsforge:golden-upstream:renderGoldens`), both made on this machine: pixels
- * and text dumps (labels, reader, theme callbacks) must be equal.
+ * and text dumps (labels, reader, theme callbacks) must be equal. The Paint counts differ on
+ * purpose, as the vendored theme keeps scaled Paints for a window of zoom levels only (D29).
  */
 class GoldenRenderTest {
 
@@ -43,8 +44,8 @@ class GoldenRenderTest {
 
     @Test
     fun vendoredTextDumpsMatchUpstream() {
-        val expected = TestDirs.expected.listFiles { f -> f.extension == "txt" }.orEmpty().sortedBy { it.name }
-        val actual = TestDirs.actual.listFiles { f -> f.extension == "txt" }.orEmpty().sortedBy { it.name }
+        val expected = textDumps(TestDirs.expected)
+        val actual = textDumps(TestDirs.actual)
         assertTrue(expected.isNotEmpty(), "no expected text dumps in ${TestDirs.expected}")
         assertEquals(expected.map { it.name }, actual.map { it.name }, "text dump sets differ")
         for (exp in expected) {
@@ -61,6 +62,44 @@ class GoldenRenderTest {
             // guard against an empty dump passing trivially
             assertTrue(expLines.count { it.startsWith("  ") } > 0, "${exp.name} holds no entries")
         }
+    }
+
+    @Test
+    fun vendoredPaintCachesStayBounded() {
+        val expected = File(TestDirs.expected, PAINT_COUNTS).readLines()
+        val actual = File(TestDirs.actual, PAINT_COUNTS).readLines()
+        assertEquals(expected.size, actual.size, "$PAINT_COUNTS line count")
+        assertEquals(expected.take(2), actual.take(2), "$PAINT_COUNTS theme parse")
+
+        // the first sweep creates the same Paints, the second creates them again after eviction
+        val firstSweep = expected.indexOf("sweep 2")
+        assertEquals(
+            expected.take(firstSweep).map { it.substringBefore(" live=") },
+            actual.take(firstSweep).map { it.substringBefore(" live=") },
+            "$PAINT_COUNTS first sweep",
+        )
+
+        // theme Paints, the window, the rendering job's zoom, and one zoom as slack for stored labels
+        val parseLive = live(expected[1])
+        val perZoom = expected.take(firstSweep).filter { it.startsWith("  z") }.maxOf { created(it) }
+        val bound = parseLive + (ZOOM_WINDOW + 2) * perZoom
+        val maxLive = actual.filter { it.startsWith("  ") }.maxOf { live(it) }
+        assertTrue(maxLive <= bound, "$PAINT_COUNTS live $maxLive above $bound")
+        assertTrue(live(expected.last()) > bound, "$PAINT_COUNTS upstream stays below $bound")
+    }
+
+    private fun textDumps(dir: File): List<File> {
+        return dir.listFiles { f -> f.extension == "txt" && f.name != PAINT_COUNTS }
+            .orEmpty()
+            .sortedBy { it.name }
+    }
+
+    private fun created(line: String): Int {
+        return line.substringAfter("created=").substringBefore(' ').toInt()
+    }
+
+    private fun live(line: String): Int {
+        return line.substringAfter("live=").toInt()
     }
 
     /**
@@ -103,5 +142,13 @@ class GoldenRenderTest {
             }
         }
         return true
+    }
+
+    private companion object {
+
+        private const val PAINT_COUNTS = "paint_counts.txt"
+
+        // RenderTheme's window of zoom levels with scaled Paints no job holds
+        private const val ZOOM_WINDOW = 4
     }
 }

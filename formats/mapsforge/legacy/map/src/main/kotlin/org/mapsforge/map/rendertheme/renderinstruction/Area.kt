@@ -67,12 +67,12 @@ open class Area @Throws(IOException::class, XmlPullParserException::class) const
         this.relativePathPrefix = relativePathPrefix
         this.resourceProvider = resourceProvider
 
-        this.fill = graphicFactory.createPaint()
+        this.fill = createPaint()
         this.fill.setColor(Color.TRANSPARENT)
         this.fill.setStyle(Style.FILL)
         this.fill.setStrokeCap(Cap.ROUND)
 
-        this.stroke = graphicFactory.createPaint()
+        this.stroke = createPaint()
         this.stroke.setColor(Color.TRANSPARENT)
         this.stroke.setStyle(Style.STROKE)
         this.stroke.setStrokeCap(Cap.ROUND)
@@ -80,6 +80,12 @@ open class Area @Throws(IOException::class, XmlPullParserException::class) const
         this.strokes = HashMap()
 
         extractValues(elementName, pullParser)
+    }
+
+    final override fun evictZoom(zoomLevel: Byte) {
+        synchronized(mySync) {
+            this.strokes.remove(zoomLevel)
+        }
     }
 
     final override fun destroy() {

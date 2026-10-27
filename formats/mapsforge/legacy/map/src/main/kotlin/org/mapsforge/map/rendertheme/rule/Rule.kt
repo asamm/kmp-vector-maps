@@ -81,6 +81,17 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
         }
     }
 
+    internal fun evictZoom(zoomLevel: Byte) {
+        synchronized(mySync) {
+            for (i in 0 until this.renderInstructions.size) {
+                this.renderInstructions[i].evictZoom(zoomLevel)
+            }
+            for (i in 0 until this.subRules.size) {
+                this.subRules[i].evictZoom(zoomLevel)
+            }
+        }
+    }
+
     internal abstract fun matchesNode(tags: List<Tag>, zoomLevel: Byte): Boolean
 
     internal abstract fun matchesWay(tags: List<Tag>, zoomLevel: Byte, closed: Closed): Boolean

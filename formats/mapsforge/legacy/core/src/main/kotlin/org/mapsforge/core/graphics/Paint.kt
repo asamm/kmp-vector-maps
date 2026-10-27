@@ -40,6 +40,11 @@ interface Paint {
 
     fun getTextWidth(text: String): Int
 
+    /**
+     * Anti-aliasing of what this Paint draws; a no-op where the canvas anti-aliases (AWT).
+     */
+    fun setAntiAlias(antiAlias: Boolean)
+
     fun setBitmapShader(bitmap: Bitmap?)
 
     fun setBitmapShaderShift(origin: Point)

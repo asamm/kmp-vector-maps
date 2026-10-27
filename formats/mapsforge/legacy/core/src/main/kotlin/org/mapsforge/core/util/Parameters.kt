@@ -21,8 +21,9 @@ import org.mapsforge.core.model.Tag
 
 /**
  * Process-wide rendering switches; set them before creating renderers and parsing themes, as Paints
- * and symbols read some of them once. `NUMBER_OF_THREADS` and the polygon settings only seed new
- * `DisplayModel`s, which the renderer reads.
+ * and symbols read some of them once. `ANTI_ALIASING`, `NUMBER_OF_THREADS`, the polygon settings
+ * and `SYMBOL_SCALING` seed new `DisplayModel`s, which the renderer reads; `ANTI_ALIASING` stays the
+ * default of Paints and canvases created outside a theme.
  */
 object Parameters {
 
@@ -36,6 +37,9 @@ object Parameters {
     @JvmField
     var ANDROID_32BIT_COLOR = false
 
+    /**
+     * The anti-aliasing new `DisplayModel`s start with. Changing it leaves existing models alone.
+     */
     @JvmField
     var ANTI_ALIASING = true
 
@@ -93,6 +97,9 @@ object Parameters {
     @JvmField
     var SQUARE_FRAME_BUFFER = true
 
+    /**
+     * The symbol scaling new `DisplayModel`s start with. Changing it leaves existing models alone.
+     */
     @JvmField
     var SYMBOL_SCALING = SymbolScaling.ALL
 

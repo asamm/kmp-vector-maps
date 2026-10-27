@@ -60,6 +60,7 @@ open class RenderContext @Throws(InterruptedException::class, ExecutionException
         this.labels = LinkedList()
         this.canvasRasterer = CanvasRasterer(this@RenderContext, graphicFactory)
         this.renderTheme = rendererJob.renderThemeFuture!!.get()
+        this.renderTheme.useZoom(rendererJob.tile.zoomLevel, 0)
         this.renderTheme.scaleTextSize(rendererJob.textScale, rendererJob.tile.zoomLevel)
         this.ways = createWayLists()
         setScaleStrokeWidth(this.rendererJob.tile.zoomLevel)

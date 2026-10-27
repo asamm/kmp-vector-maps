@@ -57,12 +57,12 @@ open class Circle @Throws(XmlPullParserException::class) constructor(
     init {
         this.level = level
 
-        this.fill = graphicFactory.createPaint()
+        this.fill = createPaint()
         this.fill.setColor(Color.TRANSPARENT)
         this.fill.setStyle(Style.FILL)
         this.fills = HashMap()
 
-        this.stroke = graphicFactory.createPaint()
+        this.stroke = createPaint()
         this.stroke.setColor(Color.TRANSPARENT)
         this.stroke.setStyle(Style.STROKE)
         this.strokes = HashMap()
@@ -73,6 +73,14 @@ open class Circle @Throws(XmlPullParserException::class) constructor(
         if (!this.scaleRadius) {
             this.renderRadius = this.radius
             this.stroke.strokeWidth = this.strokeWidth
+        }
+    }
+
+    final override fun evictZoom(zoomLevel: Byte) {
+        synchronized(mySync) {
+            this.fills.remove(zoomLevel)
+            this.strokes.remove(zoomLevel)
+            this.renderRadiusScaled.remove(zoomLevel)
         }
     }
 

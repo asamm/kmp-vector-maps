@@ -114,6 +114,7 @@ open class CanvasRasterer(
 
     internal fun setCanvasBitmap(bitmap: Bitmap) {
         canvas.setBitmap(bitmap)
+        canvas.isAntiAlias = renderContext.rendererJob.displayModel.antiAliasing
     }
 
     private fun drawCircleContainer(shapePaintContainer: ShapePaintContainer) {

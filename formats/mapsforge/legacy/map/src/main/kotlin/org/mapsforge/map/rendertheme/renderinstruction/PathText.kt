@@ -66,14 +66,14 @@ open class PathText @Throws(XmlPullParserException::class) constructor(
     private val mySync = Any()
 
     init {
-        this.fill = graphicFactory.createPaint()
+        this.fill = createPaint()
         this.fill.setColor(Color.BLACK)
         this.fill.setStyle(Style.FILL)
         this.fill.setTextAlign(Align.CENTER)
         this.fills = HashMap()
         this.repeat = true
 
-        this.stroke = graphicFactory.createPaint()
+        this.stroke = createPaint()
         this.stroke.setColor(Color.BLACK)
         this.stroke.setStyle(Style.STROKE)
         this.stroke.setTextAlign(Align.CENTER)
@@ -84,6 +84,14 @@ open class PathText @Throws(XmlPullParserException::class) constructor(
         this.textOrientation = TextOrientation.AUTO
 
         extractValues(graphicFactory, displayModel, elementName, pullParser)
+    }
+
+    final override fun evictZoom(zoomLevel: Byte) {
+        synchronized(mySync) {
+            this.fills.remove(zoomLevel)
+            this.strokes.remove(zoomLevel)
+            this.dyScaled.remove(zoomLevel)
+        }
     }
 
     final override fun destroy() {

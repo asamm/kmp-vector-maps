@@ -152,6 +152,10 @@ internal open class AndroidPaint : Paint {
         }
     }
 
+    final override fun setAntiAlias(antiAlias: Boolean) {
+        paint.isAntiAlias = antiAlias
+    }
+
     final override fun setColor(color: Color) {
         paint.color = AndroidGraphicFactory.getColor(color)
     }

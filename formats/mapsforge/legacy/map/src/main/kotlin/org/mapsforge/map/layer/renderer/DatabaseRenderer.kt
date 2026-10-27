@@ -31,6 +31,7 @@ import org.mapsforge.map.layer.labels.LabelStore
 import org.mapsforge.map.layer.labels.MapDataStoreLabelStore
 import org.mapsforge.map.layer.labels.TileBasedLabelStore
 import org.mapsforge.map.rendertheme.RenderContext
+import org.mapsforge.map.rendertheme.rule.RenderTheme
 import org.mapsforge.map.util.LayerUtil
 import java.util.logging.Logger
 
@@ -83,9 +84,14 @@ open class DatabaseRenderer(
     fun executeJob(rendererJob: RendererJob?): TileBitmap? {
         var output: TileBitmap? = null
         var renderContext: RenderContext? = null
+        var heldTheme: RenderTheme? = null
         try {
             // a null job throws here, inside the try, as upstream's context did
             val job = rendererJob!!
+            // keeps the zoom's scaled Paints until the job is done (D29)
+            val renderTheme = job.renderThemeFuture!!.get()
+            renderTheme.acquireZoom(job.tile.zoomLevel)
+            heldTheme = renderTheme
             renderContext = RenderContext(job, graphicFactory)
 
             if (renderBitmap(renderContext)) {
@@ -144,6 +150,7 @@ open class DatabaseRenderer(
             if (renderContext != null) {
                 renderContext.destroy()
             }
+            heldTheme?.releaseZoom(rendererJob!!.tile.zoomLevel)
             if (!rendererJob!!.labelsOnly
                 && output != null
             ) {
