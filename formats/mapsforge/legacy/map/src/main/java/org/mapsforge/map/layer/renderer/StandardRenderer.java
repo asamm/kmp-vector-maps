@@ -4,6 +4,7 @@
  * Copyright 2014-2016 devemux86
  * Copyright 2017 usrusr
  * Copyright 2024 Sublimis
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -30,7 +31,6 @@ import org.mapsforge.map.datastore.MapDataStore;
 import org.mapsforge.map.datastore.MapReadResult;
 import org.mapsforge.map.datastore.PointOfInterest;
 import org.mapsforge.map.datastore.Way;
-import org.mapsforge.map.layer.hills.HillsRenderConfig;
 import org.mapsforge.map.rendertheme.RenderCallback;
 import org.mapsforge.map.rendertheme.RenderContext;
 
@@ -46,7 +46,6 @@ public class StandardRenderer {
     protected static final byte ZOOM_MAX = 22;
 
     public final GraphicFactory graphicFactory;
-    public final HillsRenderConfig hillsRenderConfig;
     public final MapDataStore mapDataStore;
     protected final boolean renderLabels;
 
@@ -67,15 +66,14 @@ public class StandardRenderer {
      * Constructs a new StandardRenderer.
      *
      * @param mapDataStore      the MapDataStore from which the map data will be read.
-     * @param hillsRenderConfig optional relief shading support.
+     * @param hillsRenderConfig ignored, hillshading is not supported; kept for the upstream arity, callers pass null.
      */
     public StandardRenderer(MapDataStore mapDataStore,
                             GraphicFactory graphicFactory,
-                            boolean renderLabels, HillsRenderConfig hillsRenderConfig) {
+                            boolean renderLabels, Object hillsRenderConfig) {
         this.mapDataStore = mapDataStore;
         this.graphicFactory = graphicFactory;
         this.renderLabels = renderLabels;
-        this.hillsRenderConfig = hillsRenderConfig;
     }
 
     /**
@@ -163,9 +161,7 @@ public class StandardRenderer {
     }
 
     public void interruptAndDestroy() {
-        if (hillsRenderConfig != null) {
-            hillsRenderConfig.interruptAndDestroy();
-        }
+        // nothing to stop without hillshading
     }
 
     private static Point[] getTilePixelCoordinates(int tileSize) {

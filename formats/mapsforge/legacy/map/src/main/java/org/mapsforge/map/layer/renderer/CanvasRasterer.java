@@ -5,6 +5,7 @@
  * Copyright 2017 usrusr
  * Copyright 2020 Adrian Batzill
  * Copyright 2024-2025 Sublimis
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -120,15 +121,6 @@ public class CanvasRasterer {
         this.canvas.drawCircle((int) point.x, (int) point.y, (int) circleContainer.radius, shapePaintContainer.paint);
     }
 
-    private void drawHillshading(HillshadingContainer container) {
-        final Bitmap bitmap = container.bitmap;
-
-        // Synchronized to prevent concurrent modification by other threads e.g. while merging neighbors
-        synchronized (bitmap.getMutex()) {
-            canvas.shadeBitmap(bitmap, container.hillsRect, container.tileRect, container.magnitude, container.color, container.external);
-        }
-    }
-
     private void drawPath(ShapePaintContainer shapePaintContainer, Point[][] coordinates, float dy) {
         if (shapePaintContainer.curveStyle == Curve.CUBIC) {
             // When cubic, paths must be used.
@@ -190,10 +182,6 @@ public class CanvasRasterer {
         switch (shapeType) {
             case CIRCLE:
                 drawCircleContainer(shapePaintContainer);
-                break;
-            case HILLSHADING:
-                HillshadingContainer hillshadingContainer = (HillshadingContainer) shapeContainer;
-                drawHillshading(hillshadingContainer);
                 break;
             case POLYLINE:
                 PolylineContainer polylineContainer = (PolylineContainer) shapeContainer;

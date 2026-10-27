@@ -8,11 +8,11 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 96 now Kotlin |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 96 now Kotlin, 17 hillshading files removed (C5) |
 
 ## Sync routine
 
-The routine compares the 81 files still in Java; the Kotlin ones are listed under "Converted to
+The routine compares the 64 files still in Java; the Kotlin ones are listed under "Converted to
 Kotlin".
 
 - Check the vendored files against the tag, from anywhere in this repo; it prints the count, marks
@@ -20,10 +20,12 @@ Kotlin".
 
   ```sh
   M=<path to a mapsforge clone>; root=$(git rev-parse --show-toplevel); n=0; fail=0
-  # changed by C4
-  r=map/src/main/java/org/mapsforge/map/rendertheme
+  # changed by C4, C5
+  r=map/src/main/java/org/mapsforge/map/rendertheme; l=map/src/main/java/org/mapsforge/map/layer
   expected=" $r/rule/RenderTheme.java $r/rule/RenderThemeBuilder.java \
-  $r/renderinstruction/RenderInstruction.java "
+  $r/renderinstruction/RenderInstruction.java $r/rule/RenderThemeHandler.java \
+  $l/renderer/CanvasRasterer.java $l/renderer/DatabaseRenderer.java \
+  $l/renderer/StandardRenderer.java $l/renderer/ShapeType.java "
   for f in $(git -C "$root" ls-files 'formats/mapsforge/legacy/*/src/main/java/*'); do
     n=$((n+1)); u=mapsforge-${f#formats/mapsforge/legacy/}
     git -C "$M" show 54e8654f:"$u" | diff -q --strip-trailing-cr - "$root/$f" >/dev/null && continue
@@ -181,6 +183,7 @@ API differences of the Android and AWT graphics (M5.3b, K26–K30):
 | C2 | reader `IndexCache`, `ReadBuffer` | positional reads until full, no seek under a lock | concurrent block reads no longer queue in the reader; on Windows the JDK still serialises them (M5.1) |
 | C3 | reader `ReadBuffer`, `MapFile`, `IndexCache` | overflow-safe string length and index block size; a missing debug signature handled like a wrong one | an overflowing string or index size no longer throws; other malformed data still fails the tile (M5.1) |
 | C4 | `DisplayModel`, theme `RenderTheme`, `RenderThemeBuilder`, `RenderInstruction` | device, line, symbol and text scales per model; the theme reads them from its model; the statics seed new models | a static set by one host (`AndroidGraphicFactory` sets the density) no longer changes other renderers (M5.2, D28) |
+| C5 | `layer/hills` (15 files), `HillshadingContainer`, `Hillshading`; `CanvasRasterer`, `ShapeType`, `RenderTheme`, `RenderThemeHandler`, `DatabaseRenderer`, `StandardRenderer` | the 17 files removed; `DatabaseRenderer`, `StandardRenderer` take the hills config as an ignored `Object`; `ShapeType.HILLSHADING`, `CanvasRasterer.drawHillshading`, `RenderTheme.matchHillShadings`, `StandardRenderer.hillsRenderConfig` and the `RenderThemeHandler.HILLSHADING_*` statics removed; `interruptAndDestroy()` is a no-op; `RenderThemeHandler` still validates `<hillshading>` and gives it its level, then drops it | hillshading is out of scope and unused by any consumer; the constructor keeps the upstream arity for the golden harness shared with upstream (M5.4a, D30) |
 
 ## Build deviations
 

@@ -5,7 +5,7 @@ Asamm-owned vector map renderers for Locus Map behind one driver interface: Maps
 product; JVM desktop runs benchmarks and tools; no iOS.
 
 **Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, commit-sized
-steps, decisions D1–D29, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
+steps, decisions D1–D30, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
 not relitigate a decision without asking. Update the roadmap status in the same commit as the work.
 
 ## Scope

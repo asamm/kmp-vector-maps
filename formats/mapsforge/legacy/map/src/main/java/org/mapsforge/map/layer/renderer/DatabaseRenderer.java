@@ -4,6 +4,7 @@
  * Copyright 2014-2016 devemux86
  * Copyright 2017 usrusr
  * Copyright 2024 Sublimis
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -28,7 +29,6 @@ import org.mapsforge.core.model.Tile;
 import org.mapsforge.map.datastore.MapDataStore;
 import org.mapsforge.map.datastore.MapReadResult;
 import org.mapsforge.map.layer.cache.TileCache;
-import org.mapsforge.map.layer.hills.HillsRenderConfig;
 import org.mapsforge.map.layer.labels.LabelStore;
 import org.mapsforge.map.layer.labels.MapDataStoreLabelStore;
 import org.mapsforge.map.layer.labels.TileBasedLabelStore;
@@ -66,11 +66,11 @@ public class DatabaseRenderer extends StandardRenderer {
      * @param labelStore        where labels are cached.
      * @param renderLabels      if labels should be rendered.
      * @param cacheLabels       if labels should be cached.
-     * @param hillsRenderConfig the hillshading setup to be used (can be null).
+     * @param hillsRenderConfig ignored, hillshading is not supported; kept for the upstream arity, callers pass null.
      */
     public DatabaseRenderer(MapDataStore mapDataStore, GraphicFactory graphicFactory, TileCache tileCache,
                             LabelStore labelStore, boolean renderLabels, boolean cacheLabels,
-                            HillsRenderConfig hillsRenderConfig) {
+                            Object hillsRenderConfig) {
         super(mapDataStore, graphicFactory, renderLabels || cacheLabels, hillsRenderConfig);
         this.tileCache = tileCache;
         this.labelStore = labelStore;
@@ -105,7 +105,6 @@ public class DatabaseRenderer extends StandardRenderer {
                         renderContext.canvasRasterer.fill(renderContext.renderTheme.getMapBackground());
                     }
 
-                    renderContext.renderTheme.matchHillShadings(renderContext, this.hillsRenderConfig);
                     renderContext.drawWays();
                 }
 
