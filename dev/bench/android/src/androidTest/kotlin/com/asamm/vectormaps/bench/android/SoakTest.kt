@@ -17,6 +17,7 @@ import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
+import com.asamm.vectormaps.mapsforge.MapsforgeRenderer
 import com.asamm.vectormaps.mapsforge.TileBitmapTarget
 import com.asamm.vectormaps.viewer.TileEngine
 import com.asamm.vectormaps.viewer.TileImages
@@ -28,6 +29,12 @@ import org.junit.Test
 import org.junit.rules.Timeout
 import org.junit.runner.RunWith
 import org.mapsforge.core.graphics.TileBitmap
+import org.mapsforge.core.mapelements.MapElementContainer
+import org.mapsforge.core.mapelements.PointTextContainer
+import org.mapsforge.core.mapelements.SymbolContainer
+import org.mapsforge.core.mapelements.WayTextContainer
+import org.mapsforge.core.model.Rotation
+import org.mapsforge.core.model.Tile
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
@@ -38,7 +45,8 @@ import kotlin.random.Random
  * The M5 gate (ROADMAP): a random walk of pans and zooms on a phone-sized screen, rendered through
  * the Mapsforge driver and the viewer's tile engine on [THREADS] threads for half of `soak.minutes`
  * per label mode. Every `SEPARATE` render is compared pixel by pixel with a render of the same tile,
- * one at a time, by a second renderer; labels are not in those tiles (checked before M5.5).
+ * one at a time, by a second renderer, and so is the tile's label store entry (kind, point-label
+ * text, position, priority, clash box, standalone symbol size).
  * `IN_TILE` tiles depend on render order (M6.1), so they are only checked to render. Skipped
  * without the argument:
  * `./gradlew :dev:bench:android:connectedReleaseAndroidTest
@@ -123,18 +131,28 @@ class SoakTest {
         reference: MapRenderer,
         arrived: AtomicInteger,
     ) {
-        val expected = HashMap<TileRequest, Long>()
+        val expected = HashMap<TileRequest, Drawn>()
         val mismatches = LinkedHashSet<TileRequest>()
         var steps = 0
         var compared = 0
         var differed = 0
+        var labelsDiffered = 0
+        var withLabels = 0
         fun drain() {
             while (true) {
-                val (tile, hash) = recording.drawn.poll() ?: return
+                val drawn = recording.drawn.poll() ?: return
                 compared++
-                if (hash != expected.getOrPut(tile) { serialHash(reference, tile) }) {
+                if (drawn.labelCount > 0) {
+                    withLabels++
+                }
+                val serial = expected.getOrPut(drawn.tile) { serialRender(reference, drawn.tile) }
+                if (drawn.pixels != serial.pixels) {
                     differed++
-                    mismatches += tile
+                    mismatches += drawn.tile
+                }
+                if (drawn.labels != serial.labels) {
+                    labelsDiffered++
+                    mismatches += drawn.tile
                 }
             }
         }
@@ -167,10 +185,19 @@ class SoakTest {
         }
         drain()
         val summary = "$labelMode: $steps steps, $stats, ${recording.drawnCount.get()} drawn, " +
-            "$compared compared, $differed differed in ${mismatches.size} tiles ${mismatches.take(10)}"
+            "$compared compared, $differed differed, labels of $labelsDiffered differed " +
+            "($withLabels with labels), " +
+            "in ${mismatches.size} tiles ${mismatches.take(10)}"
         Log.i(TAG, summary)
         writeReport(name = "soak-$labelMode.txt", text = summary)
         assertEquals(summary, 0, differed)
+        assertEquals(summary, 0, labelsDiffered)
+        if (recording.hashing) {
+            // an always-empty entry would make the label check pass without comparing anything
+            check(withLabels > 0) {
+                "soak($labelMode), no render had labels: $summary"
+            }
+        }
         check(arrived.get() > 0) {
             "soak($labelMode), no tile arrived"
         }
@@ -216,15 +243,21 @@ class SoakTest {
         return next
     }
 
-    private fun serialHash(reference: MapRenderer, tile: TileRequest): Long {
+    private fun serialRender(reference: MapRenderer, tile: TileRequest): Drawn {
         val target = TileBitmapTarget(BenchScene.TILE_SIZE)
         val result = reference.render(tile, target) { false }
         check(result == RenderResult.DRAWN) {
-            "serialHash($tile), $result"
+            "serialRender($tile), $result"
         }
         val bitmap = checkNotNull(target.bitmap)
         try {
-            return pixelHash(bitmap)
+            val labels = labelEntry(reference, tile)
+            return Drawn(
+                tile = tile,
+                pixels = pixelHash(bitmap),
+                labels = labels.first,
+                labelCount = labels.second,
+            )
         } finally {
             bitmap.decrementRefCount()
         }
@@ -251,7 +284,7 @@ class SoakTest {
         val hashing: Boolean,
     ) : MapRenderer by renderer {
 
-        val drawn = ConcurrentLinkedQueue<Pair<TileRequest, Long>>()
+        val drawn = ConcurrentLinkedQueue<Drawn>()
 
         val drawnCount = AtomicInteger()
 
@@ -264,7 +297,14 @@ class SoakTest {
                 if (result == RenderResult.DRAWN) {
                     drawnCount.incrementAndGet()
                     if (hashing) {
-                        drawn += tile to pixelHash(checkNotNull((target as TileBitmapTarget).bitmap))
+                        // the label entry right away, before another render can evict it
+                        val labels = labelEntry(renderer, tile)
+                        drawn += Drawn(
+                            tile = tile,
+                            pixels = pixelHash(checkNotNull((target as TileBitmapTarget).bitmap)),
+                            labels = labels.first,
+                            labelCount = labels.second,
+                        )
                     }
                 }
                 return result
@@ -273,6 +313,11 @@ class SoakTest {
             }
         }
     }
+
+    /**
+     * A drawn tile's pixel hash, label store hash and label count; no label store gives 0 and 0.
+     */
+    private class Drawn(val tile: TileRequest, val pixels: Long, val labels: Long, val labelCount: Int)
 
     /**
      * Keeps nothing of a drawn tile, so the engine's cache costs no bitmaps; [Recording] has hashed
@@ -331,6 +376,37 @@ class SoakTest {
                 "runMs(), soak.minutes=$raw, out of range"
             }
             return runMs
+        }
+
+        /**
+         * A hash of `tile`'s label store entry in store order, and its label count; 0 and 0
+         * without a label store. Kind, point-label text, priority, position and clash box of each
+         * label, standalone symbols by size.
+         */
+        fun labelEntry(renderer: MapRenderer, tile: TileRequest): Pair<Long, Int> {
+            val store = (renderer as MapsforgeRenderer).labelStore ?: return Pair(0L, 0)
+            // keyed as the renderer keys its jobs
+            val mapsforgeTile = Tile(tile.x, tile.y, tile.zoom.toByte(), renderer.key.config.tileSizePx)
+            val lines = store.getVisibleItems(mapsforgeTile, mapsforgeTile).map { describe(it) }
+            var hash = 1L
+            for (line in lines) {
+                hash = 31 * hash + line.hashCode()
+            }
+            return Pair(31 * hash + lines.size, lines.size)
+        }
+
+        // mirrors the golden harness's LabelDump.describe, with raw doubles and symbols by size
+        private fun describe(item: MapElementContainer): String {
+            val clash = item.getClashRect(Rotation.NULL_ROTATION)
+            val geometry = "p=${item.priority} xy=${item.point.x},${item.point.y} " +
+                "clash=${clash?.let { "${it.left},${it.top},${it.right},${it.bottom}" }}"
+            return when (item) {
+                is PointTextContainer -> "text $geometry \"${item.text}\" withSymbol=${item.symbolContainer != null}"
+                is SymbolContainer -> "symbol $geometry ${item.symbol.width}x${item.symbol.height}"
+                // the way text itself is private; priority and clash box identify it
+                is WayTextContainer -> "waytext $geometry"
+                else -> "other ${item.javaClass.simpleName} $geometry"
+            }
         }
 
         fun pixelHash(bitmap: TileBitmap): Long {
