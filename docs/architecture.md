@@ -44,7 +44,8 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 - **Cancellation** is checked before drawing and, where the format allows, between draw-list
   steps; it never leaves label state half-filled.
 - **No globals:** scales and tile size travel in each renderer's `RenderConfig` (Mapsforge
-  `DisplayModel`, `Parameters`).
+  `DisplayModel`, `Parameters`); safety limits, the Android tile bitmap format and device
+  workarounds stay global (D28).
 
 ## Android host API
 

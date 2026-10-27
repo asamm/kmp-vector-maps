@@ -20,8 +20,10 @@ import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 
 /**
  * Native and Java heap per Mapsforge Paint, by how the theme builds it (locus-core F2), each Paint
- * drawn once so lazy native parts exist. Logs `PaintCost` lines, asserts nothing; skipped without
- * `-Pandroid.testInstrumentationRunnerArguments.bench.paintCost=true`.
+ * drawn once so lazy native parts exist; writes `paint-cost.txt`, asserts nothing. Run alone:
+ * `./gradlew :dev:bench:android:connectedReleaseAndroidTest
+ * -Pandroid.testInstrumentationRunnerArguments.class=com.asamm.vectormaps.bench.android.PaintCostTest
+ * -Pandroid.testInstrumentationRunnerArguments.bench.paintCost=true`.
  */
 @RunWith(AndroidJUnit4::class)
 class PaintCostTest {
@@ -30,7 +32,7 @@ class PaintCostTest {
     fun bytesPerPaint() {
         val enabled = InstrumentationRegistry.getArguments().getString("bench.paintCost")
         assumeTrue("bench.paintCost not set", enabled == "true")
-        // the context-less instance: createInstance would reset statics other bench tests set
+        // INSTANCE as is: createInstance would reset the device scale BenchScene sets to 1
         val factory = AndroidGraphicFactory.INSTANCE
         val base = factory.createPaint().apply {
             setStyle(Style.STROKE)
@@ -64,12 +66,16 @@ class PaintCostTest {
         )
         val target = android.graphics.Bitmap.createBitmap(1, 1, android.graphics.Bitmap.Config.ARGB_8888)
         val canvas = android.graphics.Canvas(target)
+        val lines = ArrayList<String>()
         for ((name, create) in variants) {
             // twice: the first run warms caches shared by all paints
             measure(name = name, canvas = canvas, create = create)
             val (nativeBytes, javaBytes) = measure(name = name, canvas = canvas, create = create)
-            Log.i(TAG, "PaintCost: $name native ${"%.0f".format(nativeBytes)} B, java ${"%.0f".format(javaBytes)} B")
+            val line = "$name: native ${"%.0f".format(nativeBytes)} B, java ${"%.0f".format(javaBytes)} B"
+            Log.i(TAG, "PaintCost: $line")
+            lines.add(line)
         }
+        writeReport(name = "paint-cost.txt", text = lines.joinToString(separator = "\n"))
     }
 
     /**

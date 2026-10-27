@@ -29,7 +29,6 @@ import org.junit.rules.Timeout
 import org.junit.runner.RunWith
 import org.mapsforge.core.graphics.TileBitmap
 import org.mapsforge.map.android.graphics.AndroidGraphicFactory
-import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
@@ -170,7 +169,7 @@ class SoakTest {
         val summary = "$labelMode: $steps steps, $stats, ${recording.drawnCount.get()} drawn, " +
             "$compared compared, $differed differed in ${mismatches.size} tiles ${mismatches.take(10)}"
         Log.i(TAG, summary)
-        report(name = "soak-$labelMode.txt", text = summary)
+        writeReport(name = "soak-$labelMode.txt", text = summary)
         assertEquals(summary, 0, differed)
         check(arrived.get() > 0) {
             "soak($labelMode), no tile arrived"
@@ -229,11 +228,6 @@ class SoakTest {
         } finally {
             bitmap.decrementRefCount()
         }
-    }
-
-    private fun report(name: String, text: String) {
-        val dir = InstrumentationRegistry.getArguments().getString("additionalTestOutputDir") ?: return
-        File(dir, name).writeText(text + "\n")
     }
 
     private fun waitFor(timeoutMs: Long, what: String, condition: () -> Boolean) {

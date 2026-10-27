@@ -38,7 +38,8 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
   unless run alone with
   `-Pandroid.testInstrumentationRunnerArguments.class=com.asamm.vectormaps.bench.android.SoakTest
   -Pandroid.testInstrumentationRunnerArguments.soak.minutes=<n>`; `PaintCostTest`, heap per
-  Paint, likewise with `...bench.paintCost=true`.
+  Paint, likewise with `...class=com.asamm.vectormaps.bench.android.PaintCostTest` and
+  `-Pandroid.testInstrumentationRunnerArguments.bench.paintCost=true`.
 - **`:viewer:desktop`** — Compose Desktop dev tool for every registered format; restores the last
   session. `./gradlew :viewer:desktop:run`.
 - **`:viewer:android`** — minimal Android dev tool. `./gradlew :viewer:android:installDebug`.

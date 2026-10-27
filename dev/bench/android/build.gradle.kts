@@ -5,7 +5,7 @@
  * `...bench.center=<lat>,<lon>`; a map in shared storage needs
  * `adb shell appops set com.asamm.vectormaps.bench.android.test MANAGE_EXTERNAL_STORAGE allow`.
  * Results in build/outputs/connected_android_test_additional_output. The M5 soak, skipped
- * without `soak.minutes`: see `SoakTest`; native heap per Paint, skipped without
+ * without `soak.minutes`: see `SoakTest`; native and Java heap per Paint, skipped without
  * `bench.paintCost`: see `PaintCostTest`. Not published.
  */
 plugins {
