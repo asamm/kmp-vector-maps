@@ -227,7 +227,7 @@ PR after M5.7 (D26).
 | M5.5b | labels (7 files) | — (replaced in M6) | ✅ PR #20, `54f8d0e` |
 | M5.6a | theme rules, matchers, `RenderTheme`, `RenderContext`, callbacks (20 files) | — | ✅ PR #21, `e37f872` |
 | M5.6b | render instructions (9 files) | — | ✅ PR #22, `6475f90` |
-| M5.6 fixes | matching cache key compares tags in full; Paint caches bounded to a window of 4 zoom levels, a rendering job holds its zoom (F1–F3, D29); `ANTI_ALIASING` and `SYMBOL_SCALING` per `DisplayModel` (D28) | — | 🔧 |
+| M5.6 fixes | theme caches and settings after the conversion | matching cache key compares tags in full; Paint caches bounded to a window of 4 zoom levels, a rendering job holds its zoom (F1–F3, D29); `ANTI_ALIASING` (theme Paints, the tile canvas, on Android its bitmap Paint) and `SYMBOL_SCALING` per `DisplayModel` (D28) | 🔧 |
 | M5.7 | XML parser (11 files); `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
 
 - M5.1 fixes (upstream.md C1–C3): the index cache is locked, block reads are positional (measure
@@ -246,7 +246,8 @@ PR after M5.7 (D26).
   hillshading API is gone, as the host draws hillshading at the `HILLSHADE` anchor (D13).
 - M5.6 fixes (upstream.md C7, D29): the matching caches compare tags, not only their hash. The
   theme keeps scaled Paints for its 4 most recently used zoom levels no job holds, plus
-  those a `DatabaseRenderer` job holds; `paint_counts.txt` (M2.6) peaks at 18,966 live Paints, upstream
+  those a `DatabaseRenderer` job holds, trimmed when a job starts or ends; matching keys with more
+  than 256 characters of tags are not cached; `paint_counts.txt` (M2.6) peaks at 15,871 live Paints, upstream
   43,494, and the golden test checks that bound instead of equality with upstream. Other
   `RenderContext` users (LoPoints) only mark their zoom used. `ANTI_ALIASING` and
   `SYMBOL_SCALING` seed per-model settings.
@@ -320,9 +321,9 @@ were docs only.*
 differed, labels of 0 differed (30,194 with labels); `IN_TILE` 65,788, no failure; soak before the
 review fixes (comments, a guard split), goldens and dumps byte-exact after them.*
 
-*M5.6 fixes, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 58,166 renders, all compared,
-0 differed, labels of 0 differed (29,505 with labels); `IN_TILE` 65,068, no failure; on the final
-code, after a first soak before the review fixes (62,204 renders, 0 differed).*
+*M5.6 fixes, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 61,106 renders, all compared,
+0 differed, labels of 0 differed (30,913 with labels); `IN_TILE` 65,901, no failure; on the code
+after the PR #23 review, after two earlier soaks (62,204 and 58,166 renders, 0 differed).*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
@@ -397,7 +398,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D26 | M5 PRs from M5.1 merge into `feature/m5`; one PR to `main` after M5.7 and the owner's review |
 | D27 | From M5.2 the device soak runs on the dev AVD `VectorMaps_Soak_API36`; the A54 serves other work |
 | D28 | `DisplayModel` scales are per model from M5.2, the statics only seed new models, so the shared golden harness and Locus still compile; a model created before a static is set keeps the old value (Locus, see M8 must); each pixel-relevant `Parameters` field moves to per-renderer config with its area (M5.4, M5.6; D29); `MAXIMUM_BUFFER_SIZE`, `VALIDATE_COORDINATES` and the view flags stay global, as do `ANDROID_32BIT_COLOR` (the host's tile format until the host-bitmap target) and `AndroidParameters.ANDROID_LIBHWUI_FIX` (a per-device workaround) |
-| D29 | The Paint caches (F1–F3) are bounded in M5.6, in Kotlin: a window of 4 zoom levels, and each render job pins its zoom so a drawing tile never sees an unscaled Paint; where the window lives is M5.6's call. `ANTI_ALIASING` per renderer moves to M5.6 too, as on Android it is set on each theme Paint; on AWT the canvas reads it (`AwtCanvas`, set from `CanvasRasterer`), changed in the same step. 2026-10-27, M5.6 fixes: the window lives in `RenderTheme`, which owns the scaled maps; `DatabaseRenderer` holds the zoom of each job, a bare `RenderContext` only marks it used, so a context never destroyed (LoPoints) cannot pin a zoom forever |
+| D29 | The Paint caches (F1–F3) are bounded in M5.6, in Kotlin: a window of 4 zoom levels, and each render job pins its zoom so a drawing tile never sees an unscaled Paint; where the window lives is M5.6's call. `ANTI_ALIASING` per renderer moves to M5.6 too, as on Android it is set on each theme Paint; on AWT the canvas reads it (`AwtCanvas`, set from `CanvasRasterer`), changed in the same step. 2026-10-27, M5.6 fixes: the canvas setting also reaches the Android canvas' bitmap Paint, which upstream kept on; the window lives in `RenderTheme`, which owns the scaled maps; `DatabaseRenderer` holds the zoom of each job, a bare `RenderContext` only marks it used, so a context never destroyed (LoPoints) cannot pin a zoom forever |
 | D30 | M5.4 removes the unused hillshading code before converting the renderer, rather than converting it first; the renderer constructors keep their hills parameter as an ignored `Object`, so the golden harness shared with upstream still compiles; M6.2 re-captures the `<hillshading>` layer, level and `cat` in `RenderThemeHandler`, dropped here |
 | D31 | The M5 soak compares each `SEPARATE` render's label store entry with a serial render's: kind, text, priority, position, clash box, visibility, standalone symbol size (way-label text through `toString`, as its field is private; the display mode itself is protected in Mapsforge); the soak fails if no render had labels. Not compared: `IN_TILE` labels (render order, M6.1), placement across tiles (the label pass, M6.1), fonts, colours and symbol pixels |
 

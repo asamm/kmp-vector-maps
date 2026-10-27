@@ -90,6 +90,7 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
                 && count > 0
             ) {
                 this.zoomWindow[zoomLevel] = count - 1
+                trimZoomWindow(zoomLevel)
             }
         }
     }
@@ -164,8 +165,11 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
         }
         val matchingListA = matchingList.toTypedArray()
 
-        synchronized(this.poiMatchingCache) {
-            this.poiMatchingCache.put(matchingCacheKey.copy(), matchingListA)
+        val cachedKey = matchingCacheKey.copy()
+        if (cachedKey != null) {
+            synchronized(this.poiMatchingCache) {
+                this.poiMatchingCache.put(cachedKey, matchingListA)
+            }
         }
     }
 
@@ -256,8 +260,11 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
         }
         val matchingListA = matchingList.toTypedArray()
 
-        synchronized(this.wayMatchingCache) {
-            this.wayMatchingCache.put(matchingCacheKey.copy(), matchingListA)
+        val cachedKey = matchingCacheKey.copy()
+        if (cachedKey != null) {
+            synchronized(this.wayMatchingCache) {
+                this.wayMatchingCache.put(cachedKey, matchingListA)
+            }
         }
     }
 
@@ -275,19 +282,25 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
     internal fun useZoom(zoomLevel: Byte, pins: Int) {
         synchronized(this.zoomWindow) {
             this.zoomWindow[zoomLevel] = (this.zoomWindow[zoomLevel] ?: 0) + pins
-            var unheld = this.zoomWindow.values.count { it == 0 }
-            val iterator = this.zoomWindow.entries.iterator()
-            while (unheld > ZOOM_WINDOW
-                && iterator.hasNext()
+            trimZoomWindow(zoomLevel)
+        }
+    }
+
+    // evicts the least recently used unheld zoom levels beyond the window, except [kept]; holds
+    // the zoomWindow lock
+    private fun trimZoomWindow(kept: Byte) {
+        var unheld = this.zoomWindow.values.count { it == 0 }
+        val iterator = this.zoomWindow.entries.iterator()
+        while (unheld > ZOOM_WINDOW
+            && iterator.hasNext()
+        ) {
+            val entry = iterator.next()
+            if (entry.value == 0
+                && entry.key != kept
             ) {
-                val entry = iterator.next()
-                if (entry.value == 0
-                    && entry.key != zoomLevel
-                ) {
-                    iterator.remove()
-                    evictZoom(entry.key)
-                    unheld--
-                }
+                iterator.remove()
+                evictZoom(entry.key)
+                unheld--
             }
         }
     }
@@ -312,28 +325,61 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
 
     /**
      * Key of the matching caches: tags without `name`, zoom level and closed state, compared in
-     * full, so tag lists with equal hashes never share instructions.
+     * full, so tag lists with equal hashes never share instructions; ordered, so a bucket of keys
+     * with one hash is a tree, not a list.
      */
     private class MatchingCacheKey(
         private val tags: List<Tag>,
         private val zoomLevel: Byte,
         private val closed: Closed,
-    ) {
+    ) : Comparable<MatchingCacheKey> {
 
         private val hash: Int = computeHash()
 
         /**
-         * This key over a copy of its tags without `name`, to be kept in a cache.
+         * This key over a copy of its tags without `name`, to be kept in a cache; null when their
+         * text exceeds [MAX_CACHED_TAG_CHARS], so long values are matched each time.
          */
-        fun copy(): MatchingCacheKey {
+        fun copy(): MatchingCacheKey? {
             val copied = ArrayList<Tag>(this.tags.size)
+            var chars = 0
             for (i in 0 until this.tags.size) {
                 val tag = this.tags[i]
                 if (keyCodeName != tag.keyCode) {
+                    chars += (tag.key?.length ?: 0) + (tag.value?.length ?: 0)
+                    if (chars > MAX_CACHED_TAG_CHARS) {
+                        return null
+                    }
                     copied.add(tag)
                 }
             }
             return MatchingCacheKey(copied, this.zoomLevel, this.closed)
+        }
+
+        override fun compareTo(other: MatchingCacheKey): Int {
+            if (this.zoomLevel != other.zoomLevel) {
+                return this.zoomLevel.compareTo(other.zoomLevel)
+            }
+            if (this.closed != other.closed) {
+                return this.closed.compareTo(other.closed)
+            }
+            var i = 0
+            var j = 0
+            while (true) {
+                i = nextTag(this.tags, i)
+                j = nextTag(other.tags, j)
+                if (i == this.tags.size
+                    || j == other.tags.size
+                ) {
+                    return (this.tags.size - i).compareTo(other.tags.size - j)
+                }
+                val result = this.tags[i].compareTo(other.tags[j])
+                if (result != 0) {
+                    return result
+                }
+                i++
+                j++
+            }
         }
 
         override fun equals(other: Any?): Boolean {
@@ -399,6 +445,9 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
     private companion object {
 
         private const val MATCHING_CACHE_SIZE = 8192
+
+        // tag text a cached matching key may hold, so a map's long values cannot pin much heap
+        private const val MAX_CACHED_TAG_CHARS = 256
 
         // zoom levels whose scaled Paints are kept when no job holds them (D29)
         private const val ZOOM_WINDOW = 4

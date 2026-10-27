@@ -23,7 +23,7 @@ import org.mapsforge.core.model.Tag
  * Process-wide rendering switches; set them before creating renderers and parsing themes, as Paints
  * and symbols read some of them once. `ANTI_ALIASING`, `NUMBER_OF_THREADS`, the polygon settings
  * and `SYMBOL_SCALING` seed new `DisplayModel`s, which the renderer reads; `ANTI_ALIASING` stays the
- * default of Paints and canvases created outside a theme.
+ * default of Android Paints and AWT canvases created outside a theme.
  */
 object Parameters {
 

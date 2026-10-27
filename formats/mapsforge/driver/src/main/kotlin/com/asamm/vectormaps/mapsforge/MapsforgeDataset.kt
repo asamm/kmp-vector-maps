@@ -91,6 +91,7 @@ class MapsforgeDataset internal constructor(
         displayModel.textScaleFactor = 1.0f
         // closed ways at every zoom, the upstream default, whatever the Mapsforge statics hold
         displayModel.polygonZoomMin = -1
+        displayModel.antiAliasing = true
         displayModel.userScaleFactor = config.deviceScale
         displayModel.setFixedTileSize(config.tileSizePx)
         // larger text wraps later, as in Locus

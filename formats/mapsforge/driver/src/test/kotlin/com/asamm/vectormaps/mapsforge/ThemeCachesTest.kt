@@ -45,6 +45,7 @@ class ThemeCachesTest {
         """
             <rule e="node" k="k1" v="a"><circle radius="5" fill="#ff0000"/></rule>
             <rule e="way" k="highway" v="*"><line stroke="#000000" stroke-width="1"/></rule>
+            <rule e="node" k="place" v="*"><caption k="name" font-size="10" fill="#000000"/></rule>
         """,
     )
     private val recorder = Recorder()
@@ -73,13 +74,16 @@ class ThemeCachesTest {
 
     @Test
     fun zoomInTheWindowIsNotScaledAgain() {
-        val first = context(zoom = 14)
-        strokeWidth(first)
-        val paint = recorder.lastStroke
+        strokeWidth(context(zoom = 14))
+        val stroke = recorder.lastStroke
+        val caption = caption(context(zoom = 14))
+        for (zoom in 15..17) {
+            context(zoom = zoom)
+        }
 
         strokeWidth(context(zoom = 14))
-
-        assertSame(paint, recorder.lastStroke)
+        assertSame(stroke, recorder.lastStroke)
+        assertSame(caption, caption(context(zoom = 14)))
     }
 
     @Test
@@ -115,6 +119,11 @@ class ThemeCachesTest {
         themeFuture.get().matchNode(recorder, context, poi)
     }
 
+    private fun caption(context: RenderContext): Paint {
+        matchNode(context, listOf(Tag("place", "town"), Tag("name", "Town")))
+        return recorder.lastCaption!!
+    }
+
     private fun strokeWidth(context: RenderContext): Float {
         val tile = context.rendererJob.tile
         val way = PolylineContainer(
@@ -146,11 +155,12 @@ class ThemeCachesTest {
     }
 
     /**
-     * Counts circles and keeps the last line Paint; ignores everything else.
+     * Counts circles and keeps the last line and caption fill Paints; ignores everything else.
      */
     private class Recorder : RenderCallback {
 
         var circles = 0
+        var lastCaption: Paint? = null
         var lastStroke: Paint? = null
 
         override fun renderArea(renderContext: RenderContext, fill: Paint, stroke: Paint, level: Int, way: PolylineContainer) {
@@ -193,6 +203,7 @@ class ThemeCachesTest {
             maxTextWidth: Int,
             poi: PointOfInterest,
         ) {
+            lastCaption = fill
         }
 
         override fun renderPointOfInterestCircle(

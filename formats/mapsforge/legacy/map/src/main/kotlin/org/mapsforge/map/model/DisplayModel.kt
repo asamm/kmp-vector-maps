@@ -122,7 +122,8 @@ open class DisplayModel : Observable() {
 
     /**
      * Anti-aliasing of the theme's Paints (Android) and of the tile canvas; starts from
-     * `Parameters.ANTI_ALIASING`, set it before the theme is parsed.
+     * `Parameters.ANTI_ALIASING`, set it before the theme is parsed. The theme's Paints follow the
+     * model it was parsed with, the canvas the job's, so a job uses the theme's model.
      */
     @Volatile
     var antiAliasing: Boolean = Parameters.ANTI_ALIASING
