@@ -226,7 +226,7 @@ PR after M5.7 (D26).
 | M5.5b | labels (7 files) | — (replaced in M6) | ✅ PR #20, `54f8d0e` |
 | M5.6a | theme rules, matchers, `RenderTheme`, `RenderContext`, callbacks (20 files) | — | ✅ PR #21, `e37f872` |
 | M5.6b | render instructions (9 files) | — | 🔧 |
-| M5.6 fixes | theme fixes after the conversion | hash-only matching cache key; Paint caches bounded to 4 zoom levels with in-use pinning (F1–F3); `ANTI_ALIASING` per renderer, Android Paints and AWT canvas, and `SYMBOL_SCALING` (D28, D29); upstream bugs kept in M5.6b, fixing them changes pixels (ask first): `computeBoundary` scales top by width, `Line` with `scale="all"` and no dasharray throws | ⬜ |
+| M5.6 fixes | theme fixes after the conversion | hash-only matching cache key; Paint caches bounded to 4 zoom levels with in-use pinning (F1–F3); `ANTI_ALIASING` per renderer, Android Paints and AWT canvas, and `SYMBOL_SCALING` (D28, D29); upstream bugs A8, A9 (pixel change, ask first) | ⬜ |
 | M5.7 | XML parser (11 files); `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
 
 - M5.1 fixes (upstream.md C1–C3): the index cache is locked, block reads are positional (measure
@@ -311,7 +311,7 @@ were docs only.*
 
 *M5.6b, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 59,536 renders, all compared, 0
 differed, labels of 0 differed (30,194 with labels); `IN_TILE` 65,788, no failure; soak before the
-review fixes (comments, a guard split), goldens byte-exact after them.*
+review fixes (comments, a guard split), goldens and dumps byte-exact after them.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
@@ -421,7 +421,8 @@ See the locus-core plan, R1–R7. Repo-specific:
 
 ## Adjacent, out of scope
 
-A1–A6 found in locus-core `development` @ `79226d9`, A7 in upstream Mapsforge 0.30.0; not fixed here.
+A1–A6 found in locus-core `development` @ `79226d9`, A7–A9 in upstream Mapsforge 0.30.0; not fixed
+here, except A8 and A9, planned for the M5.6 fixes.
 
 | ID | Finding |
 |---|---|
@@ -432,6 +433,8 @@ A1–A6 found in locus-core `development` @ `79226d9`, A7 in upstream Mapsforge 
 | A5 | `MapContent` tests `is MapSourceMapsForgeV4` in both branches, the second is dead |
 | A6 | Theme parse runs synchronously on the caller, dark variant under the pref lock |
 | A7 | Equal-priority labels survive in identity-hash order (`DatabaseRenderer`), output varies between runs |
+| A8 | `RenderInstruction.computeBoundary` scales the symbol boundary's top by width, not height (Mapsforge 0.30.0, kept in M5.6b) |
+| A9 | `Line` with `scale="all"` and no `stroke-dasharray` throws in `scaleStrokeWidth` (Mapsforge 0.30.0, kept in M5.6b) |
 
 ## Open
 

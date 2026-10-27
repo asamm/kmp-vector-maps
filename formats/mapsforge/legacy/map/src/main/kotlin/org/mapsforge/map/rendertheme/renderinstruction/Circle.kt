@@ -120,11 +120,7 @@ open class Circle @Throws(XmlPullParserException::class) constructor(
     }
 
     private fun getRenderRadius(zoomLevel: Byte): Float {
-        var radius = renderRadiusScaled[zoomLevel]
-        if (radius == null) {
-            radius = this.renderRadius
-        }
-        return radius
+        return renderRadiusScaled[zoomLevel] ?: renderRadius
     }
 
     private fun getStrokePaint(zoomLevel: Byte): Paint {

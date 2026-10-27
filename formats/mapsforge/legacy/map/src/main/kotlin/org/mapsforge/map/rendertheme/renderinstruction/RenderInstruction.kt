@@ -101,7 +101,7 @@ abstract class RenderInstruction protected constructor(
         }
 
         val left = xFactor * width
-        // upstream bug, kept until the M5.6 fixes: top scales by width, not height
+        // upstream bug (A8): top scales by width, not height
         val top = yFactor * width
         return Rectangle(left, top, left + width, top + height)
     }
