@@ -3,6 +3,7 @@
  * Copyright 2014-2015 Ludwig M Brinckmann
  * Copyright 2014-2020 devemux86
  * Copyright 2020 Adrian Batzill
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -18,7 +19,6 @@
 package org.mapsforge.map.rendertheme.renderinstruction;
 
 import org.mapsforge.core.graphics.*;
-import org.mapsforge.core.util.Parameters;
 import org.mapsforge.map.datastore.PointOfInterest;
 import org.mapsforge.map.layer.renderer.PolylineContainer;
 import org.mapsforge.map.model.DisplayModel;
@@ -146,7 +146,7 @@ public class Area extends RenderInstruction {
                 }
             }
 
-            if (Parameters.NUMBER_OF_THREADS == 1) {
+            if (displayModel.getNumberOfThreads() == 1) {
                 fillPaint.setBitmapShaderShift(way.getUpperLeft().getOrigin());
             }
 

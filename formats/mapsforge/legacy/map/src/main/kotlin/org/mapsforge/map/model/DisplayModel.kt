@@ -16,13 +16,17 @@
  */
 package org.mapsforge.map.model
 
+import org.mapsforge.core.model.Tag
+import org.mapsforge.core.util.Parameters
 import org.mapsforge.map.model.common.Observable
 import org.mapsforge.map.rendertheme.ThemeCallback
+import java.util.Collections
 
 /**
  * Display settings: tile size from the device and user scale factors, background color, label
- * width, line, symbol and text scales. A new model takes its scales from the statics; changing a
- * static later leaves existing models alone.
+ * width, line, symbol and text scales, thread count, polygon zoom and exceptions. A new model takes
+ * its scales from the statics and its settings from `Parameters`; changing them later leaves
+ * existing models alone.
  */
 open class DisplayModel : Observable() {
 
@@ -61,6 +65,8 @@ open class DisplayModel : Observable() {
             && java.lang.Float.floatToIntBits(lineScaleValue) == java.lang.Float.floatToIntBits(other.lineScaleValue)
             && java.lang.Float.floatToIntBits(symbolScaleValue) == java.lang.Float.floatToIntBits(other.symbolScaleValue)
             && java.lang.Float.floatToIntBits(textScaleValue) == java.lang.Float.floatToIntBits(other.textScaleValue)
+            && polygonZoomMin == other.polygonZoomMin
+            && polygonExceptions == other.polygonExceptions
     }
 
     /**
@@ -111,6 +117,36 @@ open class DisplayModel : Observable() {
         get() {
             return maxTextWidthValue
         }
+
+    /**
+     * Threads that may render with this model at once; above 1, a shared Paint is locked while its
+     * shader shift is set and drawn. Starts from `Parameters.NUMBER_OF_THREADS`; at least 1.
+     */
+    @Volatile
+    var numberOfThreads: Int = Parameters.NUMBER_OF_THREADS
+        set(threads) {
+            require(threads >= 1) {
+                "numberOfThreads, $threads, must be at least 1"
+            }
+            field = threads
+        }
+
+    /**
+     * Tags whose closed ways still render below [polygonZoomMin]; starts from
+     * `Parameters.POLYGON_EXCEPTIONS`, and a set value is copied.
+     */
+    @Volatile
+    var polygonExceptions: Set<Tag> = Collections.unmodifiableSet(HashSet(Parameters.POLYGON_EXCEPTIONS))
+        set(tags) {
+            field = Collections.unmodifiableSet(HashSet(tags))
+        }
+
+    /**
+     * Closed ways render from this zoom level on, except [polygonExceptions]; starts from
+     * `Parameters.POLYGON_ZOOM_MIN`.
+     */
+    @Volatile
+    var polygonZoomMin: Int = Parameters.POLYGON_ZOOM_MIN
 
     /**
      * The device scale factor times the user scale factor.
@@ -209,6 +245,8 @@ open class DisplayModel : Observable() {
         result = prime * result + java.lang.Float.floatToIntBits(lineScaleValue)
         result = prime * result + java.lang.Float.floatToIntBits(symbolScaleValue)
         result = prime * result + java.lang.Float.floatToIntBits(textScaleValue)
+        result = prime * result + polygonZoomMin
+        result = prime * result + polygonExceptions.hashCode()
         return result
     }
 

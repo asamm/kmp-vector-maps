@@ -8,7 +8,7 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 113 now Kotlin, 17 hillshading files removed (C5) |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 110 now Kotlin, 20 hillshading files removed (C5, C6) |
 
 ## Sync routine
 
@@ -20,10 +20,11 @@ Kotlin".
 
   ```sh
   M=<path to a mapsforge clone>; root=$(git rev-parse --show-toplevel); n=0; fail=0
-  # changed by C4, C5
+  # changed by C4, C5, C6
   r=map/src/main/java/org/mapsforge/map/rendertheme
   expected=" $r/rule/RenderTheme.java $r/rule/RenderThemeBuilder.java \
-  $r/renderinstruction/RenderInstruction.java $r/rule/RenderThemeHandler.java "
+  $r/renderinstruction/RenderInstruction.java $r/rule/RenderThemeHandler.java \
+  $r/renderinstruction/Area.java "
   for f in $(git -C "$root" ls-files 'formats/mapsforge/legacy/*/src/main/java/*'); do
     n=$((n+1)); u=mapsforge-${f#formats/mapsforge/legacy/}
     git -C "$M" show 54e8654f:"$u" | diff -q --strip-trailing-cr - "$root/$f" >/dev/null && continue
@@ -226,6 +227,7 @@ API differences of the renderer, tile cache and job queue (M5.4b, K31–K38):
 | C3 | reader `ReadBuffer`, `MapFile`, `IndexCache` | overflow-safe string length and index block size; a missing debug signature handled like a wrong one | an overflowing string or index size no longer throws; other malformed data still fails the tile (M5.1) |
 | C4 | `DisplayModel`, theme `RenderTheme`, `RenderThemeBuilder`, `RenderInstruction` | device, line, symbol and text scales per model; the theme reads them from its model; the statics seed new models | a static set by one host (`AndroidGraphicFactory` sets the density) no longer changes other renderers (M5.2, D28) |
 | C5 | `layer/hills` (15 files), `HillshadingContainer`, `Hillshading`; `CanvasRasterer`, `ShapeType`, `RenderTheme`, `RenderThemeHandler`, `DatabaseRenderer`, `StandardRenderer` | the 17 files removed; `DatabaseRenderer`, `StandardRenderer` take the hills config as an ignored `Object` (`Any?` in Kotlin); `ShapeType.HILLSHADING`, `CanvasRasterer.drawHillshading`, `RenderTheme.matchHillShadings`, `StandardRenderer.hillsRenderConfig` and the `RenderThemeHandler.HILLSHADING_*` statics removed; `interruptAndDestroy()` is a no-op; `RenderThemeHandler` still validates `<hillshading>` and gives it its level, then drops it | hillshading is out of scope and unused by any consumer; the constructor keeps the upstream arity for the golden harness shared with upstream (M5.4a, D30) |
+| C6 | `DisplayModel`, `StandardRenderer`, `CanvasRasterer`, theme `Area`; graphics `GraphicContext`, `GraphicFactory`, `HillshadingBitmap`, the Android and AWT canvases, factories and hillshading bitmaps | `NUMBER_OF_THREADS`, `POLYGON_ZOOM_MIN`, `POLYGON_EXCEPTIONS` are per model (`numberOfThreads`, `polygonZoomMin`, `polygonExceptions`, the last two in `equals`/`hashCode`), seeded from `Parameters`; `shadeBitmap`, `createMonoBitmap`, `HillshadingBitmap` and their implementations removed (the 3 files and their state), superseding their mentions in K23, K27 and K29 | a static set by one host no longer changes other renderers (D28); hillshading is drawn by the host at the `HILLSHADE` anchor (D13, M6.2), not by Mapsforge (M5.4 fixes) |
 
 ## Build deviations
 

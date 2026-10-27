@@ -23,7 +23,6 @@
 package org.mapsforge.map.android.graphics
 
 import android.graphics.PorterDuff
-import android.graphics.PorterDuffColorFilter
 import android.graphics.Rect
 import android.graphics.Region
 import android.os.Build
@@ -35,7 +34,6 @@ import org.mapsforge.core.graphics.Paint
 import org.mapsforge.core.graphics.Path
 import org.mapsforge.core.model.Dimension
 import org.mapsforge.core.model.Point
-import org.mapsforge.core.model.Rectangle
 import org.mapsforge.core.model.Rotation
 import org.mapsforge.map.layer.renderer.RendererUtils
 
@@ -50,24 +48,9 @@ internal open class AndroidCanvas(canvas: android.graphics.Canvas) : Canvas {
     @JvmField
     protected val bitmapPaint = android.graphics.Paint()
 
-    @JvmField
-    protected val shadePaint = android.graphics.Paint()
-
-    @JvmField
-    protected val tmpMatrix = android.graphics.Matrix()
-
-    /**
-     * Reusable temporaries, not needed while hillshading is inactive.
-     */
-    @JvmField
-    protected var hillshadingTemps: HillshadingTemps? = null
-
     init {
         bitmapPaint.isAntiAlias = true
         bitmapPaint.isFilterBitmap = true
-
-        shadePaint.isAntiAlias = true
-        shadePaint.isFilterBitmap = true
     }
 
     constructor() : this(android.graphics.Canvas())
@@ -427,199 +410,7 @@ internal open class AndroidCanvas(canvas: android.graphics.Canvas) : Canvas {
         }
     }
 
-    @Suppress("DEPRECATION")
-    final override fun shadeBitmap(
-        bitmap: Bitmap?,
-        shadeRect: Rectangle?,
-        tileRect: Rectangle?,
-        magnitude: Float,
-        color: Int,
-        external: Boolean,
-    ) {
-        canvas!!.save()
-
-        shadePaint.alpha = (255 * magnitude).toInt()
-        if (color != 0) {
-            shadePaint.colorFilter = PorterDuffColorFilter(color, PorterDuff.Mode.SRC_ATOP)
-        }
-
-        if (bitmap != null
-            && tileRect != null
-        ) {
-            val hillsBitmap = AndroidGraphicFactory.getBitmap(bitmap)
-
-            if (shadeRect!!.width != 0.0
-                && shadeRect.height != 0.0
-            ) {
-                val horizontalScale = tileRect.width / shadeRect.width
-                val verticalScale = tileRect.height / shadeRect.height
-
-                val transform = tmpMatrix
-                transform.reset()
-
-                // (2024-10) On some other systems (see AwtCanvas), a scaling transform with large
-                // factors would cause the entire hill shading bitmap to be upscaled, thus wasting
-                // large amounts of memory and CPU time when only a small part of the bitmap is
-                // really needed. This is especially prominent on larger zoom levels when
-                // horizontalScale and verticalScale become very large.
-                // It turns out that Android is not susceptible to this problem, so sub-image
-                // paradigm was not implemented (at least not for Android Oreo+).
-                transform.preTranslate(tileRect.left.toFloat(), tileRect.top.toFloat())
-                transform.preScale(horizontalScale.toFloat(), verticalScale.toFloat())
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    transform.preTranslate((-shadeRect.left).toFloat(), (-shadeRect.top).toFloat())
-
-                    canvas!!.clipRect(
-                        tileRect.left.toFloat(),
-                        tileRect.top.toFloat(),
-                        tileRect.right.toFloat(),
-                        tileRect.bottom.toFloat(),
-                    )
-                    canvas!!.drawBitmap(hillsBitmap!!, transform, shadePaint)
-                } else {
-                    // Using a rectangle slightly larger than necessary to prevent resize artifacts
-                    val srcLeft = Math.max(0, shadeRect.left.toInt() - 1)
-                    val srcTop = Math.max(0, shadeRect.top.toInt() - 1)
-                    val srcWidth = Math.min(
-                        hillsBitmap!!.width - srcLeft,
-                        shadeRect.width.toInt() + 4,
-                    )
-                    val srcHeight = Math.min(
-                        hillsBitmap.height - srcTop,
-                        shadeRect.height.toInt() + 4,
-                    )
-
-                    val subImage = android.graphics.Bitmap.createBitmap(
-                        hillsBitmap,
-                        srcLeft,
-                        srcTop,
-                        srcWidth,
-                        srcHeight,
-                    )
-                    val subImageArgb = if (
-                        android.graphics.Bitmap.Config.ARGB_8888 != subImage.config
-                    ) {
-                        // We need to copy the original bitmap to the ARGB configuration, otherwise
-                        // the drawn bitmap will not be filtered
-                        subImage.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
-                    } else {
-                        subImage
-                    }
-
-                    transform.preTranslate(
-                        (-(shadeRect.left - srcLeft)).toFloat(),
-                        (-(shadeRect.top - srcTop)).toFloat(),
-                    )
-
-                    canvas!!.clipRect(
-                        tileRect.left.toFloat(),
-                        tileRect.top.toFloat(),
-                        tileRect.right.toFloat(),
-                        tileRect.bottom.toFloat(),
-                        Region.Op.REPLACE,
-                    )
-                    canvas!!.drawBitmap(subImageArgb, transform, shadePaint)
-                }
-            }
-
-            // (2024-10) An old workaround that doesn't seem to be needed anymore (tested on Sony
-            // Xperia).
-            // final android.graphics.Bitmap sourceImage;
-            // if (srcLeft == 0 && srcTop == 0) {
-            //     // special handling for an inconsistency in android where rect->rect drawImage
-            //     // upscaling is unfiltered if source top,left is 0,0
-            //     // (seems to be shortcutting to a different implementation, observed on sony)
-            //
-            //     android.graphics.Bitmap shiftedTemp = android.graphics.Bitmap.createBitmap(
-            //             srcRight + 1, srcBottom, hillsBitmap.getConfig());
-            //     tempCanvas.setBitmap(shiftedTemp);
-            //     tempCanvas.drawBitmap(hillsBitmap, 1, 0, null);
-            //
-            //     sourceImage = shiftedTemp;
-            //
-            //     srcLeft += 1;
-            //     srcRight += 1;
-            // } else {
-            //     sourceImage = hillsBitmap;
-            // }
-        } else {
-            if (hillshadingTemps == null) {
-                hillshadingTemps = HillshadingTemps()
-            }
-
-            if (tileRect != null) {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    canvas!!.clipRect(
-                        tileRect.left.toFloat(),
-                        tileRect.top.toFloat(),
-                        tileRect.right.toFloat(),
-                        tileRect.bottom.toFloat(),
-                    )
-                } else {
-                    canvas!!.clipRect(
-                        tileRect.left.toFloat(),
-                        tileRect.top.toFloat(),
-                        tileRect.right.toFloat(),
-                        tileRect.bottom.toFloat(),
-                        Region.Op.REPLACE,
-                    )
-                }
-            }
-
-            // scale a dummy pixel over the canvas - just drawing a paint would probably be faster,
-            // but the resulting colors can be inconsistent with the bitmap draw (maybe only on
-            // some devices?)
-            canvas!!.drawBitmap(
-                hillshadingTemps!!.useNeutralShadingPixel(),
-                hillshadingTemps!!.useAsr(0, 0, 1, 1),
-                hillshadingTemps!!.useAdr(0, 0, canvas!!.width, canvas!!.height),
-                shadePaint,
-            )
-        }
-
-        canvas!!.restore()
-    }
-
     final override fun translate(dx: Float, dy: Float) {
         canvas!!.translate(dx, dy)
-    }
-
-    protected open class HillshadingTemps internal constructor() {
-
-        private val asr = Rect(0, 0, 0, 0)
-
-        private val adr = Rect(0, 0, 0, 0)
-
-        private val neutralShadingPixel: android.graphics.Bitmap = AndroidGraphicFactory.INSTANCE
-            .createMonoBitmap(
-                1,
-                1,
-                byteArrayOf(0),
-                0,
-                null,
-                AndroidGraphicFactory.getColor(Color.TRANSPARENT),
-            )
-            .bitmap!!
-
-        internal fun useAsr(srcLeft: Int, srcTop: Int, srcRight: Int, srcBottom: Int): Rect {
-            asr.left = srcLeft
-            asr.top = srcTop
-            asr.right = srcRight
-            asr.bottom = srcBottom
-            return asr
-        }
-
-        internal fun useAdr(destLeft: Int, destTop: Int, destRight: Int, destBottom: Int): Rect {
-            adr.left = destLeft
-            adr.top = destTop
-            adr.right = destRight
-            adr.bottom = destBottom
-            return adr
-        }
-
-        internal fun useNeutralShadingPixel(): android.graphics.Bitmap {
-            return neutralShadingPixel
-        }
     }
 }

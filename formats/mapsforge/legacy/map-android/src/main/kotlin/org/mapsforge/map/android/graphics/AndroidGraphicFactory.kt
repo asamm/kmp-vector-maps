@@ -40,7 +40,6 @@ import org.mapsforge.core.graphics.ResourceBitmap
 import org.mapsforge.core.graphics.TileBitmap
 import org.mapsforge.core.mapelements.PointTextContainer
 import org.mapsforge.core.mapelements.SymbolContainer
-import org.mapsforge.core.model.BoundingBox
 import org.mapsforge.core.model.Point
 import org.mapsforge.core.util.Parameters
 import org.mapsforge.map.model.DisplayModel
@@ -50,8 +49,6 @@ import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
-import java.nio.Buffer
-import java.nio.ByteBuffer
 
 class AndroidGraphicFactory private constructor(private val context: Context?) : GraphicFactory {
 
@@ -105,27 +102,6 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
 
     override fun createMatrix(): Matrix {
         return AndroidMatrix()
-    }
-
-    override fun createMonoBitmap(
-        width: Int,
-        height: Int,
-        buffer: ByteArray?,
-        padding: Int,
-        area: BoundingBox?,
-        color: Int,
-    ): AndroidHillshadingBitmap {
-        val androidBitmap = AndroidHillshadingBitmap(
-            width + 2 * padding,
-            height + 2 * padding,
-            padding,
-            area,
-        )
-        if (buffer != null) {
-            val b: Buffer = ByteBuffer.wrap(buffer)
-            androidBitmap.bitmap!!.copyPixelsFromBuffer(b)
-        }
-        return androidBitmap
     }
 
     override fun createPaint(): Paint {

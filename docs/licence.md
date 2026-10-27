@@ -25,7 +25,7 @@ the legal check is locus-core plan Q1.
 |---|---|
 | Licence | LGPL-3.0-or-later (headers, `COPYING.LESSER`) |
 | Waiver | §4(d) and §4(e), upstream `README.md` only, commit `c78c1d79` (2018-10-31) |
-| Headers | all 160 vendored files (177 in M0, 17 hillshading files removed, C5); `TileDependencies` has none upstream, so since M5.4b it carries only the Asamm line and the SPDX identifier |
+| Headers | all 157 vendored files (177 in M0, 20 hillshading files removed, C5, C6); `TileDependencies` has none upstream, so since M5.4b it carries only the Asamm line and the SPDX identifier |
 | Dependencies | androidsvg Apache-2.0; kxml2 BSD + public domain; svgSalamander BSD (1.1.3 POM) |
 | Embedded code | `TextStroke.kt` and the libGDX-marked parts of `LatLongUtils.kt`: Apache-2.0 |
 

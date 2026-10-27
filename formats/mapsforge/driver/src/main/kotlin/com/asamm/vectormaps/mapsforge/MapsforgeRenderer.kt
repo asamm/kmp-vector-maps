@@ -46,6 +46,11 @@ class MapsforgeRenderer internal constructor(
 
     private val permits = Semaphore(maxParallelism)
 
+    init {
+        // shared theme Paints are locked while drawing when more than one thread renders
+        displayModel.numberOfThreads = maxParallelism
+    }
+
     private val closed = AtomicBoolean(false)
 
     private val renderer = DatabaseRenderer(

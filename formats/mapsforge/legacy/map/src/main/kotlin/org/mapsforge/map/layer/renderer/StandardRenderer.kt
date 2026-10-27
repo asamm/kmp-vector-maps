@@ -33,7 +33,6 @@ import org.mapsforge.core.model.Point
 import org.mapsforge.core.model.Rectangle
 import org.mapsforge.core.model.Tag
 import org.mapsforge.core.util.MercatorProjection
-import org.mapsforge.core.util.Parameters
 import org.mapsforge.map.datastore.MapDataStore
 import org.mapsforge.map.datastore.MapReadResult
 import org.mapsforge.map.datastore.PointOfInterest
@@ -130,10 +129,11 @@ open class StandardRenderer @JvmOverloads constructor(
         renderContext.setDrawingLayer(way.layer)
 
         if (way.isClosedWay) {
-            if (renderContext.rendererJob.tile.zoomLevel >= Parameters.POLYGON_ZOOM_MIN) {
+            val displayModel = renderContext.rendererJob.displayModel
+            if (renderContext.rendererJob.tile.zoomLevel >= displayModel.polygonZoomMin) {
                 renderContext.renderTheme.matchClosedWay(getRenderCallback(), renderContext, way)
-            } else if (!Parameters.POLYGON_EXCEPTIONS.isEmpty()) {
-                for (tag in Parameters.POLYGON_EXCEPTIONS) {
+            } else if (!displayModel.polygonExceptions.isEmpty()) {
+                for (tag in displayModel.polygonExceptions) {
                     if (way.tags.contains(tag)) {
                         renderContext.renderTheme.matchClosedWay(getRenderCallback(), renderContext, way)
                         break

@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3, M5.0–M5.3 and M5.4a done; M5.4b (renderer in Kotlin) in review;
-M5 runs on `feature/m5` (D26).** Next action: M5.4 fixes; M5.5, labels; M4 waits for Q12 and Q13.
+**Status: M0–M3, M5.0–M5.3 and M5.4a–b done; M5.4 fixes (C6) in review;
+M5 runs on `feature/m5` (D26).** Next action: M5.5, labels; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -219,7 +219,7 @@ without labels (D25; the locus-core PR #1635 soak ran in Locus by hand). From M5
 | M5.3a | core graphics (27 files) | — | ✅ PR #13, `6841d56` |
 | M5.3b | Android and AWT graphics, `AndroidParameters` (25 files) | native cost per Paint measured (F2); caches and `ANTI_ALIASING` moved to M5.6 (D29) | ✅ PR #14, `cc24934`; fixes PR #15, `dd4d89c` |
 | M5.4a | hillshading and its thread pool removed before the conversion (17 files, C5, D30) | — | ✅ PR #16, `70710a3` |
-| M5.4b | renderer, cache, queue (17 files) | `POLYGON_*`, `NUMBER_OF_THREADS` per renderer (D28); the graphics hillshading API (`shadeBitmap`, `createMonoBitmap`, `HillshadingBitmap` and its two implementations) removed | 🔧 |
+| M5.4b | renderer, cache, queue (17 files) | `POLYGON_*`, `NUMBER_OF_THREADS` per renderer (D28); the graphics hillshading API (`shadeBitmap`, `createMonoBitmap`, `HillshadingBitmap` and its two implementations) removed | ✅ PR #17, `33d9a1c`; fixes 🔧 |
 | M5.5 | labels; first, the soak compares each tile's label store entry | — (replaced in M6) | ⬜ |
 | M5.6 | theme rules, instructions | hash-only matching cache key; Paint caches bounded to 4 zoom levels with in-use pinning (F1–F3); `ANTI_ALIASING` per renderer, Android Paints and AWT canvas, and `SYMBOL_SCALING` (D28, D29) | ⬜ |
 | M5.7 | XML parser; `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
@@ -235,6 +235,9 @@ without labels (D25; the locus-core PR #1635 soak ran in Locus by hand). From M5
   Paints' native heap (224–320 B × ~68k new Paints) explains ~15–22 MB of F1's native +93–170 MB;
   their Java heap (~16 MB) is outside F1. Most of the growth is unexplained (Q18); M5.6 bounds the
   Paint caches regardless. No soak, goldens or dumps: no library code changed.
+- M5.4 fixes (upstream.md C6): `NUMBER_OF_THREADS` and the polygon settings are per
+  `DisplayModel`, the driver pins them to its parallelism and upstream's default; the graphics
+  hillshading API is gone, as the host draws hillshading at the `HILLSHADE` anchor (D13).
 
 *M5.0 baseline, Java code, 2026-10-26: A54 (SM-A546B, Android 16, clocks not locked), bundled
 Monaco map, `soak.minutes=15` (7.5 per label mode), seed 20261025. `SEPARATE`: 59,746 renders
@@ -278,6 +281,10 @@ differed; `IN_TILE` 71,578, no failure, no test-process crash; goldens and dumps
 *M5.4b, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 43,780 renders, all compared, 0
 differed; `IN_TILE` 58,583, no failure, no test-process crash; soak on the code before the review
 fixes (KDoc, docs, a licence notice), goldens and dumps byte-exact after them.*
+
+*M5.4 fixes, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 54,309 renders, all compared,
+0 differed; `IN_TILE` 65,641, no failure, no test-process crash; soak before the review fixes
+(dead members, KDoc, a setter check), goldens and dumps byte-exact after them.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).

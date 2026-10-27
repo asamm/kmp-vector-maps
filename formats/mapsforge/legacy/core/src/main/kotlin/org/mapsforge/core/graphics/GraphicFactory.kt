@@ -20,7 +20,6 @@ package org.mapsforge.core.graphics
 
 import org.mapsforge.core.mapelements.PointTextContainer
 import org.mapsforge.core.mapelements.SymbolContainer
-import org.mapsforge.core.model.BoundingBox
 import org.mapsforge.core.model.Point
 import java.io.IOException
 import java.io.InputStream
@@ -38,18 +37,6 @@ interface GraphicFactory {
     fun createColor(alpha: Int, red: Int, green: Int, blue: Int): Int
 
     fun createMatrix(): Matrix
-
-    /**
-     * A single-channel bitmap for hillshading, optionally over `buffer`.
-     */
-    fun createMonoBitmap(
-        width: Int,
-        height: Int,
-        buffer: ByteArray?,
-        padding: Int,
-        area: BoundingBox?,
-        color: Int,
-    ): HillshadingBitmap
 
     fun createPaint(): Paint
 
