@@ -45,8 +45,8 @@ import kotlin.random.Random
  * The M5 gate (ROADMAP): a random walk of pans and zooms on a phone-sized screen, rendered through
  * the Mapsforge driver and the viewer's tile engine on [THREADS] threads for half of `soak.minutes`
  * per label mode. Every `SEPARATE` render is compared pixel by pixel with a render of the same tile,
- * one at a time, by a second renderer, and so is the tile's label store entry (kind, point-label
- * text, position, priority, clash box, standalone symbol size).
+ * one at a time, by a second renderer, and so is the tile's label store entry (kind, text,
+ * position, priority, clash box, visibility, standalone symbol size).
  * `IN_TILE` tiles depend on render order (M6.1), so they are only checked to render. Skipped
  * without the argument:
  * `./gradlew :dev:bench:android:connectedReleaseAndroidTest
@@ -379,9 +379,8 @@ class SoakTest {
         }
 
         /**
-         * A hash of `tile`'s label store entry in store order, and its label count; 0 and 0
-         * without a label store. Kind, point-label text, priority, position and clash box of each
-         * label, standalone symbols by size.
+         * A hash of `tile`'s label store entry in store order and its label count, 0 and 0 without
+         * a label store.
          */
         fun labelEntry(renderer: MapRenderer, tile: TileRequest): Pair<Long, Int> {
             val store = (renderer as MapsforgeRenderer).labelStore ?: return Pair(0L, 0)
@@ -395,16 +394,17 @@ class SoakTest {
             return Pair(31 * hash + lines.size, lines.size)
         }
 
-        // mirrors the golden harness's LabelDump.describe, with raw doubles and symbols by size
+        // kind, text, priority, position, clash box, visibility; mirrors the golden LabelDump.describe
         private fun describe(item: MapElementContainer): String {
             val clash = item.getClashRect(Rotation.NULL_ROTATION)
             val geometry = "p=${item.priority} xy=${item.point.x},${item.point.y} " +
-                "clash=${clash?.let { "${it.left},${it.top},${it.right},${it.bottom}" }}"
+                "clash=${clash?.let { "${it.left},${it.top},${it.right},${it.bottom}" }} " +
+                "notVisible=${item.isNotVisible}"
             return when (item) {
                 is PointTextContainer -> "text $geometry \"${item.text}\" withSymbol=${item.symbolContainer != null}"
                 is SymbolContainer -> "symbol $geometry ${item.symbol.width}x${item.symbol.height}"
-                // the way text itself is private; priority and clash box identify it
-                is WayTextContainer -> "waytext $geometry"
+                // the way text field is private; toString ends with it
+                is WayTextContainer -> "waytext $geometry \"${item.toString().substringAfter(", text=")}\""
                 else -> "other ${item.javaClass.simpleName} $geometry"
             }
         }

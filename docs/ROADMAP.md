@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5.0–M5.4 done; M5.5 label check (D31) in review;
-M5 runs on `feature/m5` (D26).** Next action: M5.5, labels in Kotlin; M4 waits for Q12 and Q13.
+**Status: M0–M3 and M5.0–M5.4 done; M5.5a (soak label check, D31) in review;
+M5 runs on `feature/m5` (D26).** Next action: M5.5b, labels in Kotlin; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -207,8 +207,8 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 **M5 — Mapsforge to Kotlin.** One area per PR, its hot-spot fixes in a follow-up PR on the same
 area, so each conversion PR stays pixel-identical. Every PR gated by goldens, dumps and a device
 15-minute zoom soak (the A54 up to M5.1, the dev AVD from M5.2, D27) with pixel check of the tiles
-(D25) and, from M5.5, of each tile's label store entry (D31; the locus-core PR #1635 soak ran in
-Locus by hand). From M5.1 the PRs merge into the umbrella `feature/m5`, which reaches `main` in one
+(D25; the locus-core PR #1635 soak ran in Locus by hand) and, from M5.5a, of each tile's label
+store entry (D31). From M5.1 the PRs merge into the umbrella `feature/m5`, which reaches `main` in one
 PR after M5.7 (D26).
 
 | PR | Area | Fixes after conversion | Status |
@@ -221,7 +221,8 @@ PR after M5.7 (D26).
 | M5.3b | Android and AWT graphics, `AndroidParameters` (25 files) | native cost per Paint measured (F2); caches and `ANTI_ALIASING` moved to M5.6 (D29) | ✅ PR #14, `cc24934`; fixes PR #15, `dd4d89c` |
 | M5.4a | hillshading and its thread pool removed before the conversion (17 files, C5, D30) | — | ✅ PR #16, `70710a3` |
 | M5.4b | renderer, cache, queue (17 files) | `POLYGON_*`, `NUMBER_OF_THREADS` per renderer (D28); the graphics hillshading API (`shadeBitmap`, `createMonoBitmap`, `HillshadingBitmap` and its two implementations) removed | ✅ PR #17, `33d9a1c`; fixes PR #18, `099eb6d` |
-| M5.5 | labels; first, the soak compares each tile's label store entry (D31) | — (replaced in M6) | check 🔧; conversion ⬜ |
+| M5.5a | soak label store check (D31), no conversion | — | 🔧 |
+| M5.5b | labels | — (replaced in M6) | ⬜ |
 | M5.6 | theme rules, instructions | hash-only matching cache key; Paint caches bounded to 4 zoom levels with in-use pinning (F1–F3); `ANTI_ALIASING` per renderer, Android Paints and AWT canvas, and `SYMBOL_SCALING` (D28, D29) | ⬜ |
 | M5.7 | XML parser; `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
 
@@ -239,7 +240,7 @@ PR after M5.7 (D26).
 - M5.4 fixes (upstream.md C6): `NUMBER_OF_THREADS` and the polygon settings are per
   `DisplayModel`, the driver pins them to its parallelism and upstream's default; the graphics
   hillshading API is gone, as the host draws hillshading at the `HILLSHADE` anchor (D13).
-- M5.5 label check (D31): `SoakTest` compares each `SEPARATE` render's label store entry with the
+- M5.5a (D31): `SoakTest` compares each `SEPARATE` render's label store entry with the
   serial render's. A reference at text scale 1.5 left all 5,026 renders' pixels equal but 2,563
   label entries different in two minutes, so the check catches what the pixel check misses.
 
@@ -290,10 +291,11 @@ fixes (KDoc, docs, a licence notice), goldens and dumps byte-exact after them.*
 0 differed; `IN_TILE` 65,641, no failure, no test-process crash; soak before the review fixes
 (dead members, KDoc, a setter check), goldens and dumps byte-exact after them.*
 
-*M5.5 label check, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 52,831 renders, all
+*M5.5a, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 52,831 renders, all
 compared, 0 differed, labels of 0 differed; `IN_TILE` 62,407, no failure; render times now include
 the label hashing. After the review fixes a 2-minute `SEPARATE` run: 5,699 renders, 2,863 with
-labels, 0 differed.*
+labels, 0 differed. With way-label text and visibility added (PR #19 review), a 2-minute run:
+11,229 renders, 5,723 with labels, 0 differed.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
@@ -369,7 +371,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D28 | `DisplayModel` scales are per model from M5.2, the statics only seed new models, so the shared golden harness and Locus still compile; a model created before a static is set keeps the old value (Locus, see M8 must); each pixel-relevant `Parameters` field moves to per-renderer config with its area (M5.4, M5.6; D29); `MAXIMUM_BUFFER_SIZE`, `VALIDATE_COORDINATES` and the view flags stay global, as do `ANDROID_32BIT_COLOR` (the host's tile format until the host-bitmap target) and `AndroidParameters.ANDROID_LIBHWUI_FIX` (a per-device workaround) |
 | D29 | The Paint caches (F1–F3) are bounded in M5.6, in Kotlin: a window of 4 zoom levels, and each render job pins its zoom so a drawing tile never sees an unscaled Paint; where the window lives is M5.6's call. `ANTI_ALIASING` per renderer moves to M5.6 too, as on Android it is set on each theme Paint; on AWT the canvas reads it (`AwtCanvas`, set from `CanvasRasterer`), changed in the same step |
 | D30 | M5.4 removes the unused hillshading code before converting the renderer, rather than converting it first; the renderer constructors keep their hills parameter as an ignored `Object`, so the golden harness shared with upstream still compiles; M6.2 re-captures the `<hillshading>` layer, level and `cat` in `RenderThemeHandler`, dropped here |
-| D31 | The M5 soak compares each `SEPARATE` render's label store entry with a serial render's: kind, point-label text, priority, position, clash box, standalone symbol size (way-label text is private and display protected in Mapsforge); the soak fails if no render had labels. Not compared: `IN_TILE` labels (render order, M6.1), placement across tiles (the label pass, M6.1), way-label text, fonts, colours and symbol pixels |
+| D31 | The M5 soak compares each `SEPARATE` render's label store entry with a serial render's: kind, text, priority, position, clash box, visibility, standalone symbol size (way-label text through `toString`, as its field is private; the display mode itself is protected in Mapsforge); the soak fails if no render had labels. Not compared: `IN_TILE` labels (render order, M6.1), placement across tiles (the label pass, M6.1), fonts, colours and symbol pixels |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.
@@ -384,7 +386,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 - D25: `IN_TILE` labels depend on render order until M6.1, so that mode is only checked to render;
   a reference at a different device scale makes 1,670 of 3,036 compared renders (610 distinct
   tiles) differ in a minute, so the check bites. Labels go to the label store, not the tile, so
-  they are compared from M5.5 on, by the label store check (D31).
+  they are compared from M5.5a on, by the label store check (D31).
 - The former "Java hot spots" milestone is folded into M5: with no early switch it was double work.
 
 ## Hazards
