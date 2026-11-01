@@ -1,7 +1,7 @@
 /*
  * Mapsforge map: model, util and datastore (M5.2b), renderer, tile cache, job queue (M5.4b), label
- * stores (M5.5b), theme rules (M5.6a) and render instructions (M5.6b) in Kotlin (D24); the XML
- * theme parser still Java.
+ * stores (M5.5b), theme rules (M5.6a), render instructions (M5.6b) and the XML theme parser (M5.7a) in
+ * Kotlin (D24).
  */
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
@@ -23,6 +23,7 @@ kotlin {
     }
 }
 
+// a Java source here would build as the other JVM legacy modules do
 tasks.withType<JavaCompile>().configureEach {
     options.release = 8
     options.encoding = "UTF-8"

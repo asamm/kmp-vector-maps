@@ -7,9 +7,9 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5.0–M5.6b done; M5.6 fixes (cache key, Paint cache window, per-model
-`ANTI_ALIASING` and `SYMBOL_SCALING`) in review; M5 runs on `feature/m5` (D26).** Next action: M5.7, XML parser in
-Kotlin; M4 waits for Q12 and Q13.
+**Status: M0–M3 and M5.0–M5.6 fixes done; M5.7a (XML theme parser in Kotlin, no Java left in
+`legacy/`) in review; M5 runs on `feature/m5` (D26).** Next action: M5.7b, rename to `com.asamm.*`
+and move the modules; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -227,8 +227,9 @@ PR after M5.7 (D26).
 | M5.5b | labels (7 files) | — (replaced in M6) | ✅ PR #20, `54f8d0e` |
 | M5.6a | theme rules, matchers, `RenderTheme`, `RenderContext`, callbacks (20 files) | — | ✅ PR #21, `e37f872` |
 | M5.6b | render instructions (9 files) | — | ✅ PR #22, `6475f90` |
-| M5.6 fixes | theme caches and settings after the conversion | matching cache key compares tags in full; Paint caches bounded to a window of 4 zoom levels, a rendering job holds its zoom (F1–F3, D29); `ANTI_ALIASING` (theme Paints, the tile canvas, on Android its bitmap Paint) and `SYMBOL_SCALING` per `DisplayModel` (D28) | 🔧 |
-| M5.7 | XML parser (11 files); `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
+| M5.6 fixes | theme caches and settings after the conversion | matching cache key compares tags in full; Paint caches bounded to a window of 4 zoom levels, a rendering job holds its zoom (F1–F3, D29); `ANTI_ALIASING` (theme Paints, the tile canvas, on Android its bitmap Paint) and `SYMBOL_SCALING` per `DisplayModel` (D28) | ✅ PR #23, `1f3766e` |
+| M5.7a | XML theme parser (11 files); the theme members widened for it back to `internal` | — | 🔧 |
+| M5.7b | `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
 
 - M5.1 fixes (upstream.md C1–C3): the index cache is locked, block reads are positional (measure
   the gain on Android or Linux: the JDK on Windows still serialises them), and an overflowing string
@@ -324,6 +325,10 @@ review fixes (comments, a guard split), goldens and dumps byte-exact after them.
 *M5.6 fixes, same AVD, 2026-10-27, logcat streamed (Q17): `SEPARATE` 61,106 renders, all compared,
 0 differed, labels of 0 differed (30,913 with labels); `IN_TILE` 65,901, no failure; on the code
 after the PR #23 review, after two earlier soaks (62,204 and 58,166 renders, 0 differed).*
+
+*M5.7a, same AVD, 2026-11-01, logcat streamed (Q17): `SEPARATE` 71,734 renders, all compared, 0
+differed, labels of 0 differed (36,349 with labels); `IN_TILE` 98,505, no failure; soak before the
+review fixes (KDoc and docs only), goldens and dumps byte-exact after them.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
@@ -425,7 +430,7 @@ See the locus-core plan, R1–R7. Repo-specific:
 | ID | Hazard | Mitigation |
 |---|---|---|
 | H1 | Upstream and vendored `org.mapsforge` on one classpath | golden generation in its own module |
-| H2 | Vendored Java drifts from upstream | sync script, deviation tables in [upstream.md](upstream.md) |
+| H2 | Vendored code misses upstream changes | changelog review and hand port per release, deviation tables in [upstream.md](upstream.md) |
 | H3 | Interface shaped by Mapsforge alone | Garmin (M4) right after core v0 (M3) |
 | H4 | Locus sees nothing until M9 | A54 runs in the shared viewer; I7 fallback flag |
 | H5 | Committed PNGs break across OS, JDK, fonts | pinned container exact, tolerant diff outside |

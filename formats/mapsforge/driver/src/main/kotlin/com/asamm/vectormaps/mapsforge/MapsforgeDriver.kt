@@ -100,9 +100,10 @@ class MapsforgeDriver(
             id = id,
             defaultLayerId = defaultLayerId,
             defaultLanguage = defaultLanguage,
-            layers = menu.layers.values.filter { it.id != null }.map { layer ->
+            layers = menu.layers.values.mapNotNull { layer ->
+                val layerId = layer.id ?: return@mapNotNull null
                 StyleLayer(
-                    id = layer.id,
+                    id = layerId,
                     titles = layer.titles.toMap(),
                     isVisible = layer.isVisible,
                     isEnabled = layer.isEnabled,

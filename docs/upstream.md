@@ -8,40 +8,23 @@ build intentionally differs from it.
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
 | Last synced tag | `0.30.0` (commit `54e8654f`) |
 | Synced on | 2026-10-22 |
-| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 146 now Kotlin, 20 hillshading files removed (C5, C6) |
+| Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 157 now Kotlin, 20 hillshading files removed (C5, C6) |
 
 ## Sync routine
 
-The routine compares the 11 files still in Java; the Kotlin ones are listed under "Converted to
-Kotlin".
+Every vendored file is Kotlin since M5.7a, so none compares against the tag any more; upstream
+changes are ported by hand:
 
-- Check the vendored files against the tag, from anywhere in this repo; it prints the count, marks
-  the files a C-row changes as `EXPECTED` and exits non-zero on any other difference:
-
-  ```sh
-  M=<path to a mapsforge clone>; root=$(git rev-parse --show-toplevel); n=0; fail=0
-  # changed by C4, C5
-  r=map/src/main/java/org/mapsforge/map/rendertheme
-  expected=" $r/rule/RenderThemeBuilder.java $r/rule/RenderThemeHandler.java "
-  for f in $(git -C "$root" ls-files 'formats/mapsforge/legacy/*/src/main/java/*'); do
-    n=$((n+1)); u=mapsforge-${f#formats/mapsforge/legacy/}
-    git -C "$M" show 54e8654f:"$u" | diff -q --strip-trailing-cr - "$root/$f" >/dev/null && continue
-    case "$expected" in
-      *" ${f#formats/mapsforge/legacy/} "*) echo "EXPECTED $f" ;;
-      *) echo "DIFF $f"; fail=1 ;;
-    esac
-  done; echo "$n files compared"; [ "$fail" = 0 ]
-  ```
-
-- Read each upstream release's changelog; port theme-format changes and render bug fixes by hand.
-- Diff a module directory against the tag: `git -C <mapsforge> diff 54e8654f <newTag> -- <module>`.
+- Read each upstream release's changelog; port theme-format changes and render bug fixes.
+- Diff the upstream paths under "Converted to Kotlin" between tags,
+  `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream path>`, and port what applies to the
+  Kotlin file, keeping the C-rows.
 - Update the table above and both deviation lists in the same change.
 
 ## Converted to Kotlin
 
 M5 converts one area per PR in place (D24); a converted file keeps its upstream licence header and
-package, and the sync routine above skips it, as it lists `.java` files only. Port upstream
-changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream path>`.
+package. Upstream changes are ported to it by hand, as the sync routine above describes.
 
 | Area | Step | Upstream path |
 |---|---|---|
@@ -54,6 +37,7 @@ changes to it by hand: `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream p
 | map elements and label stores, 7 files | M5.5b | `mapsforge-core/src/main/java/org/mapsforge/core/mapelements`, `mapsforge-map/src/main/java/org/mapsforge/map/layer/labels/{LabelStore,MapDataStoreLabelStore,TileBasedLabelStore}.java` |
 | theme rules, matchers, `RenderTheme`, `RenderContext`, `RenderCallback`, `ThemeCallback`, 20 files | M5.6a | `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/rule/` (all but `RenderThemeBuilder`, `RenderThemeFuture`, `RenderThemeHandler`, `RuleBuilder`), `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/{RenderCallback,RenderContext,ThemeCallback}.java` |
 | render instructions, 9 files | M5.6b | `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/renderinstruction` |
+| XML theme parser, 11 files | M5.7a | `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/{ExternalRenderTheme,XmlRenderTheme,XmlRenderThemeMenuCallback,XmlRenderThemeStyleLayer,XmlRenderThemeStyleMenu,XmlThemeResourceProvider,XmlUtils}.java`, `mapsforge-map/src/main/java/org/mapsforge/map/rendertheme/rule/{RenderThemeBuilder,RenderThemeFuture,RenderThemeHandler,RuleBuilder}.java` |
 
 API differences of the reader (M5.1):
 
@@ -254,9 +238,9 @@ API differences of the theme rules (M5.6a, K46–K51):
 - K46 Getters are properties with the same Java names: `RenderTheme` `levels`, `mapBackground`,
   `mapBackgroundOutside`; `hasMapBackgroundOutside()` and `RenderContext.getLabels()` stay
   functions.
-- K47 Widened, as the theme parser is still Java (M5.7): `RenderTheme.setLevels`, `addRule`,
-  `complete`, `Rule.addRenderingInstruction`, `addSubRule` and `Element.fromString` are public;
-  `Rule.cat` and the `Rule` matcher caches are `@JvmField internal`, fields for Java.
+- K47 The package-private members the theme parser uses are `internal` (public until M5.7a, for
+  the Java parser): the `RenderTheme.levels` setter, `addRule`, `complete`,
+  `Rule.addRenderingInstruction`, `addSubRule`, `cat` and the `Rule` matcher caches.
 - K48 Package-private becomes `internal` (K6): the matcher and enum classes, `PositiveRule` and
   `NegativeRule` with their matcher fields and `exclusive`; the constructors of these, `Rule` and `RenderTheme`
   (not mangled); `Rule`'s zoom and matcher fields and its matching, scaling and lifecycle
@@ -296,6 +280,45 @@ API differences of the render instructions (M5.6b, K52–K57):
   `Caption` and `PathText` read `displayModel.themeCallback` once per render instead of at each use
   (in `Area` also once per scaled stroke Paint).
 
+API differences of the XML theme parser (M5.7a, K58–K63):
+
+- K58 Getters are properties with the same Java names: `XmlRenderTheme` `menuCallback`,
+  `relativePathPrefix`, `resourceProvider` (`getRenderThemeAsStream()` stays a function, as it
+  opens a new stream); `XmlRenderThemeStyleMenu` `id`, `defaultLanguage`, `defaultValue`, `layers`;
+  `XmlRenderThemeStyleLayer` `id`, `categories`, `overlays`, `titles`, `isEnabled`, `isVisible`.
+  The collections stay mutable, as upstream; the menu classes keep their field names and
+  `serialVersionUID`, so their serialized form is unchanged. A Kotlin `XmlRenderTheme` implementer
+  overrides properties, and a Kotlin caller assigns them: Locus' `theme.setMenuCallback { … }` in
+  `PrefMapVectorV4Theme` becomes `theme.menuCallback = XmlRenderThemeMenuCallback { … }`.
+- K59 `XmlRenderThemeMenuCallback` and `XmlThemeResourceProvider` are `fun interface`s, so Kotlin
+  lambdas still convert.
+- K60 Statics: `XmlUtils` is an object (K10) and `RenderThemeHandler`'s statics sit in its
+  companion, both `@JvmStatic`; `XmlUtils.PREFIX_FILE` is a constant. `RenderThemeHandler`'s
+  `processRenderTheme` is private: upstream it was public on a class without a public
+  constructor.
+- K61 Declared nullability: nullable are the menu's and layers' `id`, the menu's
+  `defaultLanguage` and `defaultValue` (a theme may omit them; upstream stored null), `getLayer`'s
+  argument and result, `getTitle`, `relativePathPrefix`, `menuCallback`, `resourceProvider`, the
+  provider's `relativePath` and stream, and the menu callback's result; its menu is non-null.
+  Layer `categories` and `titles` hold no null: a `<cat>` without `id` and a `<name>` without
+  `lang` or `value` are skipped, which changes no render (a null category is never looked up). A
+  `<name>` without `value` changes no title either (`getTitle` fell back already); one without
+  `lang` is lost, where upstream kept it under a null key (both attributes are required by the
+  XSD). `RenderThemeFuture` takes a non-null theme and display model and throws at entry, where
+  upstream's future returned a null theme; its `get()` is non-null. In Locus,
+  `PrefMapVectorV4Theme` (`id`, which no longer smart-casts across modules, `defaultValue`,
+  `getLayer(..)`, `overlay.id` as a map key) and `MapsForgeV4ThemesFragment` (`defaultLanguage`,
+  `getLayer(key)`, `layer.id`) need `?:`, `!!` or a local `val` at adoption.
+- K62 Package-private becomes `internal` (K6): the `RenderThemeBuilder` and `RuleBuilder` fields
+  (with C4's `RenderThemeBuilder.displayModel`) and the `XmlRenderThemeStyleLayer` constructor.
+  Classes stay open, members and overrides final (K13) except `equals` and `hashCode`;
+  `RenderThemeHandler` stays final.
+- K63 Dropped as dead (K7, K30): the throws after exhaustive enum switches in `RuleBuilder` and
+  `RenderThemeHandler`, the `XmlUtils` constructor that threw, the null-file branches of
+  `ExternalRenderTheme.equals` and `hashCode`, the `PREFIX_JAR_V1` branch (`jar:` matches first)
+  and the commented-out `RuleOptimizer` calls; `RuleBuilder`'s rule stack stays an unused
+  parameter.
+
 ## Code deviations
 
 | ID | Where | What | Why |
@@ -310,9 +333,8 @@ API differences of the render instructions (M5.6b, K52–K57):
 
 ## Build deviations
 
-The Java sources are identical except the C-rows; how they are built is not. `map-reader` (M5.1),
-`core` (M5.2a, M5.3a, M5.5b), `map` (M5.2b to M5.6b) and `map-awt` (M5.3b) are Kotlin, `map` with
-its remaining Java (the XML theme parser), and keep the Java 8 target and UTF-8 (B6);
+No Java source is left (M5.7a). `map-reader` (M5.1), `core` (M5.2a, M5.3a, M5.5b), `map` (M5.2b
+to M5.7a) and `map-awt` (M5.3b) are Kotlin and keep the Java 8 target and UTF-8 (B6);
 `map-android` is Kotlin from M5.3b.
 
 | ID | What | Upstream | Here |
@@ -321,5 +343,5 @@ its remaining Java (the XML theme parser), and keep the Java 8 target and UTF-8 
 | B2 | `map-android` packaging | plain JAR against `android.jar` | Android library (AAR), minSdk 24 in its manifest |
 | B3 | Kotlin stdlib | none | `kotlin-stdlib` on every legacy module: through `core` (B6) and AGP's built-in Kotlin in `map-android` |
 | B4 | Source encoding | `UTF-8` set explicitly | resolved: JVM modules set UTF-8, `map-android` gets it as AGP's default |
-| B5 | Line endings | CRLF in the upstream tree | LF via `.gitattributes`; the sync routine ignores CR |
-| B6 | `map-reader`, `core`, `map` and `map-awt` language | Java, `--release 8` | Kotlin, `jvmTarget` 1.8 and `-Xjdk-release=1.8`, the remaining Java with `--release 8`; depends on `kotlin-stdlib` |
+| B5 | Line endings | CRLF in the upstream tree | LF via `.gitattributes` |
+| B6 | `map-reader`, `core`, `map` and `map-awt` language | Java, `--release 8` | Kotlin, `jvmTarget` 1.8 and `-Xjdk-release=1.8`; a Java source would build with `--release 8`; depends on `kotlin-stdlib` |
