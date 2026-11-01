@@ -362,8 +362,9 @@ class RenderThemeHandler private constructor(
         private var xmlPullParserFactory: XmlPullParserFactory? = null
 
         /**
-         * Parses [xmlRenderTheme] into a new [RenderTheme]. Images load on first render; a missing or
-         * invalid one leaves its instruction drawing without it.
+         * Parses [xmlRenderTheme] into a new [RenderTheme]. Symbol images load during the parse, area,
+         * line and line-symbol images on first render; a missing or invalid one leaves its
+         * instruction drawing without it.
          */
         @JvmStatic
         @Throws(IOException::class, XmlPullParserException::class)

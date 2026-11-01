@@ -40,8 +40,6 @@ object XmlUtils {
     const val PREFIX_FILE = "file:"
     private const val PREFIX_JAR = "jar:"
 
-    private const val PREFIX_JAR_V1 = "jar:/org/mapsforge/android/maps/rendertheme"
-
     private const val UNSUPPORTED_COLOR_FORMAT = "unsupported color format: "
 
     @JvmStatic
@@ -227,10 +225,7 @@ object XmlUtils {
         } else if (source.startsWith(PREFIX_FILE)) {
             source = source.substring(PREFIX_FILE.length)
             inputStream = inputStreamFromFile(relativePathPrefix, source)
-        } else if (source.startsWith(PREFIX_JAR)
-            || source.startsWith(PREFIX_JAR_V1)
-        ) {
-            // PREFIX_JAR_V1 starts with PREFIX_JAR, so only the short prefix is ever stripped
+        } else if (source.startsWith(PREFIX_JAR)) {
             source = source.substring(PREFIX_JAR.length)
             inputStream = inputStreamFromJar(relativePathPrefix, source)
         } else {

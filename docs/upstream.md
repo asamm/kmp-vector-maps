@@ -289,7 +289,9 @@ API differences of the XML theme parser (M5.7a, K58–K63):
   The collections stay mutable, as upstream; the menu classes keep their field names and
   `serialVersionUID`, so their serialized form is unchanged. A Kotlin `XmlRenderTheme` implementer
   overrides properties, and a Kotlin caller assigns them: Locus' `theme.setMenuCallback { … }` in
-  `PrefMapVectorV4Theme` becomes `theme.menuCallback = XmlRenderThemeMenuCallback { … }`.
+  `PrefMapVectorV4Theme` becomes `theme.menuCallback = XmlRenderThemeMenuCallback { … }`, and
+  LoMaps' `Themes.InternalRenderTheme` (asamm/lomaps-mapsforge) turns its 5 overrides into
+  `override var`/`val` when rebuilt against this API; its prebuilt jar still links.
 - K59 `XmlRenderThemeMenuCallback` and `XmlThemeResourceProvider` are `fun interface`s, so Kotlin
   lambdas still convert.
 - K60 Statics: `XmlUtils` is an object (K10) and `RenderThemeHandler`'s statics sit in its
@@ -298,13 +300,15 @@ API differences of the XML theme parser (M5.7a, K58–K63):
   constructor.
 - K61 Declared nullability: nullable are the menu's and layers' `id`, the menu's
   `defaultLanguage` and `defaultValue` (a theme may omit them; upstream stored null), `getLayer`'s
-  argument and result, `getTitle`, `relativePathPrefix`, `menuCallback`, `resourceProvider`, the
-  provider's `relativePath` and stream, and the menu callback's result; its menu is non-null.
+  argument and result, `layers`' keys, `getTitle`, `relativePathPrefix`, `menuCallback`,
+  `resourceProvider`, the provider's `relativePath` and stream, and the menu callback's result;
+  its menu is non-null.
   Layer `categories` and `titles` hold no null: a `<cat>` without `id` and a `<name>` without
   `lang` or `value` are skipped, which changes no render (a null category is never looked up). A
   `<name>` without `value` changes no title either (`getTitle` fell back already); one without
   `lang` is lost, where upstream kept it under a null key (both attributes are required by the
-  XSD). `RenderThemeFuture` takes a non-null theme and display model and throws at entry, where
+  XSD). `RenderThemeFuture` takes a non-null graphic factory, theme and display model and throws
+  at entry, where
   upstream's future returned a null theme; its `get()` is non-null. In Locus,
   `PrefMapVectorV4Theme` (`id`, which no longer smart-casts across modules, `defaultValue`,
   `getLayer(..)`, `overlay.id` as a map key) and `MapsForgeV4ThemesFragment` (`defaultLanguage`,
@@ -315,9 +319,9 @@ API differences of the XML theme parser (M5.7a, K58–K63):
   `RenderThemeHandler` stays final.
 - K63 Dropped as dead (K7, K30): the throws after exhaustive enum switches in `RuleBuilder` and
   `RenderThemeHandler`, the `XmlUtils` constructor that threw, the null-file branches of
-  `ExternalRenderTheme.equals` and `hashCode`, the `PREFIX_JAR_V1` branch (`jar:` matches first)
-  and the commented-out `RuleOptimizer` calls; `RuleBuilder`'s rule stack stays an unused
-  parameter.
+  `ExternalRenderTheme.equals` and `hashCode`, the `PREFIX_JAR_V1` prefix and its branch (`jar:`
+  matches first) and the commented-out `RuleOptimizer` calls; `RuleBuilder`'s rule stack stays an
+  unused, non-null parameter (upstream accepted null).
 
 ## Code deviations
 

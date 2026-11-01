@@ -76,7 +76,8 @@ need it (`golden-android*`, `dev/bench/android`).
 
 ## Style
 
-- Inherits the user-level rules. Vendored Java keeps upstream formatting — **do not reformat**.
+- Inherits the user-level rules. Vendored code keeps upstream structure and order — **do not
+  reformat** beyond the conversion.
 - New Kotlin follows the locus-core Kotlin style.
 - Docs follow the locus-core
   [documentation guide](https://github.com/asamm/locus-core/blob/development/docs/guides/documentation.md):
