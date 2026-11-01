@@ -20,7 +20,6 @@ internal enum class Closed {
 
     companion object {
 
-        @JvmStatic
         fun fromString(value: String?): Closed {
             if ("any" == value) {
                 return ANY

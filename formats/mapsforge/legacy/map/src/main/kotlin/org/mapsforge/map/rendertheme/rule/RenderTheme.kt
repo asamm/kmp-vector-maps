@@ -47,6 +47,7 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
      */
     @Volatile
     var levels: Int = 0
+        internal set
 
     /**
      * The map background color.
@@ -223,11 +224,11 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
         }
     }
 
-    fun addRule(rule: Rule) {
+    internal fun addRule(rule: Rule) {
         this.rulesList.add(rule)
     }
 
-    fun complete() {
+    internal fun complete() {
         this.rulesList.trimToSize()
         for (i in 0 until this.rulesList.size) {
             this.rulesList[i].onComplete()

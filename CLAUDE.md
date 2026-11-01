@@ -24,7 +24,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 
 | Path | Content |
 |---|---|
-| `formats/mapsforge/legacy/*` | vendored Mapsforge, upstream module split; Kotlin per area from M5.1 (`map-reader`, core and map model, util, datastore, graphics and its backends, renderer, labels, theme rules and instructions), deleted after M5 |
+| `formats/mapsforge/legacy/*` | vendored Mapsforge, upstream module split; Kotlin per area from M5.1 (`map-reader`, core and map model, util, datastore, graphics and its backends, renderer, labels, theme rules and instructions), all Kotlin since M5.7a (theme parser), deleted in M5.7b |
 | `formats/mapsforge/driver` | Mapsforge driver: the `core/` interface over `legacy/` |
 | `formats/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored corpus tiles render through the driver |
 | `formats/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `map-android`, Robolectric; plain Mapsforge, not the driver |
@@ -76,7 +76,8 @@ need it (`golden-android*`, `dev/bench/android`).
 
 ## Style
 
-- Inherits the user-level rules. Vendored Java keeps upstream formatting — **do not reformat**.
+- Inherits the user-level rules. Vendored code keeps upstream structure and order — **do not
+  reformat** beyond the conversion.
 - New Kotlin follows the locus-core Kotlin style.
 - Docs follow the locus-core
   [documentation guide](https://github.com/asamm/locus-core/blob/development/docs/guides/documentation.md):

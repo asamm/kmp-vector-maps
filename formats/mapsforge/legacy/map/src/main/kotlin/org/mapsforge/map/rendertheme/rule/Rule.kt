@@ -41,7 +41,6 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
         }
     }
 
-    @JvmField
     internal var cat: String? = ruleBuilder.cat
     internal val closedMatcher: ClosedMatcher = ruleBuilder.closedMatcher
     internal val elementMatcher: ElementMatcher = ruleBuilder.elementMatcher
@@ -54,13 +53,13 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
 
     private val mySync = Any()
 
-    fun addRenderingInstruction(renderInstruction: RenderInstruction) {
+    internal fun addRenderingInstruction(renderInstruction: RenderInstruction) {
         synchronized(mySync) {
             this.renderInstructions.add(renderInstruction)
         }
     }
 
-    fun addSubRule(rule: Rule) {
+    internal fun addSubRule(rule: Rule) {
         synchronized(mySync) {
             this.subRules.add(rule)
         }
@@ -173,10 +172,8 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
 
     companion object {
 
-        @JvmField
         internal val MATCHERS_CACHE_KEY: MutableMap<List<String>, AttributeMatcher> = HashMap()
 
-        @JvmField
         internal val MATCHERS_CACHE_VALUE: MutableMap<List<String>, AttributeMatcher> = HashMap()
     }
 }

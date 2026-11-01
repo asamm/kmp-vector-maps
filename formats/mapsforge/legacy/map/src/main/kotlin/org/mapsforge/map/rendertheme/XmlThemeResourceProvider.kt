@@ -1,5 +1,6 @@
 /*
  * Copyright 2021 eddiemuc
+ * Copyright 2026 Asamm Software
  *
  * This program is free software: you can redistribute it and/or modify it under the
  * terms of the GNU Lesser General Public License as published by the Free Software
@@ -12,21 +13,20 @@
  * You should have received a copy of the GNU Lesser General Public License along with
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
-package org.mapsforge.map.rendertheme;
+package org.mapsforge.map.rendertheme
 
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.IOException
+import java.io.InputStream
 
 /**
  * Interface for a provider of resources referenced inside XML themes.
  */
-public interface XmlThemeResourceProvider {
+fun interface XmlThemeResourceProvider {
 
     /**
-     * @param relativePath a relative path to use as a base for search in the resource provuider
-     * @param source       a source string parsed out of an XML render theme "src" attribute.
-     * @return an InputStream to read the resource data from.
-     * @throws IOException if the resource cannot be found or an access error occurred.
+     * Opens the resource [source], a theme `src` attribute, relative to [relativePath]; null or an
+     * [IOException] falls back to the standard lookup.
      */
-    InputStream createInputStream(String relativePath, String source) throws IOException;
+    @Throws(IOException::class)
+    fun createInputStream(relativePath: String?, source: String): InputStream?
 }

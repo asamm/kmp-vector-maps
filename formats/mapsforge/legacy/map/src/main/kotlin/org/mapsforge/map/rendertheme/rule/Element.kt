@@ -20,7 +20,6 @@ internal enum class Element {
 
     companion object {
 
-        @JvmStatic
         fun fromString(value: String?): Element {
             if ("any" == value) {
                 return ANY
