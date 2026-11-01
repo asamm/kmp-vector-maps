@@ -4,11 +4,11 @@
  */
 package com.asamm.vectormaps.mapsforge
 
-import org.mapsforge.map.awt.graphics.AwtGraphicFactory
-import org.mapsforge.map.model.DisplayModel
-import org.mapsforge.map.rendertheme.ExternalRenderTheme
-import org.mapsforge.map.rendertheme.rule.RenderTheme
-import org.mapsforge.map.rendertheme.rule.RenderThemeHandler
+import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
+import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
+import com.asamm.vectormaps.mapsforge.map.rendertheme.ExternalRenderTheme
+import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderTheme
+import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeHandler
 import org.xmlpull.v1.XmlPullParserException
 import java.io.File
 import kotlin.io.path.createTempFile

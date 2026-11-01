@@ -46,9 +46,9 @@ jobs:
         with:
           name: golden-renders
           path: |
-            formats/mapsforge/golden/build/golden/
-            formats/mapsforge/golden-upstream/build/golden/expected/
-            formats/mapsforge/golden-android/build/golden/
-            formats/mapsforge/golden-android-upstream/build/golden/expected/
+            dev/mapsforge/golden/build/golden/
+            dev/mapsforge/golden-upstream/build/golden/expected/
+            dev/mapsforge/golden-android/build/golden/
+            dev/mapsforge/golden-android-upstream/build/golden/expected/
           if-no-files-found: ignore
           retention-days: 7

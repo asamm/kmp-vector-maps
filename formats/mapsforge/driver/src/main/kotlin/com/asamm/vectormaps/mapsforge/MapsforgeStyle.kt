@@ -7,8 +7,8 @@ package com.asamm.vectormaps.mapsforge
 import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.StyleMenu
 import com.asamm.vectormaps.core.StyleSelection
-import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback
-import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu
+import com.asamm.vectormaps.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback
+import com.asamm.vectormaps.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu
 import java.io.File
 
 /**

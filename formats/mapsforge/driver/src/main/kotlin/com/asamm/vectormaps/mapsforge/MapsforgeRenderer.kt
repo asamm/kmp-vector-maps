@@ -9,16 +9,16 @@ import com.asamm.vectormaps.core.RenderKey
 import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.TileRequest
-import org.mapsforge.core.graphics.GraphicFactory
-import org.mapsforge.core.graphics.TileBitmap
-import org.mapsforge.core.model.Tile
-import org.mapsforge.map.datastore.MapDataStore
-import org.mapsforge.map.layer.cache.TileCache
-import org.mapsforge.map.layer.labels.TileBasedLabelStore
-import org.mapsforge.map.layer.renderer.DatabaseRenderer
-import org.mapsforge.map.layer.renderer.RendererJob
-import org.mapsforge.map.model.DisplayModel
-import org.mapsforge.map.rendertheme.rule.RenderThemeFuture
+import com.asamm.vectormaps.mapsforge.core.graphics.GraphicFactory
+import com.asamm.vectormaps.mapsforge.core.graphics.TileBitmap
+import com.asamm.vectormaps.mapsforge.core.model.Tile
+import com.asamm.vectormaps.mapsforge.map.datastore.MapDataStore
+import com.asamm.vectormaps.mapsforge.map.layer.cache.TileCache
+import com.asamm.vectormaps.mapsforge.map.layer.labels.TileBasedLabelStore
+import com.asamm.vectormaps.mapsforge.map.layer.renderer.DatabaseRenderer
+import com.asamm.vectormaps.mapsforge.map.layer.renderer.RendererJob
+import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
+import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
 

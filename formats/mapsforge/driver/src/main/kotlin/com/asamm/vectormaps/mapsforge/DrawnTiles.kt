@@ -4,10 +4,10 @@
  */
 package com.asamm.vectormaps.mapsforge
 
-import org.mapsforge.core.graphics.TileBitmap
-import org.mapsforge.map.layer.cache.TileCache
-import org.mapsforge.map.layer.queue.Job
-import org.mapsforge.map.model.common.Observer
+import com.asamm.vectormaps.mapsforge.core.graphics.TileBitmap
+import com.asamm.vectormaps.mapsforge.map.layer.cache.TileCache
+import com.asamm.vectormaps.mapsforge.map.layer.queue.Job
+import com.asamm.vectormaps.mapsforge.map.model.common.Observer
 
 /**
  * The tile cache `DatabaseRenderer` asks whether a neighbour was drawn, keeping only the keys: the

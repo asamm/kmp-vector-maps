@@ -7,9 +7,10 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5.0–M5.6 fixes done; M5.7a (XML theme parser in Kotlin, no Java left in
-`legacy/`) in review; M5 runs on `feature/m5` (D26).** Next action: M5.7b, rename to `com.asamm.*`
-and move the modules; M4 waits for Q12 and Q13.
+**Status: M0–M3 and M5.0–M5.7a done; M5.7b (rename to `com.asamm.vectormaps.mapsforge.*`,
+`legacy/` merged into `formats/mapsforge/{engine,android,awt}`, golden modules in
+`dev/mapsforge/`) in review; M5 runs on `feature/m5` (D26).** Next action: the `feature/m5` →
+`main` PR after the owner's review (D26); M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -228,8 +229,8 @@ PR after M5.7 (D26).
 | M5.6a | theme rules, matchers, `RenderTheme`, `RenderContext`, callbacks (20 files) | — | ✅ PR #21, `e37f872` |
 | M5.6b | render instructions (9 files) | — | ✅ PR #22, `6475f90` |
 | M5.6 fixes | theme caches and settings after the conversion | matching cache key compares tags in full; Paint caches bounded to a window of 4 zoom levels, a rendering job holds its zoom (F1–F3, D29); `ANTI_ALIASING` (theme Paints, the tile canvas, on Android its bitmap Paint) and `SYMBOL_SCALING` per `DisplayModel` (D28) | ✅ PR #23, `1f3766e` |
-| M5.7a | XML theme parser (11 files); the theme members widened for it back to `internal` | — | 🔧 |
-| M5.7b | `legacy/` deleted; rename to `com.asamm.*`, modules moved (D24) | — | ⬜ |
+| M5.7a | XML theme parser (11 files); the theme members widened for it back to `internal` | — | ✅ PR #24, `cada457` |
+| M5.7b | `legacy/` deleted; rename to `com.asamm.vectormaps.mapsforge.*`; 5 modules into `formats/mapsforge/{engine,android,awt}`, the golden modules to `dev/mapsforge/` (D24, K64) | — | 🔧 |
 
 - M5.1 fixes (upstream.md C1–C3): the index cache is locked, block reads are positional (measure
   the gain on Android or Linux: the JDK on Windows still serialises them), and an overflowing string
@@ -329,6 +330,11 @@ after the PR #23 review, after two earlier soaks (62,204 and 58,166 renders, 0 d
 *M5.7a, same AVD, 2026-11-01, logcat streamed (Q17): `SEPARATE` 71,734 renders, all compared, 0
 differed, labels of 0 differed (36,349 with labels); `IN_TILE` 98,505, no failure; soak before the
 review fixes (KDoc and docs only), goldens and dumps byte-exact after them.*
+
+*M5.7b, same AVD, 2026-11-01, logcat streamed (Q17): `SEPARATE` 71,062 renders, all compared, 0
+differed, labels of 0 differed (36,151 with labels); `IN_TILE` 81,109, no failure; soak after the
+rename and module merge, before the golden move and review fixes (build files, imports, docs);
+goldens and dumps byte-exact after them.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).

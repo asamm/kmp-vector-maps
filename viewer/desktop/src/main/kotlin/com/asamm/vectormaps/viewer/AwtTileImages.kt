@@ -8,7 +8,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.mapsforge.TileBitmapTarget
-import org.mapsforge.map.awt.graphics.AwtGraphicFactory
+import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 
 /**
  * Mapsforge tiles as Compose images; the Mapsforge bitmap is released once copied.

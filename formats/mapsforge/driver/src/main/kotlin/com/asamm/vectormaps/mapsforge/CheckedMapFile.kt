@@ -4,13 +4,13 @@
  */
 package com.asamm.vectormaps.mapsforge
 
-import org.mapsforge.core.model.BoundingBox
-import org.mapsforge.core.model.LatLong
-import org.mapsforge.core.model.Tile
-import org.mapsforge.map.datastore.MapCallback
-import org.mapsforge.map.datastore.MapDataStore
-import org.mapsforge.map.datastore.MapReadResult
-import org.mapsforge.map.reader.MapFile
+import com.asamm.vectormaps.mapsforge.core.model.BoundingBox
+import com.asamm.vectormaps.mapsforge.core.model.LatLong
+import com.asamm.vectormaps.mapsforge.core.model.Tile
+import com.asamm.vectormaps.mapsforge.map.datastore.MapCallback
+import com.asamm.vectormaps.mapsforge.map.datastore.MapDataStore
+import com.asamm.vectormaps.mapsforge.map.datastore.MapReadResult
+import com.asamm.vectormaps.mapsforge.map.reader.MapFile
 import java.io.File
 import java.io.IOException
 

@@ -4,18 +4,18 @@
  */
 package com.asamm.vectormaps.bench
 
-import org.mapsforge.core.graphics.TileBitmap
-import org.mapsforge.core.model.LatLong
-import org.mapsforge.core.model.Tile
-import org.mapsforge.core.util.MercatorProjection
-import org.mapsforge.map.awt.graphics.AwtGraphicFactory
-import org.mapsforge.map.layer.labels.TileBasedLabelStore
-import org.mapsforge.map.layer.renderer.DatabaseRenderer
-import org.mapsforge.map.layer.renderer.RendererJob
-import org.mapsforge.map.model.DisplayModel
-import org.mapsforge.map.reader.MapFile
-import org.mapsforge.map.rendertheme.ExternalRenderTheme
-import org.mapsforge.map.rendertheme.rule.RenderThemeFuture
+import com.asamm.vectormaps.mapsforge.core.graphics.TileBitmap
+import com.asamm.vectormaps.mapsforge.core.model.LatLong
+import com.asamm.vectormaps.mapsforge.core.model.Tile
+import com.asamm.vectormaps.mapsforge.core.util.MercatorProjection
+import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
+import com.asamm.vectormaps.mapsforge.map.layer.labels.TileBasedLabelStore
+import com.asamm.vectormaps.mapsforge.map.layer.renderer.DatabaseRenderer
+import com.asamm.vectormaps.mapsforge.map.layer.renderer.RendererJob
+import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
+import com.asamm.vectormaps.mapsforge.map.reader.MapFile
+import com.asamm.vectormaps.mapsforge.map.rendertheme.ExternalRenderTheme
+import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
 import org.openjdk.jmh.annotations.Level

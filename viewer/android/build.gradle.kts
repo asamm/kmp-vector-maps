@@ -44,5 +44,5 @@ kotlin {
 dependencies {
     implementation(project(":viewer:common"))
     implementation(project(":formats:mapsforge:driver"))
-    implementation(project(":formats:mapsforge:legacy:map-android"))
+    implementation(project(":formats:mapsforge:android"))
 }

@@ -23,8 +23,9 @@ changes are ported by hand:
 
 ## Converted to Kotlin
 
-M5 converts one area per PR in place (D24); a converted file keeps its upstream licence header and
-package. Upstream changes are ported to it by hand, as the sync routine above describes.
+M5 converts one area per PR in place (D24); a converted file keeps its upstream licence header.
+Upstream `org.mapsforge.X` is `com.asamm.vectormaps.mapsforge.X` since M5.7b (K64). Upstream changes
+are ported by hand, as the sync routine above describes.
 
 | Area | Step | Upstream path |
 |---|---|---|
@@ -323,6 +324,17 @@ API differences of the XML theme parser (M5.7a, K58–K63):
   matches first) and the commented-out `RuleOptimizer` calls; `RuleBuilder`'s rule stack stays an
   unused, non-null parameter (upstream accepted null).
 
+Packages and modules (M5.7b, K64):
+
+- K64 Every package `org.mapsforge.X` is `com.asamm.vectormaps.mapsforge.X`, and the five upstream
+  modules are three: `formats/mapsforge/engine` (`mapsforge-core`, `-map`, `-map-reader`),
+  `formats/mapsforge/android` (`-map-android`, namespace
+  `com.asamm.vectormaps.mapsforge.map.android`) and `formats/mapsforge/awt` (`-map-awt`);
+  `internal` members now reach across the merged engine, and logger names follow the packages.
+  Locus swaps its `org.mapsforge.` imports at adoption (locus-core, LoPoints and lomaps-mapsforge's
+  `Themes`). The golden harness keeps upstream's imports; `dev/mapsforge/golden` and
+  `golden-android` compile a copy with the prefix swapped.
+
 ## Code deviations
 
 | ID | Where | What | Why |
@@ -337,15 +349,14 @@ API differences of the XML theme parser (M5.7a, K58–K63):
 
 ## Build deviations
 
-No Java source is left (M5.7a). `map-reader` (M5.1), `core` (M5.2a, M5.3a, M5.5b), `map` (M5.2b
-to M5.7a) and `map-awt` (M5.3b) are Kotlin and keep the Java 8 target and UTF-8 (B6);
-`map-android` is Kotlin from M5.3b.
+No Java source is left (M5.7a). `engine` (upstream `core`, `map`, `map-reader`, merged in M5.7b)
+and `awt` are Kotlin and keep the Java 8 target and UTF-8 (B6); `android` is Kotlin from M5.3b.
 
 | ID | What | Upstream | Here |
 |---|---|---|---|
-| B1 | Bytecode level, `map-android` | `--release 8` | Java 17, Kotlin from M5.3b; D8 at min-api 24 rewrites `ByteBuffer.clear()` (verified) |
-| B2 | `map-android` packaging | plain JAR against `android.jar` | Android library (AAR), minSdk 24 in its manifest |
-| B3 | Kotlin stdlib | none | `kotlin-stdlib` on every legacy module: through `core` (B6) and AGP's built-in Kotlin in `map-android` |
-| B4 | Source encoding | `UTF-8` set explicitly | resolved: JVM modules set UTF-8, `map-android` gets it as AGP's default |
+| B1 | Bytecode level, `android` (`map-android`) | `--release 8` | Java 17, Kotlin from M5.3b; D8 at min-api 24 rewrites `ByteBuffer.clear()` (verified) |
+| B2 | `android` packaging | plain JAR against `android.jar` | Android library (AAR), minSdk 24 in its manifest |
+| B3 | Kotlin stdlib | none | `kotlin-stdlib` on every vendored module: through `engine` (B6) and AGP's built-in Kotlin in `android` |
+| B4 | Source encoding | `UTF-8` set explicitly | resolved: JVM modules set UTF-8, `android` gets it as AGP's default |
 | B5 | Line endings | CRLF in the upstream tree | LF via `.gitattributes` |
-| B6 | `map-reader`, `core`, `map` and `map-awt` language | Java, `--release 8` | Kotlin, `jvmTarget` 1.8 and `-Xjdk-release=1.8`; a Java source would build with `--release 8`; depends on `kotlin-stdlib` |
+| B6 | `engine` and `awt` language | Java, `--release 8` | Kotlin, `jvmTarget` 1.8 and `-Xjdk-release=1.8`; a Java source would build with `--release 8`; depends on `kotlin-stdlib` |

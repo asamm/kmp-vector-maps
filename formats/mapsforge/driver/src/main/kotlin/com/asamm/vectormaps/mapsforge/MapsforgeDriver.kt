@@ -9,14 +9,14 @@ import com.asamm.vectormaps.core.MapFormatDriver
 import com.asamm.vectormaps.core.MapInfo
 import com.asamm.vectormaps.core.StyleLayer
 import com.asamm.vectormaps.core.StyleMenu
-import org.mapsforge.core.graphics.GraphicFactory
-import org.mapsforge.map.model.DisplayModel
-import org.mapsforge.map.reader.MapFile
-import org.mapsforge.map.rendertheme.ExternalRenderTheme
-import org.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback
-import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu
-import org.mapsforge.map.rendertheme.XmlThemeResourceProvider
-import org.mapsforge.map.rendertheme.rule.RenderThemeHandler
+import com.asamm.vectormaps.mapsforge.core.graphics.GraphicFactory
+import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
+import com.asamm.vectormaps.mapsforge.map.reader.MapFile
+import com.asamm.vectormaps.mapsforge.map.rendertheme.ExternalRenderTheme
+import com.asamm.vectormaps.mapsforge.map.rendertheme.XmlRenderThemeMenuCallback
+import com.asamm.vectormaps.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu
+import com.asamm.vectormaps.mapsforge.map.rendertheme.XmlThemeResourceProvider
+import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeHandler
 import java.io.File
 
 /**
