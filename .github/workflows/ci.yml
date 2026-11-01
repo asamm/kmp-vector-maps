@@ -51,3 +51,4 @@ jobs:
             formats/mapsforge/golden-android/build/golden/
             formats/mapsforge/golden-android-upstream/build/golden/expected/
           if-no-files-found: ignore
+          retention-days: 7
