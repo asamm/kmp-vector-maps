@@ -5,6 +5,11 @@
 package com.asamm.vectormaps.viewer
 
 import com.asamm.vectormaps.core.MapFormats
+import com.asamm.vectormaps.garminimg.driver.GarminDriver
+import com.asamm.vectormaps.garminimg.driver.GarminStyle
+import com.asamm.vectormaps.garminimg.parser.ImgArchive
+import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
+import com.asamm.vectormaps.garminimg.utils.io.FileImgRandomAccessReader
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import kotlinx.coroutines.runBlocking
@@ -16,9 +21,12 @@ import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNotSame
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 class ViewerStateTest {
 
@@ -28,7 +36,14 @@ class ViewerStateTest {
 
     private val theme = File(fixtures, "themes/lomaps/theme.xml")
 
-    private val formats = MapFormats(listOf(MapsforgeDriver(AwtGraphicFactory.INSTANCE)))
+    private val garminMap = File(fixtures, "maps/otm-monaco/otm-monaco.img")
+
+    private val formats = MapFormats(
+        listOf(
+            MapsforgeDriver(AwtGraphicFactory.INSTANCE),
+            GarminDriver { size, antiAliased, scale -> AwtRenderTarget(size, size, antiAliased, scale) },
+        ),
+    )
 
     private val temp = createTempDirectory().toFile()
 
@@ -186,12 +201,135 @@ class ViewerStateTest {
     }
 
     @Test
+    fun garminMapRendersWithItsOwnStyleAndOptions() {
+        ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp).use { state ->
+            state.openStyle(theme)
+            state.resize(width = 600, height = 400)
+
+            // the waiting Mapsforge theme does not fit, the map's TYP takes over
+            state.openMap(garminMap)
+            assertIs<GarminStyle.Embedded>(state.style)
+            assertNull(state.styleFile)
+            assertTrue(state.garminLevels.isNotEmpty())
+            val first = assertNotNull(state.engine)
+            // tiles outside the map stay empty, so one drawn tile is the check
+            val tiles = assertNotNull(state.viewport).tiles(600, 400)
+            waitFor { tiles.any { first[it] != null } }
+            assertNull(first.error)
+
+            state.changeGarmin(state.garmin.copy(antiAliasing = false))
+            val second = assertNotNull(state.engine)
+            assertNotSame(first, second)
+            assertIs<GarminStyle.Embedded>(state.style)
+
+            assertTrue(state.useMapStyle(GarminStyle.BuiltIn))
+            assertSame(GarminStyle.BuiltIn, state.style)
+            assertNull(state.error)
+        }
+    }
+
+    @Test
+    fun reloadKeepsTheGarminChoices() {
+        ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp).use { state ->
+            state.resize(width = 600, height = 400)
+            state.openMap(garminMap)
+            assertTrue(state.useMapStyle(GarminStyle.BuiltIn))
+            val options = state.garmin.copy(antiAliasing = false, level = state.garminLevels.last().level)
+            state.changeGarmin(options)
+
+            state.reload()
+
+            assertSame(GarminStyle.BuiltIn, state.style)
+            assertEquals(options, state.garmin)
+            assertNull(state.error)
+        }
+    }
+
+    @Test
+    fun switchingFormatsKeepsEachStyle() {
+        ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp).use { state ->
+            state.resize(width = 600, height = 400)
+            state.openMap(map)
+            state.openStyle(theme)
+
+            state.openMap(garminMap)
+            assertIs<GarminStyle.Embedded>(state.style)
+
+            state.openMap(map)
+            assertEquals(theme, state.styleFile)
+            assertNotNull(state.engine)
+        }
+    }
+
+    @Test
+    fun themeWaitsBehindAGarminMap() {
+        ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp).use { state ->
+            state.resize(width = 600, height = 400)
+            state.openStyle(theme)
+            state.openMap(garminMap)
+
+            state.openMap(map)
+
+            assertEquals(theme, state.styleFile)
+            assertNotNull(state.engine)
+        }
+    }
+
+    @Test
+    fun sessionKeepsTheThemeOfEachFormat() {
+        val first = ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp)
+        val saved = first.use { state ->
+            state.resize(width = 600, height = 400)
+            state.openMap(map)
+            state.openStyle(theme)
+            state.openMap(garminMap)
+            state.session()
+        }
+        val restored = Session.read(File(temp, "session.properties").also { saved.write(it) })
+
+        ViewerState(formats = formats, session = restored, capturesDir = temp).use { state ->
+            state.resize(width = 600, height = 400)
+            state.openMap(map)
+
+            assertEquals(theme.absoluteFile, state.styleFile?.absoluteFile)
+            assertNotNull(state.engine)
+        }
+    }
+
+    @Test
+    fun brokenTypKeepsItsErrorOnReload() {
+        val typ = File(temp, "edited.typ").apply { writeBytes(extractTyp(garminMap)) }
+        ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp).use { state ->
+            state.resize(width = 600, height = 400)
+            state.openMap(garminMap)
+            assertTrue(state.openStyle(typ))
+            typ.writeText("not a TYP")
+
+            state.reload()
+
+            assertEquals(typ, state.styleFile)
+            assertNotNull(state.error)
+        }
+    }
+
+    @Test
     fun unreadableFileKeepsTheViewerUsable() {
         ViewerState(formats = formats, session = Session(), capturesDir = temp).use { state ->
             state.openMap(theme)
 
             assertNull(state.mapFile)
             assertNotNull(state.error)
+        }
+    }
+
+    private fun extractTyp(img: File): ByteArray {
+        FileImgRandomAccessReader(img).use { reader ->
+            val archive = ImgArchive.open(reader)
+            val stream = archive.openSubFile(checkNotNull(archive.findFirst("TYP")), reader)
+            val bytes = ByteArray(stream.size.toInt())
+            stream.seek(0L)
+            stream.readBlock(bytes)
+            return bytes
         }
     }
 

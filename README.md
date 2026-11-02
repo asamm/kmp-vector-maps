@@ -7,7 +7,7 @@ render pipeline and viewer shared by every format.
 
 **Pre-release.** Mapsforge 0.30.0 render subset converted to Kotlin (M5; differences in
 [docs/upstream.md](docs/upstream.md)); Garmin IMG imported from kmp-garmin-img 0.5.2 (M4.1), its
-driver comes in M4.2; golden tests green, desktop and Android viewers running. Not published yet.
+driver since M4.2a; golden tests green, desktop and Android viewers running. Not published yet.
 Milestones: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 | Format | State |

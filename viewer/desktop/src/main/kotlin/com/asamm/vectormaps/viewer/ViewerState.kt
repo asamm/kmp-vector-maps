@@ -16,6 +16,10 @@ import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.StyleSelection
+import com.asamm.vectormaps.garminimg.driver.GarminDataset
+import com.asamm.vectormaps.garminimg.driver.GarminDriver
+import com.asamm.vectormaps.garminimg.driver.GarminOptions
+import com.asamm.vectormaps.garminimg.driver.GarminLevel
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -51,7 +55,28 @@ class ViewerState(
     var driver: MapFormatDriver? by mutableStateOf(null)
         private set
 
+    /**
+     * The style file in use; null when the style is one the map brings itself, see [mapStyles].
+     */
     var styleFile: File? by mutableStateOf(null)
+        private set
+
+    /**
+     * Styles the open map brings itself, such as a Garmin map's TYP and built-in styles.
+     */
+    var mapStyles: List<MapStyle> by mutableStateOf(emptyList())
+        private set
+
+    /**
+     * Garmin render settings; reset when another map opens.
+     */
+    var garmin: GarminOptions by mutableStateOf(GarminOptions())
+        private set
+
+    /**
+     * TRE levels of an open Garmin map, for its level choice.
+     */
+    var garminLevels: List<GarminLevel> by mutableStateOf(emptyList())
         private set
 
     var style: MapStyle? by mutableStateOf(null)
@@ -103,6 +128,13 @@ class ViewerState(
 
     private var dataset: MapDataset? = null
 
+    // the last style file and layer per driver id, so switching formats keeps each one's style
+    private val lastStyleFiles = HashMap<String, Pair<File, String?>>().apply {
+        for ((driverId, style) in session.formatStyles) {
+            put(driverId, File(style.path) to style.layerId)
+        }
+    }
+
     private var screenWidth = 0
 
     private var screenHeight = 0
@@ -125,6 +157,9 @@ class ViewerState(
             mapPath = mapFile?.absolutePath,
             stylePath = styleFile?.absolutePath,
             layerId = layerId,
+            formatStyles = lastStyleFiles.mapValues { (_, style) ->
+                Session.FormatStyle(path = style.first.absolutePath, layerId = style.second)
+            },
             textScale = textScale,
             tileSize = tileSize,
             threads = threads,
@@ -133,8 +168,10 @@ class ViewerState(
     }
 
     /**
-     * Opens `file` with the first driver that reads it; keeps the current style when that driver
-     * reads it too.
+     * Opens `file` with the first driver that reads it; keeps the current style file when that
+     * driver reads it too. Else a map without styles of its own (Mapsforge) takes the driver's last
+     * style file, any other its own first style. Opening the same map again keeps its own style and
+     * the Garmin settings; a style file that fails leaves the error, not another style.
      */
     fun openMap(file: File) {
         val probed = formats.probe(file)
@@ -151,23 +188,76 @@ class ViewerState(
         dropEngine()
         dataset?.close()
         dataset = opened
-        if (mapFile?.absolutePath != file.absolutePath) {
+        val sameMap = mapFile?.absolutePath == file.absolutePath
+        if (!sameMap) {
             viewport = null
         }
-        val keptStyle = styleFile?.takeIf { it.extension.lowercase() in probed.driver.styleExtensions }
+        val previousStyle = style
+        // a style file the new map cannot read stays the one for its own format
+        styleFile?.takeUnless(probed.driver::readsStyle)?.let { rememberStyle(file = it, layerId = layerId) }
+        // a map with its own styles starts with them, not with a file remembered from another map
+        val remembered = lastStyleFiles[probed.driver.id]?.takeIf { opened.styles.isEmpty() }
+        if (remembered != null
+            && styleFile?.let(probed.driver::readsStyle) != true
+        ) {
+            layerId = remembered.second
+        }
+        val keptStyle = styleFile?.takeIf(probed.driver::readsStyle) ?: remembered?.first
         style = null
         styleFile = keptStyle
+        mapStyles = opened.styles
+        garminLevels = (opened as? GarminDataset)?.levels.orEmpty()
+        garmin = if (sameMap) {
+            garmin.copy(level = garmin.level?.takeIf { level -> garminLevels.any { it.level == level } })
+        } else {
+            GarminOptions()
+        }
         mapFile = file
         driver = probed.driver
         error = null
         if (viewport == null) {
             startView()
         }
-        if (keptStyle == null) {
-            notice = "Choose a style"
-        } else {
-            openStyle(keptStyle)
+        // a new dataset has new style instances; the same kind is the same choice
+        val ownStyle = opened.styles.firstOrNull { sameMap && previousStyle != null && it::class == previousStyle::class }
+            ?: opened.styles.firstOrNull()
+        val built = keptStyle != null
+            && openStyle(keptStyle)
+        when {
+            // a failed style file keeps its error; the map's own styles stay in the picker
+            built || keptStyle != null -> Unit
+            ownStyle != null -> useMapStyle(ownStyle)
+            else -> notice = "Choose a style"
         }
+    }
+
+    /**
+     * Keeps `file` as the style for the next map of the format that reads it, without opening it.
+     */
+    fun rememberStyle(file: File, layerId: String? = null) {
+        val driver = formats.drivers.firstOrNull { it.readsStyle(file) } ?: return
+        lastStyleFiles[driver.id] = file to layerId
+    }
+
+    /**
+     * Renders with one of [mapStyles]; returns false when the renderer cannot be built, and the
+     * current style stays.
+     */
+    fun useMapStyle(style: MapStyle): Boolean {
+        val dataset = dataset ?: return false
+        val layer = layerId?.takeIf { style.menu?.layer(it) != null }
+        val built = createEngine(dataset = dataset, style = style, layerId = layer) ?: return false
+        styleFile = null
+        this.style = style
+        layerId = layer
+        error = null
+        install(built)
+        return true
+    }
+
+    fun changeGarmin(options: GarminOptions) {
+        garmin = options
+        rebuild()
     }
 
     /**
@@ -179,6 +269,7 @@ class ViewerState(
         val dataset = dataset
         if (dataset == null) {
             styleFile = file
+            rememberStyle(file = file, layerId = layerId)
             return false
         }
         val loaded = try {
@@ -193,6 +284,7 @@ class ViewerState(
         styleFile = file
         style = loaded
         layerId = layer
+        lastStyleFiles[dataset.driver.id] = file to layer
         error = null
         install(built)
         return true
@@ -293,7 +385,7 @@ class ViewerState(
         val png = File(capturesDir, "$name.png")
         val view = Properties()
         view["map"] = map.absolutePath
-        view["style"] = styleFile?.absolutePath ?: ""
+        view["style"] = styleFile?.absolutePath ?: style?.id ?: ""
         view["layer"] = layerId ?: ""
         view["zoom"] = vp.zoom.toString()
         view["lat"] = String.format(Locale.ROOT, "%.6f", vp.lat)
@@ -301,6 +393,11 @@ class ViewerState(
         view["screen"] = "${width}x$height"
         view["tileSize"] = vp.tileSize.toString()
         view["textScale"] = textScale.toString()
+        if (dataset is GarminDataset) {
+            view["garmin.antiAliasing"] = garmin.antiAliasing.toString()
+            view["garmin.objectKinds"] = "0x" + garmin.objectKinds.toString(16)
+            view["garmin.level"] = garmin.level?.toString() ?: "auto"
+        }
         try {
             withContext(Dispatchers.IO) {
                 val image = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
@@ -337,13 +434,17 @@ class ViewerState(
         dataset = null
     }
 
-    // reads the style again, so an edit on disk applies and never fails the renderer's freshness check
+    // reads a style file again, so an edit on disk applies; a changed map file needs Reload
     private fun rebuild() {
-        val style = styleFile
+        val file = styleFile
+        val mapStyle = style.takeIf { file == null }
+        val built = when {
+            file != null -> openStyle(file)
+            mapStyle != null -> useMapStyle(mapStyle)
+            else -> false
+        }
         // the old engine renders the old settings; the controls already show the new ones
-        if (style == null
-            || !openStyle(style)
-        ) {
+        if (!built) {
             dropEngine()
             setupMs = null
         }
@@ -361,11 +462,13 @@ class ViewerState(
         try {
             val images = imagesFor(dataset.driver)
             val started = System.nanoTime()
-            val renderer = dataset.createRenderer(
-                style = style,
-                selection = StyleSelection(layerId = layerId),
-                config = RenderConfig(tileSizePx = tileSize, textScale = textScale),
-            )
+            val selection = StyleSelection(layerId = layerId)
+            val config = RenderConfig(tileSizePx = tileSize, textScale = textScale)
+            val renderer = if (dataset is GarminDataset) {
+                dataset.createRenderer(style = style, selection = selection, config = config, options = garmin)
+            } else {
+                dataset.createRenderer(style = style, selection = selection, config = config)
+            }
             setupMs = (System.nanoTime() - started) / 1_000_000
             return TileEngine(
                 renderer = renderer,
@@ -429,6 +532,7 @@ class ViewerState(
     private fun imagesFor(driver: MapFormatDriver): TileImages<ImageBitmap> {
         return when (driver) {
             is MapsforgeDriver -> AwtTileImages
+            is GarminDriver -> GarminTileImages
             else -> throw IllegalArgumentException("imagesFor(), no images for driver ${driver.id}")
         }
     }

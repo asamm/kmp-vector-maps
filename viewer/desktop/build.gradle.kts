@@ -22,6 +22,8 @@ dependencies {
     implementation(project(":viewer:common"))
     implementation(project(":formats:mapsforge:driver"))
     implementation(project(":formats:mapsforge:awt"))
+    implementation(project(":formats:garmin-img:driver"))
+    implementation(project(":formats:garmin-img:awt"))
     implementation(compose.desktop.currentOs)
     implementation(libs.composeMaterial3)
     implementation(libs.kotlinxCoroutinesSwing)

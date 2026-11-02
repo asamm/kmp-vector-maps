@@ -17,6 +17,8 @@ import androidx.compose.ui.window.WindowState
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.asamm.vectormaps.core.MapFormats
+import com.asamm.vectormaps.garminimg.driver.GarminDriver
+import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import java.awt.GraphicsEnvironment
@@ -30,7 +32,10 @@ import java.io.File
 fun main() {
     val sessionFile = Session.userFile
     val session = Session.read(sessionFile)
-    val formats = MapFormats(listOf(MapsforgeDriver(AwtGraphicFactory.INSTANCE)))
+    val garmin = GarminDriver { size, antiAliased, scale ->
+        AwtRenderTarget(widthPx = size, heightPx = size, antiAliased = antiAliased, renderScale = scale)
+    }
+    val formats = MapFormats(listOf(MapsforgeDriver(AwtGraphicFactory.INSTANCE), garmin))
     val state = ViewerState(
         formats = formats,
         session = session,
@@ -38,7 +43,15 @@ fun main() {
             ?: File(sessionFile.parentFile, "captures"),
     )
     fileOr(session.mapPath, "viewer.mapFile")?.let(state::openMap)
-    fileOr(session.stylePath, "viewer.themeFile")?.let(state::openStyle)
+    // the default theme only fits a Mapsforge map: a Garmin map keeps its own style and the theme
+    // waits for the next Mapsforge map; with no map open it waits for any
+    fileOr(session.stylePath, "viewer.themeFile")?.let { file ->
+        if (state.driver?.readsStyle(file) != false) {
+            state.openStyle(file)
+        } else if (session.formatStyles.isEmpty()) {
+            state.rememberStyle(file)
+        }
+    }
     application {
         val saved = session.window
         val window = rememberWindowState(

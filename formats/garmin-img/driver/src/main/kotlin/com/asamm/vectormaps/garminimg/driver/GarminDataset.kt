@@ -32,6 +32,11 @@ class GarminDataset internal constructor(
     override val bounds: GeoBounds
 
     /**
+     * TRE levels with their own data, for [GarminOptions.level].
+     */
+    val levels: List<GarminLevel>
+
+    /**
      * The embedded TYP when the map has one, then the built-in styles.
      */
     override val styles: List<GarminStyle>
@@ -43,8 +48,9 @@ class GarminDataset internal constructor(
         file = files[0]
         // read before the content, so a later change always shows
         lastModified = file.lastModified()
-        val summary = driver.readSummary(file = file, readTyp = true)
+        val summary = driver.readSummary(file = file, full = true)
         bounds = summary.bounds
+        levels = summary.levels
         styles = if (summary.hasTyp) {
             listOf(GarminStyle.Embedded(file = file, lastModified = lastModified), GarminStyle.BuiltIn)
         } else {
@@ -122,6 +128,14 @@ class GarminDataset internal constructor(
         // nothing open: renderers own their readers
     }
 }
+
+/**
+ * A TRE level of a map: lower levels are finer, `bitsPerCoord` is its coordinate precision.
+ */
+data class GarminLevel(
+    val level: Int,
+    val bitsPerCoord: Int,
+)
 
 /**
  * Garmin-only render settings for development tools; Locus' type toggles come with M8.2.

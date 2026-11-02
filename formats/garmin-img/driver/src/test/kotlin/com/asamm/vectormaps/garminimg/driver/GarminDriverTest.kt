@@ -152,6 +152,17 @@ class GarminDriverTest {
     }
 
     @Test
+    fun listsLevelsThatRender() {
+        driver.open(listOf(otm)).use { dataset ->
+            assertTrue(dataset.levels.isNotEmpty())
+            for (level in dataset.levels) {
+                val options = GarminOptions(level = level.level)
+                dataset.createRenderer(dataset.styles[0], StyleSelection.DEFAULT, config, options).close()
+            }
+        }
+    }
+
+    @Test
     fun rejectsLevelTheMapLacks() {
         driver.open(listOf(otm)).use { dataset ->
             assertFailsWith<IllegalArgumentException> {

@@ -2,7 +2,7 @@
  * Android viewer — development tool for on-device render checks, for every registered format. Not
  * published.
  *
- * `./gradlew :viewer:android:installDebug`. The fixtures (Monaco map, LoMaps theme) ship as assets;
+ * `./gradlew :viewer:android:installDebug`. The fixtures (Monaco maps, LoMaps theme) ship as assets;
  * another map can be passed as an intent extra, see MainActivity.
  */
 plugins {
@@ -32,8 +32,8 @@ android {
     }
 
     androidResources {
-        // .map files must stay uncompressed to be copied out quickly
-        noCompress += "map"
+        // map files must stay uncompressed to be copied out quickly
+        noCompress += listOf("map", "img")
     }
 }
 
@@ -45,4 +45,6 @@ dependencies {
     implementation(project(":viewer:common"))
     implementation(project(":formats:mapsforge:driver"))
     implementation(project(":formats:mapsforge:android"))
+    implementation(project(":formats:garmin-img:driver"))
+    implementation(project(":formats:garmin-img:android"))
 }
