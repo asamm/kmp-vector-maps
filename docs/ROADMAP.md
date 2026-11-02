@@ -7,9 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 done; M5.0–M5.7b done on `feature/m5`, in the owner's review in the
-`feature/m5` → `main` PR (D26).** Next action: merge that PR after the review; M4 waits for Q12
-and Q13.
+**Status: M0–M3 and M5 done; M5 reached `main` in PR #26 (D26).** Next action: M6.1, the label
+model; M4 waits for Q12 and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -25,7 +24,7 @@ settles, labels before speed, the Locus-facing API last.
 | M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | ✅ PR #2, `5e5b037` |
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PRs #3–#5, `028d746` |
 | M4 | Garmin IMG joins | M | ⬜ needs Q12, Q13 |
-| M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | 🔧 |
+| M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
 | M6 | Core features: label model, hillshade anchor, feature query | M | ⬜ |
 | M7 | Performance and Skia desktop backend | L | ⬜ needs Q15 |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⬜ |
@@ -470,7 +469,7 @@ here, except A8 and A9 in M6.4, as fixing them changes pixels.
 | Q14 | Does the Mapsforge README waiver cover pre-2018 contributors? (locus-core Q1) | M9 |
 | Q15 | Desktop backend Skia via Skiko (recommended) or AWT only? | M7 |
 | Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? | M9 |
-| Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed. | M5 → `main` (D26) |
-| Q18 | F1: the Paints' native heap explains ~15–22 MB of the native +93–170 MB zoom growth (M5.3 fixes); what holds the rest? A phone zoom soak after M5.6 shows how much the cache bound removes. | M5 → `main` (D26) |
+| Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed; none recurred through M5.7b. | M7 |
+| Q18 | F1: the Paints' native heap explains ~15–22 MB of the native +93–170 MB zoom growth (M5.3 fixes); what holds the rest? A phone zoom soak after M5.6 shows how much the cache bound removes. | M7 |
 | Q19 | C7's matching-cache keys hold copied tag lists (house numbers, `ele`, `ref`); upstream keyed on an `Integer`. How much heap do both caches retain on the corpus, against C7's Paint saving? | M7 |
 | Q20 | No speed run after M5: JMH and the A54 `androidx.benchmark` against the M2.7/M2.7b baselines, so M7's deltas exclude the conversion and the C4, C6, C7 fixes. | M7 |
