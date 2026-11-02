@@ -189,6 +189,20 @@ class ImgArchiveTest {
     }
 
     @Test
+    fun rejectsOverlappingSubFiles() {
+        val img = SyntheticImg.builder()
+            .blockSizeExponent(9, 0)
+            .addFatEntry(fileName = "00000001", fileType = "TRE", fileSize = 1024, firstBlock = 4)
+            // a second map over the first one's TRE blocks
+            .addFatEntry(fileName = "00000002", fileType = "TRE", fileSize = 512, firstBlock = 5)
+            .build()
+
+        assertFailsWith<IllegalArgumentException> {
+            ImgArchive.open(ByteArrayImgRandomAccessReader(img))
+        }
+    }
+
+    @Test
     fun findAllReturnsEveryMatch() {
         val img = SyntheticImg.builder()
             .addFatEntry(fileName = "00000001", fileType = "TRE", firstBlock = 4)

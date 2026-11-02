@@ -49,7 +49,8 @@ import com.asamm.vectormaps.garminimg.parser.TypSubFile
  * race on the seek positions and silently produce garbled output. Give
  * each worker its own copy with [reopen]: it shares the parsed headers,
  * sub-division tree and TYP, which are read-only, and reads through its
- * own readers.
+ * own readers. Maps sharing readers, from one [openAll] or [reopenOn] over
+ * the same containers, stay on one thread together and close once.
  *
  * @param typStyles parsed TYP body — `(type, subType)` → resolved styles for the polygon and
  *   line sections. Populated when the IMG has a TYP sub-file and its body parses successfully;
@@ -69,10 +70,9 @@ class ImgFile internal constructor(
      */
     val mapName: String,
     /**
-     * The readers owned by this `ImgFile`. [close] iterates this list
-     * and closes each. Empty for callers that built `ImgFile` via the
-     * explicit-readers overload of [open] — those keep ownership and
-     * manage the readers themselves.
+     * The readers [close] closes, shared by all maps of one [openAll]. Empty
+     * for the explicit-readers overload of [open] and for [reopenOn] — their
+     * callers keep ownership and manage the readers themselves.
      */
     private val ownedReaders: List<ImgRandomAccessReader> = emptyList(),
     // shared with the reopened copies, so the tree is indexed once per parsed map
@@ -345,7 +345,7 @@ class ImgFile internal constructor(
             val (typHeader, typStyles) = readTyp(typReader)
             return openInternal(
                 archive = archive,
-                mapName = archive.findFirst("TRE")?.fileName.orEmpty(),
+                mapName = archive.mapNames().firstOrNull() ?: error("IMG has no map with TRE, RGN and LBL"),
                 treReader = treReader,
                 rgnReader = rgnReader,
                 lblReader = lblReader,
@@ -414,8 +414,9 @@ class ImgFile internal constructor(
 
         /**
          * Opens every map of a multi-map IMG, such as a gmapsupp with one map per tile; a single-map
-         * IMG gives one. The archive's TYP, which styles all its maps, is decoded once, and the maps
-         * share one reader per sub-file type, so closing one map closes them all.
+         * IMG gives one. The archive's first TYP, decoded once, styles all its maps, also those of
+         * another product family; the maps share one reader per sub-file type, so closing one map
+         * closes them all.
          */
         fun openAll(byteSourceFactory: () -> ImgRandomAccessReader): List<ImgFile> {
             val archive = byteSourceFactory().use { ImgArchive.open(it) }

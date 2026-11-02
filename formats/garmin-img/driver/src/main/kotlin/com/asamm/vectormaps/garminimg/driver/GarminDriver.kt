@@ -103,19 +103,9 @@ class GarminDriver(
             minLat = CoordUtils.toWGS84(header.southBoundary),
             minLon = CoordUtils.toWGS84(header.westBoundary),
             maxLat = CoordUtils.toWGS84(header.northBoundary),
-            maxLon = eastOf(header.eastBoundary),
+            maxLon = CoordUtils.toWGS84(header.eastBoundaryUnwrapped),
         )
     }
-}
-
-/**
- * The east boundary in degrees; 180° is stored as the 24-bit value 0x800000, which reads as -180°.
- */
-private fun eastOf(eastBoundary: Int): Double {
-    if (eastBoundary == -0x800000) {
-        return 180.0
-    }
-    return CoordUtils.toWGS84(eastBoundary)
 }
 
 internal class ImgSummary(

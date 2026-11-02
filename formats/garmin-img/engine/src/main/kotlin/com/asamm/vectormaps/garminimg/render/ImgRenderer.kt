@@ -75,7 +75,8 @@ class ImgRenderer(
      * @param backgroundColor passed to [RenderTarget.beginFrame].
      * @param objectKindFilter bitmask restricting which [ObjectKind]s are
      *   drawn. Defaults to all.
-     * @param level TRE level to draw; null picks the level matching the viewport's resolution.
+     * @param level TRE level to draw in the maps that have it; null, and every map without it,
+     *   picks the level matching the viewport's resolution.
      */
     fun render(
         viewport: Viewport,
@@ -205,10 +206,8 @@ class ImgRenderer(
 
     private fun intersects(img: ImgFile, viewport: Viewport): Boolean {
         val header = img.tre.header
-        // an east boundary of 0x800000 (180°) reads as -0x800000
-        val east = if (header.eastBoundary == -0x800000) 0x800000 else header.eastBoundary
         return header.westBoundary <= viewport.maxLon
-            && east >= viewport.minLon
+            && header.eastBoundaryUnwrapped >= viewport.minLon
             && header.southBoundary <= viewport.maxLat
             && header.northBoundary >= viewport.minLat
     }

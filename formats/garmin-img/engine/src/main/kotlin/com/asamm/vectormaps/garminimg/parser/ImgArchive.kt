@@ -150,7 +150,23 @@ class ImgArchive private constructor(
 
             val (firstEntryOffset, fatEndOffset) = findFatBounds(reader)
             val subFiles = readFatEntries(reader, firstEntryOffset, fatEndOffset)
+            requireDisjoint(subFiles, blockSize)
             return ImgArchive(description, blockSize, subFiles)
+        }
+
+        // maps aliasing one sub-file would each parse and keep their own copy of it
+        private fun requireDisjoint(subFiles: List<SubFileEntry>, blockSize: Int) {
+            var previous: SubFileEntry? = null
+            var previousEnd = 0L
+            for (entry in subFiles.filter { it.fileSize != 0 }.sortedBy { it.firstBlock }) {
+                val start = entry.firstBlock.toLong() * blockSize
+                require(start >= previousEnd) {
+                    "IMG sub-files ${previous?.fileName}.${previous?.fileType} and " +
+                        "${entry.fileName}.${entry.fileType} overlap"
+                }
+                previous = entry
+                previousEnd = start + (entry.fileSize.toLong() and 0xFFFFFFFFL)
+            }
         }
 
         private fun requireUnencryptedHeader(reader: ImgRandomAccessReader) {

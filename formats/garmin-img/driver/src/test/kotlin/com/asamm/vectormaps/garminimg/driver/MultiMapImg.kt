@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.Locale
 
 /**
  * Writes a multi-map IMG, as a gmapsupp holds one map per tile: the maps of `sources` under the
@@ -18,7 +19,7 @@ import java.nio.ByteOrder
 internal fun writeMultiMapImg(target: File, sources: List<File>) {
     val subFiles = ArrayList<Triple<String, String, ByteArray>>()
     for ((index, source) in sources.withIndex()) {
-        val name = "%08d".format(index + 1)
+        val name = "%08d".format(Locale.ROOT, index + 1)
         for (type in if (index == 0) MAP_TYPES + "TYP" else MAP_TYPES) {
             val bytes = readSubFile(source, type) ?: continue
             subFiles += Triple(if (type == "TYP") "STYLES" else name, type, bytes)

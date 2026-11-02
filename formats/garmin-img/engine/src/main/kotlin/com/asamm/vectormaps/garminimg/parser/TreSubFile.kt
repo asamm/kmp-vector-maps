@@ -225,6 +225,12 @@ data class TreHeader(
     val extendedTypes: ExtendedTypesInfo?,
 ) {
 
+    /**
+     * [eastBoundary] with 180°, stored as 0x800000 and read as -0x800000, back at 0x800000.
+     */
+    val eastBoundaryUnwrapped: Int
+        get() = if (eastBoundary == -0x800000) 0x800000 else eastBoundary
+
     val fullSurface: Long
         get() = (northBoundary.toLong() - southBoundary) *
             (eastBoundary.toLong() - westBoundary)

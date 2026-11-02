@@ -53,8 +53,9 @@ class GarminDataset internal constructor(
         get() = current().bounds
 
     /**
-     * TRE levels with their own data across the maps, for [GarminOptions.level]; a level number
-     * is per map, so the bits shown are those of the first map that has it.
+     * TRE levels with their own data across the maps, ascending (finest first), for
+     * [GarminOptions.level]; a level number is per map, so the bits shown are those of the first
+     * map that has it.
      */
     val levels: List<GarminLevel>
         get() = current().levels
@@ -81,13 +82,15 @@ class GarminDataset internal constructor(
     private fun add(file: File): Boolean {
         // read before the content, so a later change always shows
         val lastModified = file.lastModified()
-        val summary = driver.readSummary(file = file, full = true)
+        val entry = Entry(file = file, lastModified = lastModified, summary = driver.readSummary(file = file, full = true))
+        // a file that does not parse fails here, not in every later renderer
+        entry.parsed()
         synchronized(lock) {
             val entries = snapshot?.entries.orEmpty()
-            if (entries.any { it.file == file }) {
+            if (entries.any { it.isFile(file) }) {
                 return false
             }
-            snapshot = Snapshot(entries + Entry(file = file, lastModified = lastModified, summary = summary))
+            snapshot = Snapshot(entries + entry)
         }
         return true
     }
@@ -124,7 +127,7 @@ class GarminDataset internal constructor(
         val snapshot = current()
         val entries = snapshot.entries
         require(style !is GarminStyle.Embedded
-            || entries.any { it.file == style.file }
+            || entries.any { it.isFile(style.file) }
         ) {
             "createRenderer(), ${style.id} belongs to another map"
         }
@@ -195,6 +198,11 @@ class GarminDataset internal constructor(
 
         private var parsed: List<ImgFile>? = null
 
+        // a relative and an absolute path to one file are the same map
+        fun isFile(other: File): Boolean {
+            return file.absoluteFile.normalize() == other.absoluteFile.normalize()
+        }
+
         fun checkUnchanged(caller: String) {
             check(file.lastModified() == lastModified) {
                 "$caller, $file changed since it was added"
@@ -225,7 +233,8 @@ data class GarminLevel(
  * Garmin-only render settings for development tools; Locus' type toggles come with M8.2.
  *
  * @param objectKinds [ObjectKind] bits to draw
- * @param level TRE level to draw; null picks the level matching the zoom
+ * @param level TRE level to draw in the maps that have it; null, and every map without it, picks
+ *   the level matching the zoom
  */
 data class GarminOptions(
     val antiAliasing: Boolean = true,

@@ -234,7 +234,7 @@ class ViewerStateTest {
             state.resize(width = 600, height = 400)
             state.openMap(garminMap)
             assertTrue(state.useMapStyle(GarminStyle.BuiltIn))
-            val options = state.garmin.copy(antiAliasing = false, level = state.garminLevels.last().level)
+            val options = state.garmin.copy(antiAliasing = false, level = state.garminLevels.first().level)
             state.changeGarmin(options)
 
             state.reload()
