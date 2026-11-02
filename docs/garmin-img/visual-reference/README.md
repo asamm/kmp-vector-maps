@@ -13,8 +13,8 @@ render Garmin IMG with full TYP styling fidelity:
 These files are **documentation only** — they're not test-gated. They
 exist so a developer iterating on TYP styling (Phase C.7) can keep our
 renderer side-by-side with a known-good reference. The committed golden
-PNG under `dev/garmin-img/golden/src/test/resources/golden/` is what regression
-tests check against; this folder is the visual contract that tells you
+tiles under `dev/garmin-img/golden/src/test/resources/golden/` are what
+`DriverGoldenTest` checks against; this folder is the visual contract that tells you
 whether the golden is _itself_ correct.
 
 ## Files
@@ -45,5 +45,5 @@ Desktop renders depend on:
 - The user's display DPI and AA settings.
 
 Even small differences would flag false-positive regressions in CI. The
-real visual contract is the **committed golden** under
+real visual contract is the **committed golden tiles** under
 `dev/garmin-img/golden/src/test/resources/golden/`, which is what we control.

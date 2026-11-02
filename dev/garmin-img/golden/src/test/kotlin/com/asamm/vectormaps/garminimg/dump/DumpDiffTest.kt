@@ -18,6 +18,7 @@
  */
 package com.asamm.vectormaps.garminimg.dump
 
+import com.asamm.vectormaps.garminimg.fixtureFile
 import org.free.garminimg.dump.ImgContentDumper as JavaImgContentDumper
 import java.io.File
 import kotlin.test.Test
@@ -61,7 +62,7 @@ class DumpDiffTest {
      * exceeds it.
      */
     private fun runDumpDiff(fixture: String, tag: String, baselineTotalDiffs: Int) {
-        val img = materialiseFixture(fixture)
+        val img = fixtureFile(fixture)
         val outDir = File("build/test-output/dump").apply { mkdirs() }
         val javaDump = File(outDir, "$tag.java.dump.txt")
         val kotlinDump = File(outDir, "$tag.kotlin.dump.txt")
@@ -131,20 +132,5 @@ class DumpDiffTest {
     private val SHIELD_REGEX = Regex("""label="\\u000[1-7]""")
     private fun stripShieldPrefix(line: String): String {
         return SHIELD_REGEX.replace(line, "label=\"")
-    }
-
-    /**
-     * Materialises a classpath resource into a real on-disk file so
-     * the dumpers — which both take a [java.io.File] path — can read
-     * it via random-access. Returns the temp file (auto-deleted on
-     * JVM exit).
-     */
-    private fun materialiseFixture(resource: String): File {
-        val stream = javaClass.classLoader?.getResourceAsStream(resource)
-            ?: error("missing fixture: $resource")
-        val tmp = File.createTempFile("dump-diff-", ".img")
-        tmp.deleteOnExit()
-        stream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
-        return tmp
     }
 }

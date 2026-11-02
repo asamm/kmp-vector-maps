@@ -9,6 +9,8 @@
  */
 package com.asamm.vectormaps.garminimg.render
 
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty
+import com.asamm.vectormaps.garminimg.fixtureBytes
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.utils.coord.CoordUtils
 import com.asamm.vectormaps.garminimg.utils.io.ByteArrayImgRandomAccessReader
@@ -23,7 +25,7 @@ import kotlin.test.Test
 /**
  * Not really a test — a render harness. Run with:
  *
- *     ./gradlew :dev:garmin-img:golden:test --tests "com.asamm.vectormaps.garminimg.render.ComparisonSheetTest"
+ *     ./gradlew :dev:garmin-img:golden:test --tests "com.asamm.vectormaps.garminimg.render.ComparisonSheetTest" -Pbench.garmin=true
  *
  * Output PNGs land in `dev/garmin-img/golden/build/test-output/comparison/`. The harness
  * renders the same Nice train-station area at:
@@ -34,6 +36,8 @@ import kotlin.test.Test
  * each annotated with the picked level and viewport bbox so they can be
  * lined up against external references.
  */
+// a sheet to look at, no assertion: runs with the benchmark, `-Pbench.garmin=true`
+@EnabledIfSystemProperty(named = "bench.garmin", matches = "true")
 class ComparisonSheetTest {
 
     private val outDir = File("build/test-output/comparison").apply { mkdirs() }
@@ -159,9 +163,7 @@ class ComparisonSheetTest {
     }
 
     private fun openMonaco(): ImgFile {
-        val bytes = ComparisonSheetTest::class.java.classLoader
-            ?.getResourceAsStream("maps/otm-monaco/otm-monaco.img")
-            ?.use { it.readBytes() } ?: error("Monaco fixture missing")
+        val bytes = fixtureBytes("maps/otm-monaco/otm-monaco.img")
         return ImgFile.open { ByteArrayImgRandomAccessReader(bytes) }
     }
 

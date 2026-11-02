@@ -4,6 +4,7 @@
  */
 package com.asamm.vectormaps.garminimg.render
 
+import com.asamm.vectormaps.garminimg.fixtureBytes
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.utils.coord.CoordUtils
 import com.asamm.vectormaps.garminimg.utils.io.ByteArrayImgRandomAccessReader
@@ -91,9 +92,7 @@ class BackgroundTransparencyTest {
     }
 
     private fun openMonaco(): ImgFile {
-        val bytes = BackgroundTransparencyTest::class.java.classLoader
-            ?.getResourceAsStream("maps/otm-monaco/otm-monaco.img")
-            ?.use { it.readBytes() } ?: error("Monaco fixture missing")
+        val bytes = fixtureBytes("maps/otm-monaco/otm-monaco.img")
         return ImgFile.open { ByteArrayImgRandomAccessReader(bytes) }
     }
 }

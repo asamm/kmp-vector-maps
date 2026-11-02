@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5 done; M4.1 and M4.2a done (PRs #27, #28); M4.2b (Garmin in the viewers) in
-review.** Next action: M4.2c, the Garmin golden through the driver; M6 follows M4.
+**Status: M0–M3 and M5 done; M4.1, M4.2a and M4.2b done (PRs #27–#29); M4.2c (Garmin golden
+through the driver) in review.** Next action: M4.3, parallel Garmin renders; M6 follows M4.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -202,8 +202,8 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 |---|---|---|
 | M4.1 | Audit, then import with history: secrets and local paths (`local.properties`), fixture licences (OTM Monaco `.img` and TYP); headers to LGPL-2.1-or-later with SPDX, missing ones added; KMP → Kotlin/JVM; drop unused `kotlinx-io`, coroutines, `api` logger | ✅ PR #27, `c0a7b2e` |
 | M4.2a | Garmin driver (`formats/garmin-img/driver`): embedded TYP, built-in and `.typ` styles through `MapDataset.styles` and `loadStyle`; `GarminOptions` (anti-aliasing, kinds, TRE level); exact tile bounds | ✅ PR #28, `aa658a1` |
-| M4.2b | Desktop and Android viewers render Garmin maps, the desktop with anti-aliasing, kind toggles and TRE level; `.img` assets in the viewer APK | 🔧 |
-| M4.2c | Garmin golden through the driver; the pixel test off Windows with a bundled font; the M4.1 leftovers below | ⬜ |
+| M4.2b | Desktop and Android viewers render Garmin maps, the desktop with anti-aliasing, kind toggles and TRE level; `.img` assets in the viewer APK | ✅ PR #29, `6bf158b` |
+| M4.2c | Garmin golden through the driver; the pixel test off Windows with a bundled font; the M4.1 leftovers below | 🔧 |
 | M4.3 | Positional reads → parallel renders; multi-map IMGs (today first map only) | ⬜ |
 | M4.4 | Measured label bounds, TYP night colours, text scale; TYP point icons and extended-type (`≥ 0x100`) polygon styles, both falling back to the internal styles today | ⬜ |
 
@@ -215,7 +215,7 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   tests in `dev/garmin-img/golden` (Kotlin friend of the engine, as the tests read its internals),
   maps in `dev/fixtures/maps/`; KMP source sets merged, the unused `BinaryReader` (the only
   `kotlinx-io` user) and its tests removed; packages `com.asamm.vectormaps.garminimg.*`; old docs in
-  [docs/garmin-img/](garmin-img/). The pixel test runs on Windows only (fonts), as in
+  [docs/garmin-img/](garmin-img/). The pixel test ran on Windows only (fonts) until M4.2c, as in
   kmp-garmin-img; CI covers the reader, dumps and the render sanity tests.
 - M4.1 review fixed in the import (PR #27): a crafted TRE can no longer multiply the sub-division
   tree; a crafted TYP is held to 32 MB of decoded bitmaps, each record decoded once; a malformed
@@ -226,10 +226,16 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   through `java.nio` charsets as in the legacy parser (cp1250, cp1251, 932, 950); dashes that
   start and end with a gap keep their length; AWT draws white dashes; the dump comparison counts
   duplicate records.
-- Left for M4.2: fixtures as a `fixturesDir` (not the whole `dev/fixtures` as resources), `.img`
-  assets kept out of the viewer and bench APKs until a driver reads them, the benchmark and the
-  comparison sheet out of the golden gate, `test-output/` declared as a task output, the
-  `kmpgi.*` properties as `bench.garmin.*` Gradle properties.
+- Left for M4.2, done in M4.2c: fixtures as a `fixturesDir` (not the whole `dev/fixtures` as
+  resources), `.img` assets kept out of the bench APK (the viewer reads them since M4.2b), the
+  benchmark and the comparison sheet out of the golden gate, `test-output/` declared as a task
+  output, the `kmpgi.*` properties as `bench.garmin.*` Gradle properties.
+- M4.2c as built: three Monaco harbour tiles (z13, z15, z17, 512 px) and a Monte Carlo tile at
+  device scale 2 (z16) render through the driver with the map's TYP, anti-aliasing off and the
+  bundled DejaVu Sans
+  (`dev/fixtures/fonts/dejavu/`, `AwtRenderTarget(font = …)`), compared with committed PNGs on
+  every system, 0.2 % of pixels allowed to differ; the Windows-only Monaco PNG is gone. The
+  benchmark and the comparison sheet run with `-Pbench.garmin=true`.
 - Left for M4.3: nearest-finer level fallback, multi-byte reads through `ImgSubFileStream`,
   sub-files matched to the TRE tile (multi-tile gmapsupp renders the first tile only), thread-safe
   `typAware` cache, reusable render targets, POI metadata skipped when rendering, one projection

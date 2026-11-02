@@ -6,6 +6,7 @@
  */
 package com.asamm.vectormaps.garminimg.bench
 
+import com.asamm.vectormaps.garminimg.fixtureBytes
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.model.ObjectKind
 import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
@@ -20,21 +21,19 @@ import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.pow
 import kotlin.math.sinh
+import org.junit.jupiter.api.condition.EnabledIfSystemProperty
 import kotlin.test.Test
 
 /**
- * Per-phase wall-clock benchmark for a single tile render. Default
- * config renders a Monaco-z17 tile from the bundled fixture so the
- * test always has something useful to do; pass system properties to
- * point at a different IMG / tile / size:
+ * Per-phase wall-clock benchmark for a single tile render, on request only. Default
+ * config renders a Monaco-z17 tile from the bundled fixture; pass `bench.garmin.*`
+ * Gradle properties to point at a different IMG / tile / size:
  *
  * ```
- * ./gradlew :dev:garmin-img:golden:test --tests "*.RenderBenchmarkTest"        \
- *   --no-configuration-cache                                    \
- *   -Dkmpgi.bench.img="<path/to/map.img>"          \
- *   -Dkmpgi.bench.x=71381 -Dkmpgi.bench.y=45019 -Dkmpgi.bench.z=17 \
- *   -Dkmpgi.bench.w=512 -Dkmpgi.bench.h=512                     \
- *   -Dkmpgi.bench.iters=10
+ * ./gradlew :dev:garmin-img:golden:test --tests "*.RenderBenchmarkTest" -Pbench.garmin=true \
+ *   -Pbench.garmin.img="<path/to/map.img>" \
+ *   -Pbench.garmin.x=71381 -Pbench.garmin.y=45019 -Pbench.garmin.z=17 \
+ *   -Pbench.garmin.w=512 -Pbench.garmin.h=512 -Pbench.garmin.iters=10
  * ```
  *
  * Gradle's `--tests` only pre-warms the JIT a little, so two warm-up
@@ -47,20 +46,21 @@ import kotlin.test.Test
  * point at suspected hot regions with a real profiler (e.g. JFR via
  * `-XX:StartFlightRecording=...`).
  */
+@EnabledIfSystemProperty(named = "bench.garmin", matches = "true")
 class RenderBenchmarkTest {
 
     @Test
     fun benchmarkSingleTile() {
-        val imgPath = System.getProperty("kmpgi.bench.img")
+        val imgPath = System.getProperty("bench.garmin.img")
         // Defaults pick a Monaco-z17 tile so a no-args run still hits
         // populated geography in the bundled fixture.
-        val tileX = System.getProperty("kmpgi.bench.x", "68227").toInt()
-        val tileY = System.getProperty("kmpgi.bench.y", "47776").toInt()
-        val zoom = System.getProperty("kmpgi.bench.z", "17").toInt()
-        val widthPx = System.getProperty("kmpgi.bench.w", "512").toInt()
-        val heightPx = System.getProperty("kmpgi.bench.h", "512").toInt()
-        val iterations = System.getProperty("kmpgi.bench.iters", "10").toInt()
-        val antiAliased = System.getProperty("kmpgi.bench.aa", "true").toBoolean()
+        val tileX = System.getProperty("bench.garmin.x", "68227").toInt()
+        val tileY = System.getProperty("bench.garmin.y", "47776").toInt()
+        val zoom = System.getProperty("bench.garmin.z", "17").toInt()
+        val widthPx = System.getProperty("bench.garmin.w", "512").toInt()
+        val heightPx = System.getProperty("bench.garmin.h", "512").toInt()
+        val iterations = System.getProperty("bench.garmin.iters", "10").toInt()
+        val antiAliased = System.getProperty("bench.garmin.aa", "true").toBoolean()
 
         println("[bench] ── config ──────────────────────────────────────────")
         println("[bench]   img      = ${imgPath ?: "(bundled Monaco fixture)"}")
@@ -191,9 +191,7 @@ class RenderBenchmarkTest {
         return if (imgPath != null) {
             ImgFile.open { FileImgRandomAccessReader(File(imgPath)) }
         } else {
-            val bytes = RenderBenchmarkTest::class.java.classLoader
-                ?.getResourceAsStream("maps/otm-monaco/otm-monaco.img")
-                ?.use { it.readBytes() } ?: error("Monaco fixture missing from classpath")
+            val bytes = fixtureBytes("maps/otm-monaco/otm-monaco.img")
             ImgFile.open { ByteArrayImgRandomAccessReader(bytes) }
         }
     }

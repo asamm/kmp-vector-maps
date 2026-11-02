@@ -34,6 +34,9 @@ android {
     androidResources {
         // map files must stay uncompressed to be copied out quickly
         noCompress += listOf("map", "img")
+        // the golden test's font folder is not shown here. A set list replaces aapt's default ignores,
+        // so they are repeated first
+        ignoreAssetsPatterns += listOf("!.svn", "!.git", "!.ds_store", "!*.scc", ".*", "<dir>_*", "!CVS", "!thumbs.db", "!picasa.ini", "!*~", "<dir>fonts")
     }
 }
 

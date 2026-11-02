@@ -34,8 +34,9 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
   `GarminCanvasFactory`. `./gradlew :formats:garmin-img:driver:test`.
 - **`:dev:mapsforge:golden`** — pixel-exact render comparison against upstream 0.30.0.
   `./gradlew :dev:mapsforge:golden:test`.
-- **`:dev:garmin-img:golden`** — Garmin Monaco render against a committed PNG (Windows only) and
-  the dump comparison against the legacy Java parser. `./gradlew :dev:garmin-img:golden:test`.
+- **`:dev:garmin-img:golden`** — Garmin Monaco tiles through the driver against committed PNGs
+  and the dump comparison against the legacy Java parser. `./gradlew :dev:garmin-img:golden:test`;
+  the benchmark with `-Pbench.garmin=true`.
 - **`:dev:bench`** — JMH benchmarks per render stage. `./gradlew :dev:bench:jmh`, another map with
   `-Pbench.mapFile=<path>`.
 - **`:dev:bench:android`** — the same on a device (`androidx.benchmark`),

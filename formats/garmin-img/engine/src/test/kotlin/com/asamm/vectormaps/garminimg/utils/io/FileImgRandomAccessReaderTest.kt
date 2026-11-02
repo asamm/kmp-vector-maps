@@ -6,6 +6,7 @@
  */
 package com.asamm.vectormaps.garminimg.utils.io
 
+import com.asamm.vectormaps.garminimg.fixtureBytes
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -71,8 +72,6 @@ class FileImgRandomAccessReaderTest {
     }
 
     private fun monacoBytes(): ByteArray {
-        return FileImgRandomAccessReaderTest::class.java.classLoader
-            ?.getResourceAsStream("maps/otm-monaco/otm-monaco.img")
-            ?.use { it.readBytes() } ?: error("Monaco fixture missing")
+        return fixtureBytes("maps/otm-monaco/otm-monaco.img")
     }
 }

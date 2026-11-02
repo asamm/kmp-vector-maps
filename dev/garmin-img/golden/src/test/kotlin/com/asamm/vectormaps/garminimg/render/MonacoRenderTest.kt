@@ -4,6 +4,7 @@
  */
 package com.asamm.vectormaps.garminimg.render
 
+import com.asamm.vectormaps.garminimg.fixtureBytes
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.utils.io.ByteArrayImgRandomAccessReader
 import java.io.File
@@ -11,17 +12,13 @@ import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import org.junit.jupiter.api.condition.EnabledOnOs
-import org.junit.jupiter.api.condition.OS
 
 /**
  * End-to-end render test: open Monaco, render to PNG via [AwtRenderTarget],
  * write to disk, sanity-check the output.
  *
- * The first run produces an artifact under `dev/garmin-img/golden/build/test-output/render/`
- * for human review. Once a render is approved, copy it into
- * `dev/garmin-img/golden/src/test/resources/golden/` and the
- * `tightMonacoMatchesGoldenPng` test compares against it pixel-by-pixel.
+ * The renders land under `dev/garmin-img/golden/build/test-output/render/` for human review;
+ * [DriverGoldenTest] holds the pixel comparison.
  */
 class MonacoRenderTest {
 
@@ -626,65 +623,6 @@ class MonacoRenderTest {
     }
 
     /**
-     * Compares a freshly-rendered tight Monaco view against the committed
-     * golden PNG under `dev/garmin-img/golden/src/test/resources/golden/`.
-     *
-     * Tolerance: anti-aliasing on AWT can drift a few percent of pixels by
-     * 1-2 channel values across JDK versions / OSes. We allow up to 1% of
-     * pixels to differ by more than 8 channel values; anything past that
-     * is a real regression.
-     *
-     * If you intentionally changed the renderer/styles and need to update
-     * the golden, copy the fresh `build/test-output/render/otm-monaco-tight.png`
-     * over `dev/garmin-img/golden/src/test/resources/golden/otm-monaco-tight.png`
-     * and inspect the diff visually before committing.
-     *
-     * Restricted to Windows: AWT font rendering differs across OS/JDK
-     * (Linux's "SansSerif" → DejaVu Sans, Windows → Arial) and the
-     * golden was authored on Windows. Running this on the Linux CI
-     * runner would always trip the 1 % per-channel-8 tolerance even
-     * with no real regression. Local Windows dev keeps the test live;
-     * other OSes get parser-side coverage from the rest of the suite.
-     */
-    @Test
-    @EnabledOnOs(OS.WINDOWS)
-    fun tightMonacoMatchesGoldenPng() {
-        val img = openMonaco()
-        val widthPx = 1024
-        val heightPx = 1024
-        val viewport = Viewport(
-            widthPx = widthPx,
-            heightPx = heightPx,
-            minLon = com.asamm.vectormaps.garminimg.utils.coord.CoordUtils.fromWGS84(7.40),
-            maxLon = com.asamm.vectormaps.garminimg.utils.coord.CoordUtils.fromWGS84(7.46),
-            minLat = com.asamm.vectormaps.garminimg.utils.coord.CoordUtils.fromWGS84(43.72),
-            maxLat = com.asamm.vectormaps.garminimg.utils.coord.CoordUtils.fromWGS84(43.79),
-        )
-        // Anti-aliasing off so the render is byte-deterministic across JDKs.
-        val target = AwtRenderTarget(widthPx, heightPx, antiAliased = false)
-        ImgRenderer(img, resolverFor(img)).render(viewport, target)
-
-        val golden = GoldenPngDiff.loadFromClasspath("golden/otm-monaco-tight.png")
-        if (golden == null) {
-            // First run — no golden committed yet. Save the candidate and
-            // print instructions instead of failing.
-            val candidate = GoldenPngDiff.saveCandidate(target.image, "otm-monaco-tight")
-            error(
-                "No golden image committed yet. Inspect $candidate, copy to " +
-                    "dev/garmin-img/golden/src/test/resources/golden/otm-monaco-tight.png " +
-                    "if it looks right.",
-            )
-        }
-        val diff = GoldenPngDiff.compare(target.image, golden, perChannelTolerance = 8)
-        if (diff.differingPixelFraction > 0.01) {
-            // Save the candidate so a human can compare side-by-side.
-            val candidate = GoldenPngDiff.saveCandidate(target.image, "otm-monaco-tight")
-            error("Render diverged from golden: $diff. Candidate written to $candidate.")
-        }
-        println("[render] golden diff: $diff")
-    }
-
-    /**
      * Renders the label as printable text and an explicit hex view for
      * each non-printable / non-ASCII byte so the audit file shows what
      * the LBL decoder actually produced.
@@ -705,9 +643,7 @@ class MonacoRenderTest {
     }
 
     private fun openMonaco(): ImgFile {
-        val bytes = MonacoRenderTest::class.java.classLoader
-            ?.getResourceAsStream("maps/otm-monaco/otm-monaco.img")
-            ?.use { it.readBytes() } ?: error("Monaco fixture missing")
+        val bytes = fixtureBytes("maps/otm-monaco/otm-monaco.img")
         return ImgFile.open { ByteArrayImgRandomAccessReader(bytes) }
     }
 

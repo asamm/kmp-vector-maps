@@ -11,15 +11,14 @@ kotlin {
     jvmToolchain(17)
 }
 
-sourceSets.test {
-    // tests read the maps from the classpath, as `maps/<fixture>/<file>`
-    resources.srcDir(rootProject.layout.projectDirectory.dir("dev/fixtures"))
-}
-
 dependencies {
     testImplementation(kotlin("test-junit5"))
 }
 
+val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures")
+
 tasks.test {
     useJUnitPlatform()
+    inputs.dir(fixturesDir)
+    systemProperty("fixturesDir", fixturesDir.asFile.absolutePath)
 }

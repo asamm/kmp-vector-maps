@@ -37,6 +37,9 @@ android {
 
     androidResources {
         noCompress += "map"
+        // only the Mapsforge map is benchmarked; the Garmin maps and the golden font folder stay out.
+        // A set list replaces aapt's default ignores, so they are repeated first
+        ignoreAssetsPatterns += listOf("!.svn", "!.git", "!.ds_store", "!*.scc", ".*", "<dir>_*", "!CVS", "!thumbs.db", "!picasa.ini", "!*~", "!*.img", "<dir>fonts")
     }
 }
 
