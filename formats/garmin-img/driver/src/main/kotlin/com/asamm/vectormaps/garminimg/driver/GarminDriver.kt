@@ -9,7 +9,6 @@ import com.asamm.vectormaps.core.MapFormatDriver
 import com.asamm.vectormaps.core.MapInfo
 import com.asamm.vectormaps.garminimg.parser.ImgArchive
 import com.asamm.vectormaps.garminimg.parser.TreHeader
-import com.asamm.vectormaps.garminimg.parser.TreLevel
 import com.asamm.vectormaps.garminimg.parser.TreSubFile
 import com.asamm.vectormaps.garminimg.parser.TypBodyParser
 import com.asamm.vectormaps.garminimg.parser.TypSubFile
@@ -39,7 +38,7 @@ class GarminDriver(
      * Reads the IMG directory (TRE, RGN and LBL required) and the first TRE header.
      */
     override fun probe(file: File): MapInfo {
-        return MapInfo(bounds = readSummary(file = file, readTyp = false).bounds, languages = emptyList())
+        return MapInfo(bounds = readSummary(file = file, full = false).bounds, languages = emptyList())
     }
 
     override fun open(files: List<File>): GarminDataset {
@@ -63,9 +62,10 @@ class GarminDriver(
     }
 
     /**
-     * With `readTyp`, also decodes the TYP to learn whether it is usable; probes skip that cost.
+     * With `full`, also reads the TRE levels and decodes the TYP to learn whether it is usable;
+     * probes skip that cost.
      */
-    internal fun readSummary(file: File, readTyp: Boolean): ImgSummary {
+    internal fun readSummary(file: File, full: Boolean): ImgSummary {
         return FileImgRandomAccessReader(file).use { reader ->
             val archive = ImgArchive.open(reader)
             // a map without RGN or LBL would only fail at its first renderer
@@ -78,13 +78,19 @@ class GarminDriver(
             val typ = archive.findFirst("TYP")
             ImgSummary(
                 bounds = toBounds(TreSubFile.parseHeader(tre)),
-                levels = TreSubFile.parseLevels(tre).levels.filterNot { it.inherited },
+                levels = if (full) readLevels(tre) else emptyList(),
                 // as `ImgFile`, which drops a TYP whose header or sections do not parse
-                hasTyp = readTyp
+                hasTyp = full
                     && typ != null
                     && runCatching { readTyp(archive.openSubFile(typ, reader)) }.isSuccess,
             )
         }
+    }
+
+    private fun readLevels(tre: ImgRandomAccessReader): List<GarminLevel> {
+        return TreSubFile.parseLevels(tre).levels
+            .filterNot { it.inherited }
+            .map { GarminLevel(level = it.level, bitsPerCoord = it.bitsPerCoord) }
     }
 
     private fun readTyp(reader: ImgRandomAccessReader) {
@@ -113,6 +119,6 @@ private fun eastOf(eastBoundary: Int): Double {
 
 internal class ImgSummary(
     val bounds: GeoBounds,
-    val levels: List<TreLevel>,
+    val levels: List<GarminLevel>,
     val hasTyp: Boolean,
 )

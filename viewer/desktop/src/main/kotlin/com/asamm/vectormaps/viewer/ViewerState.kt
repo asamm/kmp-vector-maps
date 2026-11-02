@@ -19,7 +19,7 @@ import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.garminimg.driver.GarminDataset
 import com.asamm.vectormaps.garminimg.driver.GarminDriver
 import com.asamm.vectormaps.garminimg.driver.GarminOptions
-import com.asamm.vectormaps.garminimg.parser.TreLevel
+import com.asamm.vectormaps.garminimg.driver.GarminLevel
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -68,7 +68,7 @@ class ViewerState(
         private set
 
     /**
-     * Garmin render settings; reset with each map.
+     * Garmin render settings; reset when another map opens.
      */
     var garmin: GarminOptions by mutableStateOf(GarminOptions())
         private set
@@ -76,7 +76,7 @@ class ViewerState(
     /**
      * TRE levels of an open Garmin map, for its level choice.
      */
-    var garminLevels: List<TreLevel> by mutableStateOf(emptyList())
+    var garminLevels: List<GarminLevel> by mutableStateOf(emptyList())
         private set
 
     var style: MapStyle? by mutableStateOf(null)
@@ -129,7 +129,11 @@ class ViewerState(
     private var dataset: MapDataset? = null
 
     // the last style file and layer per driver id, so switching formats keeps each one's style
-    private val lastStyleFiles = HashMap<String, Pair<File, String?>>()
+    private val lastStyleFiles = HashMap<String, Pair<File, String?>>().apply {
+        for ((driverId, style) in session.formatStyles) {
+            put(driverId, File(style.path) to style.layerId)
+        }
+    }
 
     private var screenWidth = 0
 
@@ -153,6 +157,9 @@ class ViewerState(
             mapPath = mapFile?.absolutePath,
             stylePath = styleFile?.absolutePath,
             layerId = layerId,
+            formatStyles = lastStyleFiles.mapValues { (_, style) ->
+                Session.FormatStyle(path = style.first.absolutePath, layerId = style.second)
+            },
             textScale = textScale,
             tileSize = tileSize,
             threads = threads,
@@ -161,9 +168,10 @@ class ViewerState(
     }
 
     /**
-     * Opens `file` with the first driver that reads it; keeps the current style when that driver
-     * reads it too, else the driver's last style file, else the map's own first style. Opening the
-     * same map again keeps its own style and the Garmin settings.
+     * Opens `file` with the first driver that reads it; keeps the current style file when that
+     * driver reads it too. Else a map without styles of its own (Mapsforge) takes the driver's last
+     * style file, any other its own first style. Opening the same map again keeps its own style and
+     * the Garmin settings; a style file that fails leaves the error, not another style.
      */
     fun openMap(file: File) {
         val probed = formats.probe(file)
@@ -185,6 +193,8 @@ class ViewerState(
             viewport = null
         }
         val previousStyle = style
+        // a style file the new map cannot read stays the one for its own format
+        styleFile?.takeUnless(probed.driver::readsStyle)?.let { rememberStyle(file = it, layerId = layerId) }
         // a map with its own styles starts with them, not with a file remembered from another map
         val remembered = lastStyleFiles[probed.driver.id]?.takeIf { opened.styles.isEmpty() }
         if (remembered != null
@@ -214,10 +224,19 @@ class ViewerState(
         val built = keptStyle != null
             && openStyle(keptStyle)
         when {
-            built -> Unit
+            // a failed style file keeps its error; the map's own styles stay in the picker
+            built || keptStyle != null -> Unit
             ownStyle != null -> useMapStyle(ownStyle)
-            keptStyle == null -> notice = "Choose a style"
+            else -> notice = "Choose a style"
         }
+    }
+
+    /**
+     * Keeps `file` as the style for the next map of the format that reads it, without opening it.
+     */
+    fun rememberStyle(file: File, layerId: String? = null) {
+        val driver = formats.drivers.firstOrNull { it.readsStyle(file) } ?: return
+        lastStyleFiles[driver.id] = file to layerId
     }
 
     /**
@@ -250,6 +269,7 @@ class ViewerState(
         val dataset = dataset
         if (dataset == null) {
             styleFile = file
+            rememberStyle(file = file, layerId = layerId)
             return false
         }
         val loaded = try {

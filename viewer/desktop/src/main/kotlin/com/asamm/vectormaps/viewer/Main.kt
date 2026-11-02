@@ -43,11 +43,15 @@ fun main() {
             ?: File(sessionFile.parentFile, "captures"),
     )
     fileOr(session.mapPath, "viewer.mapFile")?.let(state::openMap)
-    // the default theme only fits a Mapsforge map; a Garmin map starts with its own style, and with
-    // no map open the theme waits for the next one
-    fileOr(session.stylePath, "viewer.themeFile")
-        ?.takeIf { file -> state.driver?.readsStyle(file) ?: true }
-        ?.let(state::openStyle)
+    // the default theme only fits a Mapsforge map: a Garmin map keeps its own style and the theme
+    // waits for the next Mapsforge map; with no map open it waits for any
+    fileOr(session.stylePath, "viewer.themeFile")?.let { file ->
+        if (state.driver?.readsStyle(file) != false) {
+            state.openStyle(file)
+        } else if (session.formatStyles.isEmpty()) {
+            state.rememberStyle(file)
+        }
+    }
     application {
         val saved = session.window
         val window = rememberWindowState(

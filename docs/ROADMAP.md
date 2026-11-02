@@ -248,13 +248,14 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   are converted per tile, as each tile gets a new canvas. PR #28 review: materialised levels and
   per-level sub-divisions cached per `ImgFile`; the map file checked against the time it was
   opened.
-- M4.2b as built: both viewers register the Garmin driver and start a map with its own first
-  style (`MapDataset.styles`) when no style file of its format is open; the desktop style choice
-  lists the map's styles next to the style files, keeps the last style file per format, and Reload
-  keeps a map's own style and its Garmin settings. Building a renderer still runs on the desktop
-  UI thread and reopens the IMG on each Garmin setting (as the Mapsforge settings do). Garmin controls are desktop only; the Android
-  viewer has none, a Garmin map comes in by intent (MainActivity KDoc). Tiles outside a Garmin map
-  are `EMPTY` and show as missing tiles.
+- M4.2b as built: both viewers register the Garmin driver and start a map with its own first style
+  (`MapDataset.styles`) when no style file of its format is open; the desktop style choice lists the
+  map's styles next to the style files; the session keeps the last style file per format, which a
+  map without styles of its own (Mapsforge) starts with; Reload keeps a map's own style and its
+  Garmin settings, and a failing style file keeps its error. Building a renderer still runs on the
+  desktop UI thread and reopens the IMG on each Garmin setting (as the Mapsforge settings do).
+  Garmin controls are desktop only; the Android viewer has none, a Garmin map comes in by intent
+  (MainActivity KDoc). Tiles outside a Garmin map are `EMPTY` and show as missing tiles.
 - Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons →
   M4.4; label collisions at level-pick boundaries → M6.1; Locus prefs from the helpdesk
   (label colour, line width and colour overrides, area/line/point toggles, per-type visibility,

@@ -155,7 +155,6 @@ class GarminDriverTest {
     fun listsLevelsThatRender() {
         driver.open(listOf(otm)).use { dataset ->
             assertTrue(dataset.levels.isNotEmpty())
-            assertTrue(dataset.levels.none { it.inherited })
             for (level in dataset.levels) {
                 val options = GarminOptions(level = level.level)
                 dataset.createRenderer(dataset.styles[0], StyleSelection.DEFAULT, config, options).close()

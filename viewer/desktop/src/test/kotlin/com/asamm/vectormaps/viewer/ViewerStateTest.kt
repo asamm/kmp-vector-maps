@@ -7,7 +7,9 @@ package com.asamm.vectormaps.viewer
 import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.garminimg.driver.GarminDriver
 import com.asamm.vectormaps.garminimg.driver.GarminStyle
+import com.asamm.vectormaps.garminimg.parser.ImgArchive
 import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
+import com.asamm.vectormaps.garminimg.utils.io.FileImgRandomAccessReader
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import kotlinx.coroutines.runBlocking
@@ -260,12 +262,74 @@ class ViewerStateTest {
     }
 
     @Test
+    fun themeWaitsBehindAGarminMap() {
+        ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp).use { state ->
+            state.resize(width = 600, height = 400)
+            state.openStyle(theme)
+            state.openMap(garminMap)
+
+            state.openMap(map)
+
+            assertEquals(theme, state.styleFile)
+            assertNotNull(state.engine)
+        }
+    }
+
+    @Test
+    fun sessionKeepsTheThemeOfEachFormat() {
+        val first = ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp)
+        val saved = first.use { state ->
+            state.resize(width = 600, height = 400)
+            state.openMap(map)
+            state.openStyle(theme)
+            state.openMap(garminMap)
+            state.session()
+        }
+        val restored = Session.read(File(temp, "session.properties").also { saved.write(it) })
+
+        ViewerState(formats = formats, session = restored, capturesDir = temp).use { state ->
+            state.resize(width = 600, height = 400)
+            state.openMap(map)
+
+            assertEquals(theme.absoluteFile, state.styleFile?.absoluteFile)
+            assertNotNull(state.engine)
+        }
+    }
+
+    @Test
+    fun brokenTypKeepsItsErrorOnReload() {
+        val typ = File(temp, "edited.typ").apply { writeBytes(extractTyp(garminMap)) }
+        ViewerState(formats = formats, session = Session(tileSize = 256), capturesDir = temp).use { state ->
+            state.resize(width = 600, height = 400)
+            state.openMap(garminMap)
+            assertTrue(state.openStyle(typ))
+            typ.writeText("not a TYP")
+
+            state.reload()
+
+            assertEquals(typ, state.styleFile)
+            assertNotNull(state.error)
+        }
+    }
+
+    @Test
     fun unreadableFileKeepsTheViewerUsable() {
         ViewerState(formats = formats, session = Session(), capturesDir = temp).use { state ->
             state.openMap(theme)
 
             assertNull(state.mapFile)
             assertNotNull(state.error)
+        }
+    }
+
+    private fun extractTyp(img: File): ByteArray {
+        FileImgRandomAccessReader(img).use { reader ->
+            val archive = ImgArchive.open(reader)
+            val stream = archive.openSubFile(checkNotNull(archive.findFirst("TYP")), reader)
+            val bytes = ByteArray(stream.size.toInt())
+            stream.seek(0L)
+            stream.readBlock(bytes)
+            return bytes
         }
     }
 

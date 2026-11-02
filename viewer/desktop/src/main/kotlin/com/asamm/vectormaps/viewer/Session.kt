@@ -12,6 +12,8 @@ import java.util.Properties
 /**
  * What the viewer restores on the next start, kept in a properties file.
  *
+ * @param stylePath the style file in use; null when the map's own style is
+ * @param formatStyles the last style file per driver id, for the next map of that format
  * @param place the last view, valid for `mapPath` only
  * @param window window bounds in dp; null lets the platform place the window
  */
@@ -19,12 +21,18 @@ data class Session(
     val mapPath: String? = null,
     val stylePath: String? = null,
     val layerId: String? = null,
+    val formatStyles: Map<String, FormatStyle> = emptyMap(),
     val textScale: Float = 1.0f,
     val tileSize: Int = 512,
     val threads: Int = 4,
     val place: Place? = null,
     val window: Window? = null,
 ) {
+
+    data class FormatStyle(
+        val path: String,
+        val layerId: String?,
+    )
 
     data class Place(
         val lat: Double,
@@ -47,6 +55,10 @@ data class Session(
         mapPath?.let { props["map"] = it }
         stylePath?.let { props["style"] = it }
         layerId?.let { props["layer"] = it }
+        for ((driverId, style) in formatStyles) {
+            props["style.$driverId"] = style.path
+            style.layerId?.let { props["layer.$driverId"] = it }
+        }
         props["textScale"] = textScale.toString()
         props["tileSize"] = tileSize.toString()
         props["threads"] = threads.toString()
@@ -74,6 +86,8 @@ data class Session(
          * Tile sizes the viewer offers.
          */
         val TILE_SIZES = listOf(256, 512)
+
+        private const val FORMAT_STYLE_PREFIX = "style."
 
         /**
          * `~/.kmp-vector-maps/viewer.properties`, shared by every checkout.
@@ -116,10 +130,17 @@ data class Session(
             val window = props.getProperty("window")?.split(',')?.mapNotNull { it.toIntOrNull() }
                 ?.takeIf { it.size == 4 && it[2] > 0 && it[3] > 0 }
                 ?.let { Window(x = it[0], y = it[1], width = it[2], height = it[3]) }
+            val formatStyles = props.stringPropertyNames()
+                .filter { it.startsWith(FORMAT_STYLE_PREFIX) }
+                .associate { key ->
+                    val driverId = key.removePrefix(FORMAT_STYLE_PREFIX)
+                    driverId to FormatStyle(path = props.getProperty(key), layerId = props.getProperty("layer.$driverId"))
+                }
             return Session(
                 mapPath = props.getProperty("map"),
                 stylePath = props.getProperty("style"),
                 layerId = props.getProperty("layer"),
+                formatStyles = formatStyles,
                 textScale = props.getProperty("textScale")?.toFloatOrNull()
                     ?.takeIf { it.isFinite() && it > 0f }
                     ?: defaults.textScale,
