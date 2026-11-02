@@ -5,8 +5,10 @@ render pipeline and viewer shared by every format.
 
 ## Status
 
-**Pre-release.** Mapsforge 0.30.0 render subset vendored unchanged, golden corpus green, desktop and
-Android viewers running. Not published yet. Milestones: [docs/ROADMAP.md](docs/ROADMAP.md).
+**Pre-release.** Mapsforge 0.30.0 render subset converted to Kotlin (M5; differences in
+[docs/upstream.md](docs/upstream.md)); golden corpus green, desktop and Android viewers running. Not
+published yet.
+Milestones: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 | Format | State |
 |---|---|
@@ -20,21 +22,22 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 
 - **`:core`** — format-neutral driver interface, registry, styles, render configuration
   (Apache-2.0). `./gradlew :core:test`.
-- **`:formats:mapsforge:legacy:core`**, **`:map`**, **`:map-reader`** — vendored Mapsforge,
-  platform-independent Java.
-- **`:formats:mapsforge:legacy:map-android`**, **`:map-awt`** — vendored graphics backends.
-  `legacy/` goes once the Kotlin conversion replaces it.
+- **`:formats:mapsforge:engine`** — vendored Mapsforge 0.30.0 in Kotlin (M5), platform-independent:
+  model, `.map` reader, renderer, labels, theme engine. `./gradlew :formats:mapsforge:engine:test`.
+- **`:formats:mapsforge:android`**, **`:awt`** — its graphics backends, also Kotlin.
 - **`:formats:mapsforge:driver`** — the `:core` driver over the vendored Mapsforge; the host
   passes its `GraphicFactory`. `./gradlew :formats:mapsforge:driver:test`.
-- **`:formats:mapsforge:golden`** — pixel-exact render comparison against upstream 0.30.0.
-  `./gradlew :formats:mapsforge:golden:test`.
+- **`:dev:mapsforge:golden`** — pixel-exact render comparison against upstream 0.30.0.
+  `./gradlew :dev:mapsforge:golden:test`.
 - **`:dev:bench`** — JMH benchmarks per render stage. `./gradlew :dev:bench:jmh`, another map with
   `-Pbench.mapFile=<path>`.
 - **`:dev:bench:android`** — the same on a device (`androidx.benchmark`),
   `./gradlew :dev:bench:android:connectedReleaseAndroidTest`; also the M5 soak `SoakTest`, skipped
   unless run alone with
   `-Pandroid.testInstrumentationRunnerArguments.class=com.asamm.vectormaps.bench.android.SoakTest
-  -Pandroid.testInstrumentationRunnerArguments.soak.minutes=<n>`.
+  -Pandroid.testInstrumentationRunnerArguments.soak.minutes=<n>`; `PaintCostTest`, heap per
+  Paint, likewise with `...class=com.asamm.vectormaps.bench.android.PaintCostTest` and
+  `-Pandroid.testInstrumentationRunnerArguments.bench.paintCost=true`.
 - **`:viewer:desktop`** — Compose Desktop dev tool for every registered format; restores the last
   session. `./gradlew :viewer:desktop:run`.
 - **`:viewer:android`** — minimal Android dev tool. `./gradlew :viewer:android:installDebug`.

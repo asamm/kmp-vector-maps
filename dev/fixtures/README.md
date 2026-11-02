@@ -1,6 +1,6 @@
 # Fixtures
 
-Test data shared by the golden corpus (`formats/mapsforge/golden*`), the benchmarks and both
+Test data shared by the golden corpus (`dev/mapsforge/golden*`), the benchmarks and both
 viewers.
 
 | Path | Content | Source | Licence |

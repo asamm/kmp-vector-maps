@@ -18,7 +18,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
-import org.mapsforge.map.awt.graphics.AwtGraphicFactory
+import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
 import java.io.File

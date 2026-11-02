@@ -6,8 +6,8 @@ package com.asamm.vectormaps.viewer
 
 import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
+import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import kotlinx.coroutines.runBlocking
-import org.mapsforge.map.awt.graphics.AwtGraphicFactory
 import java.io.File
 import java.util.Properties
 import javax.imageio.ImageIO

@@ -17,7 +17,8 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 | Core | `core/` | driver interface, styles, tiles, `RenderTarget`, anchors, label placement | Apache-2.0 |
 | Backends | `render/{android,skia,awt}` | Android `Canvas`; Skia via Skiko (desktop); AWT for upstream parity only | Apache-2.0 |
 | Host API | `android/` | Locus-facing facade on `android.graphics` types | Apache-2.0 |
-| Formats | `formats/<format>/` | one driver each, plus its golden set | per format |
+| Formats | `formats/<format>/` | one driver each; shipped code only | per format |
+| Golden tests | `dev/<format>/` | pixel tests of a format against its reference renderer | per format |
 | Tools | `viewer/` (M3.3), `dev/bench/` | written once for every driver | Apache-2.0 |
 
 - Libraries are **Kotlin/JVM**: `java.*` allowed, `android.*` only in Android modules. The M3.3
@@ -44,7 +45,8 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 - **Cancellation** is checked before drawing and, where the format allows, between draw-list
   steps; it never leaves label state half-filled.
 - **No globals:** scales and tile size travel in each renderer's `RenderConfig` (Mapsforge
-  `DisplayModel`, `Parameters`).
+  `DisplayModel`, `Parameters`); safety limits, the Android tile bitmap format and device
+  workarounds stay global (D28).
 
 ## Android host API
 
@@ -112,6 +114,7 @@ anchors, each with a per-format default.
   shaders) and wraps a host-supplied canvas or bitmap; Garmin's two-pass borders and patterns
   become a small painter on top. Until a driver draws through it (M4.2), it only carries the size;
   each driver defines target types over its own graphics (Mapsforge: `TileBitmapTarget`, which
-  receives the bitmap Mapsforge allocates until M5), and the host hands the driver its backend
+  receives the bitmap Mapsforge allocates until M8.1), and the host hands the driver its backend
   when it builds the registry.
-- Paint caching belongs to the renderer, not to a zoom level (locus-core F2/F3).
+- Paint caches belong to the theme and are bounded to a window of 4 zoom levels, the zoom of
+  each rendering job held (D29, locus-core F2/F3).

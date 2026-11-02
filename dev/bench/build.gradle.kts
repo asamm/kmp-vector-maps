@@ -13,7 +13,7 @@ kotlin {
 }
 
 dependencies {
-    jmh(project(":formats:mapsforge:legacy:map-awt"))
+    jmh(project(":formats:mapsforge:awt"))
 }
 
 val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures").asFile

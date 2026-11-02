@@ -11,12 +11,12 @@ import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.RenderKey
 import com.asamm.vectormaps.core.StyleSelection
-import org.mapsforge.map.datastore.MapDataStore
-import org.mapsforge.map.datastore.MultiMapDataStore
-import org.mapsforge.map.layer.labels.TileBasedLabelStore
-import org.mapsforge.map.model.DisplayModel
-import org.mapsforge.map.rendertheme.ExternalRenderTheme
-import org.mapsforge.map.rendertheme.rule.RenderThemeFuture
+import com.asamm.vectormaps.mapsforge.map.datastore.MapDataStore
+import com.asamm.vectormaps.mapsforge.map.datastore.MultiMapDataStore
+import com.asamm.vectormaps.mapsforge.map.layer.labels.TileBasedLabelStore
+import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
+import com.asamm.vectormaps.mapsforge.map.rendertheme.ExternalRenderTheme
+import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import java.io.File
 
 /**
@@ -68,8 +68,8 @@ class MapsforgeDataset internal constructor(
 
     /**
      * Opens the readers and compiles the theme; the device scale goes into the renderer's own
-     * `DisplayModel`, so the JVM-wide Mapsforge device scale must stay 1. Throws when the theme file
-     * changed since [MapsforgeDriver.loadStyle]: load the style again.
+     * `DisplayModel`, whatever the Mapsforge statics hold. Throws when the theme file changed since
+     * [MapsforgeDriver.loadStyle]: load the style again.
      */
     override fun createRenderer(
         style: MapStyle,
@@ -82,13 +82,17 @@ class MapsforgeDataset internal constructor(
         check(style.file.lastModified() == style.lastModified) {
             "createRenderer(), ${style.file} changed since loadStyle"
         }
-        check(DisplayModel.getDeviceScaleFactor() == 1.0f) {
-            "createRenderer(), Mapsforge device scale ${DisplayModel.getDeviceScaleFactor()}, " +
-                "expected 1; pass it as RenderConfig.deviceScale"
-        }
         // same order as a plain Mapsforge setup, which the golden test compares against
         val displayModel = DisplayModel()
-        displayModel.setUserScaleFactor(config.deviceScale)
+        // new models copy the Mapsforge statics; AndroidGraphicFactory sets the device scale
+        displayModel.deviceScale = 1.0f
+        displayModel.lineScaleFactor = 1.0f
+        displayModel.symbolScaleFactor = 1.0f
+        displayModel.textScaleFactor = 1.0f
+        // closed ways at every zoom, the upstream default, whatever the Mapsforge statics hold
+        displayModel.polygonZoomMin = -1
+        displayModel.antiAliasing = true
+        displayModel.userScaleFactor = config.deviceScale
         displayModel.setFixedTileSize(config.tileSizePx)
         // larger text wraps later, as in Locus
         displayModel.setMaxTextWidthFactor(MAX_TEXT_WIDTH_FACTOR * config.textScale)

@@ -27,11 +27,11 @@ import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.TileBitmapTarget
+import com.asamm.vectormaps.mapsforge.core.graphics.TileBitmap
+import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
 import com.asamm.vectormaps.viewer.TileEngine
 import com.asamm.vectormaps.viewer.TileImages
 import com.asamm.vectormaps.viewer.Viewport
-import org.mapsforge.core.graphics.TileBitmap
-import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 import java.io.File
 
 /**
@@ -215,7 +215,7 @@ class MapView(
             val top = vp.screenY(tile.y, height)
             val bitmap = engine[tile]
             if (bitmap != null) {
-                canvas.drawBitmap(AndroidGraphicFactory.getBitmap(bitmap), left, top, null)
+                canvas.drawBitmap(AndroidGraphicFactory.getBitmap(bitmap)!!, left, top, null)
             } else {
                 canvas.drawRect(left + 1f, top + 1f, left + size - 1f, top + size - 1f, missingPaint)
             }

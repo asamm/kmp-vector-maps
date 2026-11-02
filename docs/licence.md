@@ -9,7 +9,7 @@ the legal check is locus-core plan Q1.
 
 | Part | Licence |
 |---|---|
-| `formats/mapsforge/**`, including its Kotlin conversion | LGPL-3.0-or-later + §4(d)/(e) waiver |
+| `formats/mapsforge/**`, including its Kotlin conversion, and its golden tests `dev/mapsforge/**` | LGPL-3.0-or-later + §4(d)/(e) waiver |
 | `core/`, `render/`, `android/`, `dev/bench/`, `viewer/` (written fresh) | Apache-2.0 (D19) |
 | `formats/garmin-img/` (M4) | LGPL-2.1, -only or -or-later open (Q13) |
 | Fixtures | per [dev/fixtures/README.md](../dev/fixtures/README.md): ODbL map data, Apache-2.0 theme |
@@ -25,17 +25,20 @@ the legal check is locus-core plan Q1.
 |---|---|
 | Licence | LGPL-3.0-or-later (headers, `COPYING.LESSER`) |
 | Waiver | §4(d) and §4(e), upstream `README.md` only, commit `c78c1d79` (2018-10-31) |
-| Headers | 176 of 177 vendored files; `TileDependencies.java` has none upstream |
+| Headers | all 157 vendored files (177 in M0, 20 hillshading files removed, C5, C6); `TileDependencies` has none upstream, so since M5.4b it carries only the Asamm line and the SPDX identifier |
 | Dependencies | androidsvg Apache-2.0; kxml2 BSD + public domain; svgSalamander BSD (1.1.3 POM) |
-| Embedded code | `TextStroke.java` and parts of `LatLongUtils.java`: Apache-2.0 |
+| Embedded code | `TextStroke.kt` and the libGDX-marked parts of `LatLongUtils.kt`: Apache-2.0 |
 
 - The waiver is a GPL-3.0 §7 additional permission a redistributor may drop, so this repo carries
   it in [LICENSE.md](../LICENSE.md) and grants it for Asamm's changes.
 - A Kotlin translation is a modification (GPL-3.0 §0): the converted code stays LGPL-3.0-or-later.
   Relicensing needs every copyright holder; only a clean-room rewrite (rejected O4) escapes it.
 - Open (Q14): 40 of 66 upstream authors committed only before the waiver; vendored headers name
-  mapsforge.org (122 files) and Ludwig M Brinckmann (75 files), counted with
-  `git ls-files 'formats/mapsforge/legacy/*.java' | xargs grep -l 'Copyright.*<name>' | wc -l`.
+  mapsforge.org (122 files) and Ludwig M Brinckmann (75 files), counted with:
+
+  ```sh
+  git ls-files 'formats/mapsforge/engine/*.kt' 'formats/mapsforge/android/*.kt' 'formats/mapsforge/awt/*.kt' | xargs grep -l 'Copyright.*<name>' | wc -l
+  ```
 
 ## Obligations of this repo
 

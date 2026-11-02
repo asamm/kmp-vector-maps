@@ -10,9 +10,10 @@ import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
-import org.mapsforge.map.awt.graphics.AwtGraphicFactory
-import org.mapsforge.map.model.DisplayModel
-import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu
+import com.asamm.vectormaps.mapsforge.core.util.Parameters
+import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
+import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
+import com.asamm.vectormaps.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu
 import java.io.File
 import java.io.IOException
 import kotlin.io.path.createTempFile
@@ -232,17 +233,53 @@ class MapsforgeDriverTest {
     }
 
     @Test
-    fun createRendererRefusesGlobalDeviceScale() {
+    fun createRendererIgnoresGlobalDeviceScale() {
         val original = DisplayModel.getDeviceScaleFactor()
+        val originalLineScale = DisplayModel.lineScale
+        val originalSymbolScale = DisplayModel.symbolScale
+        val originalTextScale = DisplayModel.textScale
         DisplayModel.setDeviceScaleFactor(2.0f)
+        DisplayModel.lineScale = 2.0f
+        DisplayModel.symbolScale = 2.0f
+        DisplayModel.textScale = 2.0f
         try {
             driver.open(listOf(monaco)).use { dataset ->
-                assertFailsWith<IllegalStateException> {
-                    dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, config)
+                dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, config).use { renderer ->
+                    assertEquals(config.deviceScale, renderer.displayModel.scaleFactor)
+                    assertEquals(1.0f, renderer.displayModel.lineScaleFactor)
+                    assertEquals(1.0f, renderer.displayModel.symbolScaleFactor)
+                    assertEquals(1.0f, renderer.displayModel.textScaleFactor)
                 }
             }
         } finally {
             DisplayModel.setDeviceScaleFactor(original)
+            DisplayModel.lineScale = originalLineScale
+            DisplayModel.symbolScale = originalSymbolScale
+            DisplayModel.textScale = originalTextScale
+        }
+    }
+
+    @Test
+    fun createRendererIgnoresGlobalParameters() {
+        val originalZoomMin = Parameters.POLYGON_ZOOM_MIN
+        val originalThreads = Parameters.NUMBER_OF_THREADS
+        val originalAntiAliasing = Parameters.ANTI_ALIASING
+        Parameters.POLYGON_ZOOM_MIN = 20
+        Parameters.ANTI_ALIASING = false
+        // a value the renderer's parallelism cannot have
+        Parameters.NUMBER_OF_THREADS = Runtime.getRuntime().availableProcessors() + 7
+        try {
+            driver.open(listOf(monaco)).use { dataset ->
+                dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, config).use { renderer ->
+                    assertEquals(-1, renderer.displayModel.polygonZoomMin)
+                    assertTrue(renderer.displayModel.antiAliasing)
+                    assertEquals(renderer.maxParallelism, renderer.displayModel.numberOfThreads)
+                }
+            }
+        } finally {
+            Parameters.POLYGON_ZOOM_MIN = originalZoomMin
+            Parameters.NUMBER_OF_THREADS = originalThreads
+            Parameters.ANTI_ALIASING = originalAntiAliasing
         }
     }
 
@@ -264,7 +301,7 @@ class MapsforgeDriverTest {
         }
     }
 
-    private fun TileRequest.toMapsforge(): org.mapsforge.core.model.Tile {
-        return org.mapsforge.core.model.Tile(x, y, zoom.toByte(), 256)
+    private fun TileRequest.toMapsforge(): com.asamm.vectormaps.mapsforge.core.model.Tile {
+        return com.asamm.vectormaps.mapsforge.core.model.Tile(x, y, zoom.toByte(), 256)
     }
 }

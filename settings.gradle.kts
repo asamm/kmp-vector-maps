@@ -41,18 +41,17 @@ rootProject.name = "kmp-vector-maps"
 // format-neutral core: driver interface, styles, render configuration
 include(":core")
 
-// Mapsforge format: vendored upstream (legacy/, removed after the Kotlin migration), driver and
-// golden corpus
-include(":formats:mapsforge:legacy:core")
-include(":formats:mapsforge:legacy:map")
-include(":formats:mapsforge:legacy:map-reader")
-include(":formats:mapsforge:legacy:map-android")
-include(":formats:mapsforge:legacy:map-awt")
+// Mapsforge format: the vendored engine and its Android and AWT graphics (Kotlin since M5), driver
+include(":formats:mapsforge:engine")
+include(":formats:mapsforge:android")
+include(":formats:mapsforge:awt")
 include(":formats:mapsforge:driver")
-include(":formats:mapsforge:golden")
-include(":formats:mapsforge:golden-upstream")
-include(":formats:mapsforge:golden-android")
-include(":formats:mapsforge:golden-android-upstream")
+
+// Mapsforge golden corpus: pixel tests against upstream 0.30.0, not published
+include(":dev:mapsforge:golden")
+include(":dev:mapsforge:golden-upstream")
+include(":dev:mapsforge:golden-android")
+include(":dev:mapsforge:golden-android-upstream")
 
 // benchmarks
 include(":dev:bench")

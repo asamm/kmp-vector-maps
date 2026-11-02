@@ -1,5 +1,5 @@
 /*
- * Mapsforge driver: the `:core` driver interface over the vendored Mapsforge Java. Takes the
+ * Mapsforge driver: the `:core` driver interface over the vendored Mapsforge engine. Takes the
  * graphics backend (AWT, Android) from the host as a Mapsforge `GraphicFactory`.
  */
 plugins {
@@ -12,8 +12,8 @@ kotlin {
 
 dependencies {
     api(project(":core"))
-    api(project(":formats:mapsforge:legacy:map-reader"))
-    testImplementation(project(":formats:mapsforge:legacy:map-awt"))
+    api(project(":formats:mapsforge:engine"))
+    testImplementation(project(":formats:mapsforge:awt"))
     testImplementation(kotlin("test-junit5"))
 }
 
