@@ -12,8 +12,10 @@ import com.asamm.vectormaps.core.TileRequest
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.render.ImgRenderer
 import com.asamm.vectormaps.garminimg.render.RenderTarget
-import com.asamm.vectormaps.garminimg.render.StyleResolver
 import com.asamm.vectormaps.garminimg.render.Viewport
+import com.asamm.vectormaps.garminimg.utils.io.ImgRandomAccessReader
+import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.PI
 import kotlin.math.atan
@@ -21,25 +23,31 @@ import kotlin.math.sinh
 import com.asamm.vectormaps.core.RenderTarget as CoreRenderTarget
 
 /**
- * Renders through the engine's `ImgRenderer` into [GarminTileTarget]s, one tile at a time: the
- * engine reads through shared positions until M4.3. Labels stop at the tile edge until M6.1.
+ * Renders through the engine's `ImgRenderer` into [GarminTileTarget]s, up to one tile per core at
+ * once: each worker reads the shared parsed map through its own readers and resolves styles with
+ * its own cache and 3–4 open file handles; workers are kept until [close], so a renderer holds up to
+ * about 4 × [maxParallelism] handles. Labels stop at the tile edge until
+ * M6.1. [close] waits for running renders, so it must not be called from inside [render].
  */
 class GarminRenderer internal constructor(
     override val key: RenderKey,
-    private val img: ImgFile,
-    styleResolver: StyleResolver,
+    private val parsed: ImgFile,
+    private val openReader: () -> ImgRandomAccessReader,
+    private val style: GarminStyle,
     private val canvasFactory: GarminCanvasFactory,
     private val options: GarminOptions,
     private val bounds: GeoBounds,
 ) : MapRenderer {
 
-    override val maxParallelism: Int = 1
+    override val maxParallelism: Int = Runtime.getRuntime().availableProcessors()
 
-    private val lock = Any()
+    private val permits = Semaphore(maxParallelism)
 
     private val closed = AtomicBoolean(false)
 
-    private val renderer = ImgRenderer(img, styleResolver)
+    private val idle = ConcurrentLinkedQueue<Worker>()
+
+    private val workers = ConcurrentLinkedQueue<Worker>()
 
     override fun render(tile: TileRequest, target: CoreRenderTarget, isCancelled: () -> Boolean): RenderResult {
         require(target is GarminTileTarget) {
@@ -49,7 +57,8 @@ class GarminRenderer internal constructor(
         require(target.widthPx == tileSize) {
             "render(), target ${target.widthPx} px, tile $tileSize px"
         }
-        synchronized(lock) {
+        permits.acquireUninterruptibly()
+        try {
             check(!closed.get()) {
                 "render($tile), renderer closed"
             }
@@ -64,33 +73,61 @@ class GarminRenderer internal constructor(
             ) {
                 return RenderResult.EMPTY
             }
-            val canvas = canvasFactory.create(
-                sizePx = tileSize,
-                antiAliased = options.antiAliasing,
-                renderScale = key.config.deviceScale,
-            )
-            renderer.render(
-                viewport = viewport,
-                target = canvas,
-                objectKindFilter = options.objectKinds,
-                level = options.level,
-            )
-            target.canvas = canvas
-            return RenderResult.DRAWN
+            val worker = idle.poll() ?: newWorker()
+            try {
+                val canvas = canvasFactory.create(
+                    sizePx = tileSize,
+                    antiAliased = options.antiAliasing,
+                    renderScale = key.config.deviceScale,
+                )
+                worker.renderer.render(
+                    viewport = viewport,
+                    target = canvas,
+                    objectKindFilter = options.objectKinds,
+                    level = options.level,
+                )
+                target.canvas = canvas
+                return RenderResult.DRAWN
+            } finally {
+                idle.add(worker)
+            }
+        } finally {
+            permits.release()
         }
     }
 
-    /**
-     * Renders queued behind a running one fail once it ends; waits for that one.
-     */
     override fun close() {
         if (!closed.compareAndSet(false, true)) {
             return
         }
-        synchronized(lock) {
-            img.close()
+        // waits for running renders; later ones fail the closed check
+        permits.acquireUninterruptibly(maxParallelism)
+        try {
+            for (worker in workers) {
+                worker.img.close()
+            }
+        } finally {
+            permits.release(maxParallelism)
         }
     }
+
+    // created under a permit, so close never misses one
+    private fun newWorker(): Worker {
+        val img = parsed.reopen(openReader)
+        try {
+            val worker = Worker(img = img, renderer = ImgRenderer(img, style.resolver(img)))
+            workers.add(worker)
+            return worker
+        } catch (e: Throwable) {
+            img.close()
+            throw e
+        }
+    }
+
+    private class Worker(
+        val img: ImgFile,
+        val renderer: ImgRenderer,
+    )
 
     private fun viewportOf(tile: TileRequest, sizePx: Int): Viewport {
         val n = (1 shl tile.zoom).toDouble()
@@ -111,7 +148,7 @@ class GarminRenderer internal constructor(
 
 /**
  * Creates the engine canvas a tile is drawn into, such as `AwtRenderTarget` or
- * `AndroidRenderTarget`.
+ * `AndroidRenderTarget`; called from up to `maxParallelism` render threads at once.
  */
 fun interface GarminCanvasFactory {
 

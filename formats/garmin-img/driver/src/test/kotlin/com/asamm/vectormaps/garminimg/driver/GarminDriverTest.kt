@@ -17,8 +17,10 @@ import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
 import com.asamm.vectormaps.garminimg.utils.io.FileImgRandomAccessReader
 import java.awt.image.BufferedImage
 import java.io.File
+import java.util.concurrent.Executors
 import kotlin.io.path.createTempFile
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
@@ -130,6 +132,36 @@ class GarminDriverTest {
     }
 
     @Test
+    fun parallelRendersMatchSequentialOnes() {
+        // the harbour quarter at z16, 16 tiles
+        val tiles = (0 until 4).flatMap { dx -> (0 until 4).map { dy -> TileRequest(x = 34116 + dx, y = 23896 + dy, zoom = 16) } }
+        driver.open(listOf(otm)).use { dataset ->
+            val style = dataset.styles[0]
+            val sequential = tiles.associateWith { pixels(render(dataset, style, it)) }
+            dataset.createRenderer(style, StyleSelection.DEFAULT, config).use { renderer ->
+                assertTrue(renderer.maxParallelism > 1 || Runtime.getRuntime().availableProcessors() == 1)
+                val pool = Executors.newFixedThreadPool(renderer.maxParallelism)
+                try {
+                    // every tile twice, so workers are reused across tiles
+                    val futures = (tiles + tiles).map { tile ->
+                        pool.submit<Pair<TileRequest, IntArray>> {
+                            val target = GarminTileTarget(256)
+                            assertEquals(RenderResult.DRAWN, renderer.render(tile, target) { false })
+                            tile to pixels((target.canvas as AwtRenderTarget).image)
+                        }
+                    }
+                    for (future in futures) {
+                        val (tile, actual) = future.get()
+                        assertContentEquals(sequential.getValue(tile), actual, "tile $tile")
+                    }
+                } finally {
+                    pool.shutdown()
+                }
+            }
+        }
+    }
+
+    @Test
     fun rejectsUnsupportedSetups() {
         driver.open(listOf(otm)).use { dataset ->
             val foreign = object : MapStyle {
@@ -181,6 +213,25 @@ class GarminDriverTest {
 
                 assertFailsWith<IllegalStateException> {
                     dataset.createRenderer(dataset.styles[0], StyleSelection.DEFAULT, config)
+                }
+            }
+        } finally {
+            copy.delete()
+        }
+    }
+
+    @Test
+    fun workerRejectsMapChangedAfterTheRenderer() {
+        val copy = createTempFile(suffix = ".img").toFile()
+        try {
+            otm.copyTo(copy, overwrite = true)
+            driver.open(listOf(copy)).use { dataset ->
+                dataset.createRenderer(dataset.styles[0], StyleSelection.DEFAULT, config).use { renderer ->
+                    copy.setLastModified(copy.lastModified() + 2_000)
+
+                    assertFailsWith<IllegalStateException> {
+                        renderer.render(harbour, GarminTileTarget(256)) { false }
+                    }
                 }
             }
         } finally {
@@ -250,6 +301,10 @@ class GarminDriverTest {
             assertEquals(RenderResult.DRAWN, renderer.render(tile, target) { false })
             return (target.canvas as AwtRenderTarget).image
         }
+    }
+
+    private fun pixels(image: BufferedImage): IntArray {
+        return image.getRGB(0, 0, image.width, image.height, null, 0, image.width)
     }
 
     private fun colourCount(image: BufferedImage): Int {

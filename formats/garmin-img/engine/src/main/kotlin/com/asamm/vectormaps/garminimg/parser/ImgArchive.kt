@@ -16,7 +16,8 @@ import com.asamm.vectormaps.garminimg.utils.io.ImgRandomAccessReader
  * enumerates the FAT directory. Sub-file content parsing (TRE, RGN, LBL, NET, TYP)
  * lives in dedicated readers built on top of this entry point.
  *
- * The reader is single-threaded; callers serialise access externally.
+ * Immutable after [open], so threads may share it; the readers passed to [open] and
+ * [openSubFile] are single-threaded.
  *
  * # On-disk layout (unencrypted IMG)
  * - `0x00..0x07` — eight bytes; first byte is `0x00` for unencrypted maps. The Java

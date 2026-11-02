@@ -45,13 +45,11 @@ import com.asamm.vectormaps.garminimg.parser.TypSubFile
  * # Threading
  *
  * **One `ImgFile` per worker thread.** Each [ImgRandomAccessReader] tracks
- * its own logical position; passing one instance per sub-file lets the
- * parser read three sub-files concurrently within a single `ImgFile`,
- * but two threads driving the *same* `ImgFile` (e.g. two
- * [com.asamm.vectormaps.garminimg.render.ImgRenderer]s sharing one file)
- * race on the sub-file readers' seek positions and silently produce
- * garbled output. Locus's tile-worker pool needs one open `ImgFile`
- * per worker, or serialised calls.
+ * its own logical position, so two threads driving the *same* `ImgFile`
+ * race on the seek positions and silently produce garbled output. Give
+ * each worker its own copy with [reopen]: it shares the parsed headers,
+ * sub-division tree and TYP, which are read-only, and reads through its
+ * own readers.
  *
  * @param typStyles parsed TYP body — `(type, subType)` → resolved styles for the polygon and
  *   line sections. Populated when the IMG has a TYP sub-file and its body parses successfully;
@@ -73,6 +71,8 @@ class ImgFile internal constructor(
      * manage the readers themselves.
      */
     private val ownedReaders: List<ImgRandomAccessReader> = emptyList(),
+    // shared with the reopened copies, so the tree is indexed once per parsed map
+    private val levelIndex: LevelIndex = LevelIndex(tre.tree),
 ) : AutoCloseable {
 
     /**
@@ -82,13 +82,38 @@ class ImgFile internal constructor(
      * close is idempotent (the file-backed reader's is).
      */
     override fun close() {
-        for (reader in ownedReaders) {
-            try {
-                reader.close()
-            } catch (_: Throwable) {
-                // Continue closing the rest; surface the first failure
-                // is more trouble than it's worth when releasing.
+        closeQuietly(ownedReaders)
+    }
+
+    /**
+     * A copy reading through new readers from `byteSourceFactory`, which shares this file's parsed
+     * headers, sub-division tree and TYP; closing either closes only its own readers.
+     */
+    fun reopen(byteSourceFactory: () -> ImgRandomAccessReader): ImgFile {
+        val owned = mutableListOf<ImgRandomAccessReader>()
+        try {
+            fun subFile(type: String): ImgRandomAccessReader {
+                val entry = archive.findFirst(type) ?: error("IMG has no $type sub-file")
+                return archive.openSubFile(entry, byteSourceFactory().also { owned += it })
             }
+            val treReader = subFile("TRE")
+            val rgnReader = subFile("RGN")
+            val lblReader = subFile("LBL")
+            val netData = net?.let { NetData(reader = subFile("NET"), header = it.header) }
+            return ImgFile(
+                archive = archive,
+                tre = TreData(reader = treReader, header = tre.header, levels = tre.levels, tree = tre.tree),
+                rgn = RgnData(reader = rgnReader, header = rgn.header),
+                lbl = LblData(reader = lblReader, header = lbl.header),
+                net = netData,
+                typ = typ,
+                typStyles = typStyles,
+                ownedReaders = owned,
+                levelIndex = levelIndex,
+            )
+        } catch (e: Throwable) {
+            closeQuietly(owned)
+            throw e
         }
     }
 
@@ -194,39 +219,16 @@ class ImgFile internal constructor(
     }
 
     /**
-     * True when the sub-division has at least one byte of data the renderer
-     * could draw — either plain (POINT / POLYLINE / POLYGON) or extended
-     * (TRE7 polygon / polyline / POI). Extended-only sub-divisions have
-     * `objectTypes == 0` because that byte only encodes the four plain
-     * kinds; we still need to descend into them to read buildings &
-     * friends.
-     */
-    private fun subDivisionHasAnyData(sd: SubDivision): Boolean {
-        if (sd.objectTypes != 0) {
-            return true
-        }
-        return sd.extendedPolygonEnd > sd.extendedPolygonOffset ||
-            sd.extendedPolylineEnd > sd.extendedPolylineOffset ||
-            sd.extendedPoiEnd > sd.extendedPoiOffset
-    }
-
-    /**
      * Levels that have at least one sub-division in the tree, data or not.
      */
-    internal val materialisedLevels: Set<Int> by lazy {
-        tre.tree.all().mapTo(HashSet()) { it.level }
-    }
-
-    // tile renders query one level each; walking the whole tree per tile is the cost (PR #28)
-    private val subDivisionsWithDataByLevel: Map<Int, List<SubDivision>> by lazy {
-        tre.tree.all().filter { subDivisionHasAnyData(it) }.groupBy { it.level }
-    }
+    internal val materialisedLevels: Set<Int>
+        get() = levelIndex.materialisedLevels
 
     /**
      * Sub-divisions of `level` with drawable data, in tree order.
      */
     internal fun subDivisionsWithData(level: Int): List<SubDivision> {
-        return subDivisionsWithDataByLevel[level] ?: emptyList()
+        return levelIndex.withData(level)
     }
 
     private fun subDivisionIntersects(
@@ -377,13 +379,7 @@ class ImgFile internal constructor(
                     ownedReaders = owned,
                 )
             } catch (e: Throwable) {
-                for (reader in owned) {
-                    try {
-                        reader.close()
-                    } catch (_: Throwable) {
-                        // Original exception is the interesting one.
-                    }
-                }
+                closeQuietly(owned)
                 throw e
             }
         }
@@ -441,6 +437,52 @@ class ImgFile internal constructor(
                 typStyles = typStyles,
                 ownedReaders = ownedReaders,
             )
+        }
+    }
+}
+
+/**
+ * Indexes over a sub-division tree, built on first use and shared by an [ImgFile] and its
+ * [ImgFile.reopen] copies.
+ */
+internal class LevelIndex(private val tree: SubDivisionTree) {
+
+    val materialisedLevels: Set<Int> by lazy {
+        tree.all().mapTo(HashSet()) { it.level }
+    }
+
+    // tile renders query one level each; walking the whole tree per tile is the cost (PR #28)
+    private val withDataByLevel: Map<Int, List<SubDivision>> by lazy {
+        tree.all().filter { subDivisionHasAnyData(it) }.groupBy { it.level }
+    }
+
+    fun withData(level: Int): List<SubDivision> {
+        return withDataByLevel[level] ?: emptyList()
+    }
+}
+
+/**
+ * True when the sub-division has at least one byte of data the renderer could draw — either plain
+ * (POINT / POLYLINE / POLYGON) or extended (TRE7 polygon / polyline / POI). Extended-only
+ * sub-divisions have `objectTypes == 0` because that byte only encodes the four plain kinds; we
+ * still need to descend into them to read buildings & friends.
+ */
+private fun subDivisionHasAnyData(sd: SubDivision): Boolean {
+    if (sd.objectTypes != 0) {
+        return true
+    }
+    return sd.extendedPolygonEnd > sd.extendedPolygonOffset ||
+        sd.extendedPolylineEnd > sd.extendedPolylineOffset ||
+        sd.extendedPoiEnd > sd.extendedPoiOffset
+}
+
+// a failure closing one reader does not stop the others
+private fun closeQuietly(readers: List<ImgRandomAccessReader>) {
+    for (reader in readers) {
+        try {
+            reader.close()
+        } catch (_: Throwable) {
+            // keep closing the others
         }
     }
 }

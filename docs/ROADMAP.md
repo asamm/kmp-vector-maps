@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5 done; M4.1, M4.2a and M4.2b done (PRs #27–#29); M4.2c (Garmin golden
-through the driver) in review.** Next action: M4.3, parallel Garmin renders; M6 follows M4.
+**Status: M0–M3 and M5 done; M4.1 and M4.2 done (PRs #27–#30); M4.3a (parallel Garmin renders)
+in review.** Next action: M4.3b, multi-map Garmin files; M6 follows M4.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -203,8 +203,10 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 | M4.1 | Audit, then import with history: secrets and local paths (`local.properties`), fixture licences (OTM Monaco `.img` and TYP); headers to LGPL-2.1-or-later with SPDX, missing ones added; KMP → Kotlin/JVM; drop unused `kotlinx-io`, coroutines, `api` logger | ✅ PR #27, `c0a7b2e` |
 | M4.2a | Garmin driver (`formats/garmin-img/driver`): embedded TYP, built-in and `.typ` styles through `MapDataset.styles` and `loadStyle`; `GarminOptions` (anti-aliasing, kinds, TRE level); exact tile bounds | ✅ PR #28, `aa658a1` |
 | M4.2b | Desktop and Android viewers render Garmin maps, the desktop with anti-aliasing, kind toggles and TRE level; `.img` assets in the viewer APK | ✅ PR #29, `6bf158b` |
-| M4.2c | Garmin golden through the driver; the pixel test off Windows with a bundled font; the M4.1 leftovers below | 🔧 |
-| M4.3 | Positional reads → parallel renders; multi-map IMGs (today first map only) | ⬜ |
+| M4.2c | Garmin golden through the driver; the pixel test off Windows with a bundled font; the M4.1 leftovers below | ✅ PR #30, `a661dac` |
+| M4.3a | Parallel renders: the map parsed once per dataset, a worker per core with its own readers and style cache | 🔧 |
+| M4.3b | Multi-map IMGs (today first map only) and several `.img` per dataset; the nearest-finer level fallback | ⬜ |
+| M4.3c | The performance items below, measured against a benchmark baseline | ⬜ |
 | M4.4 | Measured label bounds, TYP night colours, text scale; TYP point icons and extended-type (`≥ 0x100`) polygon styles, both falling back to the internal styles today | ⬜ |
 
 - M4.1 audit (2026-11-02, all 53 commits): no secrets or keys, `local.properties` never committed,
@@ -236,32 +238,39 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   (`dev/fixtures/fonts/dejavu/`, `AwtRenderTarget(font = …)`), compared with committed PNGs on
   every system, 0.2 % of pixels allowed to differ; the Windows-only Monaco PNG is gone. The
   benchmark and the comparison sheet run with `-Pbench.garmin=true`.
-- Left for M4.3: nearest-finer level fallback, multi-byte reads through `ImgSubFileStream`,
-  sub-files matched to the TRE tile (multi-tile gmapsupp renders the first tile only), thread-safe
-  `typAware` cache, reusable render targets, POI metadata skipped when rendering, one projection
-  per polyline without a `FloatPair` per vertex, each sub-division frozen once, one sub-division overlap helper (`ImgRenderer`, `ImgFile`), label and coordinate
-  buffers without boxing, AWT icons cached as on Android, fewer allocations per label and pattern
-  on Android.
+- Left for M4.3b (multi-map): nearest-finer level fallback, sub-files matched to the TRE tile
+  (multi-tile gmapsupp renders the first tile only). Left for M4.3c (performance): multi-byte reads
+  through `ImgSubFileStream`, reusable render targets, POI metadata skipped when rendering, one
+  projection per polyline without a `FloatPair` per vertex, each sub-division frozen once, one
+  sub-division overlap helper (`ImgRenderer`, `ImgFile`), label and coordinate buffers without
+  boxing, AWT icons cached as on Android, fewer allocations per label and pattern on Android.
 - M4.2a as built: the host passes a `GarminCanvasFactory` (`AwtRenderTarget`, `AndroidRenderTarget`)
   and reads the canvas from `GarminTileTarget`; one `.img` per dataset (`addMap` adds nothing) and
-  one tile at a time (`maxParallelism` 1) until M4.3; in-tile labels only, cut at the tile edge
+  one tile at a time (`maxParallelism` 1) until M4.3a; in-tile labels only, cut at the tile edge
   until M6.1; `GarminOptions` stay outside `RenderKey`; the engine's `Viewport.ofDegrees` projects
   the exact tile bounds, as a Garmin unit (~2.4 m) shifts high-zoom tiles by pixels, and the level
-  pick reads that exact span. Edge strokes and icons stop at sub-division and map edges, and a
-  tile partly outside the map gets the opaque background (both engine behaviour, with the M6.1
-  labels). Review left for M4.3: a dataset's renderers share one parsed TRE tree and TYP instead
-  of each opening up to 5 readers and decoding the embedded TYP even for other styles; TYP patterns
-  are converted per tile, as each tile gets a new canvas. PR #28 review: materialised levels and
-  per-level sub-divisions cached per `ImgFile`; the map file checked against the time it was
-  opened.
+  pick reads that exact span. Edge strokes and icons stop at sub-division and map edges, and a tile
+  partly outside the map gets the opaque background (both engine behaviour, with the M6.1 labels).
+  Review left for M4.3: one parsed TRE tree and TYP per dataset instead of one per renderer (done in
+  M4.3a); TYP patterns are converted per tile, as each tile gets a new canvas. PR #28 review:
+  materialised levels and per-level sub-divisions cached per parsed map (shared by its `reopen`
+  copies since M4.3a); the map file checked against the time it was opened.
 - M4.2b as built: both viewers register the Garmin driver and start a map with its own first style
   (`MapDataset.styles`) when no style file of its format is open; the desktop style choice lists the
   map's styles next to the style files; the session keeps the last style file per format, which a
   map without styles of its own (Mapsforge) starts with; Reload keeps a map's own style and its
   Garmin settings, and a failing style file keeps its error. Building a renderer still runs on the
-  desktop UI thread and reopens the IMG on each Garmin setting (as the Mapsforge settings do).
+  desktop UI thread; since M4.3a a Garmin setting reuses the dataset's parsed map.
   Garmin controls are desktop only; the Android viewer has none, a Garmin map comes in by intent
   (MainActivity KDoc). Tiles outside a Garmin map are `EMPTY` and show as missing tiles.
+- M4.3a as built: the dataset parses the map once (headers, sub-division tree, TYP) and closes its
+  readers; each renderer keeps a worker per concurrent render, up to `maxParallelism` (the core
+  count), and every worker reads through an `ImgFile.reopen` copy with its own readers and its own
+  `typAware` cache; the tree's level index is built once and shared. Workers stay until `close`, so
+  a renderer holds up to about 4 × `maxParallelism` file handles (M4.3b and M8 hosts: count them). A
+  worker checks the file time before it opens the file. A test renders 16 tiles twice on that many
+  threads and compares them with sequential renders pixel by pixel; it fails when the workers share
+  one file.
 - Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons →
   M4.4; label collisions at level-pick boundaries → M6.1; Locus prefs from the helpdesk
   (label colour, line width and colour overrides, area/line/point toggles, per-type visibility,
