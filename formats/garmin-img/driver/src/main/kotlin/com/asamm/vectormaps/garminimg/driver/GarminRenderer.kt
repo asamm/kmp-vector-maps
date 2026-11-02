@@ -14,6 +14,8 @@ import com.asamm.vectormaps.garminimg.render.ImgRenderer
 import com.asamm.vectormaps.garminimg.render.RenderTarget
 import com.asamm.vectormaps.garminimg.render.Viewport
 import com.asamm.vectormaps.garminimg.utils.io.ImgRandomAccessReader
+import com.asamm.vectormaps.garminimg.render.StyleResolver
+import java.util.IdentityHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
@@ -23,20 +25,19 @@ import kotlin.math.sinh
 import com.asamm.vectormaps.core.RenderTarget as CoreRenderTarget
 
 /**
- * Renders through the engine's `ImgRenderer` into [GarminTileTarget]s, up to one tile per core at
- * once: each worker reads the shared parsed map through its own readers and resolves styles with
- * its own cache and 3–4 open file handles; workers are kept until [close], so a renderer holds up to
- * about 4 × [maxParallelism] handles. Labels stop at the tile edge until
+ * Renders all maps of its files through the engine's `ImgRenderer` into [GarminTileTarget]s, up to
+ * one tile per core at once: each worker reads the shared parsed maps through its own readers and
+ * resolves styles with its own caches. A worker holds 3–4 file handles per file, shared by that
+ * file's maps; workers are kept until [close], so a renderer holds up to about 4 × files ×
+ * [maxParallelism] handles. Labels stop at the tile edge until
  * M6.1. [close] waits for running renders, so it must not be called from inside [render].
  */
 class GarminRenderer internal constructor(
     override val key: RenderKey,
-    private val parsed: ImgFile,
-    private val openReader: () -> ImgRandomAccessReader,
+    private val sources: List<Source>,
     private val style: GarminStyle,
     private val canvasFactory: GarminCanvasFactory,
     private val options: GarminOptions,
-    private val bounds: GeoBounds,
 ) : MapRenderer {
 
     override val maxParallelism: Int = Runtime.getRuntime().availableProcessors()
@@ -66,11 +67,16 @@ class GarminRenderer internal constructor(
                 return RenderResult.CANCELLED
             }
             val viewport = viewportOf(tile, tileSize)
-            if (viewport.maxLonDeg <= bounds.minLon
-                || viewport.minLonDeg >= bounds.maxLon
-                || viewport.maxLatDeg <= bounds.minLat
-                || viewport.minLatDeg >= bounds.maxLat
-            ) {
+            // EMPTY only where no map lies, also between the maps of a dataset
+            val hasMap = sources.any { source ->
+                source.bounds.any { bounds ->
+                    viewport.maxLonDeg > bounds.minLon
+                        && viewport.minLonDeg < bounds.maxLon
+                        && viewport.maxLatDeg > bounds.minLat
+                        && viewport.minLatDeg < bounds.maxLat
+                }
+            }
+            if (!hasMap) {
                 return RenderResult.EMPTY
             }
             val worker = idle.poll() ?: newWorker()
@@ -104,7 +110,9 @@ class GarminRenderer internal constructor(
         permits.acquireUninterruptibly(maxParallelism)
         try {
             for (worker in workers) {
-                worker.img.close()
+                for (reader in worker.readers) {
+                    reader.close()
+                }
             }
         } finally {
             permits.release(maxParallelism)
@@ -113,19 +121,50 @@ class GarminRenderer internal constructor(
 
     // created under a permit, so close never misses one
     private fun newWorker(): Worker {
-        val img = parsed.reopen(openReader)
+        val readers = ArrayList<ImgRandomAccessReader>()
+        // the maps of a gmapsupp share one TYP: one style cache for all of them
+        val resolvers = IdentityHashMap<Any, StyleResolver>()
         try {
-            val worker = Worker(img = img, renderer = ImgRenderer(img, style.resolver(img)))
+            val layers = sources.flatMap { source ->
+                // one reader per sub-file type serves all maps of the file, one map at a time
+                val containers = HashMap<String, ImgRandomAccessReader>()
+                source.maps.map { parsed ->
+                    val map = parsed.reopenOn { type ->
+                        containers.getOrPut(type) { source.openReader().also { readers += it } }
+                    }
+                    val resolver = resolvers.getOrPut(map.typStyles ?: NO_TYP) { style.resolver(map) }
+                    ImgRenderer.Layer(img = map, styleResolver = resolver)
+                }
+            }
+            val worker = Worker(readers = readers, renderer = ImgRenderer(layers))
             workers.add(worker)
             return worker
         } catch (e: Throwable) {
-            img.close()
+            for (reader in readers) {
+                reader.close()
+            }
             throw e
         }
     }
 
+    /**
+     * One file of the renderer: its parsed maps with their bounds, and how to open a reader over
+     * the file.
+     */
+    internal class Source(
+        val maps: List<ImgFile>,
+        val bounds: List<GeoBounds>,
+        val openReader: () -> ImgRandomAccessReader,
+    )
+
+    private companion object {
+
+        // the resolver key of maps without a TYP
+        val NO_TYP = Any()
+    }
+
     private class Worker(
-        val img: ImgFile,
+        val readers: List<ImgRandomAccessReader>,
         val renderer: ImgRenderer,
     )
 

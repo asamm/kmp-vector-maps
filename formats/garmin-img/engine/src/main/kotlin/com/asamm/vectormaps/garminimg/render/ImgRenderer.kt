@@ -42,18 +42,33 @@ import kotlin.math.ln
  * # Thread-safety
  *
  * **Not thread-safe.** `render()` calls `seek()` on the shared
- * sub-file readers in [img], so two concurrent invocations on the same
+ * sub-file readers of its maps, so two concurrent invocations on the same
  * `ImgRenderer` — or two `ImgRenderer`s sharing one [ImgFile] — race
  * on the seek position and silently produce garbled tiles. Give each
- * worker thread its own renderer over an [ImgFile.reopen] copy.
+ * worker thread its own renderer over [ImgFile.reopen] or [ImgFile.reopenOn] copies.
  */
 class ImgRenderer(
-    private val img: ImgFile,
-    private val styleResolver: StyleResolver = StyleResolver.internalDefaults(),
+    private val layers: List<Layer>,
 ) {
 
     /**
-     * Renders the entire IMG into [target] using [viewport] for projection.
+     * Renders one map.
+     */
+    constructor(
+        img: ImgFile,
+        styleResolver: StyleResolver = StyleResolver.internalDefaults(),
+    ) : this(listOf(Layer(img = img, styleResolver = styleResolver)))
+
+    /**
+     * One map of a render with its styles; maps draw into one frame, sorted and labelled together.
+     */
+    class Layer(
+        val img: ImgFile,
+        val styleResolver: StyleResolver,
+    )
+
+    /**
+     * Renders every map into [target] using [viewport] for projection.
      *
      * @param viewport screen-pixel + Garmin-coord rectangle to render.
      * @param target receives every draw call.
@@ -81,15 +96,6 @@ class ImgRenderer(
         val labelScale = target.renderScale
         target.beginFrame(backgroundColor)
 
-        // Level-of-detail: pick the level whose detail best matches
-        // screen pixel resolution. Skipping finer levels at wide
-        // viewports drops noise (sub-division frames, over-detailed
-        // forests). If the picked level has no sub-divisions intersecting
-        // the viewport (some IMGs are sparse at the finest level outside
-        // the cartographer's chosen "detail area"), fall back to a
-        // coarser level that does have content.
-        val targetLevel = level ?: pickRenderLevelWithCoverage(viewport, img)
-
         // First pass: bucket every map object by kind. Polygons need to be
         // sorted by draw priority (TYP's DRAWORDER section, when present)
         // so background polygons paint first and small foreground features
@@ -97,24 +103,37 @@ class ImgRenderer(
         // own ordering is fine for those.
         val polygons = ArrayList<Pair<MapObject.PolyShape, Style.PolygonStyle>>()
         val polylines = ArrayList<Pair<MapObject.PolyShape, Style.LineStyle>>()
-        val points = ArrayList<MapObject.Point>()
+        val points = ArrayList<Pair<MapObject.Point, Style.PointStyle>>()
 
-        for (obj in img.readMapInBounds(
-            minLong = viewport.minLon,
-            maxLong = viewport.maxLon,
-            minLat = viewport.minLat,
-            maxLat = viewport.maxLat,
-            objectKindFilter = objectKindFilter,
-            levelFilter = targetLevel,
-        )) {
-            when (obj) {
-                is MapObject.Point -> points.add(obj)
-                is MapObject.PolyShape -> if (obj.closed) {
-                    val s = styleResolver.resolve(obj) as? Style.PolygonStyle ?: continue
-                    polygons.add(obj to s)
-                } else {
-                    val s = styleResolver.resolve(obj) as? Style.LineStyle ?: continue
-                    polylines.add(obj to s)
+        for (layer in layers) {
+            // a gmapsupp holds many maps; most miss a given tile
+            if (!intersects(layer.img, viewport)) {
+                continue
+            }
+            // Level-of-detail per map, whose levels are its own: the level matching the screen
+            // resolution, or the forced one where the map has it. A picked level without content in
+            // the viewport (sparse outside the cartographer's "detail area") falls back to the
+            // coarser levels, then the finer ones from the nearest.
+            val forced = level?.takeIf { l -> layer.img.tre.levels.levels.any { it.level == l } }
+            val targetLevel = forced ?: pickRenderLevelWithCoverage(viewport, layer.img)
+            for (obj in layer.img.readMapInBounds(
+                minLong = viewport.minLon,
+                maxLong = viewport.maxLon,
+                minLat = viewport.minLat,
+                maxLat = viewport.maxLat,
+                objectKindFilter = objectKindFilter,
+                levelFilter = targetLevel,
+            )) {
+                val style = layer.styleResolver.resolve(obj)
+                when (obj) {
+                    is MapObject.Point -> {
+                        points.add(obj to (style as? Style.PointStyle ?: continue))
+                    }
+                    is MapObject.PolyShape -> if (obj.closed) {
+                        polygons.add(obj to (style as? Style.PolygonStyle ?: continue))
+                    } else {
+                        polylines.add(obj to (style as? Style.LineStyle ?: continue))
+                    }
                 }
             }
         }
@@ -148,8 +167,8 @@ class ImgRenderer(
             drawPolylineCentre(poly, style, projection, target, labels, labelScale)
         }
 
-        for (point in points) {
-            drawPoint(point, projection, target, labels, labelScale)
+        for ((point, style) in points) {
+            drawPoint(point, style, projection, target, labels, labelScale)
         }
 
         // Second pass: emit non-overlapping labels in priority order so the
@@ -184,14 +203,24 @@ class ImgRenderer(
         target.endFrame()
     }
 
+    private fun intersects(img: ImgFile, viewport: Viewport): Boolean {
+        val header = img.tre.header
+        // an east boundary of 0x800000 (180°) reads as -0x800000
+        val east = if (header.eastBoundary == -0x800000) 0x800000 else header.eastBoundary
+        return header.westBoundary <= viewport.maxLon
+            && east >= viewport.minLon
+            && header.southBoundary <= viewport.maxLat
+            && header.northBoundary >= viewport.minLat
+    }
+
     private fun drawPoint(
         point: MapObject.Point,
+        style: Style.PointStyle,
         projection: Projection,
         target: RenderTarget,
         labels: LabelLayout,
         labelScale: Float,
     ) {
-        val style = styleResolver.resolve(point) as? Style.PointStyle ?: return
         val (x, y) = projection.project(point.longitude, point.latitude).run { x to y }
         if (!isOnScreen(x, y, target)) {
             return
@@ -498,8 +527,8 @@ class ImgRenderer(
 
         /**
          * Picks the LoD level *and* validates that the chosen level has
-         * sub-divisions intersecting the viewport. Steps progressively
-         * coarser when the first pick is sparse — this matters for IMGs
+         * sub-divisions intersecting the viewport. Steps coarser, then
+         * finer from the nearest, when the first pick is sparse — this matters for IMGs
          * (like OpenTopo Monaco) where the finest level only contains
          * data inside a narrow "detail area" smaller than the viewer's
          * tight bbox.
@@ -509,8 +538,7 @@ class ImgRenderer(
             img: ImgFile,
         ): Int? {
             val first = pickRenderLevel(viewport, img.tre.levels, img.materialisedLevels) ?: return null
-            // Walk levels from finest-passing-the-cap down to coarsest;
-            // first one with intersecting sub-divisions wins.
+            // the first level with intersecting sub-divisions wins
             val candidates = img.tre.levels.levels
                 .filterNot { it.inherited }
                 .sortedByDescending { it.bitsPerCoord }
@@ -518,7 +546,8 @@ class ImgRenderer(
             val firstBits = img.tre.levels.bitsPerCoordOf(first) ?: return first
             val ordered = candidates
                 .partition { it.bitsPerCoord <= firstBits }
-                .let { (atOrCoarser, finer) -> atOrCoarser + finer }
+                // coarser levels first, then the finer ones from the nearest
+                .let { (atOrCoarser, finer) -> atOrCoarser + finer.reversed() }
             for (lvl in ordered) {
                 if (hasSubDivisions(img, lvl.level, viewport)) {
                     return lvl.level

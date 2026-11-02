@@ -11,6 +11,7 @@ import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.StyleMenu
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
+import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.model.ObjectKind
 import com.asamm.vectormaps.garminimg.parser.ImgArchive
 import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
@@ -27,6 +28,7 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class GarminDriverTest {
@@ -76,12 +78,70 @@ class GarminDriverTest {
     }
 
     @Test
-    fun datasetHoldsOneFile() {
-        assertFailsWith<IllegalArgumentException> {
-            driver.open(listOf(otm, mkgmap))
-        }
+    fun stylesKeepTheirInstances() {
         driver.open(listOf(otm)).use { dataset ->
-            assertFalse(dataset.addMap(mkgmap))
+            assertSame(dataset.styles[0], dataset.styles[0])
+        }
+    }
+
+    @Test
+    fun openReportsWhyAFileIsUnreadable() {
+        val file = createTempFile(suffix = ".img").toFile()
+        try {
+            file.writeText("not a map")
+            val error = assertFails {
+                driver.open(listOf(file))
+            }
+            assertFalse(error.message.orEmpty().contains("given twice"), "${error.message}")
+        } finally {
+            file.delete()
+        }
+    }
+
+    @Test
+    fun openAllReadsEveryMapOfAMultiMapFile() {
+        withMultiMapFile { combined ->
+            val maps = ImgFile.openAll { FileImgRandomAccessReader(combined) }
+            try {
+                assertEquals(2, maps.size)
+                for ((map, source) in maps.zip(listOf(otm, mkgmap))) {
+                    ImgFile.open { FileImgRandomAccessReader(source) }.use { single ->
+                        assertEquals(single.readMap().toList(), map.readMap().toList(), "map of $source")
+                    }
+                }
+            } finally {
+                maps.forEach { it.close() }
+            }
+        }
+    }
+
+    @Test
+    fun multiMapFileRendersAsItsMapsInTwoFiles() {
+        withMultiMapFile { combined ->
+            val oneFile = driver.open(listOf(combined)).use { pixels(render(it, GarminStyle.BuiltIn, harbour)) }
+            val twoFiles = driver.open(listOf(otm, mkgmap)).use { pixels(render(it, GarminStyle.BuiltIn, harbour)) }
+            val otmOnly = driver.open(listOf(otm)).use { pixels(render(it, GarminStyle.BuiltIn, harbour)) }
+
+            assertContentEquals(twoFiles, oneFile)
+            assertFalse(otmOnly.contentEquals(oneFile), "the second map adds to the tile")
+            val bounds = driver.probe(combined).bounds
+            assertEquals(driver.probe(otm).bounds.union(driver.probe(mkgmap).bounds), bounds)
+        }
+    }
+
+    @Test
+    fun addMapAddsAFileAndRenderersKeepTheirs() {
+        driver.open(listOf(otm)).use { dataset ->
+            dataset.createRenderer(GarminStyle.BuiltIn, StyleSelection.DEFAULT, config).use { before ->
+                assertTrue(dataset.addMap(mkgmap))
+                assertFalse(dataset.addMap(mkgmap))
+                assertEquals(listOf(otm, mkgmap), dataset.files)
+
+                val target = GarminTileTarget(256)
+                assertEquals(RenderResult.DRAWN, before.render(harbour, target) { false })
+                val otmOnly = driver.open(listOf(otm)).use { pixels(render(it, GarminStyle.BuiltIn, harbour)) }
+                assertContentEquals(otmOnly, pixels((target.canvas as AwtRenderTarget).image))
+            }
         }
     }
 
@@ -300,6 +360,16 @@ class GarminDriverTest {
             val target = GarminTileTarget(sizePx)
             assertEquals(RenderResult.DRAWN, renderer.render(tile, target) { false })
             return (target.canvas as AwtRenderTarget).image
+        }
+    }
+
+    private fun withMultiMapFile(test: (File) -> Unit) {
+        val combined = createTempFile(suffix = ".img").toFile()
+        try {
+            writeMultiMapImg(combined, listOf(otm, mkgmap))
+            test(combined)
+        } finally {
+            combined.delete()
         }
     }
 

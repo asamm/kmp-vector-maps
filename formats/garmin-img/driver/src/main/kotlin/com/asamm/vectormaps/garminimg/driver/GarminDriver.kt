@@ -35,7 +35,7 @@ class GarminDriver(
     override val styleExtensions: Set<String> = setOf("typ")
 
     /**
-     * Reads the IMG directory (TRE, RGN and LBL required) and the first TRE header.
+     * Reads the IMG directory (a map with TRE, RGN and LBL required) and every map's TRE header.
      */
     override fun probe(file: File): MapInfo {
         return MapInfo(bounds = readSummary(file = file, full = false).bounds, languages = emptyList())
@@ -62,23 +62,24 @@ class GarminDriver(
     }
 
     /**
-     * With `full`, also reads the TRE levels and decodes the TYP to learn whether it is usable;
-     * probes skip that cost.
+     * Bounds of all the file's maps; with `full`, also their TRE levels and whether its TYP decodes,
+     * which probes skip.
      */
     internal fun readSummary(file: File, full: Boolean): ImgSummary {
         return FileImgRandomAccessReader(file).use { reader ->
             val archive = ImgArchive.open(reader)
             // a map without RGN or LBL would only fail at its first renderer
-            for (type in listOf("TRE", "RGN", "LBL")) {
-                requireNotNull(archive.findFirst(type)) {
-                    "readSummary(), no $type in $file"
-                }
+            val names = archive.mapNames()
+            require(names.isNotEmpty()) {
+                "readSummary(), no map with TRE, RGN and LBL in $file"
             }
-            val tre = archive.openSubFile(archive.findFirst("TRE")!!, reader)
+            val tres = names.map { archive.openSubFile(checkNotNull(archive.find(it, "TRE")), reader) }
             val typ = archive.findFirst("TYP")
+            val mapBounds = tres.map { toBounds(TreSubFile.parseHeader(it)) }
             ImgSummary(
-                bounds = toBounds(TreSubFile.parseHeader(tre)),
-                levels = if (full) readLevels(tre) else emptyList(),
+                bounds = mapBounds.reduce(GeoBounds::union),
+                mapBounds = mapBounds,
+                levels = if (full) tres.flatMap(::readLevels).distinctBy { it.level } else emptyList(),
                 // as `ImgFile`, which drops a TYP whose header or sections do not parse
                 hasTyp = full
                     && typ != null
@@ -119,6 +120,8 @@ private fun eastOf(eastBoundary: Int): Double {
 
 internal class ImgSummary(
     val bounds: GeoBounds,
+    // per map, in archive order
+    val mapBounds: List<GeoBounds>,
     val levels: List<GarminLevel>,
     val hasTyp: Boolean,
 )

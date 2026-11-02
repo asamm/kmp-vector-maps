@@ -58,6 +58,29 @@ class ImgArchive private constructor(
     }
 
     /**
+     * Returns the entry of `fileType` (case-insensitive) belonging to the map `fileName`, or null.
+     */
+    fun find(fileName: String, fileType: String): SubFileEntry? {
+        return byName[fileName]?.firstOrNull { it.fileType.equals(fileType, ignoreCase = true) }
+    }
+
+    // a gmapsupp holds thousands of sub-files; per-map lookups must not scan them all
+    private val byName: Map<String, List<SubFileEntry>> by lazy {
+        subFiles.groupBy { it.fileName }
+    }
+
+    /**
+     * File names of the maps in this archive, in FAT order: each has its own TRE, RGN and LBL. A
+     * gmapsupp holds one per map tile.
+     */
+    fun mapNames(): List<String> {
+        return findAll("TRE").map { it.fileName }.distinct().filter { name ->
+            find(name, "RGN") != null
+                && find(name, "LBL") != null
+        }
+    }
+
+    /**
      * Returns every sub-file entry whose type matches `fileType` (case-insensitive).
      */
     fun findAll(fileType: String): List<SubFileEntry> {

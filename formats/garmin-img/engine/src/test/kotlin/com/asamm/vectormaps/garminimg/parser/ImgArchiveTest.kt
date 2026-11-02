@@ -167,6 +167,28 @@ class ImgArchiveTest {
     }
 
     @Test
+    fun mapNamesListsCompleteMapsInFatOrder() {
+        val img = SyntheticImg.builder()
+            .addFatEntry(fileName = "00000002", fileType = "TRE", firstBlock = 4)
+            .addFatEntry(fileName = "00000002", fileType = "RGN", firstBlock = 5)
+            .addFatEntry(fileName = "00000002", fileType = "LBL", firstBlock = 6)
+            // no RGN: not a map
+            .addFatEntry(fileName = "00000003", fileType = "TRE", firstBlock = 7)
+            .addFatEntry(fileName = "00000003", fileType = "LBL", firstBlock = 8)
+            .addFatEntry(fileName = "00000001", fileType = "TRE", firstBlock = 9)
+            .addFatEntry(fileName = "00000001", fileType = "RGN", firstBlock = 10)
+            .addFatEntry(fileName = "00000001", fileType = "LBL", firstBlock = 11)
+            .build()
+
+        val archive = ImgArchive.open(ByteArrayImgRandomAccessReader(img))
+
+        assertEquals(listOf("00000002", "00000001"), archive.mapNames())
+        assertEquals(10, archive.find("00000001", "rgn")?.firstBlock)
+        assertNull(archive.find("00000003", "RGN"))
+        assertNull(archive.find("00000009", "TRE"))
+    }
+
+    @Test
     fun findAllReturnsEveryMatch() {
         val img = SyntheticImg.builder()
             .addFatEntry(fileName = "00000001", fileType = "TRE", firstBlock = 4)
