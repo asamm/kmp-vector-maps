@@ -9,7 +9,7 @@ the legal check is locus-core plan Q1.
 
 | Part | Licence |
 |---|---|
-| `formats/mapsforge/**`, including its Kotlin conversion | LGPL-3.0-or-later + §4(d)/(e) waiver |
+| `formats/mapsforge/**`, including its Kotlin conversion, and its golden tests `dev/mapsforge/**` | LGPL-3.0-or-later + §4(d)/(e) waiver |
 | `core/`, `render/`, `android/`, `dev/bench/`, `viewer/` (written fresh) | Apache-2.0 (D19) |
 | `formats/garmin-img/` (M4) | LGPL-2.1, -only or -or-later open (Q13) |
 | Fixtures | per [dev/fixtures/README.md](../dev/fixtures/README.md): ODbL map data, Apache-2.0 theme |
@@ -37,7 +37,7 @@ the legal check is locus-core plan Q1.
   mapsforge.org (122 files) and Ludwig M Brinckmann (75 files), counted with:
 
   ```sh
-  git ls-files 'formats/mapsforge/legacy/*.java' 'formats/mapsforge/legacy/*.kt' | xargs grep -l 'Copyright.*<name>' | wc -l
+  git ls-files 'formats/mapsforge/engine/*.kt' 'formats/mapsforge/android/*.kt' 'formats/mapsforge/awt/*.kt' | xargs grep -l 'Copyright.*<name>' | wc -l
   ```
 
 ## Obligations of this repo

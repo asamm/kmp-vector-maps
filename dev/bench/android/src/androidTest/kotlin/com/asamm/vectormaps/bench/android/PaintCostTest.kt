@@ -8,15 +8,15 @@ import android.os.Debug
 import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.asamm.vectormaps.mapsforge.core.graphics.Cap
+import com.asamm.vectormaps.mapsforge.core.graphics.FontFamily
+import com.asamm.vectormaps.mapsforge.core.graphics.FontStyle
+import com.asamm.vectormaps.mapsforge.core.graphics.Paint
+import com.asamm.vectormaps.mapsforge.core.graphics.Style
+import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
 import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
-import org.mapsforge.core.graphics.Cap
-import org.mapsforge.core.graphics.FontFamily
-import org.mapsforge.core.graphics.FontStyle
-import org.mapsforge.core.graphics.Paint
-import org.mapsforge.core.graphics.Style
-import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 
 /**
  * Native and Java heap per Mapsforge Paint, by how the theme builds it (locus-core F2), each Paint

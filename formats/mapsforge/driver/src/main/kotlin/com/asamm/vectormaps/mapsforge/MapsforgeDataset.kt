@@ -11,12 +11,12 @@ import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.RenderKey
 import com.asamm.vectormaps.core.StyleSelection
-import org.mapsforge.map.datastore.MapDataStore
-import org.mapsforge.map.datastore.MultiMapDataStore
-import org.mapsforge.map.layer.labels.TileBasedLabelStore
-import org.mapsforge.map.model.DisplayModel
-import org.mapsforge.map.rendertheme.ExternalRenderTheme
-import org.mapsforge.map.rendertheme.rule.RenderThemeFuture
+import com.asamm.vectormaps.mapsforge.map.datastore.MapDataStore
+import com.asamm.vectormaps.mapsforge.map.datastore.MultiMapDataStore
+import com.asamm.vectormaps.mapsforge.map.layer.labels.TileBasedLabelStore
+import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
+import com.asamm.vectormaps.mapsforge.map.rendertheme.ExternalRenderTheme
+import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import java.io.File
 
 /**

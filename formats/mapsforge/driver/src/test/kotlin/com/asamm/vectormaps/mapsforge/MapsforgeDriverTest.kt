@@ -10,10 +10,10 @@ import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
-import org.mapsforge.core.util.Parameters
-import org.mapsforge.map.awt.graphics.AwtGraphicFactory
-import org.mapsforge.map.model.DisplayModel
-import org.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu
+import com.asamm.vectormaps.mapsforge.core.util.Parameters
+import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
+import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
+import com.asamm.vectormaps.mapsforge.map.rendertheme.XmlRenderThemeStyleMenu
 import java.io.File
 import java.io.IOException
 import kotlin.io.path.createTempFile
@@ -301,7 +301,7 @@ class MapsforgeDriverTest {
         }
     }
 
-    private fun TileRequest.toMapsforge(): org.mapsforge.core.model.Tile {
-        return org.mapsforge.core.model.Tile(x, y, zoom.toByte(), 256)
+    private fun TileRequest.toMapsforge(): com.asamm.vectormaps.mapsforge.core.model.Tile {
+        return com.asamm.vectormaps.mapsforge.core.model.Tile(x, y, zoom.toByte(), 256)
     }
 }

@@ -5,13 +5,12 @@ under its path.
 
 | Part | Path | Licence | Full text |
 |---|---|---|---|
-| Mapsforge format, incl. its Kotlin conversion | `formats/mapsforge/` | LGPL-3.0-or-later + additional permission below | [COPYING.LESSER](COPYING.LESSER), [COPYING](COPYING) |
+| Mapsforge format, incl. its Kotlin conversion and golden tests | `formats/mapsforge/`, `dev/mapsforge/` | LGPL-3.0-or-later + additional permission below | [COPYING.LESSER](COPYING.LESSER), [COPYING](COPYING) |
 | Core, renderers, Android host API, new viewer, benchmarks | `core/`, `render/`, `android/`, `dev/bench/`, `viewer/` | Apache-2.0 | [LICENSE-APACHE](LICENSE-APACHE) |
 | Garmin IMG format (planned) | `formats/garmin-img/` | LGPL-2.1 | added with the module |
 | Test data | `dev/fixtures/` | per [dev/fixtures/README.md](dev/fixtures/README.md) | — |
 
-The golden test harness is LGPL-3.0-or-later, as stated in its file headers; the LGPL
-development viewers were deleted in M3.3.
+The LGPL development viewers were deleted in M3.3.
 
 ## Mapsforge
 
@@ -20,8 +19,9 @@ contributors as named in each file header, with modifications © 2026 Asamm Soft
 
 ### Additional permission: LGPL v3 §4(d) and §4(e) waived
 
-Applies to everything under `formats/mapsforge/`: the vendored Mapsforge code and every
-modification of it by Asamm Software, including its conversion to Kotlin.
+Applies to everything under `formats/mapsforge/` and `dev/mapsforge/`: the vendored Mapsforge
+code and every modification of it by Asamm Software, including its conversion to Kotlin, and the
+golden tests.
 
 As upstream Mapsforge states for its own code (README, since commit `c78c1d79`, 2018-10-31), the
 constraints mentioned in sections LGPL v3 §4(d) and §4(e) are waived. This means you are allowed

@@ -27,11 +27,11 @@ import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.TileBitmapTarget
+import com.asamm.vectormaps.mapsforge.core.graphics.TileBitmap
+import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
 import com.asamm.vectormaps.viewer.TileEngine
 import com.asamm.vectormaps.viewer.TileImages
 import com.asamm.vectormaps.viewer.Viewport
-import org.mapsforge.core.graphics.TileBitmap
-import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 import java.io.File
 
 /**

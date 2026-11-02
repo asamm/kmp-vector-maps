@@ -24,36 +24,37 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 
 | Path | Content |
 |---|---|
-| `formats/mapsforge/legacy/*` | vendored Mapsforge, upstream module split; Kotlin per area from M5.1 (`map-reader`, core and map model, util, datastore, graphics and its backends, renderer, labels, theme rules and instructions), all Kotlin since M5.7a (theme parser), deleted in M5.7b |
-| `formats/mapsforge/driver` | Mapsforge driver: the `core/` interface over `legacy/` |
-| `formats/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored corpus tiles render through the driver |
-| `formats/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `map-android`, Robolectric; plain Mapsforge, not the driver |
+| `formats/mapsforge/engine`, `android`, `awt` | vendored Mapsforge 0.30.0 in Kotlin (M5), `com.asamm.vectormaps.mapsforge.*`: the engine (model, reader, renderer, labels, theme), its Android and AWT graphics |
+| `formats/mapsforge/driver` | Mapsforge driver: the `core/` interface over the engine |
 | `viewer/*` | dev viewers for every registered format: `common` tile engine, `desktop` (Compose), `android` |
+| `dev/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored corpus tiles render through the driver; the shared harness in `golden/harness` |
+| `dev/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `formats/mapsforge/android`, Robolectric; plain Mapsforge, not the driver |
 | `dev/fixtures/` | test maps and themes, see [dev/fixtures/README.md](dev/fixtures/README.md) |
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baseline in ROADMAP M2.7 |
 | `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baseline in ROADMAP M2.7b; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
 | `core/` | driver interface, registry, styles, render configuration; Apache-2.0, see architecture.md |
 | `render/`, `android/` | `render/skia` from M7.1, `android/` from M8.1, other backends unscheduled; see architecture.md |
 
-- New Mapsforge code goes beside `legacy/`; an M5 conversion replaces its area's Java inside
-  `legacy/*` (D24).
-- `dev/` holds development helpers (benchmarks, test data); nothing in it ships.
+- `dev/` holds development helpers (benchmarks, golden tests, test data); nothing in it ships;
+  `formats/` holds only shipped code.
 - Large local maps stay outside the repo, referenced from `local.properties` (`viewer.mapFile`,
   read by the desktop viewer when no saved session map exists; see `dev/fixtures/README.md`).
 
 ## Hard rules
 
-- **Vendored Mapsforge stays upstream-identical** until its area's M5 conversion, except rows in
+- **Every difference from upstream Mapsforge 0.30.0** (code, API, build) has a row in
   [docs/upstream.md](docs/upstream.md).
-- **`./gradlew :formats:mapsforge:golden:test` before and after every Mapsforge change.**
+- **`./gradlew :dev:mapsforge:golden:test` before and after every Mapsforge change.**
 - **Never remove a licence header** or `COPYING*`; on a vendored file's first change, append
   `Copyright 2026 Asamm Software` ([licence.md](docs/licence.md) L2).
 - New Asamm files: `Copyright 2026 Asamm Software` + SPDX id — `LGPL-3.0-or-later` under
-  `formats/mapsforge/`, `Apache-2.0` for `core/`, `render/`, `android/`, `dev/bench/` and
-  `viewer/`.
+  `formats/mapsforge/` and `dev/mapsforge/`, `Apache-2.0` for `core/`, `render/`, `android/`,
+  `dev/bench/` and `viewer/`.
 - **Formats depend on the core only.** No Locus types anywhere.
-- Kotlin/JVM libraries: `android.*` only in `render/android`, `android/`, `legacy/map-android`.
-- Packages `org.mapsforge.*` until M5.7, then `com.asamm.*`; M5 converts each area in place (D24).
+- Kotlin/JVM libraries: `android.*` only in `render/android`, `android/`,
+  `formats/mapsforge/android`.
+- Vendored Mapsforge is `com.asamm.vectormaps.mapsforge.*` (upstream `org.mapsforge.*`, K64); the
+  golden harness keeps upstream's imports, the vendored side compiles a generated copy.
 - The host API mirrors Locus' `MapSourceRenderer` seam (D23).
 
 ## Versions

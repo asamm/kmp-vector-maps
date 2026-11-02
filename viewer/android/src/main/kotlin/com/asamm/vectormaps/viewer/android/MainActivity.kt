@@ -14,8 +14,8 @@ import android.widget.TextView
 import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
+import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
 import com.asamm.vectormaps.viewer.Viewport
-import org.mapsforge.map.android.graphics.AndroidGraphicFactory
 import java.io.File
 
 /**

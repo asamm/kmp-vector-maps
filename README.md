@@ -21,15 +21,13 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 
 - **`:core`** — format-neutral driver interface, registry, styles, render configuration
   (Apache-2.0). `./gradlew :core:test`.
-- **`:formats:mapsforge:legacy:core`**, **`:map`**, **`:map-reader`** — vendored Mapsforge,
-  platform-independent; converted to Kotlin (M5.1–M5.7a).
-- **`:formats:mapsforge:legacy:map-android`**, **`:map-awt`** — vendored graphics backends, in
-  Kotlin since M5.3b.
-  `legacy/` goes in M5.7b (rename to `com.asamm.*`, modules moved).
+- **`:formats:mapsforge:engine`** — vendored Mapsforge 0.30.0 in Kotlin (M5), platform-independent:
+  model, `.map` reader, renderer, labels, theme engine. `./gradlew :formats:mapsforge:engine:test`.
+- **`:formats:mapsforge:android`**, **`:awt`** — its graphics backends, also Kotlin.
 - **`:formats:mapsforge:driver`** — the `:core` driver over the vendored Mapsforge; the host
   passes its `GraphicFactory`. `./gradlew :formats:mapsforge:driver:test`.
-- **`:formats:mapsforge:golden`** — pixel-exact render comparison against upstream 0.30.0.
-  `./gradlew :formats:mapsforge:golden:test`.
+- **`:dev:mapsforge:golden`** — pixel-exact render comparison against upstream 0.30.0.
+  `./gradlew :dev:mapsforge:golden:test`.
 - **`:dev:bench`** — JMH benchmarks per render stage. `./gradlew :dev:bench:jmh`, another map with
   `-Pbench.mapFile=<path>`.
 - **`:dev:bench:android`** — the same on a device (`androidx.benchmark`),

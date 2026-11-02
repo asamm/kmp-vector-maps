@@ -58,7 +58,7 @@ tasks.named("assemble") {
 }
 
 dependencies {
-    androidTestImplementation(project(":formats:mapsforge:legacy:map-android"))
+    androidTestImplementation(project(":formats:mapsforge:android"))
     androidTestImplementation(project(":formats:mapsforge:driver"))
     androidTestImplementation(project(":viewer:common"))
     androidTestImplementation(libs.androidxBenchmarkJunit4)

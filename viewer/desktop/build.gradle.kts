@@ -21,7 +21,7 @@ kotlin {
 dependencies {
     implementation(project(":viewer:common"))
     implementation(project(":formats:mapsforge:driver"))
-    implementation(project(":formats:mapsforge:legacy:map-awt"))
+    implementation(project(":formats:mapsforge:awt"))
     implementation(compose.desktop.currentOs)
     implementation(libs.composeMaterial3)
     implementation(libs.kotlinxCoroutinesSwing)
