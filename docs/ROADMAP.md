@@ -382,7 +382,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | ID | Decision |
 |---|---|
 | D1 | ~~Repo `kmp-mapsforge`~~ → one repo for all formats (D10) |
-| D2 | Vendored Mapsforge mirrors the upstream module split |
+| D2 | Vendored Mapsforge ~~mirrors the upstream module split~~ → three modules `engine`, `android`, `awt` since M5.7b (K64) |
 | D3 | Packages `org.mapsforge.*` until ~~M5~~ → M5.7, then `com.asamm.*` (D24) |
 | D4 | Vendored from commit `54e8654f` (tag 0.30.0) |
 | D5 | Test theme LoMaps 1.8.0 (Apache-2.0) |
@@ -404,7 +404,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D21 | Speed work after the Kotlin conversion, against a Java baseline |
 | D22 | No iOS; Kotlin/JVM libraries, KMP only for the viewer UI |
 | D23 | Host API mirrors Locus' `MapSourceRenderer` seam |
-| D24 | M5 converts each area in place, in the `legacy/*` modules under `org.mapsforge.*`; M5.7 renames to `com.asamm.*` and moves the modules |
+| D24 | M5 converts each area in place, in the `legacy/*` modules under `org.mapsforge.*`; M5.7 renames to `com.asamm.vectormaps.mapsforge.*` and merges the modules (K64) |
 | D25 | The M5 soak is `dev/bench/android` `SoakTest`: driver plus viewer engine, pixel check of every `SEPARATE` render |
 | D26 | M5 PRs from M5.1 merge into `feature/m5`; one PR to `main` after M5.7 and the owner's review |
 | D27 | From M5.2 the device soak runs on the dev AVD `VectorMaps_Soak_API36`; the A54 serves other work |
@@ -435,7 +435,7 @@ See the locus-core plan, R1–R7. Repo-specific:
 
 | ID | Hazard | Mitigation |
 |---|---|---|
-| H1 | Upstream and vendored `org.mapsforge` on one classpath | golden generation in its own module |
+| H1 | Upstream and vendored Mapsforge, and the shared golden harness, on one classpath | golden generation in its own module |
 | H2 | Vendored code misses upstream changes | changelog review and hand port per release, deviation tables in [upstream.md](upstream.md) |
 | H3 | Interface shaped by Mapsforge alone | Garmin (M4) right after core v0 (M3) |
 | H4 | Locus sees nothing until M9 | A54 runs in the shared viewer; I7 fallback flag |
