@@ -7,10 +7,9 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5.0–M5.7a done; M5.7b (rename to `com.asamm.vectormaps.mapsforge.*`,
-`legacy/` merged into `formats/mapsforge/{engine,android,awt}`, golden modules in
-`dev/mapsforge/`) in review; M5 runs on `feature/m5` (D26).** Next action: the `feature/m5` →
-`main` PR after the owner's review (D26); M4 waits for Q12 and Q13.
+**Status: M0–M3 done; M5.0–M5.7b done on `feature/m5`, in the owner's review in the
+`feature/m5` → `main` PR (D26).** Next action: merge that PR after the review; M4 waits for Q12
+and Q13.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -230,7 +229,7 @@ PR after M5.7 (D26).
 | M5.6b | render instructions (9 files) | — | ✅ PR #22, `6475f90` |
 | M5.6 fixes | theme caches and settings after the conversion | matching cache key compares tags in full; Paint caches bounded to a window of 4 zoom levels, a rendering job holds its zoom (F1–F3, D29); `ANTI_ALIASING` (theme Paints, the tile canvas, on Android its bitmap Paint) and `SYMBOL_SCALING` per `DisplayModel` (D28) | ✅ PR #23, `1f3766e` |
 | M5.7a | XML theme parser (11 files); the theme members widened for it back to `internal` | — | ✅ PR #24, `cada457` |
-| M5.7b | `legacy/` deleted; rename to `com.asamm.vectormaps.mapsforge.*`; 5 modules into `formats/mapsforge/{engine,android,awt}`, the golden modules to `dev/mapsforge/` (D24, K64) | — | 🔧 |
+| M5.7b | `legacy/` deleted; rename to `com.asamm.vectormaps.mapsforge.*`; 5 modules into `formats/mapsforge/{engine,android,awt}`, the golden modules to `dev/mapsforge/` (D24, K64) | — | ✅ PR #25, `de92503` |
 
 - M5.1 fixes (upstream.md C1–C3): the index cache is locked, block reads are positional (measure
   the gain on Android or Linux: the JDK on Windows still serialises them), and an overflowing string
