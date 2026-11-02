@@ -11,8 +11,8 @@ the legal check is locus-core plan Q1.
 |---|---|
 | `formats/mapsforge/**`, including its Kotlin conversion, and its golden tests `dev/mapsforge/**` | LGPL-3.0-or-later + §4(d)/(e) waiver |
 | `core/`, `render/`, `android/`, `dev/bench/`, `viewer/` (written fresh) | Apache-2.0 (D19) |
-| `formats/garmin-img/` (M4) | LGPL-2.1-or-later, as upstream JGarminImgParser (D33) |
-| Fixtures | per [dev/fixtures/README.md](../dev/fixtures/README.md): ODbL map data, Apache-2.0 theme |
+| `formats/garmin-img/**` and its tests `dev/garmin-img/**` (M4) | LGPL-2.1-or-later, as upstream JGarminImgParser (D33) |
+| Fixtures | per [dev/fixtures/README.md](../dev/fixtures/README.md): ODbL map data, CC-BY-SA 4.0 OpenTopoMap style, Apache-2.0 theme |
 
 - An Apache-2.0 core keeps LGPL-2.1 and LGPL-3.0 code out of one derivative work.
 - The golden harness carries LGPL-3.0-or-later headers, as did the throwaway `viewer/`; that
@@ -40,13 +40,24 @@ the legal check is locus-core plan Q1.
   git ls-files 'formats/mapsforge/engine/*.kt' 'formats/mapsforge/android/*.kt' 'formats/mapsforge/awt/*.kt' | xargs grep -l 'Copyright.*<name>' | wc -l
   ```
 
+## Garmin IMG
+
+| Item | Value |
+|---|---|
+| Licence | LGPL-2.1-or-later (upstream headers, [COPYING.LGPL-2.1](../COPYING.LGPL-2.1)) |
+| Upstream | JGarminImgParser, Copyright (C) 2006 Patrick Valsecchi, via the Asamm fork libGarminImg |
+| Headers | the Kotlin rewrite names both and Asamm, with the SPDX identifier; Asamm-only files carry the Asamm line and the identifier; the legacy Java parser in `dev/garmin-img` keeps its upstream headers, plus the L2 notice where modified |
+| Foreign test files | `SparseArrayCompat.java` Apache-2.0 (AOSP); `EndianDataInputStream.java` GPL-2.0-or-later (JUMP, Vivid Solutions); both only in the legacy reference parser, never shipped |
+| Not imported | upstream `visad/*` (LGPL-2.0-or-later) and `swing/*` |
+| Fixtures | `otm-monaco` ODbL + CC-BY-SA 4.0, `mkgmap-monaco` ODbL, see [dev/fixtures/README.md](../dev/fixtures/README.md) |
+
 ## Obligations of this repo
 
 | ID | Obligation | How |
 |---|---|---|
 | L1 | Keep every copyright notice and licence header | hard rule in `CLAUDE.md` |
 | L2 | Mark modified files with a notice and date | add `Copyright 2026 Asamm Software` on first change |
-| L3 | Ship `COPYING` and `COPYING.LESSER` | repo root |
+| L3 | Ship `COPYING`, `COPYING.LESSER` and `COPYING.LGPL-2.1` | repo root |
 | L4 | Carry the waiver | `LICENSE.md`, later the POM |
 | L5 | Source for recipients of binaries | public repo, one tag per release |
 

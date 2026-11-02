@@ -1,11 +1,13 @@
 # Fixtures
 
-Test data shared by the golden corpus (`dev/mapsforge/golden*`), the benchmarks and both
-viewers.
+Test data shared by the golden tests (`dev/mapsforge/golden*`, `dev/garmin-img/golden`), the
+engine tests, the benchmarks and both viewers.
 
 | Path | Content | Source | Licence |
 |---|---|---|---|
 | `maps/monaco.osm.map` | LoMaps vector map of Monaco, 2.3 MB | Locus Map download, copied 2026-10-22 from the A54 | see attribution below, [ODbL](https://opendatacommons.org/licenses/odbl/) |
+| `maps/otm-monaco/` | OpenTopoMap Garmin IMG of Monaco, 8.5 MB, with contours and TYP; Garmin tests | [garmin.opentopomap.org](https://garmin.opentopomap.org/), downloaded 2026-05-04, see its `NOTES.md` | ODbL data, CC-BY-SA 4.0 style, see its `LICENCE` |
+| `maps/mkgmap-monaco/` | Garmin IMG of Monaco built with mkgmap r4924, 152 KB; fast Garmin parser tests | Geofabrik extract, recipe in its `NOTES.md` | ODbL, see its `LICENCE` |
 | `themes/lomaps/` | LoMaps theme 1.8.0, day, night and POI themes with symbols | [asamm/lomaps-mapsforge](https://github.com/asamm/lomaps-mapsforge) tag `1.8.0`, `theme/` | Apache-2.0, see `themes/lomaps/LICENSE`; the release has no NOTICE file |
 
 Map attribution, as stated in the map header and its tags:
@@ -14,10 +16,13 @@ Map attribution, as stated in the map header and its tags:
 - Low-zoom features (`ne_*` tags): Natural Earth, public domain.
 
 Rendered tiles (golden PNGs, CI artifacts, viewer captures) are ODbL Produced Works and carry the
-"© OpenStreetMap contributors" notice wherever they are published.
+"© OpenStreetMap contributors" notice wherever they are published; renders of `otm-monaco` also
+carry "Map style © OpenTopoMap (CC-BY-SA)".
 
 - Replace a fixture only together with a fresh golden run; the corpus tiles are chosen for this
   Monaco map.
+- A Garmin IMG fixture is unencrypted (header magic `DSKIMG`), redistributable, about 2 MB at
+  most (10 MB with a reason in its `NOTES.md`), and carries its own `NOTES.md` and `LICENCE`.
 - Large maps stay outside the repo: the desktop viewer reads them from `local.properties` when no
   saved session map exists, the Android viewer from `--es map` / `--es theme` intent extras
   (`am start -S`), the benchmarks from `-Pbench.mapFile` (JVM) or the `bench.mapFile`

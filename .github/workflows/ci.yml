@@ -38,7 +38,8 @@ jobs:
       - name: Gradle build + tests
         run: ./gradlew build
 
-      # PNGs rendered from OSM data are ODbL Produced Works: © OpenStreetMap contributors
+      # PNGs rendered from OSM data are ODbL Produced Works: © OpenStreetMap contributors;
+      # Garmin otm-monaco renders also map style © OpenTopoMap (CC-BY-SA 4.0)
       - name: Upload golden renders
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -49,5 +50,6 @@ jobs:
             dev/mapsforge/golden-upstream/build/golden/expected/
             dev/mapsforge/golden-android/build/golden/
             dev/mapsforge/golden-android-upstream/build/golden/expected/
+            dev/garmin-img/golden/build/test-output/
           if-no-files-found: ignore
           retention-days: 7
