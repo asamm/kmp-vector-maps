@@ -53,10 +53,11 @@ include(":dev:mapsforge:golden-upstream")
 include(":dev:mapsforge:golden-android")
 include(":dev:mapsforge:golden-android-upstream")
 
-// Garmin IMG format: the engine (kmp-garmin-img, M4.1) and its Android and AWT render targets
+// Garmin IMG format: the engine (kmp-garmin-img, M4.1), its Android and AWT render targets, the driver
 include(":formats:garmin-img:engine")
 include(":formats:garmin-img:android")
 include(":formats:garmin-img:awt")
+include(":formats:garmin-img:driver")
 
 // Garmin IMG golden test and dump comparison, not published
 include(":dev:garmin-img:golden")

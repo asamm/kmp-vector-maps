@@ -209,7 +209,7 @@ object TreSubFile {
 /**
  * Parsed TRE header: bounds + extended-types signal.
  *
- * Bounds are in Garmin fixed-point coordinates (24-bit signed; one unit ≈ 2.4 cm
+ * Bounds are in Garmin fixed-point coordinates (24-bit signed; one unit ≈ 2.4 m
  * at the equator). Use `com.asamm.vectormaps.garminimg.utils.coord.CoordUtils.toWGS84` to convert.
  *
  * @property fullSurface Cached `(north - south) * (east - west)` of the bounding

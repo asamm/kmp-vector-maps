@@ -47,7 +47,8 @@ enum class LabelMode {
 }
 
 /**
- * Everything besides the dataset and the tile that decides a renderer's output: on one dataset,
+ * Everything besides the dataset, the tile and driver-specific renderer options (such as
+ * `GarminOptions`) that decides a renderer's output: on one dataset,
  * equal keys give equal tiles, for [LabelMode.IN_TILE] only from M6.1. Hosts keep one tile cache
  * per dataset, keyed by it; after [MapDataset.addMap] they clear that cache and recreate their
  * renderers.

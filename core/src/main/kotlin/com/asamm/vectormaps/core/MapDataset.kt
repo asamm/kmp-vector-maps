@@ -21,7 +21,16 @@ interface MapDataset : Closeable {
     val bounds: GeoBounds
 
     /**
-     * Adds a file to the open dataset; false when the file is not readable in this format.
+     * Styles the dataset brings itself, such as a TYP inside a Garmin IMG or a built-in style,
+     * best first; empty when every style comes from [MapFormatDriver.loadStyle]. A style tied to
+     * a file renders only with the dataset that lists it.
+     */
+    val styles: List<MapStyle>
+        get() = emptyList()
+
+    /**
+     * Adds a file to the open dataset; false when the file is not readable in this format or the
+     * dataset takes no more files.
      */
     fun addMap(file: File): Boolean
 
@@ -29,7 +38,8 @@ interface MapDataset : Closeable {
      * Creates a renderer for one style, menu selection and configuration; `style` must come from
      * this dataset's driver. May compile the style, which is costly: reuse renderers per
      * [RenderKey]. A renderer may keep the file set it was created with: close and recreate it after
-     * [addMap]. Closing the dataset leaves its renderers open.
+     * [addMap]. Closing the dataset leaves its renderers open. Throws `IllegalArgumentException`
+     * for a configuration the driver does not support, such as a label mode.
      */
     fun createRenderer(style: MapStyle, selection: StyleSelection, config: RenderConfig): MapRenderer
 }

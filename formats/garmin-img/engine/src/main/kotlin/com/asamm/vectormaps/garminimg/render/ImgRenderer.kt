@@ -60,12 +60,14 @@ class ImgRenderer(
      * @param backgroundColor passed to [RenderTarget.beginFrame].
      * @param objectKindFilter bitmask restricting which [ObjectKind]s are
      *   drawn. Defaults to all.
+     * @param level TRE level to draw; null picks the level matching the viewport's resolution.
      */
     fun render(
         viewport: Viewport,
         target: RenderTarget,
         backgroundColor: Color = Color.rgb(0xF8, 0xF6, 0xF0),
         objectKindFilter: Int = ObjectKind.ALL,
+        level: Int? = null,
     ) {
         require(target.widthPx == viewport.widthPx) {
             "RenderTarget width ${target.widthPx} != viewport width ${viewport.widthPx}"
@@ -86,7 +88,7 @@ class ImgRenderer(
         // the viewport (some IMGs are sparse at the finest level outside
         // the cartographer's chosen "detail area"), fall back to a
         // coarser level that does have content.
-        val targetLevel = pickRenderLevelWithCoverage(viewport, img)
+        val targetLevel = level ?: pickRenderLevelWithCoverage(viewport, img)
 
         // First pass: bucket every map object by kind. Polygons need to be
         // sorted by draw priority (TYP's DRAWORDER section, when present)
@@ -434,7 +436,8 @@ class ImgRenderer(
             if (levels.levels.isEmpty()) {
                 return null
             }
-            val lonRange = (viewport.maxLon - viewport.minLon).toDouble()
+            // the exact span: `ofDegrees` pads the Int bounds, which would drop a level at tile zooms
+            val lonRange = (viewport.maxLonDeg - viewport.minLonDeg) / 360.0 * (1 shl 24)
             if (lonRange <= 0.0) {
                 return null
             }
@@ -453,7 +456,7 @@ class ImgRenderer(
             // - DETAIL_BIAS`. Each level coarser drops one bit of
             // resolution AND simplifies geometry (residential streets,
             // footpaths, building outlines fade out as you go up). Our
-            // bias of -4 picks finest at deep zooms, level 2-3 at city
+            // bias of -1 picks finest at deep zooms, level 2-3 at city
             // overview, level 4-5 at district, matching what reference
             // renderers (mkgmap, GPSMapEdit, old Locus) produce on the
             // same fixtures.
@@ -505,11 +508,7 @@ class ImgRenderer(
             viewport: Viewport,
             img: ImgFile,
         ): Int? {
-            val materialised = HashSet<Int>()
-            for (sd in img.tre.tree.all()) {
-                materialised.add(sd.level)
-            }
-            val first = pickRenderLevel(viewport, img.tre.levels, materialised) ?: return null
+            val first = pickRenderLevel(viewport, img.tre.levels, img.materialisedLevels) ?: return null
             // Walk levels from finest-passing-the-cap down to coarsest;
             // first one with intersecting sub-divisions wins.
             val candidates = img.tre.levels.levels
@@ -539,13 +538,7 @@ class ImgRenderer(
             // sub-division covers it. Centre-only check returned false
             // for every level → the renderer drew nothing.
             val bits = img.tre.levels
-            for (sd in img.tre.tree.all()) {
-                if (sd.level != level) {
-                    continue
-                }
-                if (!img.subDivisionHasAnyDataInternal(sd)) {
-                    continue
-                }
+            for (sd in img.subDivisionsWithData(level)) {
                 val bpc = bits.bitsPerCoordOf(sd.level) ?: continue
                 val scale = 1 shl (24 - bpc).coerceAtLeast(0)
                 val halfW = sd.halfWidth.toLong() * scale

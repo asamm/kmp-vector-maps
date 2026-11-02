@@ -34,7 +34,7 @@ interface MapFormatDriver {
     fun probe(file: File): MapInfo?
 
     /**
-     * Opens `files` as one dataset, such as a Mapsforge multi-map or an IMG with its TYP.
+     * Opens `files` as one dataset, such as a Mapsforge multi-map.
      */
     fun open(files: List<File>): MapDataset
 

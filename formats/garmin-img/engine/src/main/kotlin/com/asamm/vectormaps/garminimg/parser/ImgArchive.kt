@@ -106,6 +106,11 @@ class ImgArchive private constructor(
         const val FAT_ENTRY_MARKER: Int = 0x01
 
         /**
+         * Most sub-files read from one FAT; real maps, gmapsupp included, hold a few thousand.
+         */
+        private const val MAX_FAT_ENTRIES: Int = 100_000
+
+        /**
          * Reads the IMG header and FAT from `reader`, returning a fully-populated
          * archive description. Does not retain `reader`; callers may close it
          * after this call returns.
@@ -213,6 +218,10 @@ class ImgArchive private constructor(
             while (entryOffset + FAT_BLOCK_SIZE <= fatEndOffset) {
                 val parsed = readOneFatEntry(reader, entryOffset)
                 if (parsed != null) {
+                    // a crafted FAT spanning a huge file would otherwise fill the heap
+                    require(entries.size < MAX_FAT_ENTRIES) {
+                        "IMG FAT has more than $MAX_FAT_ENTRIES sub-files"
+                    }
                     entries.add(parsed)
                 }
                 entryOffset += FAT_BLOCK_SIZE
