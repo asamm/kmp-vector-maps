@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5 done; M4.1 done (PR #27); M4.2 (the Garmin driver) in progress.**
-Next action: M4.2b, the viewers; M6 follows M4.
+**Status: M0–M3 and M5 done; M4.1 and M4.2a done (PRs #27, #28); M4.2b (Garmin in the viewers) in
+review.** Next action: M4.2c, the Garmin golden through the driver; M6 follows M4.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -188,9 +188,9 @@ green, 3 of 3 runs on the final commit.*
   - Style files come from the map's driver (`MapFormatDriver.styleExtensions`); a map keeps the
     style when its driver reads that file; a style is committed only once its renderer builds.
   - Android takes the device scale into `RenderConfig`; the Mapsforge static keeps the density
-    `AndroidGraphicFactory` sets, which the driver ignores since M5.2 (C4); 512 px tiles (D20), 4 render threads (M2.7b), 100 kept tiles (~50 MiB RGB_565);
+    `AndroidGraphicFactory` sets, which the driver ignores since M5.2 (C4); 512 px tiles (D20), 4 render threads (M2.7b), ~50 MiB of kept tiles (100 Mapsforge RGB_565 or 50 Garmin ARGB_8888 at 512 px);
     rotation keeps the view; setup errors show as text.
-  - Garmin's anti-aliasing, kind toggles and TRE level return with its viewers (M4.2b).
+  - Garmin's anti-aliasing, kind toggles and TRE level are back in the desktop viewer (M4.2b).
 
 *Verified: `./gradlew build` green on PRs #3–#5; golden test byte-exact through the driver, and
 red when the driver ignores the text scale (the wrap width is not covered: LoMaps sets its own on
@@ -201,8 +201,8 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 | PR | Content | Status |
 |---|---|---|
 | M4.1 | Audit, then import with history: secrets and local paths (`local.properties`), fixture licences (OTM Monaco `.img` and TYP); headers to LGPL-2.1-or-later with SPDX, missing ones added; KMP → Kotlin/JVM; drop unused `kotlinx-io`, coroutines, `api` logger | ✅ PR #27, `c0a7b2e` |
-| M4.2a | Garmin driver (`formats/garmin-img/driver`): embedded TYP, built-in and `.typ` styles through `MapDataset.styles` and `loadStyle`; `GarminOptions` (anti-aliasing, kinds, TRE level); exact tile bounds | 🔧 |
-| M4.2b | Desktop and Android viewers render Garmin maps, with anti-aliasing, kind toggles and TRE level; `.img` assets in the viewer APK | ⬜ |
+| M4.2a | Garmin driver (`formats/garmin-img/driver`): embedded TYP, built-in and `.typ` styles through `MapDataset.styles` and `loadStyle`; `GarminOptions` (anti-aliasing, kinds, TRE level); exact tile bounds | ✅ PR #28, `aa658a1` |
+| M4.2b | Desktop and Android viewers render Garmin maps, the desktop with anti-aliasing, kind toggles and TRE level; `.img` assets in the viewer APK | 🔧 |
 | M4.2c | Garmin golden through the driver; the pixel test off Windows with a bundled font; the M4.1 leftovers below | ⬜ |
 | M4.3 | Positional reads → parallel renders; multi-map IMGs (today first map only) | ⬜ |
 | M4.4 | Measured label bounds, TYP night colours, text scale; TYP point icons and extended-type (`≥ 0x100`) polygon styles, both falling back to the internal styles today | ⬜ |
@@ -248,6 +248,13 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   are converted per tile, as each tile gets a new canvas. PR #28 review: materialised levels and
   per-level sub-divisions cached per `ImgFile`; the map file checked against the time it was
   opened.
+- M4.2b as built: both viewers register the Garmin driver and start a map with its own first
+  style (`MapDataset.styles`) when no style file of its format is open; the desktop style choice
+  lists the map's styles next to the style files, keeps the last style file per format, and Reload
+  keeps a map's own style and its Garmin settings. Building a renderer still runs on the desktop
+  UI thread and reopens the IMG on each Garmin setting (as the Mapsforge settings do). Garmin controls are desktop only; the Android
+  viewer has none, a Garmin map comes in by intent (MainActivity KDoc). Tiles outside a Garmin map
+  are `EMPTY` and show as missing tiles.
 - Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons →
   M4.4; label collisions at level-pick boundaries → M6.1; Locus prefs from the helpdesk
   (label colour, line width and colour overrides, area/line/point toggles, per-type visibility,

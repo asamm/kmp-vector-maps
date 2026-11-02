@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -48,6 +49,10 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import com.asamm.vectormaps.core.MapStyle
+import com.asamm.vectormaps.garminimg.driver.GarminOptions
+import com.asamm.vectormaps.garminimg.driver.GarminStyle
+import com.asamm.vectormaps.garminimg.model.ObjectKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -92,14 +97,15 @@ private fun Controls(state: ViewerState) {
                 Text(state.mapFile?.name ?: "Open map")
             }
             GroupDivider()
-            val style = state.styleFile
-            if (style != null) {
+            val choices = styleChoices(state, styleExtensions)
+            if (choices.isNotEmpty()) {
                 Picker(
                     caption = "Style",
-                    current = style,
-                    choices = siblingStyles(style, styleExtensions),
-                    name = { it.nameWithoutExtension },
-                    onPick = state::openStyle,
+                    // a style that failed to load leaves none current; the others stay reachable
+                    current = choices.firstOrNull { it.isCurrent(state) } ?: NO_STYLE,
+                    choices = choices,
+                    name = { it.name },
+                    onPick = { it.use(state) },
                 )
             }
             TextButton(
@@ -117,6 +123,10 @@ private fun Controls(state: ViewerState) {
                     name = { id -> menu.layer(id)?.titles?.get(menu.defaultLanguage) ?: id },
                     onPick = state::selectLayer,
                 )
+            }
+            if (state.garminLevels.isNotEmpty()) {
+                GroupDivider()
+                GarminControls(state)
             }
             GroupDivider()
             Picker("Text", state.textScale, listOf(1.0f, 1.5f, 2.0f), { "×$it" }) { state.changeSettings(textScale = it) }
@@ -136,6 +146,91 @@ private fun Controls(state: ViewerState) {
                 Text("Capture")
             }
         }
+    }
+}
+
+/**
+ * Anti-aliasing, object kinds and TRE level of a Garmin map.
+ */
+@Composable
+private fun GarminControls(state: ViewerState) {
+    val options = state.garmin
+    FilterChip(
+        selected = options.antiAliasing,
+        onClick = { state.changeGarmin(options.copy(antiAliasing = !options.antiAliasing)) },
+        label = { Text("AA") },
+    )
+    for ((name, kinds) in GARMIN_KINDS) {
+        val shown = options.objectKinds and kinds != 0
+        FilterChip(
+            selected = shown,
+            onClick = { state.changeGarmin(options.copy(objectKinds = options.objectKinds xor kinds)) },
+            label = { Text(name) },
+        )
+    }
+    val levels = listOf<Int?>(null) + state.garminLevels.map { it.level }
+    Picker(
+        caption = "Level",
+        current = options.level,
+        choices = levels,
+        name = { level ->
+            val bits = state.garminLevels.firstOrNull { it.level == level }?.bitsPerCoord
+            if (level == null) "auto" else "$level ($bits bits)"
+        },
+        onPick = { state.changeGarmin(options.copy(level = it)) },
+    )
+}
+
+// each toggle covers the plain and the extended kind
+private val GARMIN_KINDS = listOf(
+    "Areas" to (ObjectKind.POLYGON or ObjectKind.EXTENDED_POLYGON),
+    "Lines" to (ObjectKind.POLYLINE or ObjectKind.EXTENDED_POLYLINE),
+    "Points" to (ObjectKind.POINT or ObjectKind.INDEXED_POINT or ObjectKind.EXTENDED_POINT),
+)
+
+/**
+ * One entry of the style choice: a style file, or a style the map brings itself.
+ */
+private class StyleChoice(
+    val name: String,
+    private val file: File?,
+    private val style: MapStyle?,
+) {
+
+    fun isCurrent(state: ViewerState): Boolean {
+        if (file != null) {
+            return file == state.styleFile
+        }
+        return state.styleFile == null
+            && style == state.style
+    }
+
+    fun use(state: ViewerState) {
+        if (file != null) {
+            state.openStyle(file)
+        } else if (style != null) {
+            state.useMapStyle(style)
+        }
+    }
+}
+
+/**
+ * The map's own styles, then the style files next to the one in use.
+ */
+private fun styleChoices(state: ViewerState, extensions: Set<String>): List<StyleChoice> {
+    val own = state.mapStyles.map { StyleChoice(name = styleName(it), file = null, style = it) }
+    val files = state.styleFile?.let { siblingStyles(it, extensions) }.orEmpty()
+        .map { StyleChoice(name = it.nameWithoutExtension, file = it, style = null) }
+    return own + files
+}
+
+private val NO_STYLE = StyleChoice(name = "none", file = null, style = null)
+
+private fun styleName(style: MapStyle): String {
+    return when (style) {
+        is GarminStyle.Embedded -> "map TYP"
+        is GarminStyle.BuiltIn -> "built-in"
+        else -> style.id
     }
 }
 

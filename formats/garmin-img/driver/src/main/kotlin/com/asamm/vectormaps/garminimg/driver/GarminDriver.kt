@@ -9,6 +9,7 @@ import com.asamm.vectormaps.core.MapFormatDriver
 import com.asamm.vectormaps.core.MapInfo
 import com.asamm.vectormaps.garminimg.parser.ImgArchive
 import com.asamm.vectormaps.garminimg.parser.TreHeader
+import com.asamm.vectormaps.garminimg.parser.TreLevel
 import com.asamm.vectormaps.garminimg.parser.TreSubFile
 import com.asamm.vectormaps.garminimg.parser.TypBodyParser
 import com.asamm.vectormaps.garminimg.parser.TypSubFile
@@ -77,6 +78,7 @@ class GarminDriver(
             val typ = archive.findFirst("TYP")
             ImgSummary(
                 bounds = toBounds(TreSubFile.parseHeader(tre)),
+                levels = TreSubFile.parseLevels(tre).levels.filterNot { it.inherited },
                 // as `ImgFile`, which drops a TYP whose header or sections do not parse
                 hasTyp = readTyp
                     && typ != null
@@ -111,5 +113,6 @@ private fun eastOf(eastBoundary: Int): Double {
 
 internal class ImgSummary(
     val bounds: GeoBounds,
+    val levels: List<TreLevel>,
     val hasTyp: Boolean,
 )

@@ -13,6 +13,8 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.core.RenderConfig
+import com.asamm.vectormaps.garminimg.driver.GarminDriver
+import com.asamm.vectormaps.garminimg.render.AndroidRenderTarget
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
 import com.asamm.vectormaps.viewer.Viewport
@@ -21,7 +23,9 @@ import java.io.File
 /**
  * Shows the bundled Monaco map with the LoMaps theme. Other files, readable by the app:
  * `adb shell am start -S -n com.asamm.vectormaps.viewer.android/.MainActivity --es map <path>
- * --es theme <path>`; `-S` stops a running viewer, which would otherwise ignore the extras.
+ * --es theme <path>`; `-S` stops a running viewer, which would otherwise ignore the extras. A theme
+ * the map's driver does not read is skipped for the map's own style, so the bundled Garmin map shows
+ * with `--es map /data/data/com.asamm.vectormaps.viewer.android/files/fixtures/maps/otm-monaco/otm-monaco.img`.
  */
 class MainActivity : Activity() {
 
@@ -55,7 +59,14 @@ class MainActivity : Activity() {
             val theme = intent.getStringExtra("theme")?.let(::File) ?: File(fixtures, "themes/lomaps/theme.xml")
             MapView(
                 context = this,
-                formats = MapFormats(listOf(MapsforgeDriver(AndroidGraphicFactory.INSTANCE))),
+                formats = MapFormats(
+                    listOf(
+                        MapsforgeDriver(AndroidGraphicFactory.INSTANCE),
+                        GarminDriver { size, antiAliased, scale ->
+                            AndroidRenderTarget(widthPx = size, heightPx = size, antiAliased = antiAliased, renderScale = scale)
+                        },
+                    ),
+                ),
                 mapFile = map,
                 styleFile = theme,
                 config = RenderConfig(tileSizePx = TILE_SIZE, deviceScale = density),

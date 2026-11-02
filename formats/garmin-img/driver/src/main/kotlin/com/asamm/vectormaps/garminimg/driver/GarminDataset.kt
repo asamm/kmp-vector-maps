@@ -13,6 +13,7 @@ import com.asamm.vectormaps.core.RenderKey
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.model.ObjectKind
+import com.asamm.vectormaps.garminimg.parser.TreLevel
 import com.asamm.vectormaps.garminimg.utils.io.FileImgRandomAccessReader
 import java.io.File
 
@@ -32,6 +33,11 @@ class GarminDataset internal constructor(
     override val bounds: GeoBounds
 
     /**
+     * TRE levels with their own data, for [GarminOptions.level].
+     */
+    val levels: List<TreLevel>
+
+    /**
      * The embedded TYP when the map has one, then the built-in styles.
      */
     override val styles: List<GarminStyle>
@@ -45,6 +51,7 @@ class GarminDataset internal constructor(
         lastModified = file.lastModified()
         val summary = driver.readSummary(file = file, readTyp = true)
         bounds = summary.bounds
+        levels = summary.levels
         styles = if (summary.hasTyp) {
             listOf(GarminStyle.Embedded(file = file, lastModified = lastModified), GarminStyle.BuiltIn)
         } else {

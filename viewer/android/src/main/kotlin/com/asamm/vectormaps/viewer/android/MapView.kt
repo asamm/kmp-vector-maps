@@ -6,6 +6,7 @@ package com.asamm.vectormaps.viewer.android
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.os.Build
@@ -22,16 +23,20 @@ import android.widget.OverScroller
 import com.asamm.vectormaps.core.MapDataset
 import com.asamm.vectormaps.core.MapFormatDriver
 import com.asamm.vectormaps.core.MapFormats
+import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.StyleSelection
+import com.asamm.vectormaps.garminimg.driver.GarminDriver
+import com.asamm.vectormaps.garminimg.driver.GarminTileTarget
+import com.asamm.vectormaps.garminimg.render.AndroidRenderTarget
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.TileBitmapTarget
-import com.asamm.vectormaps.mapsforge.core.graphics.TileBitmap
 import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
 import com.asamm.vectormaps.viewer.TileEngine
 import com.asamm.vectormaps.viewer.TileImages
 import com.asamm.vectormaps.viewer.Viewport
+import com.asamm.vectormaps.viewer.readsStyle
 import java.io.File
 
 /**
@@ -52,7 +57,7 @@ class MapView(
 
     private val dataset: MapDataset
 
-    private val engine: TileEngine<TileBitmap>
+    private val engine: TileEngine<TileImage>
 
     private val setupMs: Long
 
@@ -149,18 +154,25 @@ class MapView(
     init {
         val started = System.currentTimeMillis()
         // the probe swallows its errors, which would hide a path the app may not read
-        for (file in listOf(mapFile, styleFile)) {
-            require(file.canRead()) {
-                "MapView(), cannot read $file"
-            }
+        require(mapFile.canRead()) {
+            "MapView(), cannot read $mapFile"
         }
         val probed = checkNotNull(formats.probe(mapFile)) {
             "MapView(), no driver reads $mapFile"
         }
         val images = imagesFor(probed.driver)
-        val style = probed.driver.loadStyle(styleFile)
+        val ownStyleFile = styleFile.takeIf(probed.driver::readsStyle)
+        if (ownStyleFile != null) {
+            require(ownStyleFile.canRead()) {
+                "MapView(), cannot read $ownStyleFile"
+            }
+        }
+        val loaded = ownStyleFile?.let(probed.driver::loadStyle)
         dataset = probed.driver.open(listOf(mapFile))
         val renderer = try {
+            val style: MapStyle = loaded ?: checkNotNull(dataset.styles.firstOrNull()) {
+                "MapView(), $styleFile does not style $mapFile, which brings no style"
+            }
             dataset.createRenderer(style = style, selection = StyleSelection.DEFAULT, config = config)
         } catch (e: Exception) {
             dataset.close()
@@ -171,7 +183,10 @@ class MapView(
             renderer = renderer,
             images = images,
             threads = RENDER_THREADS,
-            capacity = KEPT_TILES,
+            // ARGB_8888 Garmin tiles take twice the RGB_565 Mapsforge ones
+            capacity = (KEPT_BYTES / ((if (probed.driver is GarminDriver) 4L else 2L) * config.tileSizePx * config.tileSizePx))
+                .toInt()
+                .coerceAtLeast(1),
         ) {
             postInvalidate()
         }
@@ -213,9 +228,9 @@ class MapView(
         for (tile in tiles) {
             val left = vp.screenX(tile.x, width)
             val top = vp.screenY(tile.y, height)
-            val bitmap = engine[tile]
-            if (bitmap != null) {
-                canvas.drawBitmap(AndroidGraphicFactory.getBitmap(bitmap)!!, left, top, null)
+            val image = engine[tile]
+            if (image != null) {
+                canvas.drawBitmap(image.bitmap, left, top, null)
             } else {
                 canvas.drawRect(left + 1f, top + 1f, left + size - 1f, top + size - 1f, missingPaint)
             }
@@ -296,9 +311,10 @@ class MapView(
         }
     }
 
-    private fun imagesFor(driver: MapFormatDriver): TileImages<TileBitmap> {
+    private fun imagesFor(driver: MapFormatDriver): TileImages<TileImage> {
         return when (driver) {
             is MapsforgeDriver -> MapsforgeImages
+            is GarminDriver -> GarminImages
             else -> throw IllegalArgumentException("imagesFor(), no images for driver ${driver.id}")
         }
     }
@@ -308,27 +324,57 @@ class MapView(
         // the A54 stops scaling above its 4 big cores (ROADMAP M2.7b)
         const val RENDER_THREADS = 4
 
-        // 512 px RGB_565 tiles, about 50 MiB
-        const val KEPT_TILES = 100
+        // 100 Mapsforge or 50 Garmin tiles at 512 px
+        const val KEPT_BYTES = 50L shl 20
 
         const val ERROR_LINES = 3
     }
 
     /**
+     * A drawn tile and how to give its bitmap back.
+     */
+    private class TileImage(
+        val bitmap: Bitmap,
+        val release: () -> Unit,
+    )
+
+    /**
      * Draws the Mapsforge bitmap directly; the engine releases it when it drops the tile.
      */
-    private object MapsforgeImages : TileImages<TileBitmap> {
+    private object MapsforgeImages : TileImages<TileImage> {
 
         override fun newTarget(sizePx: Int): RenderTarget {
             return TileBitmapTarget(sizePx)
         }
 
-        override fun take(target: RenderTarget): TileBitmap {
-            return checkNotNull((target as TileBitmapTarget).bitmap)
+        override fun take(target: RenderTarget): TileImage {
+            val tile = checkNotNull((target as TileBitmapTarget).bitmap)
+            return TileImage(bitmap = checkNotNull(AndroidGraphicFactory.getBitmap(tile))) {
+                tile.decrementRefCount()
+            }
         }
 
-        override fun release(image: TileBitmap) {
-            image.decrementRefCount()
+        override fun release(image: TileImage) {
+            image.release()
+        }
+    }
+
+    /**
+     * Draws the Garmin canvas's bitmap; dropping it frees the pixels, as a frame may still draw it.
+     */
+    private object GarminImages : TileImages<TileImage> {
+
+        override fun newTarget(sizePx: Int): RenderTarget {
+            return GarminTileTarget(sizePx)
+        }
+
+        override fun take(target: RenderTarget): TileImage {
+            val canvas = checkNotNull((target as GarminTileTarget).canvas) as AndroidRenderTarget
+            return TileImage(bitmap = canvas.bitmap) {}
+        }
+
+        override fun release(image: TileImage) {
+            image.release()
         }
     }
 }
