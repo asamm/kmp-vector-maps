@@ -114,7 +114,7 @@ class MapsforgeRenderer internal constructor(
 }
 
 /**
- * Receives the tile bitmap Mapsforge allocates; Mapsforge cannot draw into a host bitmap yet (M5).
+ * Receives the tile bitmap Mapsforge allocates; drawing into a host bitmap comes with M8.1.
  * After [RenderResult.DRAWN] the caller owns one reference to [bitmap] and releases it with
  * `decrementRefCount()`.
  */

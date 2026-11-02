@@ -77,9 +77,9 @@ open class DatabaseRenderer(
 
     /**
      * Renders `rendererJob` and caches a full tile. Null for a labels-only job inside the map or if
-     * rendering failed (the cause is logged); outside the map, with a theme background outside, the
-     * background tile comes back uncached, labels-only or not. A null job is logged, then throws
-     * [NullPointerException].
+     * rendering failed (the cause is logged); outside the map, with a theme background outside, it
+     * returns the background tile, cached like a full tile unless the job is labels-only. A null job
+     * is logged, then throws [NullPointerException].
      */
     fun executeJob(rendererJob: RendererJob?): TileBitmap? {
         var output: TileBitmap? = null

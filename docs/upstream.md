@@ -72,7 +72,8 @@ them (`@JvmField`, `@JvmStatic`, `const`):
 - K10 `LatLongUtils`, `MercatorProjection`, `Parameters`, `Utils`, `IOUtils` are `object`s; Java still
   calls them statically.
 - K11 Nullability declared: `Tag.key` and `Tag.value`, `Tile.parent`, `LineString.interpolate`,
-  `LineSegment.clipToRectangle`; `Utils.deduplicate*` take `MutableCollection<T?>`.
+  `LineSegment.clipToRectangle`; `Utils.deduplicate*` declare `T : Comparable<T>?`, so elements may
+  be null.
 - K12 `Tile`'s cached box and origin fields are renamed, so its serialized form differs from upstream.
 - K13 Finality: the classes stay open, their members are final, except `equals`, `hashCode`,
   `toString`, `compareTo`, `removeEldestEntry` and `WorkingSetCache.setWorkingSet`. `LRUCache`'s
@@ -292,7 +293,8 @@ API differences of the XML theme parser (M5.7a, K58–K63):
   overrides properties, and a Kotlin caller assigns them: Locus' `theme.setMenuCallback { … }` in
   `PrefMapVectorV4Theme` becomes `theme.menuCallback = XmlRenderThemeMenuCallback { … }`, and
   LoMaps' `Themes.InternalRenderTheme` (asamm/lomaps-mapsforge) turns its 5 overrides into
-  `override var`/`val` when rebuilt against this API; its prebuilt jar still links.
+  `override var`/`val` when rebuilt against this API; its prebuilt jar linked until K64 renamed the
+  packages, now it must be rebuilt.
 - K59 `XmlRenderThemeMenuCallback` and `XmlThemeResourceProvider` are `fun interface`s, so Kotlin
   lambdas still convert.
 - K60 Statics: `XmlUtils` is an object (K10) and `RenderThemeHandler`'s statics sit in its
@@ -334,6 +336,13 @@ Packages and modules (M5.7b, K64):
   Locus swaps its `org.mapsforge.` imports at adoption (locus-core, LoPoints and lomaps-mapsforge's
   `Themes`). The golden harness keeps upstream's imports; `dev/mapsforge/golden` and
   `golden-android` compile a copy with the prefix swapped.
+
+Structure (M5.1):
+
+- K65 Repeated upstream bodies share private helpers: the four `QueryCalculations` second-level
+  bitmasks (`secondLevel`), `RequiredFields.readPoiTags` and `readWayTags` (`readTags`), the two
+  `ReadBuffer` growth blocks (`ensureCapacity`) and the three `MapFile` constructors (`Opened` and
+  the `open` overloads); behaviour unchanged.
 
 ## Code deviations
 

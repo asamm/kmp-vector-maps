@@ -114,7 +114,7 @@ anchors, each with a per-format default.
   shaders) and wraps a host-supplied canvas or bitmap; Garmin's two-pass borders and patterns
   become a small painter on top. Until a driver draws through it (M4.2), it only carries the size;
   each driver defines target types over its own graphics (Mapsforge: `TileBitmapTarget`, which
-  receives the bitmap Mapsforge allocates until M5), and the host hands the driver its backend
+  receives the bitmap Mapsforge allocates until M8.1), and the host hands the driver its backend
   when it builds the registry.
 - Paint caches belong to the theme and are bounded to a window of 4 zoom levels, the zoom of
   each rendering job held (D29, locus-core F2/F3).

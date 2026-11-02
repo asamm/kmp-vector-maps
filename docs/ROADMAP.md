@@ -153,7 +153,7 @@ green, 3 of 3 runs on the final commit.*
   - Device scale goes into each renderer's `DisplayModel` user scale; the JVM-wide Mapsforge
     device scale had to stay 1 (checked) until M5.2, where C4 made the renderer's scales its own.
   - `TileBitmapTarget` receives the bitmap Mapsforge allocates; drawing into a host bitmap waits
-    for M5. Never returns `EMPTY`: Mapsforge fills tiles without data with the background.
+    for M8.1. Never returns `EMPTY`: Mapsforge fills tiles without data with the background.
   - Reads that Mapsforge logs and turns into null throw instead (`CheckedMapFile`); one bad file
     of a multi-map fails the tile. Errors inside a block stay swallowed (logged, block skipped); M5.1
     kept that catch narrow, so other exceptions fail the tile.
@@ -349,7 +349,8 @@ goldens and dumps byte-exact after them.*
   rasterising on first render is not measured yet.
 
 **M8 — Android host API.**
-- M8.1 `android/`: `VectorMapDriver`, `VectorMapRenderer`, `LabelPass`, `ThemeLoader` (D23).
+- M8.1 `android/`: `VectorMapDriver`, `VectorMapRenderer`, `LabelPass`, `ThemeLoader` (D23);
+  `TileBitmapTarget` over a host-supplied bitmap.
 - M8.2 style-menu ids, Locus-extended attributes and asset themes kept, so prefs migrate as-is.
 - M8 must: Mapsforge's Android SVG cache keys unsized symbols without the scale, so renderers at
   two device scales share them; key them by scale or clear the cache per scale.
@@ -407,7 +408,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D25 | The M5 soak is `dev/bench/android` `SoakTest`: driver plus viewer engine, pixel check of every `SEPARATE` render |
 | D26 | M5 PRs from M5.1 merge into `feature/m5`; one PR to `main` after M5.7 and the owner's review |
 | D27 | From M5.2 the device soak runs on the dev AVD `VectorMaps_Soak_API36`; the A54 serves other work |
-| D28 | `DisplayModel` scales are per model from M5.2, the statics only seed new models, so the shared golden harness and Locus still compile; a model created before a static is set keeps the old value (Locus, see M8 must); each pixel-relevant `Parameters` field moves to per-renderer config with its area (M5.4, M5.6; D29); `MAXIMUM_BUFFER_SIZE`, `VALIDATE_COORDINATES` and the view flags stay global, as do `ANDROID_32BIT_COLOR` (the host's tile format until the host-bitmap target) and `AndroidParameters.ANDROID_LIBHWUI_FIX` (a per-device workaround) |
+| D28 | `DisplayModel` scales are per model from M5.2, the statics only seed new models, so the shared golden harness and Locus still compile; a model created before a static is set keeps the old value (Locus, see M8 must); each pixel-relevant `Parameters` field moves to per-renderer config with its area (M5.4, M5.6; D29); `MAXIMUM_BUFFER_SIZE`, `VALIDATE_COORDINATES` and the view flags stay global, as do `ANDROID_32BIT_COLOR` (the host's tile format until the host-bitmap target, M8.1) and `AndroidParameters.ANDROID_LIBHWUI_FIX` (a per-device workaround) |
 | D29 | The Paint caches (F1–F3) are bounded in M5.6, in Kotlin: a window of 4 zoom levels, and each render job pins its zoom so a drawing tile never sees an unscaled Paint; where the window lives is M5.6's call. `ANTI_ALIASING` per renderer moves to M5.6 too, as on Android it is set on each theme Paint; on AWT the canvas reads it (`AwtCanvas`, set from `CanvasRasterer`), changed in the same step. 2026-10-27, M5.6 fixes: the canvas setting also reaches the Android canvas' bitmap Paint, which upstream kept on; the window lives in `RenderTheme`, which owns the scaled maps; `DatabaseRenderer` holds the zoom of each job, a bare `RenderContext` only marks it used, so a context never destroyed (LoPoints) cannot pin a zoom forever |
 | D30 | M5.4 removes the unused hillshading code before converting the renderer, rather than converting it first; the renderer constructors keep their hills parameter as an ignored `Object`, so the golden harness shared with upstream still compiles; M6.2 re-captures the `<hillshading>` layer, level and `cat` in `RenderThemeHandler`, dropped here |
 | D31 | The M5 soak compares each `SEPARATE` render's label store entry with a serial render's: kind, text, priority, position, clash box, visibility, standalone symbol size (way-label text through `toString`, as its field is private; the display mode itself is protected in Mapsforge); the soak fails if no render had labels. Not compared: `IN_TILE` labels (render order, M6.1), placement across tiles (the label pass, M6.1), fonts, colours and symbol pixels |
@@ -471,3 +472,5 @@ here, except A8 and A9 in M6.4, as fixing them changes pixels.
 | Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? | M9 |
 | Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed. | M5 → `main` (D26) |
 | Q18 | F1: the Paints' native heap explains ~15–22 MB of the native +93–170 MB zoom growth (M5.3 fixes); what holds the rest? A phone zoom soak after M5.6 shows how much the cache bound removes. | M5 → `main` (D26) |
+| Q19 | C7's matching-cache keys hold copied tag lists (house numbers, `ele`, `ref`); upstream keyed on an `Integer`. How much heap do both caches retain on the corpus, against C7's Paint saving? | M7 |
+| Q20 | No speed run after M5: JMH and the A54 `androidx.benchmark` against the M2.7/M2.7b baselines, so M7's deltas exclude the conversion and the C4, C6, C7 fixes. | M7 |
