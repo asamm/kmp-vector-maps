@@ -49,7 +49,8 @@ import com.asamm.vectormaps.garminimg.parser.TypSubFile
  * race on the seek positions and silently produce garbled output. Give
  * each worker its own copy with [reopen]: it shares the parsed headers,
  * sub-division tree and TYP, which are read-only, and reads through its
- * own readers.
+ * own readers. Maps sharing readers, from one [openAll] or [reopenOn] over
+ * the same containers, stay on one thread together and close once.
  *
  * @param typStyles parsed TYP body — `(type, subType)` → resolved styles for the polygon and
  *   line sections. Populated when the IMG has a TYP sub-file and its body parses successfully;
@@ -65,10 +66,13 @@ class ImgFile internal constructor(
     val typ: TypHeader?,
     val typStyles: com.asamm.vectormaps.garminimg.parser.TypStyleTable?,
     /**
-     * The readers owned by this `ImgFile`. [close] iterates this list
-     * and closes each. Empty for callers that built `ImgFile` via the
-     * explicit-readers overload of [open] — those keep ownership and
-     * manage the readers themselves.
+     * File name of this map's sub-files in [archive]; a multi-map IMG holds several.
+     */
+    val mapName: String,
+    /**
+     * The readers [close] closes, shared by all maps of one [openAll]. Empty
+     * for the explicit-readers overload of [open] and for [reopenOn] — their
+     * callers keep ownership and manage the readers themselves.
      */
     private val ownedReaders: List<ImgRandomAccessReader> = emptyList(),
     // shared with the reopened copies, so the tree is indexed once per parsed map
@@ -91,10 +95,25 @@ class ImgFile internal constructor(
      */
     fun reopen(byteSourceFactory: () -> ImgRandomAccessReader): ImgFile {
         val owned = mutableListOf<ImgRandomAccessReader>()
+        return reopen(owned = owned, container = { byteSourceFactory().also { owned += it } })
+    }
+
+    /**
+     * Like [reopen], over containers the caller owns and closes: `container` returns the reader for
+     * a sub-file type, which the maps of one archive may share, one thread at a time.
+     */
+    fun reopenOn(container: (fileType: String) -> ImgRandomAccessReader): ImgFile {
+        return reopen(owned = mutableListOf(), container = container)
+    }
+
+    private fun reopen(
+        owned: MutableList<ImgRandomAccessReader>,
+        container: (fileType: String) -> ImgRandomAccessReader,
+    ): ImgFile {
         try {
             fun subFile(type: String): ImgRandomAccessReader {
-                val entry = archive.findFirst(type) ?: error("IMG has no $type sub-file")
-                return archive.openSubFile(entry, byteSourceFactory().also { owned += it })
+                val entry = archive.find(mapName, type) ?: error("IMG map $mapName has no $type sub-file")
+                return archive.openSubFile(entry, container(type))
             }
             val treReader = subFile("TRE")
             val rgnReader = subFile("RGN")
@@ -108,6 +127,7 @@ class ImgFile internal constructor(
                 net = netData,
                 typ = typ,
                 typStyles = typStyles,
+                mapName = mapName,
                 ownedReaders = owned,
                 levelIndex = levelIndex,
             )
@@ -321,13 +341,17 @@ class ImgFile internal constructor(
             // Explicit-readers form: caller owns and closes the readers.
             // Pass an empty owned-readers list so [ImgFile.close] is a
             // no-op for these instances.
+            val archive = ImgArchive.open(archiveReader)
+            val (typHeader, typStyles) = readTyp(typReader)
             return openInternal(
-                archive = ImgArchive.open(archiveReader),
+                archive = archive,
+                mapName = archive.mapNames().firstOrNull() ?: error("IMG has no map with TRE, RGN and LBL"),
                 treReader = treReader,
                 rgnReader = rgnReader,
                 lblReader = lblReader,
                 netReader = netReader,
-                typReader = typReader,
+                typHeader = typHeader,
+                typStyles = typStyles,
                 ownedReaders = emptyList(),
             )
         }
@@ -354,10 +378,12 @@ class ImgFile internal constructor(
             try {
                 // the archive keeps no reader after the FAT parse
                 val archive = byteSourceFactory().use { ImgArchive.open(it) }
-                val tre = archive.findFirst("TRE") ?: error("IMG has no TRE sub-file")
-                val rgn = archive.findFirst("RGN") ?: error("IMG has no RGN sub-file")
-                val lbl = archive.findFirst("LBL") ?: error("IMG has no LBL sub-file")
-                val net = archive.findFirst("NET")
+                // the first map, its sub-files by name, as reopen finds them
+                val mapName = archive.mapNames().firstOrNull() ?: error("IMG has no map with TRE, RGN and LBL")
+                val tre = checkNotNull(archive.find(mapName, "TRE"))
+                val rgn = checkNotNull(archive.find(mapName, "RGN"))
+                val lbl = checkNotNull(archive.find(mapName, "LBL"))
+                val net = archive.find(mapName, "NET")
                 val typ = archive.findFirst("TYP")
 
                 fun rawForSubFile(): ImgRandomAccessReader {
@@ -367,15 +393,17 @@ class ImgFile internal constructor(
                 val rgnReader = archive.openSubFile(rgn, rawForSubFile())
                 val lblReader = archive.openSubFile(lbl, rawForSubFile())
                 val netReader = net?.let { archive.openSubFile(it, rawForSubFile()) }
-                val typReader = typ?.let { archive.openSubFile(it, rawForSubFile()) }
+                val (typHeader, typStyles) = readTyp(typ?.let { archive.openSubFile(it, rawForSubFile()) })
 
                 return openInternal(
                     archive = archive,
+                    mapName = tre.fileName,
                     treReader = treReader,
                     rgnReader = rgnReader,
                     lblReader = lblReader,
                     netReader = netReader,
-                    typReader = typReader,
+                    typHeader = typHeader,
+                    typStyles = typStyles,
                     ownedReaders = owned,
                 )
             } catch (e: Throwable) {
@@ -385,29 +413,89 @@ class ImgFile internal constructor(
         }
 
         /**
-         * Shared implementation for both [open] overloads.
+         * Opens every map of a multi-map IMG, such as a gmapsupp with one map per tile; a single-map
+         * IMG gives one. The archive's first TYP, decoded once, styles all its maps, also those of
+         * another product family; the maps share one reader per sub-file type, so closing one map
+         * closes them all.
+         */
+        fun openAll(byteSourceFactory: () -> ImgRandomAccessReader): List<ImgFile> {
+            val archive = byteSourceFactory().use { ImgArchive.open(it) }
+            val names = archive.mapNames()
+            require(names.isNotEmpty()) {
+                "IMG has no map with TRE, RGN and LBL sub-files"
+            }
+            val (typHeader, typStyles) = archive.findFirst("TYP")?.let { entry ->
+                byteSourceFactory().use { readTyp(archive.openSubFile(entry, it)) }
+            } ?: (null to null)
+            // a few handles for the whole archive, however many maps it holds
+            val shared = mutableListOf<ImgRandomAccessReader>()
+            val containers = HashMap<String, ImgRandomAccessReader>()
+            try {
+                return names.map { name ->
+                    fun subFile(type: String): ImgRandomAccessReader? {
+                        val entry = archive.find(name, type) ?: return null
+                        val container = containers.getOrPut(type) { byteSourceFactory().also { shared += it } }
+                        return archive.openSubFile(entry, container)
+                    }
+                    openInternal(
+                        archive = archive,
+                        mapName = name,
+                        treReader = checkNotNull(subFile("TRE")),
+                        rgnReader = checkNotNull(subFile("RGN")),
+                        lblReader = checkNotNull(subFile("LBL")),
+                        netReader = subFile("NET"),
+                        typHeader = typHeader,
+                        typStyles = typStyles,
+                        ownedReaders = shared,
+                    )
+                }
+            } catch (e: Throwable) {
+                closeQuietly(shared)
+                throw e
+            }
+        }
+
+        /**
+         * TYP header and styles, both null when the TYP is absent or does not parse: TYP is optional
+         * styling, so a malformed one drops the TYP, not the map.
+         */
+        private fun readTyp(
+            typReader: ImgRandomAccessReader?,
+        ): Pair<TypHeader?, com.asamm.vectormaps.garminimg.parser.TypStyleTable?> {
+            if (typReader == null) {
+                return null to null
+            }
+            val header = try {
+                TypSubFile.parseHeader(typReader)
+            } catch (_: Exception) {
+                return null to null
+            }
+            val styles = try {
+                com.asamm.vectormaps.garminimg.parser.TypBodyParser.parse(typReader, header)
+            } catch (_: Exception) {
+                null
+            }
+            return header to styles
+        }
+
+        /**
+         * Shared implementation for the open functions.
          */
         private fun openInternal(
             archive: ImgArchive,
+            mapName: String,
             treReader: ImgRandomAccessReader,
             rgnReader: ImgRandomAccessReader,
             lblReader: ImgRandomAccessReader,
             netReader: ImgRandomAccessReader?,
-            typReader: ImgRandomAccessReader?,
+            typHeader: TypHeader?,
+            typStyles: com.asamm.vectormaps.garminimg.parser.TypStyleTable?,
             ownedReaders: List<ImgRandomAccessReader>,
         ): ImgFile {
             val treHeader = TreSubFile.parseHeader(treReader)
             val rgnHeader = RgnSubFile.parseHeader(rgnReader)
             val lblHeader = LblSubFile.parseHeader(lblReader)
             val netHeader = netReader?.let { NetSubFile.parseHeader(it) }
-            // TYP is optional styling: a malformed header drops it, not the map
-            val typHeader = typReader?.let {
-                try {
-                    TypSubFile.parseHeader(it)
-                } catch (_: Exception) {
-                    null
-                }
-            }
 
             val levels = TreSubFile.parseLevels(treReader)
             val tree = SubDivisionParser.parse(
@@ -417,16 +505,6 @@ class ImgFile internal constructor(
                 rgnInfo = RgnSubFile.endInfo(rgnHeader),
             )
 
-            val typStyles = if (typHeader != null && typReader != null) {
-                try {
-                    com.asamm.vectormaps.garminimg.parser.TypBodyParser.parse(typReader, typHeader)
-                } catch (_: Exception) {
-                    null
-                }
-            } else {
-                null
-            }
-
             return ImgFile(
                 archive = archive,
                 tre = TreData(treReader, treHeader, levels, tree),
@@ -435,6 +513,7 @@ class ImgFile internal constructor(
                 net = netHeader?.let { h -> NetData(netReader as ImgRandomAccessReader, h) },
                 typ = typHeader,
                 typStyles = typStyles,
+                mapName = mapName,
                 ownedReaders = ownedReaders,
             )
         }

@@ -58,6 +58,29 @@ class ImgArchive private constructor(
     }
 
     /**
+     * Returns the entry of `fileType` (case-insensitive) belonging to the map `fileName`, or null.
+     */
+    fun find(fileName: String, fileType: String): SubFileEntry? {
+        return byName[fileName]?.firstOrNull { it.fileType.equals(fileType, ignoreCase = true) }
+    }
+
+    // a gmapsupp holds thousands of sub-files; per-map lookups must not scan them all
+    private val byName: Map<String, List<SubFileEntry>> by lazy {
+        subFiles.groupBy { it.fileName }
+    }
+
+    /**
+     * File names of the maps in this archive, in FAT order: each has its own TRE, RGN and LBL. A
+     * gmapsupp holds one per map tile.
+     */
+    fun mapNames(): List<String> {
+        return findAll("TRE").map { it.fileName }.distinct().filter { name ->
+            find(name, "RGN") != null
+                && find(name, "LBL") != null
+        }
+    }
+
+    /**
      * Returns every sub-file entry whose type matches `fileType` (case-insensitive).
      */
     fun findAll(fileType: String): List<SubFileEntry> {
@@ -127,7 +150,23 @@ class ImgArchive private constructor(
 
             val (firstEntryOffset, fatEndOffset) = findFatBounds(reader)
             val subFiles = readFatEntries(reader, firstEntryOffset, fatEndOffset)
+            requireDisjoint(subFiles, blockSize)
             return ImgArchive(description, blockSize, subFiles)
+        }
+
+        // maps aliasing one sub-file would each parse and keep their own copy of it
+        private fun requireDisjoint(subFiles: List<SubFileEntry>, blockSize: Int) {
+            var previous: SubFileEntry? = null
+            var previousEnd = 0L
+            for (entry in subFiles.filter { it.fileSize != 0 }.sortedBy { it.firstBlock }) {
+                val start = entry.firstBlock.toLong() * blockSize
+                require(start >= previousEnd) {
+                    "IMG sub-files ${previous?.fileName}.${previous?.fileType} and " +
+                        "${entry.fileName}.${entry.fileType} overlap"
+                }
+                previous = entry
+                previousEnd = start + (entry.fileSize.toLong() and 0xFFFFFFFFL)
+            }
         }
 
         private fun requireUnencryptedHeader(reader: ImgRandomAccessReader) {

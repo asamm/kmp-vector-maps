@@ -57,7 +57,8 @@ class MapsforgeDataset internal constructor(
             null
         } ?: return false
         synchronized(lock) {
-            if (file in files) {
+            // a relative and an absolute path to one file are the same map
+            if (files.any { it.absoluteFile.normalize() == file.absoluteFile.normalize() }) {
                 return false
             }
             files = files + file

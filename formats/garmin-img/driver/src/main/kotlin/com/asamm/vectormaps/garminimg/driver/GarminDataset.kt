@@ -17,57 +17,86 @@ import com.asamm.vectormaps.garminimg.utils.io.FileImgRandomAccessReader
 import java.io.File
 
 /**
- * One Garmin `.img` file; rendering several together comes with M4.3b, so [addMap] adds nothing.
- * The map is parsed once and shared by all renderers, whose workers read through their own readers.
+ * Garmin `.img` files, each with one map or many (a gmapsupp holds one per tile), rendered
+ * together. Every file is parsed once and shared by all renderers, whose workers read through
+ * their own readers; renderers keep the files they were created with.
  */
 class GarminDataset internal constructor(
     override val driver: GarminDriver,
     files: List<File>,
 ) : MapDataset {
 
-    val file: File
-
-    private val lastModified: Long
-
     private val lock = Any()
 
-    // headers, sub-division tree and TYP; its own readers are closed at once, as workers reopen
-    private var parsed: ImgFile? = null
-
-    override val bounds: GeoBounds
-
-    /**
-     * TRE levels with their own data, for [GarminOptions.level].
-     */
-    val levels: List<GarminLevel>
-
-    /**
-     * The embedded TYP when the map has one, then the built-in styles.
-     */
-    override val styles: List<GarminStyle>
+    @Volatile
+    private var snapshot: Snapshot? = null
 
     init {
-        require(files.size == 1) {
-            "GarminDataset(), one file expected, got ${files.size}"
+        require(files.isNotEmpty()) {
+            "GarminDataset(), no files"
         }
-        file = files[0]
-        // read before the content, so a later change always shows
-        lastModified = file.lastModified()
-        val summary = driver.readSummary(file = file, full = true)
-        bounds = summary.bounds
-        levels = summary.levels
-        styles = if (summary.hasTyp) {
-            listOf(GarminStyle.Embedded(file = file, lastModified = lastModified), GarminStyle.BuiltIn)
-        } else {
-            listOf(GarminStyle.BuiltIn)
+        for (file in files) {
+            // the reason a file is unreadable reaches the caller
+            require(add(file)) {
+                "GarminDataset(), $file given twice"
+            }
         }
     }
 
     /**
-     * Returns false: one file per dataset until M4.3b.
+     * The files, in the order they were added.
+     */
+    val files: List<File>
+        get() = current().files
+
+    override val bounds: GeoBounds
+        get() = current().bounds
+
+    /**
+     * TRE levels with their own data across the maps, ascending (finest first), for
+     * [GarminOptions.level]; a level number is per map, so the bits shown are those of the first
+     * map that has it.
+     */
+    val levels: List<GarminLevel>
+        get() = current().levels
+
+    /**
+     * The embedded TYP when a file has one, then the built-in styles; the same instances until
+     * [addMap].
+     */
+    override val styles: List<GarminStyle>
+        get() = current().styles
+
+    /**
+     * Adds a file with all its maps; false when it is not a readable Garmin map or already added.
      */
     override fun addMap(file: File): Boolean {
-        return false
+        return try {
+            add(file)
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    // throws when the file is not a readable Garmin map; false when it is already added
+    private fun add(file: File): Boolean {
+        // read before the content, so a later change always shows
+        val lastModified = file.lastModified()
+        val entry = Entry(file = file, lastModified = lastModified, summary = driver.readSummary(file = file, full = true))
+        // a file that does not parse fails here, not in every later renderer
+        entry.parsed()
+        synchronized(lock) {
+            val entries = snapshot?.entries.orEmpty()
+            if (entries.any { it.isFile(file) }) {
+                return false
+            }
+            snapshot = Snapshot(entries + entry)
+        }
+        return true
+    }
+
+    private fun current(): Snapshot {
+        return checkNotNull(snapshot)
     }
 
     /**
@@ -83,8 +112,8 @@ class GarminDataset internal constructor(
 
     /**
      * Like [createRenderer] with the Garmin [options], which [RenderKey] does not cover: a host
-     * that varies them keys its tile cache itself. Throws when the map file changed since the
-     * dataset was opened, for a level the map lacks, and for [LabelMode.SEPARATE] until M6.
+     * that varies them keys its tile cache itself. Throws when a map file changed since it was
+     * added, for a level no map has, and for [LabelMode.SEPARATE] until M6.
      */
     fun createRenderer(
         style: MapStyle,
@@ -95,53 +124,99 @@ class GarminDataset internal constructor(
         require(style is GarminStyle) {
             "createRenderer(), not a Garmin style: ${style.id}"
         }
+        val snapshot = current()
+        val entries = snapshot.entries
         require(style !is GarminStyle.Embedded
-            || style.file == file
+            || entries.any { it.isFile(style.file) }
         ) {
             "createRenderer(), ${style.id} belongs to another map"
         }
         require(config.labelMode == LabelMode.IN_TILE) {
             "createRenderer(), label mode ${config.labelMode} not supported"
         }
-        // the dataset's bounds and style ids hold for the file it opened: reopen after a map update
-        check(file.lastModified() == lastModified) {
-            "createRenderer(), $file changed since the dataset was opened"
+        val sources = entries.map { entry ->
+            // the bounds and style ids hold for the file as added: reopen after a map update
+            entry.checkUnchanged("createRenderer()")
+            GarminRenderer.Source(
+                maps = entry.parsed(),
+                bounds = entry.summary.mapBounds,
+                openReader = {
+                    // workers open the file when they are first needed; it must still be the parsed one
+                    entry.checkUnchanged("render()")
+                    FileImgRandomAccessReader(entry.file)
+                },
+            )
         }
-        val img = parsed()
         val level = options.level
         require(level == null
-            || img.tre.levels.levels.any { it.level == level }
+            || sources.any { source -> source.maps.any { map -> map.tre.levels.levels.any { it.level == level } } }
         ) {
-            "createRenderer(), $file has no level $level"
+            "createRenderer(), no map has level $level"
         }
         return GarminRenderer(
             key = RenderKey(styleId = style.id, selection = selection, config = config),
-            parsed = img,
-            // workers open the file when they are first needed; it must still be the parsed one
-            openReader = {
-                check(file.lastModified() == lastModified) {
-                    "render(), $file changed since the dataset was opened"
-                }
-                FileImgRandomAccessReader(file)
-            },
+            sources = sources,
             style = style,
             canvasFactory = driver.canvasFactory,
             options = options,
-            bounds = bounds,
         )
     }
 
     override fun close() {
-        // nothing open: the parsed map holds no readers, renderers own theirs
+        // nothing open: the parsed maps hold no readers, renderers own theirs
     }
 
-    private fun parsed(): ImgFile {
-        synchronized(lock) {
+    /**
+     * The files and what derives from them, replaced as a whole by [addMap].
+     */
+    private class Snapshot(val entries: List<Entry>) {
+
+        val files: List<File> = entries.map { it.file }
+
+        val bounds: GeoBounds = entries.map { it.summary.bounds }.reduce(GeoBounds::union)
+
+        val levels: List<GarminLevel> = entries
+            .flatMap { it.summary.levels }
+            .distinctBy { it.level }
+            .sortedBy { it.level }
+
+        val styles: List<GarminStyle> = run {
+            val typFile = entries.firstOrNull { it.summary.hasTyp }
+            if (typFile == null) {
+                listOf(GarminStyle.BuiltIn)
+            } else {
+                listOf(GarminStyle.Embedded(file = typFile.file, lastModified = typFile.lastModified), GarminStyle.BuiltIn)
+            }
+        }
+    }
+
+    private class Entry(
+        val file: File,
+        val lastModified: Long,
+        val summary: ImgSummary,
+    ) {
+
+        private var parsed: List<ImgFile>? = null
+
+        // a relative and an absolute path to one file are the same map
+        fun isFile(other: File): Boolean {
+            return file.absoluteFile.normalize() == other.absoluteFile.normalize()
+        }
+
+        fun checkUnchanged(caller: String) {
+            check(file.lastModified() == lastModified) {
+                "$caller, $file changed since it was added"
+            }
+        }
+
+        // headers, sub-division trees and TYP; their shared readers are closed at once, as workers reopen
+        @Synchronized
+        fun parsed(): List<ImgFile> {
             parsed?.let { return it }
-            val img = ImgFile.open { FileImgRandomAccessReader(file) }
-            img.close()
-            parsed = img
-            return img
+            val maps = ImgFile.openAll { FileImgRandomAccessReader(file) }
+            maps.first().close()
+            parsed = maps
+            return maps
         }
     }
 }
@@ -158,7 +233,8 @@ data class GarminLevel(
  * Garmin-only render settings for development tools; Locus' type toggles come with M8.2.
  *
  * @param objectKinds [ObjectKind] bits to draw
- * @param level TRE level to draw; null picks the level matching the zoom
+ * @param level TRE level to draw in the maps that have it; null, and every map without it, picks
+ *   the level matching the zoom
  */
 data class GarminOptions(
     val antiAliasing: Boolean = true,

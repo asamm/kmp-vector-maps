@@ -34,7 +34,8 @@ sealed class GarminStyle : MapStyle {
     }
 
     /**
-     * The TYP inside the map file; only the dataset of that file lists it.
+     * Each file's first TYP for all its maps, the built-in styles for a file without one; a dataset
+     * lists it when one of its files has a TYP, with that first file's id.
      */
     class Embedded internal constructor(
         val file: File,
