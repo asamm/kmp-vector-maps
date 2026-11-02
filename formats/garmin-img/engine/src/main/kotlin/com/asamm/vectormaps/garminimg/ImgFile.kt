@@ -166,13 +166,12 @@ class ImgFile internal constructor(
         levelFilter: Int? = null,
     ): Sequence<MapObject> {
         return sequence {
-            for (subDivision in tre.tree.all()) {
-                if (!subDivisionHasAnyData(subDivision)) {
-                    continue
-                }
-                if (levelFilter != null && subDivision.level != levelFilter) {
-                    continue
-                }
+            val candidates = if (levelFilter == null) {
+                tre.tree.all().filter { subDivisionHasAnyData(it) }
+            } else {
+                subDivisionsWithData(levelFilter).asSequence()
+            }
+            for (subDivision in candidates) {
                 if (!subDivisionIntersects(subDivision, minLong, maxLong, minLat, maxLat)) {
                     continue
                 }
@@ -212,11 +211,22 @@ class ImgFile internal constructor(
     }
 
     /**
-     * Same coverage check as [subDivisionHasAnyData] but used by the
-     * renderer's level-coverage probe.
+     * Levels that have at least one sub-division in the tree, data or not.
      */
-    internal fun subDivisionHasAnyDataInternal(sd: SubDivision): Boolean {
-        return subDivisionHasAnyData(sd)
+    internal val materialisedLevels: Set<Int> by lazy {
+        tre.tree.all().mapTo(HashSet()) { it.level }
+    }
+
+    // tile renders query one level each; walking the whole tree per tile is the cost (PR #28)
+    private val subDivisionsWithDataByLevel: Map<Int, List<SubDivision>> by lazy {
+        tre.tree.all().filter { subDivisionHasAnyData(it) }.groupBy { it.level }
+    }
+
+    /**
+     * Sub-divisions of `level` with drawable data, in tree order.
+     */
+    internal fun subDivisionsWithData(level: Int): List<SubDivision> {
+        return subDivisionsWithDataByLevel[level] ?: emptyList()
     }
 
     private fun subDivisionIntersects(

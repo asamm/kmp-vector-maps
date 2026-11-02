@@ -456,7 +456,7 @@ class ImgRenderer(
             // - DETAIL_BIAS`. Each level coarser drops one bit of
             // resolution AND simplifies geometry (residential streets,
             // footpaths, building outlines fade out as you go up). Our
-            // bias of -4 picks finest at deep zooms, level 2-3 at city
+            // bias of -1 picks finest at deep zooms, level 2-3 at city
             // overview, level 4-5 at district, matching what reference
             // renderers (mkgmap, GPSMapEdit, old Locus) produce on the
             // same fixtures.
@@ -508,11 +508,7 @@ class ImgRenderer(
             viewport: Viewport,
             img: ImgFile,
         ): Int? {
-            val materialised = HashSet<Int>()
-            for (sd in img.tre.tree.all()) {
-                materialised.add(sd.level)
-            }
-            val first = pickRenderLevel(viewport, img.tre.levels, materialised) ?: return null
+            val first = pickRenderLevel(viewport, img.tre.levels, img.materialisedLevels) ?: return null
             // Walk levels from finest-passing-the-cap down to coarsest;
             // first one with intersecting sub-divisions wins.
             val candidates = img.tre.levels.levels
@@ -542,13 +538,7 @@ class ImgRenderer(
             // sub-division covers it. Centre-only check returned false
             // for every level → the renderer drew nothing.
             val bits = img.tre.levels
-            for (sd in img.tre.tree.all()) {
-                if (sd.level != level) {
-                    continue
-                }
-                if (!img.subDivisionHasAnyDataInternal(sd)) {
-                    continue
-                }
+            for (sd in img.subDivisionsWithData(level)) {
                 val bpc = bits.bitsPerCoordOf(sd.level) ?: continue
                 val scale = 1 shl (24 - bpc).coerceAtLeast(0)
                 val halfW = sd.halfWidth.toLong() * scale

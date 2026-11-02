@@ -27,6 +27,8 @@ class GarminDataset internal constructor(
 
     val file: File
 
+    private val lastModified: Long
+
     override val bounds: GeoBounds
 
     /**
@@ -39,19 +41,27 @@ class GarminDataset internal constructor(
             "GarminDataset(), one file expected, got ${files.size}"
         }
         file = files[0]
-        val summary = driver.readSummary(file)
+        // read before the content, so a later change always shows
+        lastModified = file.lastModified()
+        val summary = driver.readSummary(file = file, readTyp = true)
         bounds = summary.bounds
         styles = if (summary.hasTyp) {
-            listOf(GarminStyle.Embedded(file = file, lastModified = file.lastModified()), GarminStyle.BuiltIn)
+            listOf(GarminStyle.Embedded(file = file, lastModified = lastModified), GarminStyle.BuiltIn)
         } else {
             listOf(GarminStyle.BuiltIn)
         }
     }
 
+    /**
+     * Returns false: one file per dataset until M4.3.
+     */
     override fun addMap(file: File): Boolean {
         return false
     }
 
+    /**
+     * Renders with the default [GarminOptions]; throws for [LabelMode.SEPARATE] until M6.
+     */
     override fun createRenderer(
         style: MapStyle,
         selection: StyleSelection,
@@ -62,7 +72,8 @@ class GarminDataset internal constructor(
 
     /**
      * Like [createRenderer] with the Garmin [options], which [RenderKey] does not cover: a host
-     * that varies them keys its tile cache itself. Labels outside the tiles come with M6.
+     * that varies them keys its tile cache itself. Throws when the map file changed since the
+     * dataset was opened, for a level the map lacks, and for [LabelMode.SEPARATE] until M6.
      */
     fun createRenderer(
         style: MapStyle,
@@ -81,8 +92,18 @@ class GarminDataset internal constructor(
         require(config.labelMode == LabelMode.IN_TILE) {
             "createRenderer(), label mode ${config.labelMode} not supported"
         }
+        // the dataset's bounds and style ids hold for the file it opened: reopen after a map update
+        check(file.lastModified() == lastModified) {
+            "createRenderer(), $file changed since the dataset was opened"
+        }
         val img = ImgFile.open { FileImgRandomAccessReader(file) }
         try {
+            val level = options.level
+            require(level == null
+                || img.tre.levels.levels.any { it.level == level }
+            ) {
+                "createRenderer(), $file has no level $level"
+            }
             return GarminRenderer(
                 key = RenderKey(styleId = style.id, selection = selection, config = config),
                 img = img,

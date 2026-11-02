@@ -14,6 +14,7 @@ import com.asamm.vectormaps.garminimg.render.ImgRenderer
 import com.asamm.vectormaps.garminimg.render.RenderTarget
 import com.asamm.vectormaps.garminimg.render.StyleResolver
 import com.asamm.vectormaps.garminimg.render.Viewport
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.sinh
@@ -36,7 +37,7 @@ class GarminRenderer internal constructor(
 
     private val lock = Any()
 
-    private var closed = false
+    private val closed = AtomicBoolean(false)
 
     private val renderer = ImgRenderer(img, styleResolver)
 
@@ -49,7 +50,7 @@ class GarminRenderer internal constructor(
             "render(), target ${target.widthPx} px, tile $tileSize px"
         }
         synchronized(lock) {
-            check(!closed) {
+            check(!closed.get()) {
                 "render($tile), renderer closed"
             }
             if (isCancelled()) {
@@ -79,12 +80,14 @@ class GarminRenderer internal constructor(
         }
     }
 
+    /**
+     * Renders queued behind a running one fail once it ends; waits for that one.
+     */
     override fun close() {
+        if (!closed.compareAndSet(false, true)) {
+            return
+        }
         synchronized(lock) {
-            if (closed) {
-                return
-            }
-            closed = true
             img.close()
         }
     }
@@ -121,7 +124,8 @@ fun interface GarminCanvasFactory {
 /**
  * Receives the canvas the renderer created through its [GarminCanvasFactory]. After
  * [RenderResult.DRAWN] the caller owns [canvas] and reads its pixels, such as
- * `AwtRenderTarget.image`.
+ * `AwtRenderTarget.image`; the canvas holds nothing else, so dropping it releases it (recycle an
+ * `AndroidRenderTarget.bitmap` to free it early).
  */
 class GarminTileTarget(sizePx: Int) : CoreRenderTarget {
 

@@ -15,7 +15,7 @@ import kotlin.math.round
  *
  * Garmin coordinates are signed 24-bit fixed-point fractions of a full circle: a
  * coordinate value `c` represents `c * 360.0 / 2^24` degrees. This means any IMG
- * file's lat/lon precision is roughly 2.4 cm at the equator.
+ * file's lat/lon precision is roughly 2.4 m at the equator.
  */
 object CoordUtils {
 

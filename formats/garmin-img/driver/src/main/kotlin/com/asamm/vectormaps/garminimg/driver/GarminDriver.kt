@@ -14,6 +14,7 @@ import com.asamm.vectormaps.garminimg.parser.TypBodyParser
 import com.asamm.vectormaps.garminimg.parser.TypSubFile
 import com.asamm.vectormaps.garminimg.utils.coord.CoordUtils
 import com.asamm.vectormaps.garminimg.utils.io.FileImgRandomAccessReader
+import com.asamm.vectormaps.garminimg.utils.io.ImgRandomAccessReader
 import java.io.File
 
 /**
@@ -34,10 +35,10 @@ class GarminDriver(
     override val styleExtensions: Set<String> = setOf("typ")
 
     /**
-     * Reads the IMG directory and the first TRE header only.
+     * Reads the IMG directory (TRE, RGN and LBL required) and the first TRE header.
      */
     override fun probe(file: File): MapInfo {
-        return MapInfo(bounds = readSummary(file).bounds, languages = emptyList())
+        return MapInfo(bounds = readSummary(file = file, readTyp = false).bounds, languages = emptyList())
     }
 
     override fun open(files: List<File>): GarminDataset {
@@ -45,17 +46,25 @@ class GarminDriver(
     }
 
     /**
-     * Reads a standalone `.typ` file; a TYP whose body does not parse throws.
+     * Reads a standalone `.typ` file; throws for a file without the TYP signature or whose
+     * sections cannot be read, while single bad records are dropped.
      */
     override fun loadStyle(file: File): GarminStyle {
         val lastModified = file.lastModified()
         val table = FileImgRandomAccessReader(file).use { reader ->
-            TypBodyParser.parse(reader, TypSubFile.parseHeader(reader))
+            val header = TypSubFile.parseHeader(reader)
+            require(header.signature.startsWith("GARMIN")) {
+                "loadStyle(), not a TYP file: $file"
+            }
+            TypBodyParser.parse(reader, header)
         }
         return GarminStyle.External(file = file, lastModified = lastModified, table = table)
     }
 
-    internal fun readSummary(file: File): ImgSummary {
+    /**
+     * With `readTyp`, also decodes the TYP to learn whether it is usable; probes skip that cost.
+     */
+    internal fun readSummary(file: File, readTyp: Boolean): ImgSummary {
         return FileImgRandomAccessReader(file).use { reader ->
             val archive = ImgArchive.open(reader)
             // a map without RGN or LBL would only fail at its first renderer
@@ -68,11 +77,16 @@ class GarminDriver(
             val typ = archive.findFirst("TYP")
             ImgSummary(
                 bounds = toBounds(TreSubFile.parseHeader(tre)),
-                // as `ImgFile`, which drops a TYP whose header does not parse
-                hasTyp = typ != null
-                    && runCatching { TypSubFile.parseHeader(archive.openSubFile(typ, reader)) }.isSuccess,
+                // as `ImgFile`, which drops a TYP whose header or sections do not parse
+                hasTyp = readTyp
+                    && typ != null
+                    && runCatching { readTyp(archive.openSubFile(typ, reader)) }.isSuccess,
             )
         }
+    }
+
+    private fun readTyp(reader: ImgRandomAccessReader) {
+        TypBodyParser.parse(reader, TypSubFile.parseHeader(reader))
     }
 
     private fun toBounds(header: TreHeader): GeoBounds {

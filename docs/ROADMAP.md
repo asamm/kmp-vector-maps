@@ -233,8 +233,7 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 - Left for M4.3: nearest-finer level fallback, multi-byte reads through `ImgSubFileStream`,
   sub-files matched to the TRE tile (multi-tile gmapsupp renders the first tile only), thread-safe
   `typAware` cache, reusable render targets, POI metadata skipped when rendering, one projection
-  per polyline without a `FloatPair` per vertex, the materialised levels cached, each sub-division
-  frozen once, one sub-division overlap helper (`ImgRenderer`, `ImgFile`), label and coordinate
+  per polyline without a `FloatPair` per vertex, each sub-division frozen once, one sub-division overlap helper (`ImgRenderer`, `ImgFile`), label and coordinate
   buffers without boxing, AWT icons cached as on Android, fewer allocations per label and pattern
   on Android.
 - M4.2a as built: the host passes a `GarminCanvasFactory` (`AwtRenderTarget`, `AndroidRenderTarget`)
@@ -244,8 +243,11 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   the exact tile bounds, as a Garmin unit (~2.4 m) shifts high-zoom tiles by pixels, and the level
   pick reads that exact span. Edge strokes and icons stop at sub-division and map edges, and a
   tile partly outside the map gets the opaque background (both engine behaviour, with the M6.1
-  labels). Review left for M4.3: each renderer decodes the embedded TYP even for other styles;
-  TYP patterns are converted per tile, as each tile gets a new canvas.
+  labels). Review left for M4.3: a dataset's renderers share one parsed TRE tree and TYP instead
+  of each opening up to 5 readers and decoding the embedded TYP even for other styles; TYP patterns
+  are converted per tile, as each tile gets a new canvas. PR #28 review: materialised levels and
+  per-level sub-divisions cached per `ImgFile`; the map file checked against the time it was
+  opened.
 - Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons →
   M4.4; label collisions at level-pick boundaries → M6.1; Locus prefs from the helpdesk
   (label colour, line width and colour overrides, area/line/point toggles, per-type visibility,

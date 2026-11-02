@@ -152,6 +152,32 @@ class GarminDriverTest {
     }
 
     @Test
+    fun rejectsLevelTheMapLacks() {
+        driver.open(listOf(otm)).use { dataset ->
+            assertFailsWith<IllegalArgumentException> {
+                dataset.createRenderer(dataset.styles[0], StyleSelection.DEFAULT, config, GarminOptions(level = 99))
+            }
+        }
+    }
+
+    @Test
+    fun rejectsMapChangedSinceOpen() {
+        val copy = createTempFile(suffix = ".img").toFile()
+        try {
+            otm.copyTo(copy, overwrite = true)
+            driver.open(listOf(copy)).use { dataset ->
+                copy.setLastModified(copy.lastModified() + 2_000)
+
+                assertFailsWith<IllegalStateException> {
+                    dataset.createRenderer(dataset.styles[0], StyleSelection.DEFAULT, config)
+                }
+            }
+        } finally {
+            copy.delete()
+        }
+    }
+
+    @Test
     fun loadsExternalTyp() {
         val typ = createTempFile(suffix = ".typ").toFile()
         try {
