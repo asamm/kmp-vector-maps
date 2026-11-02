@@ -1,0 +1,21 @@
+monaco.img — Self-built Monaco IMG fixture
+==========================================
+
+Built from OpenStreetMap data via mkgmap.
+
+Map data
+--------
+Source: OpenStreetMap contributors.
+Licence: Open Database License (ODbL) v1.0.
+Full text: https://opendatacommons.org/licenses/odbl/1-0/
+Attribution: © OpenStreetMap contributors.
+
+Redistribution within this repository is permitted under ODbL provided the
+attribution above is preserved. The file is included here solely as a small,
+deterministic test fixture for the Garmin IMG parser; it is not
+redistributed for end-user mapping use.
+
+Build chain
+-----------
+mkgmap (https://www.mkgmap.org.uk/) is licensed under the LGPL-3.0; that
+licence applies to mkgmap itself, not to the IMG output produced by it.

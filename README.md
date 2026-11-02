@@ -6,14 +6,14 @@ render pipeline and viewer shared by every format.
 ## Status
 
 **Pre-release.** Mapsforge 0.30.0 render subset converted to Kotlin (M5; differences in
-[docs/upstream.md](docs/upstream.md)); golden corpus green, desktop and Android viewers running. Not
-published yet.
+[docs/upstream.md](docs/upstream.md)); Garmin IMG imported from kmp-garmin-img 0.5.2 (M4.1), its
+driver comes in M4.2; golden tests green, desktop and Android viewers running. Not published yet.
 Milestones: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 | Format | State |
 |---|---|
 | Mapsforge `.map` v5 | vendored from [Mapsforge](https://github.com/mapsforge/mapsforge) 0.30.0 |
-| Garmin IMG | in `asamm/kmp-garmin-img`, moves here in M4.1 |
+| Garmin IMG | from `asamm/kmp-garmin-img` 0.5.2, its history in [docs/garmin-img/](docs/garmin-img/) |
 | Mapbox Vector Tiles | planned |
 
 Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
@@ -27,8 +27,13 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 - **`:formats:mapsforge:android`**, **`:awt`** — its graphics backends, also Kotlin.
 - **`:formats:mapsforge:driver`** — the `:core` driver over the vendored Mapsforge; the host
   passes its `GraphicFactory`. `./gradlew :formats:mapsforge:driver:test`.
+- **`:formats:garmin-img:engine`** — Garmin IMG reader, TYP styles and renderer.
+  `./gradlew :formats:garmin-img:engine:test`.
+- **`:formats:garmin-img:android`**, **`:awt`** — its render targets.
 - **`:dev:mapsforge:golden`** — pixel-exact render comparison against upstream 0.30.0.
   `./gradlew :dev:mapsforge:golden:test`.
+- **`:dev:garmin-img:golden`** — Garmin Monaco render against a committed PNG (Windows only) and
+  the dump comparison against the legacy Java parser. `./gradlew :dev:garmin-img:golden:test`.
 - **`:dev:bench`** — JMH benchmarks per render stage. `./gradlew :dev:bench:jmh`, another map with
   `-Pbench.mapFile=<path>`.
 - **`:dev:bench:android`** — the same on a device (`androidx.benchmark`),

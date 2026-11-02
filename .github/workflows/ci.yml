@@ -49,5 +49,6 @@ jobs:
             dev/mapsforge/golden-upstream/build/golden/expected/
             dev/mapsforge/golden-android/build/golden/
             dev/mapsforge/golden-android-upstream/build/golden/expected/
+            dev/garmin-img/golden/build/test-output/
           if-no-files-found: ignore
           retention-days: 7

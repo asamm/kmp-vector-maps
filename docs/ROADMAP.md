@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5 done; M5 reached `main` in PR #26 (D26).** Next action: M4.1, the Garmin
-import (D33); M6 follows M4.
+**Status: M0–M3 and M5 done; M4.1 (kmp-garmin-img imported with its history, D33) in review.**
+Next action: M4.2, the Garmin driver; M6 follows M4.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -23,7 +23,7 @@ settles, labels before speed, the Locus-facing API last.
 | M1 | Review hardening: CI, supply chain, licence docs, this plan | S | ✅ PR #1, `42f1598` |
 | M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | ✅ PR #2, `5e5b037` |
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PRs #3–#5, `028d746` |
-| M4 | Garmin IMG joins | M | ⬜ |
+| M4 | Garmin IMG joins | M | 🔧 |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
 | M6 | Core features: label model, hillshade anchor, feature query | M | ⬜ |
 | M7 | Performance and Skia desktop backend | L | ⬜ needs Q15 |
@@ -198,12 +198,38 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 
 **M4 — Garmin IMG.** LGPL-2.1-or-later, public in this repo (D33).
 
-| PR | Content |
-|---|---|
-| M4.1 | Audit, then import with history: secrets and local paths (`local.properties`), fixture licences (OTM Monaco `.img` and TYP); headers to LGPL-2.1-or-later with SPDX, missing ones added; KMP → Kotlin/JVM; drop unused `kotlinx-io`, coroutines, `api` logger |
-| M4.2 | Garmin driver; its goldens and dump-diff into the shared tooling |
-| M4.3 | Positional reads → parallel renders; multi-map IMGs (today first map only) |
-| M4.4 | Measured label bounds, TYP night colours, text scale |
+| PR | Content | Status |
+|---|---|---|
+| M4.1 | Audit, then import with history: secrets and local paths (`local.properties`), fixture licences (OTM Monaco `.img` and TYP); headers to LGPL-2.1-or-later with SPDX, missing ones added; KMP → Kotlin/JVM; drop unused `kotlinx-io`, coroutines, `api` logger | 🔧 |
+| M4.2 | Garmin driver; its goldens and dump-diff into the shared tooling; the pixel test also off Windows | ⬜ |
+| M4.3 | Positional reads → parallel renders; multi-map IMGs (today first map only) | ⬜ |
+| M4.4 | Measured label bounds, TYP night colours, text scale; TYP point icons and extended-type (`≥ 0x100`) polygon styles, both falling back to the internal styles today | ⬜ |
+
+- M4.1 audit (2026-11-02, all 53 commits): no secrets or keys, `local.properties` never committed,
+  3 local paths in comments (cleaned); one author identity. Fixtures: `otm-monaco` ODbL data plus
+  OpenTopoMap style CC-BY-SA 4.0, `mkgmap-monaco` ODbL; both allow public redistribution with
+  attribution.
+- M4.1 as built: tags `garmin-img/v0.5.0`–`v0.5.2`; modules `formats/garmin-img/{engine,android,awt}`,
+  tests in `dev/garmin-img/golden` (Kotlin friend of the engine, as the tests read its internals),
+  maps in `dev/fixtures/maps/`; KMP source sets merged, the unused `BinaryReader` (the only
+  `kotlinx-io` user) and its tests removed; packages `com.asamm.vectormaps.garminimg.*`; old docs in
+  [docs/garmin-img/](garmin-img/). The pixel test runs on Windows only (fonts), as in
+  kmp-garmin-img; CI covers the reader, dumps and the render sanity tests.
+- M4.1 review fixed in the import: a crafted TRE can no longer multiply the sub-division tree,
+  labels stop at the labels section end (1,024 bytes at most), a corrupt point record ends its
+  segment instead of the render, the city lookup restores the RGN reader, AWT draws white dashed
+  lines. Left for M4.2: fixtures as a `fixturesDir` (not the whole `dev/fixtures` as resources),
+  `.img` assets kept out of the viewer and bench APKs until a driver reads them, the benchmark
+  out of the golden gate. Left for M4.3: nearest-finer level fallback, multi-byte reads through
+  `ImgSubFileStream`, the coordinate bit-stream recursion as a loop, sub-files matched to the TRE
+  tile (multi-tile gmapsupp renders the first tile only), thread-safe `LabelCharset` and
+  `typAware` caches, reusable render targets, POI metadata skipped when rendering, one projection
+  per polyline, the materialised levels cached.
+- Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons →
+  M4.4; label collisions at level-pick boundaries → M6.1; Locus prefs from the helpdesk
+  (label colour, line width and colour overrides, area/line/point toggles, per-type visibility,
+  extended objects such as truck signs) → M8.2; an external `.typ` next to the `.img` → the
+  driver's `loadStyle` (M4.2); the iOS target is dropped (D22).
 
 **M5 — Mapsforge to Kotlin.** One area per PR, its hot-spot fixes in a follow-up PR on the same
 area, so each conversion PR stays pixel-identical. Every PR gated by goldens, dumps and a device
@@ -335,7 +361,8 @@ rename and module merge, before the golden move and review fixes (build files, i
 goldens and dumps byte-exact after them.*
 
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
-- M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14).
+- M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14);
+  Garmin labels piling up at level-pick boundaries (M4.1 carry-over).
 - M6.2 `HILLSHADE` anchor: theme `<hillshading>` element, else after features (D13, D16); re-capture its position, dropped in M5.4a (D30).
 - M6.3 pull-based `FeatureQuery` returning a symbol bitmap, for LoPoints.
 - M6.4 upstream bugs A8 and A9 fixed.
@@ -350,7 +377,8 @@ goldens and dumps byte-exact after them.*
 **M8 — Android host API.**
 - M8.1 `android/`: `VectorMapDriver`, `VectorMapRenderer`, `LabelPass`, `ThemeLoader` (D23);
   `TileBitmapTarget` over a host-supplied bitmap.
-- M8.2 style-menu ids, Locus-extended attributes and asset themes kept, so prefs migrate as-is.
+- M8.2 style-menu ids, Locus-extended attributes and asset themes kept, so prefs migrate as-is;
+  the Garmin style prefs from the helpdesk (M4.1 carry-over).
 - M8 must: Mapsforge's Android SVG cache keys unsized symbols without the scale, so renderers at
   two device scales share them; key them by scale or clear the cache per scale.
 - M8 must, while Locus still renders through Mapsforge directly: its `DISPLAY_MODEL` exists before
@@ -373,6 +401,7 @@ goldens and dumps byte-exact after them.*
 | I6 | Tile size per Q16, with `MapAutoLoader` filter and memory budget |
 | I7 | One release behind a remote flag, upstream Mapsforge as fallback (`com.asamm.*` by then) |
 | I8 | A54 A/B of 7 views, zoom soak vs F1, `third_party_licenses.md` updated |
+| I9 | Garmin from this repo instead of `com.asamm.kmp:kmp-garmin-img-android:0.5.2`; only then delete `asamm/kmp-garmin-img`, as its GitHub Packages go with it |
 
 ## Decisions
 

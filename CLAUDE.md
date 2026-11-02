@@ -14,11 +14,12 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 |---|---|
 | Core: driver interface, styles, anchors, label placement, `RenderTarget` | in |
 | Mapsforge: reader, theme engine, renderer, labels, SVG, `RenderCallback` | in |
-| Garmin IMG (from `kmp-garmin-img`) | in, M4 |
+| Garmin IMG: reader (TRE, RGN, LBL, NET, TYP), TYP styling, renderer | in, M4 |
 | Android host API for Locus | in, M8 |
 | Mapbox Vector Tiles | deferred, M10 |
 | Hillshading data, Locus tile pipeline and adapters | locus-core |
 | Mapsforge POI database, map writer, views, layers, MBTiles | out |
+| Garmin encrypted or locked maps, NET routing, MDR search, mkgmap-style conversion | out |
 
 ## Layout
 
@@ -26,9 +27,11 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 |---|---|
 | `formats/mapsforge/engine`, `android`, `awt` | vendored Mapsforge 0.30.0 in Kotlin (M5), `com.asamm.vectormaps.mapsforge.*`: the engine (model, reader, renderer, labels, theme), its Android and AWT graphics |
 | `formats/mapsforge/driver` | Mapsforge driver: the `core/` interface over the engine |
+| `formats/garmin-img/engine`, `android`, `awt` | Garmin IMG from kmp-garmin-img (M4.1, D33), `com.asamm.vectormaps.garminimg.*`: the reader, TYP styles and renderer over its own `RenderTarget`, its Android and AWT targets |
 | `viewer/*` | dev viewers for every registered format: `common` tile engine, `desktop` (Compose), `android` |
 | `dev/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored corpus tiles render through the driver; the shared harness in `golden/harness` |
 | `dev/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `formats/mapsforge/android`, Robolectric; plain Mapsforge, not the driver |
+| `dev/garmin-img/golden` | Garmin pixel test of the Monaco render against a committed PNG (Windows only, as fonts differ elsewhere) and the dump comparison against the legacy Java parser libGarminImg |
 | `dev/fixtures/` | test maps and themes, see [dev/fixtures/README.md](dev/fixtures/README.md) |
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baseline in ROADMAP M2.7 |
 | `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baseline in ROADMAP M2.7b; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
@@ -44,18 +47,21 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 
 - **Every difference from upstream Mapsforge 0.30.0** (code, API, build) has a row in
   [docs/upstream.md](docs/upstream.md).
-- **`./gradlew :dev:mapsforge:golden:test` before and after every Mapsforge change.**
+- **`./gradlew :dev:mapsforge:golden:test` before and after every Mapsforge change**, and
+  `./gradlew :dev:garmin-img:golden:test` before and after every Garmin change.
 - **Never remove a licence header** or `COPYING*`; on a vendored file's first change, append
   `Copyright 2026 Asamm Software` ([licence.md](docs/licence.md) L2).
 - New Asamm files: `Copyright 2026 Asamm Software` + SPDX id — `LGPL-3.0-or-later` under
-  `formats/mapsforge/` and `dev/mapsforge/`, `LGPL-2.1-or-later` under `formats/garmin-img/`,
-  `Apache-2.0` for `core/`, `render/`, `android/`, `dev/bench/` and `viewer/`.
+  `formats/mapsforge/` and `dev/mapsforge/`, `LGPL-2.1-or-later` under `formats/garmin-img/` and
+  `dev/garmin-img/`, `Apache-2.0` for `core/`, `render/`, `android/`, `dev/bench/` and `viewer/`.
 - **Formats depend on the core only.** No Locus types anywhere.
 - Kotlin/JVM libraries: `android.*` only in `render/android`, `android/`,
-  `formats/mapsforge/android`.
+  `formats/mapsforge/android`, `formats/garmin-img/android`.
 - Vendored Mapsforge is `com.asamm.vectormaps.mapsforge.*` (upstream `org.mapsforge.*`, K64); the
   golden harness keeps upstream's imports, the vendored side compiles a generated copy.
 - The host API mirrors Locus' `MapSourceRenderer` seam (D23).
+- The Garmin API is Kotlin-idiomatic; the Java Bag and Listener shapes stay in the legacy
+  reference parser (`dev/garmin-img`), which the engine never copies.
 
 ## Versions
 
@@ -69,7 +75,9 @@ need it (`golden-android*`, `dev/bench/android`).
 |---|---|
 | Mapsforge 0.30.0 (`54e8654f`) | local clone `c:\menion\asamm\tools\mapsforge` |
 | LoMaps themes | [asamm/lomaps-mapsforge](https://github.com/asamm/lomaps-mapsforge) |
-| `kmp-garmin-img` (private until M4.1, D33) | local clone `c:\menion\asamm\tools\kmp-garmin-img` |
+| `kmp-garmin-img` (imported in M4.1, D33) | local clone `c:\menion\asamm\tools\kmp-garmin-img`, kept until locus-core leaves its packages (M9) |
+| JGarminImgParser (Garmin upstream, LGPL-2.1-or-later) | `c:\menion\asamm\tools\_refs\GarminImg` |
+| mkgmap (IMG and TYP write side) | [openstreetmap/mkgmap](https://github.com/openstreetmap/mkgmap): read for behaviour, never copy code |
 | Locus map pipeline | locus-core `libLocusCore/.../maps/` — `MapSourceRenderer`, `MapsForgeV4*` |
 
 - The Mapsforge clone has local changes on branch `asamm`: **never check out, fetch or write**
