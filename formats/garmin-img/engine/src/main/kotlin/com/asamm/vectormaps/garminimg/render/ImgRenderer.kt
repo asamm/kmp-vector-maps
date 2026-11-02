@@ -44,8 +44,8 @@ import kotlin.math.ln
  * **Not thread-safe.** `render()` calls `seek()` on the shared
  * sub-file readers in [img], so two concurrent invocations on the same
  * `ImgRenderer` — or two `ImgRenderer`s sharing one [ImgFile] — race
- * on the seek position and silently produce garbled tiles. Open one
- * [ImgFile] per worker thread or serialise calls.
+ * on the seek position and silently produce garbled tiles. Give each
+ * worker thread its own renderer over an [ImgFile.reopen] copy.
  */
 class ImgRenderer(
     private val img: ImgFile,

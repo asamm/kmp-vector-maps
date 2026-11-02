@@ -12,6 +12,7 @@ import com.asamm.vectormaps.garminimg.model.ObjectKind
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 /**
@@ -20,6 +21,20 @@ import kotlin.test.assertTrue
  * division tree walk + map-object iteration through one entry point.
  */
 class OtmMonacoImgFileTest {
+
+    @Test
+    fun reopenedCopyReadsTheSameMapThroughItsOwnReaders() {
+        val bytes = fixtureBytes("maps/otm-monaco/otm-monaco.img")
+        val img = ImgFile.open { ByteArrayImgRandomAccessReader(bytes) }
+        val expected = img.readMap().toList()
+        img.close()
+
+        img.reopen { ByteArrayImgRandomAccessReader(bytes) }.use { copy ->
+            assertSame(img.tre.tree, copy.tre.tree)
+            assertSame(img.typStyles, copy.typStyles)
+            assertEquals(expected, copy.readMap().toList())
+        }
+    }
 
     @Test
     fun openAndReadEverythingMonaco() {

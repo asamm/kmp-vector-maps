@@ -17,8 +17,8 @@ import com.asamm.vectormaps.garminimg.utils.io.FileImgRandomAccessReader
 import java.io.File
 
 /**
- * One Garmin `.img` file; rendering several together comes with M4.3, so [addMap] adds nothing.
- * Each renderer opens its own readers.
+ * One Garmin `.img` file; rendering several together comes with M4.3b, so [addMap] adds nothing.
+ * The map is parsed once and shared by all renderers, whose workers read through their own readers.
  */
 class GarminDataset internal constructor(
     override val driver: GarminDriver,
@@ -28,6 +28,11 @@ class GarminDataset internal constructor(
     val file: File
 
     private val lastModified: Long
+
+    private val lock = Any()
+
+    // headers, sub-division tree and TYP; its own readers are closed at once, as workers reopen
+    private var parsed: ImgFile? = null
 
     override val bounds: GeoBounds
 
@@ -59,7 +64,7 @@ class GarminDataset internal constructor(
     }
 
     /**
-     * Returns false: one file per dataset until M4.3.
+     * Returns false: one file per dataset until M4.3b.
      */
     override fun addMap(file: File): Boolean {
         return false
@@ -102,30 +107,42 @@ class GarminDataset internal constructor(
         check(file.lastModified() == lastModified) {
             "createRenderer(), $file changed since the dataset was opened"
         }
-        val img = ImgFile.open { FileImgRandomAccessReader(file) }
-        try {
-            val level = options.level
-            require(level == null
-                || img.tre.levels.levels.any { it.level == level }
-            ) {
-                "createRenderer(), $file has no level $level"
-            }
-            return GarminRenderer(
-                key = RenderKey(styleId = style.id, selection = selection, config = config),
-                img = img,
-                styleResolver = style.resolver(img),
-                canvasFactory = driver.canvasFactory,
-                options = options,
-                bounds = bounds,
-            )
-        } catch (e: Exception) {
-            img.close()
-            throw e
+        val img = parsed()
+        val level = options.level
+        require(level == null
+            || img.tre.levels.levels.any { it.level == level }
+        ) {
+            "createRenderer(), $file has no level $level"
         }
+        return GarminRenderer(
+            key = RenderKey(styleId = style.id, selection = selection, config = config),
+            parsed = img,
+            // workers open the file when they are first needed; it must still be the parsed one
+            openReader = {
+                check(file.lastModified() == lastModified) {
+                    "render(), $file changed since the dataset was opened"
+                }
+                FileImgRandomAccessReader(file)
+            },
+            style = style,
+            canvasFactory = driver.canvasFactory,
+            options = options,
+            bounds = bounds,
+        )
     }
 
     override fun close() {
-        // nothing open: renderers own their readers
+        // nothing open: the parsed map holds no readers, renderers own theirs
+    }
+
+    private fun parsed(): ImgFile {
+        synchronized(lock) {
+            parsed?.let { return it }
+            val img = ImgFile.open { FileImgRandomAccessReader(file) }
+            img.close()
+            parsed = img
+            return img
+        }
     }
 }
 
