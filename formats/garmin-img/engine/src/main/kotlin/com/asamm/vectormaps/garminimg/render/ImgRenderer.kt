@@ -60,12 +60,14 @@ class ImgRenderer(
      * @param backgroundColor passed to [RenderTarget.beginFrame].
      * @param objectKindFilter bitmask restricting which [ObjectKind]s are
      *   drawn. Defaults to all.
+     * @param level TRE level to draw; null picks the level matching the viewport's resolution.
      */
     fun render(
         viewport: Viewport,
         target: RenderTarget,
         backgroundColor: Color = Color.rgb(0xF8, 0xF6, 0xF0),
         objectKindFilter: Int = ObjectKind.ALL,
+        level: Int? = null,
     ) {
         require(target.widthPx == viewport.widthPx) {
             "RenderTarget width ${target.widthPx} != viewport width ${viewport.widthPx}"
@@ -86,7 +88,7 @@ class ImgRenderer(
         // the viewport (some IMGs are sparse at the finest level outside
         // the cartographer's chosen "detail area"), fall back to a
         // coarser level that does have content.
-        val targetLevel = pickRenderLevelWithCoverage(viewport, img)
+        val targetLevel = level ?: pickRenderLevelWithCoverage(viewport, img)
 
         // First pass: bucket every map object by kind. Polygons need to be
         // sorted by draw priority (TYP's DRAWORDER section, when present)
@@ -434,7 +436,8 @@ class ImgRenderer(
             if (levels.levels.isEmpty()) {
                 return null
             }
-            val lonRange = (viewport.maxLon - viewport.minLon).toDouble()
+            // the exact span: `ofDegrees` pads the Int bounds, which would drop a level at tile zooms
+            val lonRange = (viewport.maxLonDeg - viewport.minLonDeg) / 360.0 * (1 shl 24)
             if (lonRange <= 0.0) {
                 return null
             }

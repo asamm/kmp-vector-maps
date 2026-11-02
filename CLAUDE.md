@@ -28,6 +28,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `formats/mapsforge/engine`, `android`, `awt` | vendored Mapsforge 0.30.0 in Kotlin (M5), `com.asamm.vectormaps.mapsforge.*`: the engine (model, reader, renderer, labels, theme), its Android and AWT graphics |
 | `formats/mapsforge/driver` | Mapsforge driver: the `core/` interface over the engine |
 | `formats/garmin-img/engine`, `android`, `awt` | Garmin IMG from kmp-garmin-img (M4.1, D33), `com.asamm.vectormaps.garminimg.*`: the reader, TYP styles and renderer over its own `RenderTarget`, its Android and AWT targets |
+| `formats/garmin-img/driver` | Garmin driver: the `core/` interface over the engine |
 | `viewer/*` | dev viewers for every registered format: `common` tile engine, `desktop` (Compose), `android` |
 | `dev/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored corpus tiles render through the driver; the shared harness in `golden/harness` |
 | `dev/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `formats/mapsforge/android`, Robolectric; plain Mapsforge, not the driver |

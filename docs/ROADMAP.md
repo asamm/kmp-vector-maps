@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5 done; M4.1 (kmp-garmin-img imported with its history, D33) in review.**
-Next action: M4.2, the Garmin driver; M6 follows M4.
+**Status: M0–M3 and M5 done; M4.1 done (PR #27); M4.2 (the Garmin driver) in progress.**
+Next action: M4.2b, the viewers; M6 follows M4.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -141,8 +141,8 @@ green, 3 of 3 runs on the final commit.*
 
 - M3.1: interfaces and value types only, no implementation yet. Not in v0, added with their first
   user: draw hooks and anchors (M6), `FeatureQuery` (M6), label pass (M6), drawing calls on
-  `RenderTarget` (first needed by the Garmin driver, M4.2), style sources other than files
-  (built-in and embedded TYP styles M4.2, Android asset themes M8).
+  `RenderTarget` (unscheduled: the Garmin driver keeps its own target, M4.2a), style sources other
+  than files (`MapDataset.styles` since M4.2a, Android asset themes M8).
 - M3.2 must: take the Mapsforge `GraphicFactory` in the driver's constructor; read labels in the
   renderer's language (vendored `MapFile` fixes it per instance); publish the multi-map store
   copy-on-write, since `MultiMapDataStore` is not safe to grow while read; keep the
@@ -190,7 +190,7 @@ green, 3 of 3 runs on the final commit.*
   - Android takes the device scale into `RenderConfig`; the Mapsforge static keeps the density
     `AndroidGraphicFactory` sets, which the driver ignores since M5.2 (C4); 512 px tiles (D20), 4 render threads (M2.7b), 100 kept tiles (~50 MiB RGB_565);
     rotation keeps the view; setup errors show as text.
-  - Garmin's anti-aliasing, kind toggles and TRE level return with its driver (M4.2).
+  - Garmin's anti-aliasing, kind toggles and TRE level return with its viewers (M4.2b).
 
 *Verified: `./gradlew build` green on PRs #3–#5; golden test byte-exact through the driver, and
 red when the driver ignores the text scale (the wrap width is not covered: LoMaps sets its own on
@@ -200,8 +200,10 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 
 | PR | Content | Status |
 |---|---|---|
-| M4.1 | Audit, then import with history: secrets and local paths (`local.properties`), fixture licences (OTM Monaco `.img` and TYP); headers to LGPL-2.1-or-later with SPDX, missing ones added; KMP → Kotlin/JVM; drop unused `kotlinx-io`, coroutines, `api` logger | 🔧 |
-| M4.2 | Garmin driver; its goldens and dump-diff into the shared tooling; the pixel test also off Windows; viewer anti-aliasing, kind toggles and TRE level | ⬜ |
+| M4.1 | Audit, then import with history: secrets and local paths (`local.properties`), fixture licences (OTM Monaco `.img` and TYP); headers to LGPL-2.1-or-later with SPDX, missing ones added; KMP → Kotlin/JVM; drop unused `kotlinx-io`, coroutines, `api` logger | ✅ PR #27, `c0a7b2e` |
+| M4.2a | Garmin driver (`formats/garmin-img/driver`): embedded TYP, built-in and `.typ` styles through `MapDataset.styles` and `loadStyle`; `GarminOptions` (anti-aliasing, kinds, TRE level); exact tile bounds | 🔧 |
+| M4.2b | Desktop and Android viewers render Garmin maps, with anti-aliasing, kind toggles and TRE level; `.img` assets in the viewer APK | ⬜ |
+| M4.2c | Garmin golden through the driver; the pixel test off Windows with a bundled font; the M4.1 leftovers below | ⬜ |
 | M4.3 | Positional reads → parallel renders; multi-map IMGs (today first map only) | ⬜ |
 | M4.4 | Measured label bounds, TYP night colours, text scale; TYP point icons and extended-type (`≥ 0x100`) polygon styles, both falling back to the internal styles today | ⬜ |
 
@@ -235,6 +237,15 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   frozen once, one sub-division overlap helper (`ImgRenderer`, `ImgFile`), label and coordinate
   buffers without boxing, AWT icons cached as on Android, fewer allocations per label and pattern
   on Android.
+- M4.2a as built: the host passes a `GarminCanvasFactory` (`AwtRenderTarget`, `AndroidRenderTarget`)
+  and reads the canvas from `GarminTileTarget`; one `.img` per dataset (`addMap` adds nothing) and
+  one tile at a time (`maxParallelism` 1) until M4.3; in-tile labels only, cut at the tile edge
+  until M6.1; `GarminOptions` stay outside `RenderKey`; the engine's `Viewport.ofDegrees` projects
+  the exact tile bounds, as a Garmin unit (~2.4 m) shifts high-zoom tiles by pixels, and the level
+  pick reads that exact span. Edge strokes and icons stop at sub-division and map edges, and a
+  tile partly outside the map gets the opaque background (both engine behaviour, with the M6.1
+  labels). Review left for M4.3: each renderer decodes the embedded TYP even for other styles;
+  TYP patterns are converted per tile, as each tile gets a new canvas.
 - Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons →
   M4.4; label collisions at level-pick boundaries → M6.1; Locus prefs from the helpdesk
   (label colour, line width and colour overrides, area/line/point toggles, per-type visibility,

@@ -21,6 +21,13 @@ interface MapDataset : Closeable {
     val bounds: GeoBounds
 
     /**
+     * Styles the dataset brings itself, such as a TYP inside a Garmin IMG or a built-in style,
+     * best first; empty when every style comes from [MapFormatDriver.loadStyle].
+     */
+    val styles: List<MapStyle>
+        get() = emptyList()
+
+    /**
      * Adds a file to the open dataset; false when the file is not readable in this format.
      */
     fun addMap(file: File): Boolean

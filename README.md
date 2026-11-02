@@ -30,6 +30,8 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 - **`:formats:garmin-img:engine`** — Garmin IMG reader, TYP styles and renderer.
   `./gradlew :formats:garmin-img:engine:test`.
 - **`:formats:garmin-img:android`**, **`:awt`** — its render targets.
+- **`:formats:garmin-img:driver`** — the `:core` driver over the Garmin engine; the host passes its
+  `GarminCanvasFactory`. `./gradlew :formats:garmin-img:driver:test`.
 - **`:dev:mapsforge:golden`** — pixel-exact render comparison against upstream 0.30.0.
   `./gradlew :dev:mapsforge:golden:test`.
 - **`:dev:garmin-img:golden`** — Garmin Monaco render against a committed PNG (Windows only) and
