@@ -11,9 +11,10 @@
  * to a sorted text file, and diffs the two outputs.
  *
  * The test fails on regressions (more diffs than the recorded
- * baseline). Use [BASELINE_TOTAL_DIFFS] = -1 while iterating to just
- * print the report; flip to a number to lock the current state and
- * gate further changes.
+ * baseline). Pass `baselineTotalDiffs = -1` while iterating to just
+ * print the report; a number locks the current state and gates
+ * further changes. Records are compared as multisets, so an object
+ * emitted twice counts as a diff.
  */
 package com.asamm.vectormaps.garminimg.dump
 
@@ -68,11 +69,13 @@ class DumpDiffTest {
         JavaImgContentDumper.dump(img.absolutePath, javaDump.absolutePath)
         ImgContentDumper.dump(img.absolutePath, kotlinDump.absolutePath)
 
-        val javaLines = readBody(javaDump).map(::stripShieldPrefix).toSortedSet()
-        val kotlinLines = readBody(kotlinDump).toSortedSet()
-        val matched = javaLines.intersect(kotlinLines).size
-        val javaOnly = (javaLines - kotlinLines).toList()
-        val kotlinOnly = (kotlinLines - javaLines).toList()
+        val javaLines = readBody(javaDump).map(::stripShieldPrefix)
+        val kotlinLines = readBody(kotlinDump)
+        val javaCounts = javaLines.groupingBy { it }.eachCount()
+        val kotlinCounts = kotlinLines.groupingBy { it }.eachCount()
+        val matched = javaCounts.entries.sumOf { (line, n) -> minOf(n, kotlinCounts[line] ?: 0) }
+        val javaOnly = surplus(javaCounts, kotlinCounts)
+        val kotlinOnly = surplus(kotlinCounts, javaCounts)
         val total = javaOnly.size + kotlinOnly.size
         val javaTotal = javaLines.size
         val kotlinTotal = kotlinLines.size
@@ -102,6 +105,13 @@ class DumpDiffTest {
                 "[$tag] diff count $total exceeds baseline $baselineTotalDiffs — parser regression?",
             )
         }
+    }
+
+    /**
+     * Returns each line of [counts] repeated as often as it exceeds its count in [other], sorted.
+     */
+    private fun surplus(counts: Map<String, Int>, other: Map<String, Int>): List<String> {
+        return counts.flatMap { (line, n) -> List(maxOf(0, n - (other[line] ?: 0))) { line } }.sorted()
     }
 
     /**

@@ -11,7 +11,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
- * Phase A smoke tests for [CoordUtils] — pure-common coordinate helpers.
+ * Smoke tests for [CoordUtils] coordinate helpers.
  * Ported from the libGarminImg Java tests; behavioural parity, no logic change.
  */
 class CoordUtilsTest {

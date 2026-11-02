@@ -11,14 +11,12 @@ import com.asamm.vectormaps.garminimg.style.Bitmap
 import com.asamm.vectormaps.garminimg.style.Color
 
 /**
- * Phase C.7 TYP body parser. Walks the polygon / line / (later) point indexes
- * and extracts a minimal style record per `(type, subType)` for the renderer:
+ * TYP body parser. Walks the polygon, line and point indexes and extracts a
+ * minimal style record per `(type, subType)` for the renderer:
  *
  * - **Polygons** → fill colour (and optional border colour).
  * - **Lines** → stroke colour, border colour, total width.
- * - **Points** → currently skipped (icon-bitmap parsing is more involved;
- *   point styling falls back to [com.asamm.vectormaps.garminimg.style.InternalStyles]
- *   for now).
+ * - **Points** → icon bitmap (palette and true-colour modes).
  *
  * # On-disk format reference
  *
@@ -66,9 +64,10 @@ object TypBodyParser {
      * those, so a partially-valid TYP still gives partial styling.
      */
     fun parse(reader: ImgRandomAccessReader, header: TypHeader): TypStyleTable {
-        val polygons = parsePolygonRecords(reader, header)
-        val lines = parseLineRecords(reader, header)
-        val points = parsePointRecords(reader, header)
+        val budget = DecodeBudget()
+        val polygons = parsePolygonRecords(reader, header, budget)
+        val lines = parseLineRecords(reader, header, budget)
+        val points = parsePointRecords(reader, header, budget)
         val drawOrder = parseShapeStacking(reader, header)
         // Apply DRAWORDER priorities so the renderer can sort polygons
         // before drawing — without this, large background polygons can
@@ -155,21 +154,18 @@ object TypBodyParser {
     private fun parsePolygonRecords(
         reader: ImgRandomAccessReader,
         header: TypHeader,
+        budget: DecodeBudget,
     ): Map<Int, TypPolygonStyle> {
         val index = header.polygonIndex ?: return emptyMap()
         val data = header.polygons ?: return emptyMap()
-        val out = HashMap<Int, TypPolygonStyle>()
-        forEachIndexEntry(reader, index, data) { typeForFile, recordOffset ->
-            try {
-                reader.seek(recordOffset)
-                val style = parseOnePolygon(reader)
-                out[typeForFile] = style
-            } catch (_: Exception) {
-                // Skip the bad record; resolver will fall back to
-                // InternalStyles for this (type, subType).
-            }
-        }
-        return out
+        return parseRecords(
+            reader = reader,
+            index = index,
+            data = data,
+            budget = budget,
+            bitmapBytes = { it.pattern?.rgba?.size ?: 0 },
+            parseOne = ::parseOnePolygon,
+        )
     }
 
     /**
@@ -256,20 +252,18 @@ object TypBodyParser {
     private fun parseLineRecords(
         reader: ImgRandomAccessReader,
         header: TypHeader,
+        budget: DecodeBudget,
     ): Map<Int, TypLineStyle> {
         val index = header.lineIndex ?: return emptyMap()
         val data = header.lines ?: return emptyMap()
-        val out = HashMap<Int, TypLineStyle>()
-        forEachIndexEntry(reader, index, data) { typeForFile, recordOffset ->
-            try {
-                reader.seek(recordOffset)
-                val style = parseOneLine(reader)
-                out[typeForFile] = style
-            } catch (_: Exception) {
-                // Drop bad record; fall through to InternalStyles.
-            }
-        }
-        return out
+        return parseRecords(
+            reader = reader,
+            index = index,
+            data = data,
+            budget = budget,
+            bitmapBytes = { it.pattern?.rgba?.size ?: 0 },
+            parseOne = ::parseOneLine,
+        )
     }
 
     private fun parseOneLine(reader: ImgRandomAccessReader): TypLineStyle {
@@ -397,22 +391,18 @@ object TypBodyParser {
     private fun parsePointRecords(
         reader: ImgRandomAccessReader,
         header: TypHeader,
+        budget: DecodeBudget,
     ): Map<Int, TypPointStyle> {
         val index = header.pointIndex ?: return emptyMap()
         val data = header.points ?: return emptyMap()
-        val out = HashMap<Int, TypPointStyle>()
-        forEachIndexEntry(reader, index, data) { typeForFile, recordOffset ->
-            try {
-                reader.seek(recordOffset)
-                val style = parseOnePoint(reader)
-                if (style != null) {
-                    out[typeForFile] = style
-                }
-            } catch (_: Exception) {
-                // Drop bad record; resolver falls back to InternalStyles.
-            }
-        }
-        return out
+        return parseRecords(
+            reader = reader,
+            index = index,
+            data = data,
+            budget = budget,
+            bitmapBytes = { it.icon.rgba.size },
+            parseOne = ::parseOnePoint,
+        )
     }
 
     /**
@@ -656,6 +646,60 @@ object TypBodyParser {
     //********************************
 
     /**
+     * Parses the record of every index entry, decoding each record once even when several
+     * entries point at it. A record that fails to parse or exceeds [budget] is dropped, so the
+     * resolver falls back to InternalStyles for its `(type, subType)`.
+     */
+    private fun <T : Any> parseRecords(
+        reader: ImgRandomAccessReader,
+        index: TypIndexDescriptor,
+        data: SectionRange,
+        budget: DecodeBudget,
+        bitmapBytes: (T) -> Int,
+        parseOne: (ImgRandomAccessReader) -> T?,
+    ): Map<Int, T> {
+        val out = HashMap<Int, T>()
+        val byOffset = HashMap<Long, T>()
+        forEachIndexEntry(reader, index, data) { typeForFile, recordOffset ->
+            val known = byOffset[recordOffset]
+            if (known != null) {
+                out[typeForFile] = known
+                return@forEachIndexEntry
+            }
+            try {
+                reader.seek(recordOffset)
+                val style = parseOne(reader)
+                if (style != null
+                    && budget.tryCharge(bitmapBytes(style))
+                ) {
+                    byOffset[recordOffset] = style
+                    out[typeForFile] = style
+                }
+            } catch (_: Exception) {
+                // bad record: dropped
+            }
+        }
+        return out
+    }
+
+    /**
+     * Caps the bitmap bytes one TYP may decode across polygons, lines and points; a crafted
+     * index of large distinct records would otherwise exhaust the heap at open.
+     */
+    private class DecodeBudget {
+
+        private var remaining: Int = MAX_DECODED_BITMAP_BYTES
+
+        fun tryCharge(bytes: Int): Boolean {
+            if (bytes > remaining) {
+                return false
+            }
+            remaining -= bytes
+            return true
+        }
+    }
+
+    /**
      * Walks every (typeForFile, recordOffset) pair in `index`, calling
      * `handler` with the relative-to-data-section record offset translated
      * into an absolute reader offset.
@@ -825,6 +869,11 @@ object TypBodyParser {
      * parsed the record header and would otherwise allocate gigabytes.
      */
     private const val MAX_POINT_DIM: Int = 256
+
+    /**
+     * Decoded bitmap bytes per TYP; real TYPs stay under a few MB.
+     */
+    private const val MAX_DECODED_BITMAP_BYTES: Int = 32 * 1024 * 1024
 }
 
 /**

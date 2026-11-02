@@ -12,10 +12,8 @@ import com.asamm.vectormaps.garminimg.utils.io.ImgRandomAccessReader
  * Parser for an `.NET` sub-file. NET carries road definitions used to resolve
  * polyline labels via indirection through LBL.
  *
- * # Phase B.2.6 scope
- *
- * Routing data is out of scope per the CLAUDE.md scope table ("NET routing — never
- * used by the app's router"). We only port the minimum needed to resolve a
+ * NET routing is out of scope (CLAUDE.md scope table). We only port the minimum
+ * needed to resolve a
  * polyline's `dataInNet` label reference: read the road-definitions header
  * and provide [resolveRoadName] that follows a NET offset to the underlying
  * LBL label offset and decodes it.

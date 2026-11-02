@@ -143,7 +143,7 @@ KMP library scaffold (Kotlin 2.3.20 / AGP 9.1.1 / Gradle 9.3.1, Android +
 JVM, GitHub Packages publishing). `CoordUtils` + `BinaryReader` ported
 from libGarminImg as the Phase B parser oracle; 16 commonTest cases.
 
-See [CHANGELOG.md](CHANGELOG.md#added---phase-a) for landed details.
+See [CHANGELOG-pre-0.5.md](CHANGELOG-pre-0.5.md#added---phase-a) for landed details.
 
 ### Phase B — Parser port to `commonMain` — ✅ Done
 
@@ -154,7 +154,7 @@ TYP (header). Sealed `MapObject` + `Sequence<MapObject>` API replaces
 the Java `MapListener` callback shape. ~2.5 KLOC Kotlin replaces ~4.8 KLOC
 Java. Two Monaco fixtures (8.5 MB OpenTopoMap + 152 KB self-built mkgmap).
 
-See [CHANGELOG.md](CHANGELOG.md#added---phase-b) for landed details.
+See [CHANGELOG-pre-0.5.md](CHANGELOG-pre-0.5.md#added---phase-b) for landed details.
 
 The "Phase B was *file-by-file port preserving working logic*" decision
 (rather than clean-room rewrite) is recorded in CHANGELOG; some originally
@@ -420,7 +420,7 @@ Reused existing utilities (do not duplicate):
 - `MapThemesUtils.kt` for density / text scale propagation.
 - `libAndroidCore` LRU disk cache for the optional tile cache step.
 - Repo's existing JUnit 5 test conventions
-  ([`docs/guides/testing.md`](docs/guides/testing.md)).
+  (locus-core `docs/guides/testing.md`).
 
 ## Verification
 

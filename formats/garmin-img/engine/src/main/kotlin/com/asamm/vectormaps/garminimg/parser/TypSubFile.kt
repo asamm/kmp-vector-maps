@@ -9,19 +9,13 @@ package com.asamm.vectormaps.garminimg.parser
 import com.asamm.vectormaps.garminimg.utils.io.ImgRandomAccessReader
 
 /**
- * Parser for a `.TYP` sub-file. TYP holds custom styling — point / line /
- * polygon icons and colours keyed by `(type, subType)`. The Java predecessor
- * fork only ever read the header (filename, codepage, signed family/product
- * identifiers); the actual styling-table parsing was never written. We mirror
- * that scope: the header surfaces what's there, and a TODO points at where
- * the rest needs to land.
+ * Parser for a `.TYP` sub-file header. TYP holds custom styling — point / line /
+ * polygon icons and colours keyed by `(type, subType)`.
  *
- * # Phase B.2.6 scope
- *
- * Header-only. Section descriptors for points, lines, polygons, and the
- * draw-priority / icons sub-tables are parsed but their contents are NOT
- * decoded — [TypBodyParser] does that. The renderer can short-circuit to the
- * built-in `StyleInternal` defaults when the TYP body is unreadable here.
+ * Section descriptors for points, lines, polygons, and the draw-priority / icons
+ * sub-tables are parsed here; [TypBodyParser] decodes their contents. The
+ * renderer falls back to [com.asamm.vectormaps.garminimg.style.InternalStyles]
+ * when the TYP is unreadable.
  *
  * # On-disk layout
  *
@@ -147,8 +141,7 @@ object TypSubFile {
 }
 
 /**
- * Parsed TYP header. Section bodies (points/lines/polygons) are deferred to
- * Phase C — the renderer rewrite — when the actual styling resolution lands.
+ * Parsed TYP header; [TypBodyParser] decodes the section bodies.
  */
 data class TypHeader(
     val headerLength: Int,

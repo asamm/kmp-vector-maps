@@ -63,28 +63,39 @@ public final class ImgContentDumper {
         }
 
         ImgFilesBag bag = new ImgFilesBag(new ImgContext(1.0));
-        // SubFileReader is the legacy parser's pluggable factory for
-        // mapping FAT entries to typed sub-file readers; the default
-        // delegates to ImgSubFile.create. Inline as an anonymous
-        // subclass so we don't need a one-line file in `locus/`.
-        bag.addFile(img, true, new SubFileReader() {
-            @Override
-            public ImgSubFile parse(String filename, String filetype, int fileSize,
-                                    int blocSize, int offset, ImgFileBag imgFileBag) {
-                return ImgSubFile.create(filename, filetype, fileSize, blocSize, offset, imgFileBag);
-            }
-        });
-
-        // Read everything in the IMG's TRE bounding box at full detail
-        // (resolution = -1 = pull every level the IMG ships).
-        int north = bag.getMaxLatitude();
-        int south = bag.getMinLatitude();
-        int east = bag.getMaxLongitude();
-        int west = bag.getMinLongitude();
-
         DumpListener listener = new DumpListener();
-        bag.readMapForDrawing(west, east, south, north, -1,
-                ObjectKind.ALL, listener);
+        int north;
+        int south;
+        int east;
+        int west;
+        // closing the bag releases the IMG file, so the caller's temp copy can be deleted
+        try {
+            // SubFileReader is the legacy parser's pluggable factory for
+            // mapping FAT entries to typed sub-file readers; the default
+            // delegates to ImgSubFile.create. Inline as an anonymous
+            // subclass so we don't need a one-line file in `locus/`.
+            bag.addFile(img, true, new SubFileReader() {
+                @Override
+                public ImgSubFile parse(String filename, String filetype, int fileSize,
+                                        int blocSize, int offset, ImgFileBag imgFileBag) {
+                    return ImgSubFile.create(filename, filetype, fileSize, blocSize, offset, imgFileBag);
+                }
+            });
+
+            // Read everything in the IMG's TRE bounding box at full detail
+            // (resolution = -1 = pull every level the IMG ships).
+            north = bag.getMaxLatitude();
+            south = bag.getMinLatitude();
+            east = bag.getMaxLongitude();
+            west = bag.getMinLongitude();
+
+            // readMap, not readMapForDrawing: the latter's polygon passes overlap and emit
+            // some polygons twice, which the multiset comparison would count
+            bag.readMap(west, east, south, north, -1,
+                    ObjectKind.ALL, null, listener);
+        } finally {
+            bag.clear();
+        }
 
         // Sort lines so byte-for-byte diff with the Kotlin dumper isn't
         // sensitive to traversal order between the two parsers.

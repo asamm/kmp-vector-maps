@@ -136,8 +136,8 @@ interface RenderTarget {
      * should fall back to a straight horizontal placement at the path
      * midpoint when the path is too short to fit the rendered text.
      *
-     * Default no-op so existing targets compile; override for proper
-     * curve-following text.
+     * The default draws the text straight and centred at the middle vertex;
+     * override for curve-following text.
      */
     fun drawTextOnPath(
         xs: FloatArray,

@@ -15,8 +15,8 @@ import com.asamm.vectormaps.garminimg.model.MapObject
  *
  * Replaces a small subset of the Java predecessor's `StyleInternal.java`
  * (1 794 LOC). We only port the most common types — enough to get a
- * recognisable map for unstyled Garmin IMGs. The full TYP-driven path
- * (Phase C.7) takes precedence whenever a TYP entry matches.
+ * recognisable map for unstyled Garmin IMGs. The TYP-driven path takes
+ * precedence whenever a TYP entry matches.
  *
  * Type codes follow the Garmin IMG specification (see also `ObjectKind`).
  */
@@ -88,9 +88,8 @@ object InternalStyles {
             //   0x28 sea/ocean (older Garmin), 0x32 sea (Mapwel),
             //   0x3B..0x44 mkgmap-style water (river/lake/etc.),
             //   0x4A..0x4C ocean-background polygons (mkgmap, OpenTopoMap).
-            // Cover the whole accepted range — without TYP-driven styling
-            // (Phase C.7), getting the ocean fill right is the headline
-            // visual win.
+            // Cover the whole accepted range — without TYP styling, getting
+            // the ocean fill right is the headline visual win.
             0x28, 0x32 -> AREA_WATER
             in 0x3B..0x44 -> AREA_WATER
             in 0x4A..0x4C -> AREA_OCEAN_BACKGROUND

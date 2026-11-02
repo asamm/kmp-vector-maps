@@ -19,8 +19,8 @@ import kotlin.math.ln
 /**
  * Walks an [ImgFile]'s map objects and dispatches them to a [RenderTarget]
  * after consulting a [StyleResolver]. This is the central rendering entry
- * point used by the desktop CLI (Phase C.5) and (later) the Android Locus
- * adapter (Phase C.7+).
+ * point of the Garmin engine, used by the golden tests today and by the
+ * driver from M4.2.
  *
  * # Render order
  *
@@ -30,18 +30,14 @@ import kotlin.math.ln
  *   POLYGON → EXTENDED_POLYGON → POLYLINE → EXTENDED_POLYLINE → POINT
  *   → INDEXED_POINT → EXTENDED_POINT
  *
- * Within each kind, objects are drawn in the order the parser yields them
- * — sub-divisions in tree order, records in their on-disk order. The
- * renderer adds a per-object draw priority via the resolved [Style], so a
- * stable sort by priority within each ObjectKind would be a refinement
- * (Phase C.9).
+ * Polygons and polylines are stable-sorted by the resolved [Style]'s draw
+ * priority (TYP DRAWORDER when present), so records of equal priority keep
+ * their parser order — sub-divisions in tree order, records on-disk order.
  *
  * # Labels
  *
- * Labels are drawn after the geometry of each [MapObject]. A future polish
- * pass (label de-cluttering) will hold labels in a queue, sort by priority,
- * and only draw those that don't overlap higher-priority labels — that's
- * Phase C.9.
+ * Labels are queued in a [LabelLayout] while the geometry draws, then placed
+ * by priority with collision and same-text de-duplication, after all geometry.
  *
  * # Thread-safety
  *
@@ -492,9 +488,8 @@ class ImgRenderer(
          * Sign convention: positive → keep finer levels longer when
          * zooming out (less aggressive simplification); negative →
          * step up to coarser levels sooner. The right value is fixture-
-         * dependent; the viewer's level dropdown lets a human verify
-         * a tuning choice against a reference renderer (QMS / GPSMapEdit)
-         * before we change this default.
+         * dependent; verify a tuning choice against a reference
+         * renderer (QMS / GPSMapEdit) before changing this default.
          */
         private const val DETAIL_BIAS: Double = -1.0
 
@@ -599,7 +594,7 @@ class ImgRenderer(
  * - [internalDefaults] — uses [InternalStyles] hardcoded fallbacks.
  * - [typAware] — TYP-first lookup; falls back to `InternalStyles` for
  *   `(type, subType)` pairs the TYP doesn't define. Use this when an IMG
- *   has a TYP sub-file (Phase C.7).
+ *   has a TYP sub-file.
  */
 fun interface StyleResolver {
 
@@ -629,9 +624,7 @@ fun interface StyleResolver {
             // few hundred unique (type, subType, closed) triples per
             // IMG the cache becomes a hot path after warmup.
             //
-            // Holding `null` in the cache distinguishes a resolved
-            // miss from "not yet resolved"; the boxed Style? value is
-            // shared across all consumers of the same kind.
+            // `getOrPut` does not store a `null` result: a miss is resolved again on every call.
             val cache = HashMap<Int, Style?>()
             return StyleResolver { obj ->
                 when (obj) {

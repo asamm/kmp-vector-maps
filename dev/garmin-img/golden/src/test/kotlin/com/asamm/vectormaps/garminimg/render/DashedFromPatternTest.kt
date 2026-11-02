@@ -14,9 +14,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 
 /**
- * Regression tests for the dashed-from-pattern path of [AwtRenderTarget].
- * The fully-opaque 1-row pattern used to IOOB when the rebalance step
- * tried to mutate a one-element runs list — that's REVIEW.md C2.
+ * Regression tests for the dashed-from-pattern path of [AwtRenderTarget]: uniform rows, white
+ * dashes and rows that start and end with a gap.
  */
 class DashedFromPatternTest {
 
@@ -111,5 +110,36 @@ class DashedFromPatternTest {
         )
         target.endFrame()
         assertEquals(0xFFFFFFFF.toInt(), target.image.getRGB(16, 16))
+    }
+
+    @Test
+    fun rowStartingAndEndingWithGapKeepsItsDashLength() {
+        // ........XXXXXXXXXXXXXXXX........ : runs 8/16/8 must stroke as 16 on, 16 off
+        val width = 32
+        val rgba = ByteArray(width * 4)
+        for (px in 8 until 24) {
+            rgba[px * 4] = 0xFF.toByte()
+            rgba[px * 4 + 3] = 0xFF.toByte()
+        }
+        val bitmap = Bitmap(width = width, height = 1, rgba = rgba)
+        val style = Style.LineStyle(
+            drawPriority = 0,
+            strokeColor = Color.Black,
+            borderColor = null,
+            strokeWidth = 2f,
+            borderWidth = 0f,
+            pattern = bitmap,
+        )
+        val target = AwtRenderTarget(64, 32, antiAliased = false, renderScale = 1f)
+        target.beginFrame(Color.White)
+        target.drawPolylineStroke(
+            xs = floatArrayOf(0f, 64f),
+            ys = floatArrayOf(16f, 16f),
+            style = style,
+        )
+        target.endFrame()
+        assertEquals(0xFFFF0000.toInt(), target.image.getRGB(8, 16), "first dash")
+        assertEquals(0xFFFFFFFF.toInt(), target.image.getRGB(20, 16), "gap after a 16 px dash")
+        assertEquals(0xFFFF0000.toInt(), target.image.getRGB(40, 16), "second dash")
     }
 }

@@ -140,7 +140,12 @@ object RgnSubFile {
         // rendering.
         val bitsPerCoord = levels?.bitsPerCoordOf(subDivision.level) ?: 24
         return sequence {
-            val segments = computeSegments(reader, header, subDivision) ?: return@sequence
+            // a corrupt segment table or offset skips this sub-division, not the whole render
+            val segments = try {
+                computeSegments(reader, header, subDivision)
+            } catch (_: Exception) {
+                null
+            } ?: return@sequence
             // Emission order matches Java's readMapForDrawing background-first
             // bias: polygons first, then extended polygons, then polylines and
             // points in any order.
@@ -327,7 +332,11 @@ object RgnSubFile {
                     curType++
                 }
                 if (curType < SEGMENT_COUNT) {
-                    result[curType]?.set(segmentStart, plainEnd)
+                    if (segmentStart <= plainEnd) {
+                        result[curType]?.set(segmentStart, plainEnd)
+                    } else {
+                        result[curType] = null
+                    }
                 }
             }
         }
@@ -360,6 +369,15 @@ object RgnSubFile {
             fin = subDivision.extendedPoiEnd,
             sectionBase = header.extendedPois?.offset,
         )
+        // drop slots never set or pointing outside the sub-file (corrupt TRE offsets)
+        for (i in result.indices) {
+            val segment = result[i] ?: continue
+            if (segment.start < 0L
+                || segment.end > reader.size
+            ) {
+                result[i] = null
+            }
+        }
         return result
     }
 
@@ -379,7 +397,9 @@ object RgnSubFile {
         // means this sub-division has data of that extended kind. Gating on
         // objectTypes here permanently hid extended polygons (buildings)
         // and extended polylines from the renderer.
-        if (sectionBase == null || fin <= ini) {
+        if (sectionBase == null
+            || fin <= ini
+        ) {
             return
         }
         result[slot] = Segment().apply { set(sectionBase + ini, sectionBase + fin) }
@@ -441,8 +461,9 @@ object RgnSubFile {
                     } else {
                         null
                     }
-                val rawLabel = if (poiMetadata != null) {
-                    poiMetadata.name
+                // a POI's offset points into the POI table, never at a label
+                val rawLabel = if (isPoi) {
+                    poiMetadata?.name
                 } else {
                     resolveLabel(labelOffset.toLong(), lblReader, lblHeader)
                 }
@@ -965,14 +986,20 @@ object RgnSubFile {
                     reader.readByte()
                 }
                 counter++
-                if (counter == pointIndex && recLabelOffset != 0 && lblReader != null && lblHeader != null) {
+                if (counter < pointIndex) {
+                    continue
+                }
+                if (recLabelOffset != 0
+                    && lblReader != null
+                    && lblHeader != null
+                ) {
                     result = if (isPoi && lblHeader.poiLength > 0L) {
                         LblSubFile.readPoiName(lblReader, lblHeader, recLabelOffset.toLong())
                     } else {
                         LblSubFile.readLabel(lblReader, lblHeader, recLabelOffset.toLong())
                     }
-                    break
                 }
+                break
             }
         } finally {
             reader.seek(savedPos)
@@ -1090,32 +1117,26 @@ internal class BitStreamReader(
 
     fun readCoordOffset(nbBits: Int, sign: Int, extraBit: Int): Int {
         if (sign == 0) {
+            if (extraBit == 0) {
+                return readVariableSign(nbBits)
+            }
             // Variable-sign value
             val value = readNextBits(nbBits)
             val signMask = 1 shl (nbBits - 1)
             return if (value and signMask != 0) {
                 val comp = value xor signMask
-                if (extraBit == 0) {
-                    if (comp != 0) {
-                        comp - signMask
-                    } else {
-                        val other = readCoordOffset(nbBits, sign, extraBit)
-                        if (other < 0) 1 - value + other else value - 1 + other
-                    }
+                if (comp and 0xFFFFFE != 0) {
+                    (comp and 0xFFFFFE) - signMask
                 } else {
-                    if (comp and 0xFFFFFE != 0) {
-                        (comp and 0xFFFFFE) - signMask
+                    val other = readVariableSign(nbBits - 1)
+                    if (other < 0) {
+                        1 - signMask + 1 + (other shl 1)
                     } else {
-                        val other = readCoordOffset(nbBits - 1, sign, 0)
-                        if (other < 0) {
-                            1 - signMask + 1 + (other shl 1)
-                        } else {
-                            signMask - 1 - 1 + (other shl 1)
-                        }
+                        signMask - 1 - 1 + (other shl 1)
                     }
                 }
             } else {
-                if (extraBit > 0) value and 0xFFFFFE else value
+                value and 0xFFFFFE
             }
         } else {
             val value = readNextBits(nbBits)
@@ -1124,6 +1145,32 @@ internal class BitStreamReader(
             } else {
                 value * sign
             }
+        }
+    }
+
+    /**
+     * Reads a variable-sign value without the extra bit. Each `value == signMask` escape adds
+     * `signMask - 1` to the magnitude of the value that follows; a loop, as a crafted stream can
+     * chain thousands of escapes.
+     */
+    private fun readVariableSign(nbBits: Int): Int {
+        val signMask = 1 shl (nbBits - 1)
+        var escapes = 0
+        var value = readNextBits(nbBits)
+        while (value == signMask) {
+            escapes++
+            value = readNextBits(nbBits)
+        }
+        val last = if (value and signMask != 0) {
+            (value xor signMask) - signMask
+        } else {
+            value
+        }
+        val extension = escapes * (signMask - 1)
+        return if (last < 0) {
+            last - extension
+        } else {
+            last + extension
         }
     }
 

@@ -11,7 +11,7 @@ package com.asamm.vectormaps.garminimg.utils.io
  *
  * Replaces the Java `ImgFileInputStream` from libGarminImg. The original carried an
  * XOR "decryption" byte for locked / DRM-protected maps; that path is intentionally
- * dropped — kmp-garmin-img only handles unencrypted IMGs (legal + format scope per
+ * dropped — the engine only handles unencrypted IMGs (legal + format scope per
  * `CLAUDE.md`).
  *
  * The reader is single-threaded: callers must serialise access. IMG sub-file readers

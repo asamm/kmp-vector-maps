@@ -198,7 +198,7 @@ class AndroidRenderTarget(
 
     /**
      * Renders a polyline whose TYP "pattern" is a single-row dash bitmap.
-     * Mirrors [AwtRenderTarget.drawDashedFromPattern] — extracts dash
+     * Mirrors `AwtRenderTarget.drawDashedFromPattern` — extracts dash
      * run-lengths from the bitmap row, derives the dominant colour from
      * the first opaque pixel, then strokes the polyline with a
      * [DashPathEffect] using the equivalent on/off array.
@@ -239,6 +239,13 @@ class AndroidRenderTarget(
         if (!hasColor || runs.isEmpty()) {
             return
         }
+        // dashes need an even run count: an odd row starts and ends with the same kind, so fold
+        // the last run into the first before rotating
+        if (runs.size > 1
+            && runs.size % 2 == 1
+        ) {
+            runs[0] = runs[0] + runs.removeAt(runs.size - 1)
+        }
         if (firstOnIndex > 0) {
             val rotated = ArrayList<Int>(runs.size)
             rotated.addAll(runs.subList(firstOnIndex, runs.size))
@@ -254,14 +261,10 @@ class AndroidRenderTarget(
         paint.strokeMiter = STROKE_MITER_LIMIT
         if (runs.size == 1) {
             // Fully opaque row — a malformed / hand-crafted TYP can ship
-            // a "dash" pattern with no gap pixels. Mutating a 1-element
-            // list (as we do below for odd sizes ≥ 3) would IOOB. Stroke
-            // solid and return.
+            // a "dash" pattern with no gap pixels. Stroke solid and
+            // return.
             canvas.drawPath(path, paint)
             return
-        }
-        if (runs.size % 2 == 1) {
-            runs[0] = runs[0] + runs.removeAt(runs.size - 1)
         }
         val dashArray = FloatArray(runs.size) { runs[it] * renderScale }
         paint.pathEffect = DashPathEffect(dashArray, 0f)
@@ -273,7 +276,7 @@ class AndroidRenderTarget(
      * Renders a polyline as a textured stroke: each segment is filled
      * with the [pattern] tile rotated to follow the segment angle.
      *
-     * Direct port of [AwtRenderTarget]'s `drawPatternedPolyline`:
+     * Direct port of `AwtRenderTarget.drawPatternedPolyline`:
      *
      * - Tile y-origin at `-tileH/2` keeps asymmetric tiles (rail
      *   gap-tie patterns, fence rails+ticks) aligned with the fill

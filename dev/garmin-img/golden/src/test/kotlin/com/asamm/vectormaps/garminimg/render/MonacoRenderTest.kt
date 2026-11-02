@@ -21,8 +21,7 @@ import org.junit.jupiter.api.condition.OS
  * The first run produces an artifact under `dev/garmin-img/golden/build/test-output/render/`
  * for human review. Once a render is approved, copy it into
  * `dev/garmin-img/golden/src/test/resources/golden/` and the
- * `goldenDiffMatchesMonaco` test (next sub-phase) compares against it
- * pixel-by-pixel.
+ * `tightMonacoMatchesGoldenPng` test compares against it pixel-by-pixel.
  */
 class MonacoRenderTest {
 

@@ -23,6 +23,8 @@ whether the golden is _itself_ correct.
 |---|---|---|---|
 | `qmapshack-monaco.png` | QMapShack | `otm-monaco/otm-monaco.img` | Reference for the OpenTopoMap Monaco IMG. Lat ~43.55..43.85, Lon ~7.25..7.85. |
 
+Map data © OpenStreetMap contributors (ODbL); map style © OpenTopoMap (CC-BY-SA 4.0).
+
 ## Adding a new reference
 
 1. Open the source IMG in the desktop tool.

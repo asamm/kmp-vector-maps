@@ -12,18 +12,10 @@ import com.asamm.vectormaps.garminimg.model.PoiMetadata
 
 /**
  * Parser for an `.LBL` sub-file. The LBL holds the textual labels (POI names,
- * road names, place names) referenced from RGN by 24-bit logical offsets. It
- * also holds POI metadata (city/zip/phone), country and region tables — those
- * extra sections are deferred to B.2.4.b.
- *
- * # Phase B.2.4 status
- *
- * - **B.2.4.a (this commit):** common header + labels section descriptor +
- *   codepage + label decoders for the three label codings: 6 (6-bit packed),
- *   9 (8-bit codepage), 10 (10-bit / codepage). Covers what TRE/RGN need to
- *   resolve sub-division labels.
- * - **B.2.4.b (later):** POI metadata (street / city / zip / phone), city
- *   table, ZIP table, country/region tables, base-11 number decoding.
+ * road names, place names) referenced from RGN by 24-bit logical offsets, in
+ * one of three codings: 6 (6-bit packed), 9 (8-bit codepage), 10 (10-bit /
+ * codepage). It also holds the POI metadata (street / city / zip / phone) and
+ * the city table POIs refer to.
  *
  * # On-disk header layout
  *
@@ -54,7 +46,7 @@ object LblSubFile {
     private const val OFFSET_ZIP_DESCRIPTOR: Long = 0x72L
     private const val OFFSET_CODEPAGE: Long = 0xAAL
 
-    // longest label decoded; a corrupt record without terminator stops here
+    // most bytes read for one label; a corrupt record without terminator stops here
     private const val MAX_LABEL_BYTES = 1024
 
     /**
@@ -497,7 +489,7 @@ object LblSubFile {
         val out = ArrayList<Byte>()
         var stripping = true
         while (reader.position() < sectionEnd
-            && out.size < MAX_LABEL_BYTES
+            && reader.position() - offset < MAX_LABEL_BYTES
         ) {
             val b = reader.readByte()
             if (b == 0) {
@@ -530,7 +522,7 @@ object LblSubFile {
         val sb = StringBuilder()
         var charSet = SixBitCharSet.NORMAL
         while (reader.position() + 3 <= sectionEnd
-            && sb.length < MAX_LABEL_BYTES
+            && reader.position() - offset < MAX_LABEL_BYTES
         ) {
             val b1 = reader.readByte()
             val b2 = reader.readByte()

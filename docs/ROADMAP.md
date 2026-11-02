@@ -190,7 +190,7 @@ green, 3 of 3 runs on the final commit.*
   - Android takes the device scale into `RenderConfig`; the Mapsforge static keeps the density
     `AndroidGraphicFactory` sets, which the driver ignores since M5.2 (C4); 512 px tiles (D20), 4 render threads (M2.7b), 100 kept tiles (~50 MiB RGB_565);
     rotation keeps the view; setup errors show as text.
-  - Garmin's anti-aliasing, kind toggles and TRE level return with its driver (M4).
+  - Garmin's anti-aliasing, kind toggles and TRE level return with its driver (M4.2).
 
 *Verified: `./gradlew build` green on PRs #3–#5; golden test byte-exact through the driver, and
 red when the driver ignores the text scale (the wrap width is not covered: LoMaps sets its own on
@@ -201,12 +201,12 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 | PR | Content | Status |
 |---|---|---|
 | M4.1 | Audit, then import with history: secrets and local paths (`local.properties`), fixture licences (OTM Monaco `.img` and TYP); headers to LGPL-2.1-or-later with SPDX, missing ones added; KMP → Kotlin/JVM; drop unused `kotlinx-io`, coroutines, `api` logger | 🔧 |
-| M4.2 | Garmin driver; its goldens and dump-diff into the shared tooling; the pixel test also off Windows | ⬜ |
+| M4.2 | Garmin driver; its goldens and dump-diff into the shared tooling; the pixel test also off Windows; viewer anti-aliasing, kind toggles and TRE level | ⬜ |
 | M4.3 | Positional reads → parallel renders; multi-map IMGs (today first map only) | ⬜ |
 | M4.4 | Measured label bounds, TYP night colours, text scale; TYP point icons and extended-type (`≥ 0x100`) polygon styles, both falling back to the internal styles today | ⬜ |
 
 - M4.1 audit (2026-11-02, all 53 commits): no secrets or keys, `local.properties` never committed,
-  3 local paths in comments (cleaned); one author identity. Fixtures: `otm-monaco` ODbL data plus
+  4 local paths in comments and a capture (removed at the tip, history kept); one author identity. Fixtures: `otm-monaco` ODbL data plus
   OpenTopoMap style CC-BY-SA 4.0, `mkgmap-monaco` ODbL; both allow public redistribution with
   attribution.
 - M4.1 as built: tags `garmin-img/v0.5.0`–`v0.5.2`; modules `formats/garmin-img/{engine,android,awt}`,
@@ -215,16 +215,26 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   `kotlinx-io` user) and its tests removed; packages `com.asamm.vectormaps.garminimg.*`; old docs in
   [docs/garmin-img/](garmin-img/). The pixel test runs on Windows only (fonts), as in
   kmp-garmin-img; CI covers the reader, dumps and the render sanity tests.
-- M4.1 review fixed in the import: a crafted TRE can no longer multiply the sub-division tree,
-  labels stop at the labels section end (1,024 bytes at most), a corrupt point record ends its
-  segment instead of the render, the city lookup restores the RGN reader, AWT draws white dashed
-  lines. Left for M4.2: fixtures as a `fixturesDir` (not the whole `dev/fixtures` as resources),
-  `.img` assets kept out of the viewer and bench APKs until a driver reads them, the benchmark
-  out of the golden gate. Left for M4.3: nearest-finer level fallback, multi-byte reads through
-  `ImgSubFileStream`, the coordinate bit-stream recursion as a loop, sub-files matched to the TRE
-  tile (multi-tile gmapsupp renders the first tile only), thread-safe `LabelCharset` and
-  `typAware` caches, reusable render targets, POI metadata skipped when rendering, one projection
-  per polyline, the materialised levels cached.
+- M4.1 review fixed in the import (PR #27): a crafted TRE can no longer multiply the sub-division
+  tree; a crafted TYP is held to 32 MB of decoded bitmaps, each record decoded once; a malformed
+  TYP header drops the TYP, not the map; the coordinate bit-stream escapes loop instead of
+  recursing; a corrupt segment table skips its sub-division; labels read at most 1,024 bytes
+  within the labels section; a corrupt point record ends its segment; the city lookup restores the
+  RGN reader and stops at its index; POIs without readable POI data get no label; labels decode
+  through `java.nio` charsets as in the legacy parser (cp1250, cp1251, 932, 950); dashes that
+  start and end with a gap keep their length; AWT draws white dashes; the dump comparison counts
+  duplicate records.
+- Left for M4.2: fixtures as a `fixturesDir` (not the whole `dev/fixtures` as resources), `.img`
+  assets kept out of the viewer and bench APKs until a driver reads them, the benchmark and the
+  comparison sheet out of the golden gate, `test-output/` declared as a task output, the
+  `kmpgi.*` properties as `bench.garmin.*` Gradle properties.
+- Left for M4.3: nearest-finer level fallback, multi-byte reads through `ImgSubFileStream`,
+  sub-files matched to the TRE tile (multi-tile gmapsupp renders the first tile only), thread-safe
+  `typAware` cache, reusable render targets, POI metadata skipped when rendering, one projection
+  per polyline without a `FloatPair` per vertex, the materialised levels cached, each sub-division
+  frozen once, one sub-division overlap helper (`ImgRenderer`, `ImgFile`), label and coordinate
+  buffers without boxing, AWT icons cached as on Android, fewer allocations per label and pattern
+  on Android.
 - Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons →
   M4.4; label collisions at level-pick boundaries → M6.1; Locus prefs from the helpdesk
   (label colour, line width and colour overrides, area/line/point toggles, per-type visibility,

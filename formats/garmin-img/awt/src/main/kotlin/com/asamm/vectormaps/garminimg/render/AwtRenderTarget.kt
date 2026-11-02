@@ -31,7 +31,6 @@ import java.io.OutputStream
  *
  * - the golden test (`dev/garmin-img/golden`) — renders an IMG to a [BufferedImage]
  *   and writes a PNG.
- * - the future `cli/` desktop CLI (`RenderImgToPng`).
  *
  * The target owns its [BufferedImage]. Callers can extract it via [image]
  * after [endFrame] and either save it ([writePng]) or hand it on to a
@@ -297,6 +296,13 @@ class AwtRenderTarget(
             // valid TYP edge case (an "invisible" line type).
             return
         }
+        // dashes need an even run count: an odd row starts and ends with the same kind, so fold
+        // the last run into the first before rotating
+        if (runs.size > 1
+            && runs.size % 2 == 1
+        ) {
+            runs[0] = runs[0] + runs.removeAt(runs.size - 1)
+        }
         // Re-order so the array begins with an "on" run.
         if (firstOnIndex > 0) {
             val rotated = ArrayList<Int>(runs.size)
@@ -309,9 +315,7 @@ class AwtRenderTarget(
         g.color = AwtColor(dashColor, true)
         if (runs.size == 1) {
             // Fully opaque row — a malformed / hand-crafted TYP can ship
-            // a "dash" pattern with no gap pixels. BasicStroke needs an
-            // even-length dash; mutating a 1-element list (as we do
-            // below for odd sizes ≥ 3) would IOOB. Stroke solid and
+            // a "dash" pattern with no gap pixels. Stroke solid and
             // return.
             g.stroke = BasicStroke(
                 (style.strokeWidth * renderScale).coerceAtLeast(1f),
@@ -321,11 +325,6 @@ class AwtRenderTarget(
             )
             g.draw(path)
             return
-        }
-        // BasicStroke needs an even-length dash; fold a trailing "on"
-        // run into the leading one so the alternation stays consistent.
-        if (runs.size % 2 == 1) {
-            runs[0] = runs[0] + runs.removeAt(runs.size - 1)
         }
         val dashArray = FloatArray(runs.size) { runs[it] * renderScale }
         g.stroke = BasicStroke(

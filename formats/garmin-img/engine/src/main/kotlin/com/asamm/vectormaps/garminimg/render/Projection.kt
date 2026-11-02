@@ -64,7 +64,7 @@ class Projection(
 
     /**
      * Bulk projection — fills `xsOut` / `ysOut` from parallel
-     * `longitudes` / `latitudes`. Skips per-call object allocation.
+     * `longitudes` / `latitudes`.
      */
     fun projectBulk(
         longitudes: IntArray,

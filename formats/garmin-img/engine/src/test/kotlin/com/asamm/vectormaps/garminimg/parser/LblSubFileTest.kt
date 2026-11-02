@@ -75,6 +75,20 @@ class LblSubFileTest {
     }
 
     @Test
+    fun decodesCp1250() {
+        // "Říčany" in cp1250
+        val raw = byteArrayOf(0xD8.toByte(), 0xED.toByte(), 0xE8.toByte(), 0x61, 0x6E, 0x79, 0x00)
+        val lbl = LblBuilder()
+            .coding(LabelCoding.EIGHT_BIT)
+            .codepage(1250)
+            .rawLabel(offset = 0, bytes = raw)
+            .build()
+
+        val (header, stream) = openLbl(lbl)
+        assertEquals("Říčany", LblSubFile.readLabel(stream, header, 0L))
+    }
+
+    @Test
     fun rejectsLabelOffsetPastSectionEnd() {
         val lbl = LblBuilder()
             .coding(LabelCoding.EIGHT_BIT)

@@ -93,20 +93,6 @@ class ImgFile internal constructor(
     }
 
     /**
-     * Walks every sub-division and yields every [MapObject] in draw order
-     * (polygons first, then extended polygons, then polylines, then points).
-     *
-     * @param objectKindFilter bitmask of [ObjectKind] flags. Defaults to
-     *   `ObjectKind.ALL`.
-     */
-    /**
-     * Resolves a `(subDivisionIndex, indexedPointIndex)` pair to the
-     * label of that indexed point — used by LBL POI city resolution
-     * when a city encodes its name as a point reference rather than a
-     * direct LBL offset. Built lazily so the resolver only runs the
-     * tree lookup when a POI actually asks for it.
-     */
-    /**
      * Internal city-name resolver — exposed so test harnesses (the
      * dump-diff rig) can pass it back into [RgnSubFile.parseSubDivision]
      * directly. Production callers should use [readMap] /
@@ -115,6 +101,13 @@ class ImgFile internal constructor(
     internal val cityResolverInternal: com.asamm.vectormaps.garminimg.parser.LblSubFile.IndexedPointLabelResolver
         get() = cityResolver
 
+    /**
+     * Resolves a `(subDivisionIndex, indexedPointIndex)` pair to the
+     * label of that indexed point — used by LBL POI city resolution
+     * when a city encodes its name as a point reference rather than a
+     * direct LBL offset. Runs the tree lookup only when a POI asks
+     * for it.
+     */
     private val cityResolver: com.asamm.vectormaps.garminimg.parser.LblSubFile.IndexedPointLabelResolver =
         com.asamm.vectormaps.garminimg.parser.LblSubFile.IndexedPointLabelResolver { sdIndex, pointIndex ->
             val sd = tre.tree.byIndex[sdIndex] ?: return@IndexedPointLabelResolver null
@@ -128,6 +121,13 @@ class ImgFile internal constructor(
             )
         }
 
+    /**
+     * Walks every sub-division and yields every [MapObject] in draw order
+     * (polygons first, then extended polygons, then polylines, then points).
+     *
+     * @param objectKindFilter bitmask of [ObjectKind] flags. Defaults to
+     *   `ObjectKind.ALL`.
+     */
     fun readMap(objectKindFilter: Int = ObjectKind.ALL): Sequence<MapObject> {
         return sequence {
             for (subDivision in tre.tree.all()) {
@@ -340,8 +340,8 @@ class ImgFile internal constructor(
             // re-raising.
             val owned = mutableListOf<ImgRandomAccessReader>()
             try {
-                val archiveReader = byteSourceFactory().also { owned += it }
-                val archive = ImgArchive.open(archiveReader)
+                // the archive keeps no reader after the FAT parse
+                val archive = byteSourceFactory().use { ImgArchive.open(it) }
                 val tre = archive.findFirst("TRE") ?: error("IMG has no TRE sub-file")
                 val rgn = archive.findFirst("RGN") ?: error("IMG has no RGN sub-file")
                 val lbl = archive.findFirst("LBL") ?: error("IMG has no LBL sub-file")
@@ -394,7 +394,14 @@ class ImgFile internal constructor(
             val rgnHeader = RgnSubFile.parseHeader(rgnReader)
             val lblHeader = LblSubFile.parseHeader(lblReader)
             val netHeader = netReader?.let { NetSubFile.parseHeader(it) }
-            val typHeader = typReader?.let { TypSubFile.parseHeader(it) }
+            // TYP is optional styling: a malformed header drops it, not the map
+            val typHeader = typReader?.let {
+                try {
+                    TypSubFile.parseHeader(it)
+                } catch (_: Exception) {
+                    null
+                }
+            }
 
             val levels = TreSubFile.parseLevels(treReader)
             val tree = SubDivisionParser.parse(

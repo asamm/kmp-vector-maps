@@ -46,7 +46,7 @@ the legal check is locus-core plan Q1.
 |---|---|
 | Licence | LGPL-2.1-or-later (upstream headers, [COPYING.LGPL-2.1](../COPYING.LGPL-2.1)) |
 | Upstream | JGarminImgParser, Copyright (C) 2006 Patrick Valsecchi, via the Asamm fork libGarminImg |
-| Headers | the Kotlin rewrite names both and Asamm, with the SPDX identifier; Asamm-only files carry the Asamm line and the identifier; the legacy Java parser in `dev/garmin-img` keeps its upstream headers |
+| Headers | the Kotlin rewrite names both and Asamm, with the SPDX identifier; Asamm-only files carry the Asamm line and the identifier; the legacy Java parser in `dev/garmin-img` keeps its upstream headers, plus the L2 notice where modified |
 | Foreign test files | `SparseArrayCompat.java` Apache-2.0 (AOSP); `EndianDataInputStream.java` GPL-2.0-or-later (JUMP, Vivid Solutions); both only in the legacy reference parser, never shipped |
 | Not imported | upstream `visad/*` (LGPL-2.0-or-later) and `swing/*` |
 | Fixtures | `otm-monaco` ODbL + CC-BY-SA 4.0, `mkgmap-monaco` ODbL, see [dev/fixtures/README.md](../dev/fixtures/README.md) |

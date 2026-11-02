@@ -204,8 +204,8 @@ value class Color(val argb: Int) {
         val White: Color = Color(0xFFFFFFFF.toInt())
 
         /**
-         * Builds a [Color] from individual channels. Channels are clamped to
-         * 0..255.
+         * Builds a [Color] from individual channels. Each channel is masked to
+         * its low 8 bits.
          */
         fun rgb(r: Int, g: Int, b: Int, a: Int = 0xFF): Color {
             return Color(

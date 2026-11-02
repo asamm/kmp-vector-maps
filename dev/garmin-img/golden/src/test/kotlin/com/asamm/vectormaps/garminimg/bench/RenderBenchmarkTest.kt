@@ -31,7 +31,7 @@ import kotlin.test.Test
  * ```
  * ./gradlew :dev:garmin-img:golden:test --tests "*.RenderBenchmarkTest"        \
  *   --no-configuration-cache                                    \
- *   -Dkmpgi.bench.img="Q:/My Drive/.../CzechRep_by_Dave_Luv.img" \
+ *   -Dkmpgi.bench.img="<path/to/map.img>"          \
  *   -Dkmpgi.bench.x=71381 -Dkmpgi.bench.y=45019 -Dkmpgi.bench.z=17 \
  *   -Dkmpgi.bench.w=512 -Dkmpgi.bench.h=512                     \
  *   -Dkmpgi.bench.iters=10

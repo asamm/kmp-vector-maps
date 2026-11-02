@@ -195,8 +195,8 @@ object CoordUtils {
     }
 
     /**
-     * Formats `secInHundredths` (range 0..359_999) as `SS.ss`, mirroring the Java
-     * `%02.2f` for seconds, folded by hand so the output ignores the default locale.
+     * Formats `secInHundredths` (range 0..5_999) as `SS.ss` with zero-padded seconds,
+     * independent of the default locale.
      */
     private fun formatSeconds(secInHundredths: Long): String {
         val whole = (secInHundredths / 100L).toString().padStart(2, '0')

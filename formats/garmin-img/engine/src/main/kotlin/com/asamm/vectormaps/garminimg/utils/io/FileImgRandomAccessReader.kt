@@ -107,6 +107,9 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
             throw IOException("EOF at position $logicalPos (size=$size)")
         }
         refill(logicalPos)
+        if (bufferLen <= 0) {
+            throw IOException("short read at $logicalPos (size=$size)")
+        }
         val b = buffer[0].toInt() and 0xFF
         logicalPos++
         return b
@@ -163,7 +166,7 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
     // poly bit-stream reading thousands of bytes touches one refill.
     // The default ImgRandomAccessReader composition would still work
     // (readByte goes through the cache), but the explicit overrides
-    // skip the branch + autobox per call.
+    // skip the per-byte call and bounds check.
 
     override fun readUInt16(): Int {
         ensureBuffered(2)
@@ -248,6 +251,7 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
      * Idempotent.
      */
     override fun close() {
+        bufferLen = 0
         raf.close()
     }
 

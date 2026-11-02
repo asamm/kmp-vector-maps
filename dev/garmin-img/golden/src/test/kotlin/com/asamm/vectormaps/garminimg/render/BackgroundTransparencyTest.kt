@@ -13,8 +13,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Regression test for the rendered tile's alpha channel (PLAN.md Phase
- * C.11 — "Background tile transparency").
+ * Regression test for the rendered tile's alpha channel.
  *
  * The tile renderer must support `Color.Transparent` as the background
  * so that Locus / similar consumers can stack the IMG render on top of
