@@ -1,0 +1,20 @@
+{
+  "timestamp": "20260506-095421",
+  "img": "C:\\menion\\_temp\\otm-monaco.img",
+  "panel": { "widthPx": 1643, "heightPx": 943 },
+  "viewport_garmin": {
+    "minLon": 339471, "maxLon": 339822,
+    "minLat": 2037073, "maxLat": 2037217
+  },
+  "viewport_wgs84": {
+    "minLon": 7.284257, "maxLon": 7.291789,
+    "minLat": 43.710845, "maxLat": 43.713934
+  },
+  "picked_level": 0,
+  "render": {
+    "antiAliased": true,
+    "showAreas": true,
+    "showLines": true,
+    "showPoints": true
+  }
+}

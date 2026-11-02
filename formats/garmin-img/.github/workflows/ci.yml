@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main, development]
+
+jobs:
+  # Phase A: Android + JVM only. iOS will be added when those targets are reintroduced.
+  build:
+    name: Build (Android + JVM)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-build
+
+      - name: Gradle build + tests
+        shell: bash
+        env:
+          GPR_USERNAME: ${{ github.actor }}
+          GPR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: ./gradlew build

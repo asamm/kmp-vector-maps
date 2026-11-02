@@ -1,0 +1,133 @@
+import com.asamm.gradle.moduleVersion
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.androidKotlinMultiplatformLibrary)
+    `maven-publish`
+}
+
+val modulePackage = "com.asamm.kmp"
+val moduleArtifact = "kmp-garmin-img"
+
+group = modulePackage
+version = moduleVersion(libs.versions.version.get())
+
+kotlin {
+    @OptIn(ExperimentalKotlinGradlePluginApi::class)
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
+    // Publish -sources.jar alongside each platform artifact so consumers
+    // (Android Studio's "Go to Source", IDEA's library inspection) can
+    // navigate into the lib without a separate manual download.
+    withSourcesJar(publish = true)
+
+    // Phase A targets: Android (Locus Map) + JVM (local testing). iOS deferred.
+    android {
+        namespace = "$modulePackage.garminimg"
+        compileSdk = libs.versions.androidCompileSdk.get().toInt()
+        minSdk = libs.versions.androidMinSdk.get().toInt()
+        compilations.configureEach {
+            compileTaskProvider.configure {
+                compilerOptions {
+                    jvmTarget.set(JvmTarget.JVM_17)
+                }
+            }
+        }
+    }
+
+    // Kotlin multiplatform's `jvm()` target auto-compiles Java sources
+    // sitting alongside Kotlin in `jvmMain` / `jvmTest`. We use that to
+    // ship the legacy libGarminImg Java parser inside the jvmTest source
+    // set so the dump-diff regression test can run our parser and the
+    // reference Java parser side-by-side.
+    jvm()
+
+    sourceSets {
+        commonMain.dependencies {
+            api(libs.kmpLogger)
+            implementation(libs.kotlinxCoroutinesCore)
+            implementation(libs.kotlinxIoCore)
+        }
+        commonTest.dependencies {
+            implementation(kotlin("test"))
+        }
+        // Intermediate source set shared by the JVM and Android targets so
+        // code that relies on `java.io.*` (e.g. RandomAccessFile-backed
+        // IMG reader) lives in one place. AGP 9's KMP variant doesn't
+        // create this hierarchy automatically.
+        val jvmAndAndroidMain by creating {
+            dependsOn(commonMain.get())
+        }
+        androidMain.get().dependsOn(jvmAndAndroidMain)
+        jvmMain.get().dependsOn(jvmAndAndroidMain)
+        jvmTest.dependencies {
+            // Route the multiplatform kotlin.test annotations to the JUnit 5 (Jupiter)
+            // engine on the JVM target. Without this they default to JUnit 4, which we
+            // don't want — locus-core uses JUnit 5 across the board.
+            implementation(kotlin("test-junit5"))
+        }
+    }
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
+    // Forward `-Dkmpgi.bench.*` properties from the Gradle invocation
+    // through to the test JVM. Used by RenderBenchmarkTest to point at
+    // a specific IMG file and tile (x, y, z) without committing 200-MB
+    // test fixtures. No-op when nothing matches.
+    System.getProperties()
+        .filterKeys { (it as? String)?.startsWith("kmpgi.bench.") == true }
+        .forEach { (k, v) -> systemProperty(k as String, v as Any) }
+}
+
+publishing {
+    repositories {
+        // Auth'd via GPR_USERNAME + GPR_TOKEN (CI convention) or
+        // REPO_GITHUB in `username|token` form (locus-core convention)
+        // so the same env var drives publishing from either context.
+        maven {
+            name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/asamm/kmp-garmin-img")
+            credentials {
+                val repoGithub = System.getenv("REPO_GITHUB")?.split("|")
+                username = System.getenv("GPR_USERNAME")
+                    ?: repoGithub?.getOrNull(0)
+                password = System.getenv("GPR_TOKEN")
+                    ?: repoGithub?.getOrNull(1)
+            }
+        }
+    }
+
+    publications.withType<MavenPublication>().configureEach {
+        // The Gradle module is `:lib`, but the public Maven artifact must be
+        // `kmp-garmin-img[-<target>]`. Rewrite the leading `lib` segment so each
+        // platform variant publishes under the right coordinate.
+        artifactId = artifactId.replaceFirst(Regex("^lib"), moduleArtifact)
+        pom {
+            name.set(moduleArtifact)
+            description.set("KMP parser & renderer for unencrypted Garmin IMG vector maps.")
+            url.set("https://github.com/asamm/kmp-garmin-img")
+            licenses {
+                license {
+                    name.set("GNU Lesser General Public License, version 2.1")
+                    url.set("https://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt")
+                }
+            }
+            scm {
+                url.set("https://github.com/asamm/kmp-garmin-img")
+                connection.set("scm:git:https://github.com/asamm/kmp-garmin-img.git")
+                developerConnection.set("scm:git:ssh://git@github.com/asamm/kmp-garmin-img.git")
+            }
+            developers {
+                developer {
+                    organization.set("Asamm Software")
+                    organizationUrl.set("https://www.asamm.com")
+                }
+            }
+        }
+    }
+}
