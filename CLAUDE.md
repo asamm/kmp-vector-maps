@@ -5,7 +5,7 @@ Asamm-owned vector map renderers for Locus Map behind one driver interface: Maps
 product; JVM desktop runs benchmarks and tools; no iOS.
 
 **Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, commit-sized
-steps, decisions D1–D32, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
+steps, decisions D1–D33, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
 not relitigate a decision without asking. Update the roadmap status in the same commit as the work.
 
 ## Scope
@@ -48,8 +48,8 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 - **Never remove a licence header** or `COPYING*`; on a vendored file's first change, append
   `Copyright 2026 Asamm Software` ([licence.md](docs/licence.md) L2).
 - New Asamm files: `Copyright 2026 Asamm Software` + SPDX id — `LGPL-3.0-or-later` under
-  `formats/mapsforge/` and `dev/mapsforge/`, `Apache-2.0` for `core/`, `render/`, `android/`,
-  `dev/bench/` and `viewer/`.
+  `formats/mapsforge/` and `dev/mapsforge/`, `LGPL-2.1-or-later` under `formats/garmin-img/`,
+  `Apache-2.0` for `core/`, `render/`, `android/`, `dev/bench/` and `viewer/`.
 - **Formats depend on the core only.** No Locus types anywhere.
 - Kotlin/JVM libraries: `android.*` only in `render/android`, `android/`,
   `formats/mapsforge/android`.
@@ -69,7 +69,7 @@ need it (`golden-android*`, `dev/bench/android`).
 |---|---|
 | Mapsforge 0.30.0 (`54e8654f`) | local clone `c:\menion\asamm\tools\mapsforge` |
 | LoMaps themes | [asamm/lomaps-mapsforge](https://github.com/asamm/lomaps-mapsforge) |
-| `kmp-garmin-img` (private, Q12) | local clone `c:\menion\asamm\tools\kmp-garmin-img` |
+| `kmp-garmin-img` (private until M4.1, D33) | local clone `c:\menion\asamm\tools\kmp-garmin-img` |
 | Locus map pipeline | locus-core `libLocusCore/.../maps/` — `MapSourceRenderer`, `MapsForgeV4*` |
 
 - The Mapsforge clone has local changes on branch `asamm`: **never check out, fetch or write**

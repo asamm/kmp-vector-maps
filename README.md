@@ -13,7 +13,7 @@ Milestones: [docs/ROADMAP.md](docs/ROADMAP.md).
 | Format | State |
 |---|---|
 | Mapsforge `.map` v5 | vendored from [Mapsforge](https://github.com/mapsforge/mapsforge) 0.30.0 |
-| Garmin IMG | in `asamm/kmp-garmin-img` (private for now), moves here |
+| Garmin IMG | in `asamm/kmp-garmin-img`, moves here in M4.1 |
 | Mapbox Vector Tiles | planned |
 
 Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
@@ -45,5 +45,5 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 ## Licence
 
 Per part — Mapsforge LGPL-3.0-or-later with the LGPL §4(d)/(e) waiver, shared code Apache-2.0,
-Garmin IMG LGPL-2.1 — see [LICENSE.md](LICENSE.md). Mapsforge sync state:
+Garmin IMG LGPL-2.1-or-later — see [LICENSE.md](LICENSE.md). Mapsforge sync state:
 [docs/upstream.md](docs/upstream.md).

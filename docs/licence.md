@@ -11,7 +11,7 @@ the legal check is locus-core plan Q1.
 |---|---|
 | `formats/mapsforge/**`, including its Kotlin conversion, and its golden tests `dev/mapsforge/**` | LGPL-3.0-or-later + §4(d)/(e) waiver |
 | `core/`, `render/`, `android/`, `dev/bench/`, `viewer/` (written fresh) | Apache-2.0 (D19) |
-| `formats/garmin-img/` (M4) | LGPL-2.1, -only or -or-later open (Q13) |
+| `formats/garmin-img/` (M4) | LGPL-2.1-or-later, as upstream JGarminImgParser (D33) |
 | Fixtures | per [dev/fixtures/README.md](../dev/fixtures/README.md): ODbL map data, Apache-2.0 theme |
 
 - An Apache-2.0 core keeps LGPL-2.1 and LGPL-3.0 code out of one derivative work.
@@ -52,15 +52,15 @@ the legal check is locus-core plan Q1.
 
 ## Obligations of Locus
 
-| Item | Mapsforge (waiver) | Garmin IMG (LGPL-2.1) |
+| Item | Mapsforge (waiver) | Garmin IMG (LGPL-2.1-or-later) |
 |---|---|---|
 | Notice and licence texts in the app | required, in `LibLicensesLco` | required |
 | User can relink a modified library | waived | required (§6) |
 | R8-minified, merged into the APK | allowed | only with a relinking path |
-| Public source | this repo | `kmp-garmin-img` is private (Q12) |
+| Public source | this repo | this repo from M4.1 (D33) |
 
-- Garmin: Locus already ships kmp-garmin-img R8-processed, without a relinking path or public
-  source — an existing gap. Asamm can waive §6 only for its own code, not for the parts derived
-  from JGarminImgParser (Q13, locus-core Q1).
+- Garmin: Locus ships the library R8-processed, without a relinking path; the owner accepts this
+  §6 gap and excludes the package from R8 if it is raised (D33). Asamm can waive §6 only for its
+  own code, not for the parts derived from JGarminImgParser (locus-core Q1).
 - locus-core `third_party_licenses.md` risk item 2 assumes Mapsforge must stay "replaceable,
   not modified"; it ignores the waiver and is updated in M9 (I8).

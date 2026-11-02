@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5 done; M5 reached `main` in PR #26 (D26).** Next action: M6.1, the label
-model; M4 waits for Q12 and Q13.
+**Status: M0–M3 and M5 done; M5 reached `main` in PR #26 (D26).** Next action: M4.1, the Garmin
+import (D33); M6 follows M4.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -23,7 +23,7 @@ settles, labels before speed, the Locus-facing API last.
 | M1 | Review hardening: CI, supply chain, licence docs, this plan | S | ✅ PR #1, `42f1598` |
 | M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | ✅ PR #2, `5e5b037` |
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PRs #3–#5, `028d746` |
-| M4 | Garmin IMG joins | M | ⬜ needs Q12, Q13 |
+| M4 | Garmin IMG joins | M | ⬜ |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
 | M6 | Core features: label model, hillshade anchor, feature query | M | ⬜ |
 | M7 | Performance and Skia desktop backend | L | ⬜ needs Q15 |
@@ -196,14 +196,14 @@ green, 3 of 3 runs on the final commit.*
 red when the driver ignores the text scale (the wrap width is not covered: LoMaps sets its own on
 most captions; a driver test pins it); viewer GUI pass on desktop and on the A54 (Android 16).*
 
-**M4 — Garmin IMG.** Blocked by Q12 (visibility) and Q13 (licence wording).
+**M4 — Garmin IMG.** LGPL-2.1-or-later, public in this repo (D33).
 
 | PR | Content |
 |---|---|
-| M4.1 | Import with history; KMP → Kotlin/JVM; drop unused `kotlinx-io`, coroutines, `api` logger |
+| M4.1 | Audit, then import with history: secrets and local paths (`local.properties`), fixture licences (OTM Monaco `.img` and TYP); headers to LGPL-2.1-or-later with SPDX, missing ones added; KMP → Kotlin/JVM; drop unused `kotlinx-io`, coroutines, `api` logger |
 | M4.2 | Garmin driver; its goldens and dump-diff into the shared tooling |
 | M4.3 | Positional reads → parallel renders; multi-map IMGs (today first map only) |
-| M4.4 | Measured label bounds, TYP night colours, text scale; missing licence headers |
+| M4.4 | Measured label bounds, TYP night colours, text scale |
 
 **M5 — Mapsforge to Kotlin.** One area per PR, its hot-spot fixes in a follow-up PR on the same
 area, so each conversion PR stays pixel-identical. Every PR gated by goldens, dumps and a device
@@ -376,7 +376,7 @@ goldens and dumps byte-exact after them.*
 
 ## Decisions
 
-D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27; D32 2026-11-02.
+D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27; D32–D33 2026-11-02.
 
 | ID | Decision |
 |---|---|
@@ -412,6 +412,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D30 | M5.4 removes the unused hillshading code before converting the renderer, rather than converting it first; the renderer constructors keep their hills parameter as an ignored `Object`, so the golden harness shared with upstream still compiles; M6.2 re-captures the `<hillshading>` layer, level and `cat` in `RenderThemeHandler`, dropped here |
 | D31 | The M5 soak compares each `SEPARATE` render's label store entry with a serial render's: kind, text, priority, position, clash box, visibility, standalone symbol size (way-label text through `toString`, as its field is private; the display mode itself is protected in Mapsforge); the soak fails if no render had labels. Not compared: `IN_TILE` labels (render order, M6.1), placement across tiles (the label pass, M6.1), fonts, colours and symbol pixels |
 | D32 | Long term: our own OpenGL renderer in locus-core; this library moves from bitmap to bucket delivery (tessellated geometry, symbols, label data) and keeps its readers, style engines and label model; no VTM fork, VTM is a reference only. M6–M8 interfaces keep decode, style and draw separable so bucket output can join the bitmap one |
+| D33 | Garmin IMG is LGPL-2.1-or-later, as upstream JGarminImgParser (Q13), imported with history into this public repo after an audit (Q12); the kmp-garmin-img headers become LGPL-2.1-or-later. Locus keeps R8 on the Garmin code, a known §6 gap the owner accepts; if raised, the package is excluded from R8 |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.
@@ -465,8 +466,6 @@ here, except A8 and A9 in M6.4, as fixing them changes pixels.
 | ID | Question | Blocks |
 |---|---|---|
 | Q5 | SVG outside Android: pre-rasterise at theme build, or Skia SVG? | M7.1 |
-| Q12 | Make `kmp-garmin-img` public (its LGPL already requires source for app users)? | M4 |
-| Q13 | Garmin licence: declare LGPL-2.1-or-later, as upstream JGarminImgParser? | M4 |
 | Q14 | Does the Mapsforge README waiver cover pre-2018 contributors? (locus-core Q1) | M9 |
 | Q15 | Desktop backend Skia via Skiko (recommended) or AWT only? | M7 |
 | Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? | M9 |

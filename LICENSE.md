@@ -7,7 +7,7 @@ under its path.
 |---|---|---|---|
 | Mapsforge format, incl. its Kotlin conversion and golden tests | `formats/mapsforge/`, `dev/mapsforge/` | LGPL-3.0-or-later + additional permission below | [COPYING.LESSER](COPYING.LESSER), [COPYING](COPYING) |
 | Core, renderers, Android host API, new viewer, benchmarks | `core/`, `render/`, `android/`, `dev/bench/`, `viewer/` | Apache-2.0 | [LICENSE-APACHE](LICENSE-APACHE) |
-| Garmin IMG format (planned) | `formats/garmin-img/` | LGPL-2.1 | added with the module |
+| Garmin IMG format (planned) | `formats/garmin-img/` | LGPL-2.1-or-later | added with the module |
 | Test data | `dev/fixtures/` | per [dev/fixtures/README.md](dev/fixtures/README.md) | — |
 
 The LGPL development viewers were deleted in M3.3.
