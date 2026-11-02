@@ -36,14 +36,17 @@ tasks.test {
     useJUnitPlatform()
     inputs.dir(fixturesDir)
     systemProperty("fixturesDir", fixturesDir.asFile.absolutePath)
-    // golden candidates, dumps and renders, which CI uploads when a test fails; tens of MB of dumps,
-    // so never stored in the build cache
-    outputs.dir(layout.buildDirectory.dir("test-output"))
-    outputs.cacheIf { false }
+    // only the golden candidates are the output: the tens of MB of dumps and review renders under
+    // test-output/ stay out of the build cache, and a failing run, which CI uploads, is never cached
+    val candidates = layout.buildDirectory.dir("test-output/render-candidates")
+    outputs.dir(candidates)
+    doFirst {
+        candidates.get().asFile.deleteRecursively()
+    }
     val bench = benchProperties.get()
     bench.forEach { (key, value) -> systemProperty(key, value) }
     // a requested benchmark measures again, even with nothing changed
-    if (bench.isNotEmpty()) {
+    if (bench["bench.garmin"] == "true") {
         outputs.upToDateWhen { false }
     }
 }

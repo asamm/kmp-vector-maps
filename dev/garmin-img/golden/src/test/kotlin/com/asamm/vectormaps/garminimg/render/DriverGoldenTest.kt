@@ -60,13 +60,24 @@ class DriverGoldenTest {
         val suffix = if (scale == 1f) "" else "-x${scale.toInt()}"
         val name = "otm-monaco-${tile.zoom}-${tile.x}-${tile.y}$suffix"
         val target = GarminTileTarget(TILE_SIZE)
-        val result = renderer.render(tile, target) { false }
+        // a tile that throws is reported with the others, which still render
+        val result = try {
+            renderer.render(tile, target) { false }
+        } catch (e: Exception) {
+            return listOf("$name: $e")
+        }
         if (result != RenderResult.DRAWN) {
             return listOf("$name: $result")
         }
         val image = (target.canvas as AwtRenderTarget).image
         val golden = GoldenPngDiff.loadFromClasspath("golden/$name.png")
             ?: return listOf("$name: no golden, candidate ${GoldenPngDiff.saveCandidate(image, name)}")
+        if (image.width != golden.width
+            || image.height != golden.height
+        ) {
+            val candidate = GoldenPngDiff.saveCandidate(image, name)
+            return listOf("$name: ${image.width}x${image.height}, golden ${golden.width}x${golden.height}, candidate $candidate")
+        }
         val diff = GoldenPngDiff.compare(image, golden, perChannelTolerance = 8)
         if (diff.differingPixelFraction > MAX_DIFFERING) {
             return listOf("$name: $diff, candidate ${GoldenPngDiff.saveCandidate(image, name)}")

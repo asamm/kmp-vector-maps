@@ -10,7 +10,10 @@ import java.io.File
  * A file under `dev/fixtures`, whose path the build passes as the `fixturesDir` system property.
  */
 internal fun fixtureFile(path: String): File {
-    val file = File(System.getProperty("fixturesDir"), path)
+    val dir = requireNotNull(System.getProperty("fixturesDir")) {
+        "fixtureFile(), fixturesDir not set; run through Gradle"
+    }
+    val file = File(dir, path)
     check(file.isFile) {
         "fixtureFile(), missing $file"
     }

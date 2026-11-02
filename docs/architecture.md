@@ -106,7 +106,8 @@ anchors, each with a per-format default.
 | Differential pixels | vendored vs upstream 0.30.0, same host | ✅ M0 |
 | Android pixels | Robolectric native graphics, vendored vs upstream | ✅ M2.4 |
 | Text dumps | reader output, label store, `RenderCallback`, sorted | ✅ M2.2, M2.5 |
-| Committed pixels | exact in a pinned container, tolerant outside | M6, once output changes |
+| Garmin committed pixels | Monaco tiles through the driver, bundled DejaVu Sans, AA off, ≤ 0.2 % differing | ✅ M4.2c |
+| Mapsforge committed pixels | exact in a pinned container, tolerant outside | M6, once output changes |
 
 - An override set per [upstream.md](upstream.md) deviation keeps one intentional change from
   dropping the whole corpus off the differential test.
