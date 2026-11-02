@@ -32,8 +32,8 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `viewer/*` | dev viewers for every registered format: `common` tile engine, `desktop` (Compose), `android` |
 | `dev/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored corpus tiles render through the driver; the shared harness in `golden/harness` |
 | `dev/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `formats/mapsforge/android`, Robolectric; plain Mapsforge, not the driver |
-| `dev/garmin-img/golden` | Garmin pixel test of the Monaco render against a committed PNG (Windows only, as fonts differ elsewhere) and the dump comparison against the legacy Java parser libGarminImg |
-| `dev/fixtures/` | test maps and themes, see [dev/fixtures/README.md](dev/fixtures/README.md) |
+| `dev/garmin-img/golden` | Garmin pixel test of Monaco tiles through the driver against committed PNGs (bundled font, every system) and the dump comparison against the legacy Java parser libGarminImg |
+| `dev/fixtures/` | test maps, themes and the golden font, see [dev/fixtures/README.md](dev/fixtures/README.md) |
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baseline in ROADMAP M2.7 |
 | `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baseline in ROADMAP M2.7b; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
 | `core/` | driver interface, registry, styles, render configuration; Apache-2.0, see architecture.md |

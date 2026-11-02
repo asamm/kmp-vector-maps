@@ -21,7 +21,7 @@ import java.io.InputStream
  * # Usage
  *
  * ```kotlin
- * val golden = GoldenPngDiff.loadFromClasspath("golden/otm-monaco-tight.png")
+ * val golden = GoldenPngDiff.loadFromClasspath("golden/otm-monaco-15-17059-11948.png")
  * val diff = GoldenPngDiff.compare(actual, golden, perChannelTolerance = 8)
  * assertTrue(diff.differingPixelFraction < 0.005, "render diverged: $diff")
  * ```

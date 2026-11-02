@@ -4,6 +4,7 @@
  */
 package com.asamm.vectormaps.garminimg.fixture
 
+import com.asamm.vectormaps.garminimg.fixtureBytes
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.utils.io.ByteArrayImgRandomAccessReader
 import com.asamm.vectormaps.garminimg.model.MapObject
@@ -22,10 +23,7 @@ class OtmMonacoImgFileTest {
 
     @Test
     fun openAndReadEverythingMonaco() {
-        val bytes = OtmMonacoImgFileTest::class.java.classLoader
-            ?.getResourceAsStream("maps/otm-monaco/otm-monaco.img")
-            ?.use { it.readBytes() }
-            ?: error("Monaco fixture missing from classpath")
+        val bytes = fixtureBytes("maps/otm-monaco/otm-monaco.img")
 
         val img = ImgFile.open { ByteArrayImgRandomAccessReader(bytes) }
 
@@ -60,10 +58,7 @@ class OtmMonacoImgFileTest {
 
     @Test
     fun objectKindFilterRestrictsOutput() {
-        val bytes = OtmMonacoImgFileTest::class.java.classLoader
-            ?.getResourceAsStream("maps/otm-monaco/otm-monaco.img")
-            ?.use { it.readBytes() }
-            ?: error("Monaco fixture missing from classpath")
+        val bytes = fixtureBytes("maps/otm-monaco/otm-monaco.img")
 
         val img = ImgFile.open { ByteArrayImgRandomAccessReader(bytes) }
 

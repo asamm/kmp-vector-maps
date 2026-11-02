@@ -43,12 +43,15 @@ import java.io.OutputStream
  *   against handheld-DPI screens (~3× density); rendering them 1:1 on a desktop monitor (~1×
  *   density) is too thin for crossties and POI icons to read. Defaults to 1.5× — comparable to
  *   mid-density Android — and is configurable per-target so tests can stay byte-stable.
+ * @param font typeface of labels at any size; a bundled font keeps renders alike across systems,
+ *   whose sans-serif fonts differ, but has no fallback for glyphs it lacks
  */
 class AwtRenderTarget(
     override val widthPx: Int,
     override val heightPx: Int,
     private val antiAliased: Boolean = true,
     override val renderScale: Float = 1.5f,
+    private val font: Font = Font(Font.SANS_SERIF, Font.PLAIN, 1),
 ) : RenderTarget {
 
     /**
@@ -594,7 +597,7 @@ class AwtRenderTarget(
     }
 
     /**
-     * Sans-serif font at the requested logical size scaled by
+     * The label font at the requested logical size scaled by
      * [renderScale]. Uses `deriveFont(Float)` so fractional sizes are
      * preserved — `Font(name, style, Int)` truncates the size, which
      * was the source of cross-backend label drift vs Android's
@@ -602,7 +605,7 @@ class AwtRenderTarget(
      */
     private fun fontFor(fontSize: Float): Font {
         val pxSize = (fontSize * renderScale).coerceAtLeast(8f)
-        return Font(Font.SANS_SERIF, Font.PLAIN, 1).deriveFont(pxSize)
+        return font.deriveFont(pxSize)
     }
 
     private fun buildPath(xs: FloatArray, ys: FloatArray, closed: Boolean): Path2D {

@@ -4,6 +4,7 @@
  */
 package com.asamm.vectormaps.garminimg.fixture
 
+import com.asamm.vectormaps.garminimg.fixtureBytes
 import com.asamm.vectormaps.garminimg.utils.coord.CoordUtils
 import com.asamm.vectormaps.garminimg.utils.io.ByteArrayImgRandomAccessReader
 import com.asamm.vectormaps.garminimg.parser.ImgArchive
@@ -362,9 +363,6 @@ class OtmMonacoFixtureTest {
     }
 
     private fun loadFixture(path: String): ByteArray {
-        val stream = OtmMonacoFixtureTest::class.java.classLoader
-            ?.getResourceAsStream(path)
-        assertNotNull(stream, "fixture not on test classpath: $path")
-        return stream.use { it.readBytes() }
+        return fixtureBytes(path)
     }
 }

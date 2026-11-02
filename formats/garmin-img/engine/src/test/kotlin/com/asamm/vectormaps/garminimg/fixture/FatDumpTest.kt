@@ -4,6 +4,7 @@
  */
 package com.asamm.vectormaps.garminimg.fixture
 
+import com.asamm.vectormaps.garminimg.fixtureBytes
 import com.asamm.vectormaps.garminimg.utils.io.ByteArrayImgRandomAccessReader
 import com.asamm.vectormaps.garminimg.parser.ImgArchive
 import kotlin.test.Test
@@ -17,9 +18,7 @@ class FatDumpTest {
 
     @Test
     fun dumpOtmMonacoFat() {
-        val bytes = FatDumpTest::class.java.classLoader
-            ?.getResourceAsStream("maps/otm-monaco/otm-monaco.img")
-            ?.use { it.readBytes() } ?: return
+        val bytes = fixtureBytes("maps/otm-monaco/otm-monaco.img")
         val archive = ImgArchive.open(ByteArrayImgRandomAccessReader(bytes))
         println("=== otm-monaco FAT (blockSize=${archive.blockSize}) ===")
         for (entry in archive.subFiles) {
@@ -29,9 +28,7 @@ class FatDumpTest {
 
     @Test
     fun dumpMkgmapMonacoFat() {
-        val bytes = FatDumpTest::class.java.classLoader
-            ?.getResourceAsStream("maps/mkgmap-monaco/monaco.img")
-            ?.use { it.readBytes() } ?: return
+        val bytes = fixtureBytes("maps/mkgmap-monaco/monaco.img")
         val archive = ImgArchive.open(ByteArrayImgRandomAccessReader(bytes))
         println("=== mkgmap-monaco FAT (blockSize=${archive.blockSize}) ===")
         for (entry in archive.subFiles) {

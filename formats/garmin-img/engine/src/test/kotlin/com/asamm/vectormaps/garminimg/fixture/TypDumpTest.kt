@@ -4,6 +4,7 @@
  */
 package com.asamm.vectormaps.garminimg.fixture
 
+import com.asamm.vectormaps.garminimg.fixtureBytes
 import com.asamm.vectormaps.garminimg.utils.io.ByteArrayImgRandomAccessReader
 import com.asamm.vectormaps.garminimg.parser.ImgArchive
 import com.asamm.vectormaps.garminimg.parser.TypSubFile
@@ -17,9 +18,7 @@ class TypDumpTest {
 
     @Test
     fun dumpOpenTopoTypHeader() {
-        val bytes = TypDumpTest::class.java.classLoader
-            ?.getResourceAsStream("maps/otm-monaco/otm-monaco.img")
-            ?.use { it.readBytes() } ?: return
+        val bytes = fixtureBytes("maps/otm-monaco/otm-monaco.img")
 
         val container = ByteArrayImgRandomAccessReader(bytes)
         val archive = ImgArchive.open(container)
