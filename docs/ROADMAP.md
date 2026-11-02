@@ -246,15 +246,15 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   boxing, AWT icons cached as on Android, fewer allocations per label and pattern on Android.
 - M4.2a as built: the host passes a `GarminCanvasFactory` (`AwtRenderTarget`, `AndroidRenderTarget`)
   and reads the canvas from `GarminTileTarget`; one `.img` per dataset (`addMap` adds nothing) and
-  one tile at a time (`maxParallelism` 1) until M4.3; in-tile labels only, cut at the tile edge
+  one tile at a time (`maxParallelism` 1) until M4.3a; in-tile labels only, cut at the tile edge
   until M6.1; `GarminOptions` stay outside `RenderKey`; the engine's `Viewport.ofDegrees` projects
   the exact tile bounds, as a Garmin unit (~2.4 m) shifts high-zoom tiles by pixels, and the level
   pick reads that exact span. Edge strokes and icons stop at sub-division and map edges, and a tile
   partly outside the map gets the opaque background (both engine behaviour, with the M6.1 labels).
   Review left for M4.3: one parsed TRE tree and TYP per dataset instead of one per renderer (done in
   M4.3a); TYP patterns are converted per tile, as each tile gets a new canvas. PR #28 review:
-  materialised levels and per-level sub-divisions cached per `ImgFile`; the map file checked against
-  the time it was opened.
+  materialised levels and per-level sub-divisions cached per parsed map (shared by its `reopen`
+  copies since M4.3a); the map file checked against the time it was opened.
 - M4.2b as built: both viewers register the Garmin driver and start a map with its own first style
   (`MapDataset.styles`) when no style file of its format is open; the desktop style choice lists the
   map's styles next to the style files; the session keeps the last style file per format, which a
@@ -266,9 +266,11 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 - M4.3a as built: the dataset parses the map once (headers, sub-division tree, TYP) and closes its
   readers; each renderer keeps a worker per concurrent render, up to `maxParallelism` (the core
   count), and every worker reads through an `ImgFile.reopen` copy with its own readers and its own
-  `typAware` cache; the tree's level index is built once and shared. A worker checks the file time
-  before it opens the file. A test renders 16 tiles twice on that many threads and compares them
-  with sequential renders pixel by pixel; it fails when the workers share one file.
+  `typAware` cache; the tree's level index is built once and shared. Workers stay until `close`, so
+  a renderer holds up to about 4 × `maxParallelism` file handles (M4.3b and M8 hosts: count them). A
+  worker checks the file time before it opens the file. A test renders 16 tiles twice on that many
+  threads and compares them with sequential renders pixel by pixel; it fails when the workers share
+  one file.
 - Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons →
   M4.4; label collisions at level-pick boundaries → M6.1; Locus prefs from the helpdesk
   (label colour, line width and colour overrides, area/line/point toggles, per-type visibility,

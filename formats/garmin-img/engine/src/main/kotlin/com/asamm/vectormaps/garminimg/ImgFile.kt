@@ -82,14 +82,7 @@ class ImgFile internal constructor(
      * close is idempotent (the file-backed reader's is).
      */
     override fun close() {
-        for (reader in ownedReaders) {
-            try {
-                reader.close()
-            } catch (_: Throwable) {
-                // Continue closing the rest; surface the first failure
-                // is more trouble than it's worth when releasing.
-            }
-        }
+        closeQuietly(ownedReaders)
     }
 
     /**
@@ -483,7 +476,7 @@ private fun subDivisionHasAnyData(sd: SubDivision): Boolean {
         sd.extendedPoiEnd > sd.extendedPoiOffset
 }
 
-// the first exception is the one to report
+// a failure closing one reader does not stop the others
 private fun closeQuietly(readers: List<ImgRandomAccessReader>) {
     for (reader in readers) {
         try {

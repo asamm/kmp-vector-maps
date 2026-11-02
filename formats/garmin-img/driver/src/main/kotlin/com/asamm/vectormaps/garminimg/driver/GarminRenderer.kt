@@ -25,7 +25,8 @@ import com.asamm.vectormaps.core.RenderTarget as CoreRenderTarget
 /**
  * Renders through the engine's `ImgRenderer` into [GarminTileTarget]s, up to one tile per core at
  * once: each worker reads the shared parsed map through its own readers and resolves styles with
- * its own cache, and holds 3–4 open file handles until [close]. Labels stop at the tile edge until
+ * its own cache and 3–4 open file handles; workers are kept until [close], so a renderer holds up to
+ * about 4 × [maxParallelism] handles. Labels stop at the tile edge until
  * M6.1. [close] waits for running renders, so it must not be called from inside [render].
  */
 class GarminRenderer internal constructor(
@@ -117,7 +118,7 @@ class GarminRenderer internal constructor(
             val worker = Worker(img = img, renderer = ImgRenderer(img, style.resolver(img)))
             workers.add(worker)
             return worker
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             img.close()
             throw e
         }
@@ -147,7 +148,7 @@ class GarminRenderer internal constructor(
 
 /**
  * Creates the engine canvas a tile is drawn into, such as `AwtRenderTarget` or
- * `AndroidRenderTarget`.
+ * `AndroidRenderTarget`; called from up to `maxParallelism` render threads at once.
  */
 fun interface GarminCanvasFactory {
 
