@@ -47,6 +47,8 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 - **No globals:** scales and tile size travel in each renderer's `RenderConfig` (Mapsforge
   `DisplayModel`, `Parameters`); safety limits, the Android tile bitmap format and device
   workarounds stay global (D28).
+- **Long term (D32):** a GPU renderer in locus-core consumes buckets instead of bitmaps; each
+  driver keeps decode, style and draw separable, so a bucket output joins the bitmap one.
 
 ## Android host API
 

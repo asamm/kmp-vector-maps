@@ -376,7 +376,7 @@ goldens and dumps byte-exact after them.*
 
 ## Decisions
 
-D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27.
+D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27; D32 2026-11-02.
 
 | ID | Decision |
 |---|---|
@@ -411,6 +411,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D29 | The Paint caches (F1–F3) are bounded in M5.6, in Kotlin: a window of 4 zoom levels, and each render job pins its zoom so a drawing tile never sees an unscaled Paint; where the window lives is M5.6's call. `ANTI_ALIASING` per renderer moves to M5.6 too, as on Android it is set on each theme Paint; on AWT the canvas reads it (`AwtCanvas`, set from `CanvasRasterer`), changed in the same step. 2026-10-27, M5.6 fixes: the canvas setting also reaches the Android canvas' bitmap Paint, which upstream kept on; the window lives in `RenderTheme`, which owns the scaled maps; `DatabaseRenderer` holds the zoom of each job, a bare `RenderContext` only marks it used, so a context never destroyed (LoPoints) cannot pin a zoom forever |
 | D30 | M5.4 removes the unused hillshading code before converting the renderer, rather than converting it first; the renderer constructors keep their hills parameter as an ignored `Object`, so the golden harness shared with upstream still compiles; M6.2 re-captures the `<hillshading>` layer, level and `cat` in `RenderThemeHandler`, dropped here |
 | D31 | The M5 soak compares each `SEPARATE` render's label store entry with a serial render's: kind, text, priority, position, clash box, visibility, standalone symbol size (way-label text through `toString`, as its field is private; the display mode itself is protected in Mapsforge); the soak fails if no render had labels. Not compared: `IN_TILE` labels (render order, M6.1), placement across tiles (the label pass, M6.1), fonts, colours and symbol pixels |
+| D32 | Long term: our own OpenGL renderer in locus-core; this library moves from bitmap to bucket delivery (tessellated geometry, symbols, label data) and keeps its readers, style engines and label model; no VTM fork, VTM is a reference only. M6–M8 interfaces keep decode, style and draw separable so bucket output can join the bitmap one |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.
