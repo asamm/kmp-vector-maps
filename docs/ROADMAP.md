@@ -335,6 +335,9 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   extended polygons and 5.4 k extended points. Measured widths and TYP font sizes change the label
   placement, so the four Monaco goldens were rendered again. A test-built TYP (`TestTyp`) covers
   night colours, DRAWORDER and font styles.
+- After M4 (2026-11-03): the built-in styles drew polygon types 0x4A (definition area) and 0x4B
+  (background), which cover each map, as sea, so a map without a TYP (`swusatopo.img`) was blue
+  under its streets; they now draw nothing and 0x4C (intermittent water) draws as water.
 - Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons → M4.4
   (already applied, see M4.4 as built); label collisions at level-pick boundaries → M6.1; Locus
   prefs from the helpdesk (label colour, line width and colour overrides, area/line/point toggles,

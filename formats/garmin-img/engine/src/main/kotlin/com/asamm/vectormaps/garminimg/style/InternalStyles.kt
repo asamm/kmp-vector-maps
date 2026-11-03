@@ -85,14 +85,13 @@ object InternalStyles {
             0x16 -> AREA_FOREST
             in 0x17..0x1A -> AREA_FOREST
             // Water bodies — Garmin's water-area type codes vary by tooling:
-            //   0x28 sea/ocean (older Garmin), 0x32 sea (Mapwel),
-            //   0x3B..0x44 mkgmap-style water (river/lake/etc.),
-            //   0x4A..0x4C ocean-background polygons (mkgmap, OpenTopoMap).
-            // Cover the whole accepted range — without TYP styling, getting
-            // the ocean fill right is the headline visual win.
+            //   0x28 sea/ocean (older Garmin), 0x32 sea (mkgmap, OpenTopoMap),
+            //   0x3B..0x44 mkgmap-style water (river/lake/etc.), 0x4C intermittent water
             0x28, 0x32 -> AREA_WATER
             in 0x3B..0x44 -> AREA_WATER
-            in 0x4A..0x4C -> AREA_OCEAN_BACKGROUND
+            0x4C -> AREA_WATER
+            // 0x4A definition area and 0x4B background cover the whole map: land, not sea
+            0x4A, 0x4B -> AREA_BACKGROUND
             else -> DEFAULT_POLYGON
         }
     }
@@ -258,14 +257,12 @@ object InternalStyles {
     )
 
     /**
-     * Ocean-background polygons are typically a single huge polygon covering
-     * the whole sub-division's water area; rendered with a slightly cooler
-     * blue and lower draw priority so smaller water bodies (lakes, rivers)
-     * still pop on top of it.
+     * The map's background and definition area: drawn first and see-through, so the frame's
+     * land colour shows.
      */
-    private val AREA_OCEAN_BACKGROUND = Style.PolygonStyle(
-        drawPriority = 5,
-        fillColor = Color.rgb(0xA0, 0xC8, 0xE8),
+    private val AREA_BACKGROUND = Style.PolygonStyle(
+        drawPriority = 0,
+        fillColor = Color.Transparent,
         strokeColor = null,
         labelColor = null,
     )
