@@ -44,6 +44,26 @@ class MapFormats(val drivers: List<MapFormatDriver>) {
         return null
     }
 
+    /**
+     * Why [probe] returns null for `file`, one line per driver that claims its extension, or that
+     * none claims it; for hosts that show the user more than "no driver reads it".
+     */
+    fun unreadableReason(file: File): String {
+        val extension = file.extension.lowercase()
+        val claiming = drivers.filter { extension in it.extensions }
+        if (claiming.isEmpty()) {
+            return "no driver reads .$extension files"
+        }
+        return claiming.joinToString("\n") { driver ->
+            val reason = try {
+                if (driver.probe(file) == null) "not a file of this format" else "readable"
+            } catch (e: Exception) {
+                e.message ?: e.javaClass.simpleName
+            }
+            "${driver.id}: $reason"
+        }
+    }
+
     data class Probed(
         val driver: MapFormatDriver,
         val info: MapInfo,

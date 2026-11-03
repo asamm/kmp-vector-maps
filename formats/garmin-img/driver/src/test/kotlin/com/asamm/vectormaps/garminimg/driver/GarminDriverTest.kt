@@ -18,6 +18,7 @@ import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
 import com.asamm.vectormaps.garminimg.utils.io.FileImgRandomAccessReader
 import java.awt.image.BufferedImage
 import java.io.File
+import java.io.RandomAccessFile
 import java.util.concurrent.Executors
 import kotlin.io.path.createTempFile
 import kotlin.test.Test
@@ -397,6 +398,60 @@ class GarminDriverTest {
 
         assertTrue(target.measureText("WWWW", 12f) > target.measureText("iiii", 12f))
         assertTrue(target.measureText("Monaco", 24f) > target.measureText("Monaco", 12f))
+    }
+
+    @Test
+    fun damagedMapsOfAFileAreSkippedAndReported() {
+        withMultiMapFile { combined ->
+            zeroTre(combined, "00000002")
+            driver.open(listOf(combined)).use { dataset ->
+                assertEquals(listOf("00000002"), dataset.unreadableMaps.map { it.mapName })
+                assertEquals(combined, dataset.unreadableMaps.single().file)
+                // the readable map renders as on its own
+                val otmOnly = driver.open(listOf(otm)).use { pixels(render(it, GarminStyle.BuiltIn, harbour)) }
+                assertContentEquals(otmOnly, pixels(render(dataset, GarminStyle.BuiltIn, harbour)))
+            }
+            assertTrue(driver.probe(combined).bounds.minLat < 43.735)
+        }
+    }
+
+    @Test
+    fun mapDamagedPastItsTreHeaderIsSkippedAndLeftOutOfTheBounds() {
+        withMultiMapFile { combined ->
+            zeroSubFile(combined, "00000002", "RGN")
+            driver.open(listOf(combined)).use { dataset ->
+                assertEquals(listOf("00000002"), dataset.unreadableMaps.map { it.mapName })
+                assertEquals(driver.probe(otm).bounds, dataset.bounds)
+            }
+        }
+    }
+
+    @Test
+    fun fileWithoutAReadableMapIsRejected() {
+        withMultiMapFile { combined ->
+            zeroTre(combined, "00000001")
+            zeroTre(combined, "00000002")
+            val failure = assertFails {
+                driver.open(listOf(combined))
+            }
+            assertTrue(failure.message.orEmpty().contains("2 maps"), failure.message)
+        }
+    }
+
+    // a damaged tile, as in a broken gmapsupp: the TRE header reads as zeros
+    private fun zeroTre(img: File, mapName: String) {
+        zeroSubFile(img, mapName, "TRE")
+    }
+
+    private fun zeroSubFile(img: File, mapName: String, type: String) {
+        val offset = FileImgRandomAccessReader(img).use { reader ->
+            val archive = ImgArchive.open(reader)
+            checkNotNull(archive.find(mapName, type)).firstBlock.toLong() * archive.blockSize
+        }
+        RandomAccessFile(img, "rw").use { file ->
+            file.seek(offset)
+            file.write(ByteArray(64))
+        }
     }
 
     // every polygon type white by day and black at night

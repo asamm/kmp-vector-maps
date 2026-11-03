@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
@@ -353,11 +355,48 @@ private fun StatusLine(state: ViewerState) {
                 Text(view.joinToString("   "), style = text)
                 engine?.stats?.summary()?.let { Text(it, style = text) }
                 state.notice?.let { Text(it, style = text, color = MaterialTheme.colorScheme.primary) }
+                state.skippedMaps?.let { skipped ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(skipped, style = text, color = MaterialTheme.colorScheme.primary)
+                        state.skippedMapsDetails?.let { DetailsButton(title = skipped, details = it) }
+                    }
+                }
             }
             if (problem != null) {
-                Text(problem, style = text, color = MaterialTheme.colorScheme.error)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(problem, style = text, color = MaterialTheme.colorScheme.error)
+                    // the error itself when it has no more to say, as a long one is cut in the status line
+                    DetailsButton(title = problem, details = state.errorDetails.takeIf { state.error != null } ?: problem)
+                }
             }
         }
+    }
+}
+
+/**
+ * A "?" that opens the full, selectable text behind a status-line message.
+ */
+@Composable
+private fun DetailsButton(title: String, details: String) {
+    var open by remember { mutableStateOf(false) }
+    TextButton(onClick = { open = true }) {
+        Text("?")
+    }
+    if (open) {
+        AlertDialog(
+            onDismissRequest = { open = false },
+            confirmButton = {
+                TextButton(onClick = { open = false }) {
+                    Text("Close")
+                }
+            },
+            title = { Text(title, style = MaterialTheme.typography.titleSmall) },
+            text = {
+                SelectionContainer {
+                    Text(details, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+                }
+            },
+        )
     }
 }
 

@@ -109,6 +109,12 @@ class ViewerState(
         private set
 
     /**
+     * The full text behind [error], such as each driver's reason or the cause chain.
+     */
+    var errorDetails: String? by mutableStateOf(null)
+        private set
+
+    /**
      * Changes whenever a tile arrives, so composables reading it redraw.
      */
     var frame: Int by mutableIntStateOf(0)
@@ -118,6 +124,18 @@ class ViewerState(
      * Outcome of the last action worth confirming, such as where a capture went.
      */
     var notice: String? by mutableStateOf(null)
+        private set
+
+    /**
+     * The maps of the open file that do not parse and are skipped, for as long as it is open.
+     */
+    var skippedMaps: String? by mutableStateOf(null)
+        private set
+
+    /**
+     * Each skipped map and its reason.
+     */
+    var skippedMapsDetails: String? by mutableStateOf(null)
         private set
 
     /**
@@ -178,14 +196,14 @@ class ViewerState(
     fun openMap(file: File) {
         val probed = formats.probe(file)
         if (probed == null) {
-            error = "openMap(), no driver reads ${file.name}"
+            fail("openMap(), no driver reads ${file.name}", formats.unreadableReason(file))
             return
         }
         onOpen()
         val opened = try {
             probed.driver.open(listOf(file))
         } catch (e: Exception) {
-            error = "openMap(${file.name}), ${e.message}"
+            fail("openMap(${file.name}), ${e.message}", causesOf(e))
             return
         }
         dropEngine()
@@ -210,6 +228,11 @@ class ViewerState(
         style = null
         styleFile = keptStyle
         mapStyles = opened.styles
+        val unreadable = (opened as? GarminDataset)?.unreadableMaps.orEmpty()
+        // the previous map's notice does not carry over
+        notice = null
+        skippedMaps = unreadable.takeIf { it.isNotEmpty() }?.let { "${it.size} maps of ${file.name} unreadable, skipped" }
+        skippedMapsDetails = unreadable.takeIf { it.isNotEmpty() }?.joinToString("\n") { "map ${it.mapName}: ${it.reason}" }
         garminLevels = (opened as? GarminDataset)?.levels.orEmpty()
         garmin = if (sameMap) {
             garmin.copy(level = garmin.level?.takeIf { level -> garminLevels.any { it.level == level } })
@@ -218,7 +241,7 @@ class ViewerState(
         }
         mapFile = file
         driver = probed.driver
-        error = null
+        clearError()
         if (viewport == null) {
             startView()
         }
@@ -257,7 +280,7 @@ class ViewerState(
         styleFile = null
         this.style = style
         layerId = layer
-        error = null
+        clearError()
         install(built)
         return true
     }
@@ -283,7 +306,7 @@ class ViewerState(
         val loaded = try {
             dataset.driver.loadStyle(file)
         } catch (e: Exception) {
-            error = "openStyle(${file.name}), ${e.message}"
+            fail("openStyle(${file.name}), ${e.message}", causesOf(e))
             return false
         }
         val layer = layerId?.takeIf { loaded.menu?.layer(it) != null }
@@ -293,7 +316,7 @@ class ViewerState(
         style = loaded
         layerId = layer
         lastStyleFiles[dataset.driver.id] = file to layer
-        error = null
+        clearError()
         install(built)
         return true
     }
@@ -424,7 +447,7 @@ class ViewerState(
                 File(capturesDir, "$name.properties").outputStream().use { view.store(it, null) }
             }
         } catch (e: Exception) {
-            error = "capture(), ${e.javaClass.simpleName}: ${e.message}"
+            fail("capture(), ${e.javaClass.simpleName}: ${e.message}", causesOf(e))
             notice = null
             return null
         }
@@ -487,9 +510,24 @@ class ViewerState(
                 frame = frames.incrementAndGet()
             }
         } catch (e: Exception) {
-            error = "createEngine(), ${e.message}"
+            fail("createEngine(), ${e.message}", causesOf(e))
             return null
         }
+    }
+
+    private fun fail(message: String, details: String) {
+        error = message
+        errorDetails = details
+    }
+
+    private fun clearError() {
+        error = null
+        errorDetails = null
+    }
+
+    // each cause's type and message, for the full error
+    private fun causesOf(e: Throwable): String {
+        return generateSequence(e) { it.cause }.joinToString("\n") { "${it.javaClass.simpleName}: ${it.message}" }
     }
 
     private fun install(built: TileEngine<ImageBitmap>) {

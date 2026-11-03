@@ -62,7 +62,7 @@ class GarminDriver(
     }
 
     /**
-     * Bounds of all the file's maps; with `full`, also their TRE levels and whether its TYP decodes,
+     * Bounds of the file's maps whose TRE header reads; with `full`, also whether its TYP decodes,
      * which probes skip.
      */
     internal fun readSummary(file: File, full: Boolean): ImgSummary {
@@ -73,13 +73,17 @@ class GarminDriver(
             require(names.isNotEmpty()) {
                 "readSummary(), no map with TRE, RGN and LBL in $file"
             }
-            val tres = names.map { archive.openSubFile(checkNotNull(archive.find(it, "TRE")), reader) }
+            // a map whose header does not read is skipped; the dataset's own skip comes from the parse
+            val headers = names.mapNotNull { name ->
+                runCatching { TreSubFile.parseHeader(archive.openSubFile(checkNotNull(archive.find(name, "TRE")), reader)) }
+                    .getOrNull()
+            }
+            require(headers.isNotEmpty()) {
+                "readSummary(), none of the ${names.size} maps in $file reads"
+            }
             val typ = archive.findFirst("TYP")
-            val mapBounds = tres.map { toBounds(TreSubFile.parseHeader(it)) }
             ImgSummary(
-                bounds = mapBounds.reduce(GeoBounds::union),
-                mapBounds = mapBounds,
-                levels = if (full) tres.flatMap(::readLevels).distinctBy { it.level } else emptyList(),
+                bounds = headers.map(::toBounds).reduce(GeoBounds::union),
                 // as `ImgFile`, which drops a TYP whose header or sections do not parse
                 hasTyp = full
                     && typ != null
@@ -88,17 +92,11 @@ class GarminDriver(
         }
     }
 
-    private fun readLevels(tre: ImgRandomAccessReader): List<GarminLevel> {
-        return TreSubFile.parseLevels(tre).levels
-            .filterNot { it.inherited }
-            .map { GarminLevel(level = it.level, bitsPerCoord = it.bitsPerCoord) }
-    }
-
     private fun readTyp(reader: ImgRandomAccessReader) {
         TypBodyParser.parse(reader, TypSubFile.parseHeader(reader))
     }
 
-    private fun toBounds(header: TreHeader): GeoBounds {
+    internal fun toBounds(header: TreHeader): GeoBounds {
         return GeoBounds(
             minLat = CoordUtils.toWGS84(header.southBoundary),
             minLon = CoordUtils.toWGS84(header.westBoundary),
@@ -110,8 +108,5 @@ class GarminDriver(
 
 internal class ImgSummary(
     val bounds: GeoBounds,
-    // per map, in archive order
-    val mapBounds: List<GeoBounds>,
-    val levels: List<GarminLevel>,
     val hasTyp: Boolean,
 )
