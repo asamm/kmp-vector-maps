@@ -252,7 +252,7 @@ class ImgFile internal constructor(
      * True when `level` has a sub-division with drawable data overlapping the bounds.
      */
     internal fun hasDataInBounds(level: Int, minLong: Int, maxLong: Int, minLat: Int, maxLat: Int): Boolean {
-        return levelIndex.withData(level, minLong, maxLong, minLat, maxLat).isNotEmpty()
+        return levelIndex.hasData(level, minLong, maxLong, minLat, maxLat)
     }
 
     /**
@@ -519,6 +519,14 @@ internal class LevelIndex(
         return boxes.overlapping(minLong, maxLong, minLat, maxLat)
     }
 
+    /**
+     * True when [withData] would return any; stops at the first.
+     */
+    fun hasData(level: Int, minLong: Int, maxLong: Int, minLat: Int, maxLat: Int): Boolean {
+        val boxes = withDataByLevel[level] ?: return false
+        return boxes.anyOverlapping(minLong, maxLong, minLat, maxLat)
+    }
+
     fun intersects(sd: SubDivision, minLong: Int, maxLong: Int, minLat: Int, maxLat: Int): Boolean {
         val bits = levels.bitsPerCoordOf(sd.level) ?: return true
         val scale = scaleOf(bits)
@@ -561,24 +569,31 @@ private class LevelBoxes(
     }
 
     fun overlapping(minLong: Int, maxLong: Int, minLat: Int, maxLat: Int): List<SubDivision> {
-        val boxes = boxes ?: return subDivisions
-        val result = ArrayList<SubDivision>()
-        for (i in subDivisions.indices) {
-            if (overlaps(
-                    minLon = boxes[i * 4],
-                    maxLon = boxes[i * 4 + 1],
-                    minLat = boxes[i * 4 + 2],
-                    maxLat = boxes[i * 4 + 3],
-                    minLong = minLong,
-                    maxLong = maxLong,
-                    viewMinLat = minLat,
-                    viewMaxLat = maxLat,
-                )
-            ) {
-                result.add(subDivisions[i])
-            }
+        if (boxes == null) {
+            return subDivisions
         }
-        return result
+        return subDivisions.filterIndexed { i, _ -> overlapsAt(i, minLong, maxLong, minLat, maxLat) }
+    }
+
+    fun anyOverlapping(minLong: Int, maxLong: Int, minLat: Int, maxLat: Int): Boolean {
+        if (boxes == null) {
+            return subDivisions.isNotEmpty()
+        }
+        return subDivisions.indices.any { i -> overlapsAt(i, minLong, maxLong, minLat, maxLat) }
+    }
+
+    private fun overlapsAt(i: Int, minLong: Int, maxLong: Int, minLat: Int, maxLat: Int): Boolean {
+        val boxes = checkNotNull(boxes)
+        return overlaps(
+            minLon = boxes[i * 4],
+            maxLon = boxes[i * 4 + 1],
+            minLat = boxes[i * 4 + 2],
+            maxLat = boxes[i * 4 + 3],
+            minLong = minLong,
+            maxLong = maxLong,
+            viewMinLat = minLat,
+            viewMaxLat = maxLat,
+        )
     }
 }
 

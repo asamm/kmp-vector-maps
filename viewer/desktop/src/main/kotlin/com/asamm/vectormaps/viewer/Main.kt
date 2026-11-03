@@ -49,6 +49,8 @@ fun main() {
         session = session,
         capturesDir = System.getProperty("viewer.capturesDir")?.let(::File)
             ?: File(sessionFile.parentFile, "captures"),
+        // each open parses its TYP again into new bitmaps
+        onOpen = garminBitmaps::clear,
     )
     fileOr(session.mapPath, "viewer.mapFile")?.let(state::openMap)
     // the default theme only fits a Mapsforge map: a Garmin map keeps its own style and the theme

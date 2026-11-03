@@ -13,12 +13,21 @@ import java.util.IdentityHashMap
  * every canvas of a `GarminCanvasFactory`, so each bitmap converts once rather than once per tile;
  * safe from several render threads. Keeps every bitmap it converted until it is dropped: a TYP
  * parsed again, as on every open of a map, adds new entries, so a host keeps one per opened map or
- * style.
+ * style, or clears it on each open.
  */
 class AwtBitmapCache {
 
     // TYP bitmaps are interned per style table: identity keys skip the content hash
     private val images = IdentityHashMap<Bitmap, BufferedImage>()
+
+    /**
+     * Drops every converted bitmap; a render running meanwhile converts its bitmaps again.
+     */
+    fun clear() {
+        synchronized(images) {
+            images.clear()
+        }
+    }
 
     internal fun image(bitmap: Bitmap, convert: (Bitmap) -> BufferedImage): BufferedImage {
         synchronized(images) {

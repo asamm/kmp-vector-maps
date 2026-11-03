@@ -49,9 +49,11 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
     private var logicalPos: Long = 0L
 
     /**
-     * Read-ahead windows, the least recently selected one refilled on a miss.
+     * Read-ahead windows, the least recently selected one refilled on a miss; allocated when first
+     * needed, so a reader that only reads on keeps one.
      */
-    private val windows: Array<ByteArray> = Array(WINDOWS) { ByteArray(BUFFER_SIZE) }
+    private val windows: Array<ByteArray?> = arrayOfNulls(WINDOWS)
+    private var current: Int = 0
     private val windowStarts: LongArray = LongArray(WINDOWS)
     private val windowLens: IntArray = IntArray(WINDOWS)
     private val windowUses: LongArray = LongArray(WINDOWS)
@@ -62,7 +64,7 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
      * [bufferStart]; bytes are valid up to (but not including)
      * [bufferStart] + [bufferLen]. Initially empty.
      */
-    private var buffer: ByteArray = windows[0]
+    private var buffer: ByteArray = EMPTY
     private var bufferStart: Long = 0L
     private var bufferLen: Int = 0
 
@@ -250,12 +252,19 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
                 return
             }
         }
-        val target = windowUses.indices.minBy { windowUses[it] }
+        // reading on past the current window reuses it; a jump elsewhere keeps it for a return
+        val readsOn = bufferLen > 0
+            && absStart >= bufferStart
+            && absStart <= bufferStart + bufferLen
+        val target = if (readsOn) current else windowUses.indices.minBy { windowUses[it] }
+        val window = windows[target] ?: ByteArray(BUFFER_SIZE).also { windows[target] = it }
+        // empty until filled, so a failed read leaves no stale window
+        windowLens[target] = 0
         raf.seek(absStart)
         val want = minOf(BUFFER_SIZE.toLong(), size - absStart).toInt()
         var read = 0
         while (read < want) {
-            val count = raf.read(windows[target], read, want - read)
+            val count = raf.read(window, read, want - read)
             if (count <= 0) {
                 break
             }
@@ -267,7 +276,8 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
     }
 
     private fun select(window: Int) {
-        buffer = windows[window]
+        current = window
+        buffer = checkNotNull(windows[window])
         bufferStart = windowStarts[window]
         bufferLen = windowLens[window]
         windowUses[window] = ++uses
@@ -279,7 +289,10 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
      */
     override fun close() {
         bufferLen = 0
+        buffer = EMPTY
         windowLens.fill(0)
+        // parsed maps keep their closed readers
+        windows.fill(null)
         raf.close()
     }
 
@@ -287,9 +300,9 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
 
         /**
          * Read-ahead window size in bytes. 8 KB matches OS page size
-         * on most modern platforms; a reader keeps [WINDOWS] of them,
-         * 32 KB, so the 3–4 sub-file readers of a renderer worker cost
-         * about 128 KB per file. Larger windows help less than the
+         * on most modern platforms; a reader keeps up to [WINDOWS] of
+         * them, 32 KB, so the 3–4 sub-file readers of each renderer
+         * worker cost up to about 128 KB per file. Larger windows help less than the
          * JNI-amortisation gain that the first 4–8 KB already provides.
          */
         private const val BUFFER_SIZE: Int = 8 * 1024
@@ -298,5 +311,7 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
          * Read-ahead windows per reader, 32 KB in all.
          */
         private const val WINDOWS: Int = 4
+
+        private val EMPTY = ByteArray(0)
     }
 }

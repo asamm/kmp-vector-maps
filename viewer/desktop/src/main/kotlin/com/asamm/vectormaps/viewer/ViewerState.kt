@@ -39,11 +39,13 @@ import kotlin.math.floor
  * style or a setting builds a new renderer; panning and zooming only ask for tiles.
  *
  * @param session the previous run's state; its map and style are opened by the caller
+ * @param onOpen called before a map or style file is read, such as to drop converted TYP bitmaps
  */
 class ViewerState(
     private val formats: MapFormats,
     session: Session,
     private val capturesDir: File,
+    private val onOpen: () -> Unit = {},
 ) : Closeable {
 
     var mapFile: File? by mutableStateOf(null)
@@ -179,6 +181,7 @@ class ViewerState(
             error = "openMap(), no driver reads ${file.name}"
             return
         }
+        onOpen()
         val opened = try {
             probed.driver.open(listOf(file))
         } catch (e: Exception) {
@@ -272,6 +275,7 @@ class ViewerState(
             rememberStyle(file = file, layerId = layerId)
             return false
         }
+        onOpen()
         val loaded = try {
             dataset.driver.loadStyle(file)
         } catch (e: Exception) {

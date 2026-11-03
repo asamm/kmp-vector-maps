@@ -238,9 +238,10 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   (`dev/fixtures/fonts/dejavu/`, `AwtRenderTarget(font = …)`), compared with committed PNGs on
   every system, 0.2 % of pixels allowed to differ; the Windows-only Monaco PNG is gone. The
   benchmark and the comparison sheet run with `-Pbench.garmin=true`.
-- Left for M4.3c (performance), all done there but three: reusable render targets (the host owns
+- Left for M4.3c (performance), all done there but four: reusable render targets (the host owns
   each canvas: M8.1's host-supplied bitmap), label and coordinate buffers without boxing (no
-  measurable share) and fewer Android allocations per label and pattern; see M4.3c as built.
+  measurable share), fewer Android allocations per label and pattern, and the sub-division trees,
+  still parsed and kept on add (smaller since M4.3c, PR #32 decision); see M4.3c as built.
 - M4.2a as built: the host passes a `GarminCanvasFactory` (`AwtRenderTarget`, `AndroidRenderTarget`)
   and reads the canvas from `GarminTileTarget`; one `.img` per dataset (`addMap` adds nothing) and
   one tile at a time (`maxParallelism` 1) until M4.3a; in-tile labels only, cut at the tile edge
@@ -296,13 +297,14 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   converted once per host through `AwtBitmapCache` and `AndroidBitmapCache` instead of once per
   tile, AWT icons included. Trees stay parsed on add (PR #32): a corrupt file is still rejected
   there. A render now labels a POI whose address block does not read, which the full read drops.
-- M4.3c numbers, p50 ms, `main` and the branch run alternately twice on 2026-11-03 (JVM: Ryzen AI
-  9 HX PRO 375, JDK 24, a busy desktop, so ±20 %; A54: clocks locked, one run each). Monaco:
+- M4.3c numbers, p50 ms, `main` and the branch run alternately twice on 2026-11-03 (JVM: Ryzen AI 9
+  HX PRO 375, JDK 24, a busy desktop, so ±20 %; A54: clocks locked, one run each). Monaco:
   `otm-monaco.img` at the harbour (43.735, 7.423); Czech: `CzechRep_by_Dave_Luv.img` (191,807,488 B,
-  38 maps, own TYP) at Prague (50.0875, 14.4214); Europe: `osm_europe_central.img`
-  (3,741,319,168 B, 746 maps). All three are local files outside the repo. JVM open is single-shot
-  (cold JIT), A54 open repeated; read tile also picks the level of maps outside the tile, which the
-  render skips.
+  38 maps, own TYP) at Prague (50.0875, 14.4214); Europe: `osm_europe_central.img` (3,741,319,168 B,
+  746 maps); Monaco is the committed fixture, Czech and Europe are local files outside the repo. JVM
+  open is single-shot (3 warm-up and 5 measured opens, their median), A54 open repeated; read tile
+  also picks the level of maps outside the tile, which the render skips. JVM runs used the JDK 24
+  `java` on the built benchmark jar.
 
 | Benchmark | JVM Monaco | JVM Czech | A54 Monaco | A54 Czech |
 |---|---|---|---|---|
@@ -312,12 +314,12 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 | 4×4 block at z16, 1 / 2 / 4 / 8 threads | 493 / 291 / 172 / 107 → 302 / 166 / 88 / 53 | 940 / 493 / 292 / 261 → 409 / 205 / 106 / 69 | 1007 / 546 / 310 / 286 → 560 / 309 / 180 / 191 | 3354 / 1798 / 1005 / 857 → 1123 / 617 / 358 / 313 |
 | allocated per Czech render at z12 | | 8.4 → 6.3 MB | | |
 
-- M4.3c Europe gmapsupp on the JVM: open 2,729 → 198 ms, heap kept by the dataset 665 → 81 MB
-  (4.2 M sub-division copies for 549 k records). Left: reads on the A54 still take ~6× the JVM
-  time (file reads through `RandomAccessFile`); the Android target creates a shader, matrix, dash
-  effect, path or rect per pattern, dash, curved label and icon draw; label halos draw the text
-  nine times. One damaged gmapsupp seen (`CZE_osm_based.img`, 9 of 66 TREs zeroed in the original)
-  is rejected whole, as recorded in M4.3b.
+- M4.3c Europe gmapsupp on the JVM: open 2,729 → 198 ms, heap kept by the dataset after open, before
+  the first render, 665 → 81 MB (4.2 M sub-division copies for 549 k records). Left: reads on the
+  A54 still take ~6× the JVM time (file reads through `RandomAccessFile`); the Android target
+  creates a shader, matrix, dash effect, path or rect per pattern, dash, curved label and icon draw;
+  label halos draw the text nine times. One damaged gmapsupp seen (`CZE_osm_based.img`, 9 of 66 TREs
+  zeroed in the original) is rejected whole, as recorded in M4.3b.
 - Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons →
   M4.4; label collisions at level-pick boundaries → M6.1; Locus prefs from the helpdesk
   (label colour, line width and colour overrides, area/line/point toggles, per-type visibility,
