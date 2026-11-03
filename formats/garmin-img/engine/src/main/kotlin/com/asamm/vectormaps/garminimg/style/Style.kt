@@ -28,6 +28,7 @@ sealed interface Style {
      * @param labelColor label colour (ARGB).
      * @param labelOutlineColor optional secondary colour for label outlines / haloes.
      * @param showLabel whether to render the point's label (when one exists).
+     * @param fontScale label size relative to the default, such as a TYP's small or large font
      */
     // Non-data class so we can grow fields (night-mode palette, zoom-
     // bracket overrides) without breaking `.copy()` ABI for consumers.
@@ -38,6 +39,7 @@ sealed interface Style {
         val labelColor: Color,
         val labelOutlineColor: Color?,
         val showLabel: Boolean,
+        val fontScale: Float = 1f,
     ) : Style {
 
         /**
@@ -52,6 +54,7 @@ sealed interface Style {
             labelColor: Color = this.labelColor,
             labelOutlineColor: Color? = this.labelOutlineColor,
             showLabel: Boolean = this.showLabel,
+            fontScale: Float = this.fontScale,
         ): PointStyle {
             return PointStyle(
                 drawPriority = drawPriority,
@@ -59,6 +62,7 @@ sealed interface Style {
                 labelColor = labelColor,
                 labelOutlineColor = labelOutlineColor,
                 showLabel = showLabel,
+                fontScale = fontScale,
             )
         }
     }
@@ -75,6 +79,7 @@ sealed interface Style {
      * @param pattern optional 32×height RGBA tile to paint as the line's foreground stroke
      *   instead of a solid colour. The renderer tiles this along the line direction (X = travel,
      *   Y = perpendicular) so dashed/striped patterns follow the polyline's path.
+     * @param fontScale label size relative to the default, such as a TYP's small or large font
      */
     // Non-data class — see [PointStyle].
     class LineStyle(
@@ -86,6 +91,7 @@ sealed interface Style {
         val dashPattern: FloatArray? = null,
         val labelColor: Color? = null,
         val pattern: Bitmap? = null,
+        val fontScale: Float = 1f,
     ) : Style {
 
         fun copy(
@@ -97,6 +103,7 @@ sealed interface Style {
             dashPattern: FloatArray? = this.dashPattern,
             labelColor: Color? = this.labelColor,
             pattern: Bitmap? = this.pattern,
+            fontScale: Float = this.fontScale,
         ): LineStyle {
             return LineStyle(
                 drawPriority = drawPriority,
@@ -107,6 +114,7 @@ sealed interface Style {
                 dashPattern = dashPattern,
                 labelColor = labelColor,
                 pattern = pattern,
+                fontScale = fontScale,
             )
         }
 
@@ -124,6 +132,7 @@ sealed interface Style {
             if (borderWidth != other.borderWidth) return false
             if (labelColor != other.labelColor) return false
             if (pattern != other.pattern) return false
+            if (fontScale != other.fontScale) return false
             if (dashPattern == null) {
                 return other.dashPattern == null
             }
@@ -142,6 +151,7 @@ sealed interface Style {
             h = 31 * h + (labelColor?.hashCode() ?: 0)
             h = 31 * h + (dashPattern?.contentHashCode() ?: 0)
             h = 31 * h + (pattern?.hashCode() ?: 0)
+            h = 31 * h + fontScale.hashCode()
             return h
         }
     }
@@ -154,6 +164,7 @@ sealed interface Style {
      * @param strokeWidth outline stroke width when [strokeColor] is non-null.
      * @param pattern optional fill pattern (e.g. forest stipple).
      * @param labelColor label colour for area names; null hides labels.
+     * @param fontScale label size relative to the default, such as a TYP's small or large font
      */
     // Non-data class — see [PointStyle].
     class PolygonStyle(
@@ -163,6 +174,7 @@ sealed interface Style {
         val strokeWidth: Float = 0.5f,
         val pattern: Bitmap? = null,
         val labelColor: Color? = null,
+        val fontScale: Float = 1f,
     ) : Style {
 
         fun copy(
@@ -172,6 +184,7 @@ sealed interface Style {
             strokeWidth: Float = this.strokeWidth,
             pattern: Bitmap? = this.pattern,
             labelColor: Color? = this.labelColor,
+            fontScale: Float = this.fontScale,
         ): PolygonStyle {
             return PolygonStyle(
                 drawPriority = drawPriority,
@@ -180,6 +193,7 @@ sealed interface Style {
                 strokeWidth = strokeWidth,
                 pattern = pattern,
                 labelColor = labelColor,
+                fontScale = fontScale,
             )
         }
     }

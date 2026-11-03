@@ -77,6 +77,7 @@ class ImgRenderer(
      *   drawn. Defaults to all.
      * @param level TRE level to draw in the maps that have it; null, and every map without it,
      *   picks the level matching the viewport's resolution.
+     * @param textScale factor on label sizes, on top of the target's render scale
      */
     fun render(
         viewport: Viewport,
@@ -84,6 +85,7 @@ class ImgRenderer(
         backgroundColor: Color = Color.rgb(0xF8, 0xF6, 0xF0),
         objectKindFilter: Int = ObjectKind.ALL,
         level: Int? = null,
+        textScale: Float = 1f,
     ) {
         require(target.widthPx == viewport.widthPx) {
             "RenderTarget width ${target.widthPx} != viewport width ${viewport.widthPx}"
@@ -94,7 +96,6 @@ class ImgRenderer(
 
         val projection = Projection(viewport)
         val labels = LabelLayout()
-        val labelScale = target.renderScale
         target.beginFrame(backgroundColor)
 
         // First pass: bucket every map object by kind. Polygons need to be
@@ -154,7 +155,7 @@ class ImgRenderer(
         // Polygons paint as a single pass (each polygon's stroke is
         // local to its own outline).
         for ((poly, style) in polygons) {
-            drawPolygon(poly, style, projection, target, labels, labelScale)
+            drawPolygon(poly, style, projection, target, labels, textScale)
         }
 
         // Two-pass polyline rendering: every border first, then every
@@ -170,11 +171,11 @@ class ImgRenderer(
         }
         for ((i, line) in polylines.withIndex()) {
             val xy = projected[i] ?: continue
-            drawPolylineCentre(line.first, xy.first, xy.second, line.second, target, labels, labelScale)
+            drawPolylineCentre(line.first, xy.first, xy.second, line.second, target, labels, textScale)
         }
 
         for ((point, style) in points) {
-            drawPoint(point, style, projection, target, labels, labelScale)
+            drawPoint(point, style, projection, target, labels, textScale)
         }
 
         // Second pass: emit non-overlapping labels in priority order so the
@@ -223,7 +224,7 @@ class ImgRenderer(
         projection: Projection,
         target: RenderTarget,
         labels: LabelLayout,
-        labelScale: Float,
+        textScale: Float,
     ) {
         val x = projection.projectX(point.longitude)
         val y = projection.projectY(point.latitude)
@@ -233,22 +234,19 @@ class ImgRenderer(
         target.drawPoint(x, y, style)
         val pointLabel = point.label
         if (style.showLabel && isDisplayableLabel(pointLabel)) {
-            // Estimate text bounds from char count + font size — close enough
-            // for collision testing without dragging in font-metrics from the
-            // platform layer. Each char averages 0.55 * fontSize in width for
-            // typical sans fonts.
-            val w = pointLabel!!.length * DEFAULT_POINT_FONT_SIZE * 0.55f * labelScale
-            val h = DEFAULT_POINT_FONT_SIZE * 1.2f * labelScale
+            val fontSize = DEFAULT_POINT_FONT_SIZE * style.fontScale * textScale
+            val height = labelHeight(fontSize, target)
             labels.submit(
                 x = x,
-                y = y + DEFAULT_POINT_LABEL_OFFSET,
-                widthPx = w,
-                heightPx = h,
+                // below the icon, however large the label grows
+                y = y + pointHalfHeight(style, target) + POINT_LABEL_GAP + height / 2f,
+                widthPx = target.measureText(pointLabel!!, fontSize),
+                heightPx = height,
                 priority = style.drawPriority,
                 text = pointLabel,
                 color = style.labelColor,
                 outlineColor = style.labelOutlineColor,
-                fontSize = DEFAULT_POINT_FONT_SIZE,
+                fontSize = fontSize,
                 anchor = TextAnchor.CENTER,
             )
         }
@@ -260,7 +258,7 @@ class ImgRenderer(
         projection: Projection,
         target: RenderTarget,
         labels: LabelLayout,
-        labelScale: Float,
+        textScale: Float,
     ) {
         if (poly.longitudes.isEmpty()) {
             return
@@ -275,17 +273,17 @@ class ImgRenderer(
         val polyLabel = poly.label
         if (style.labelColor != null && isDisplayableLabel(polyLabel)) {
             val (cx, cy) = centroid(xs, ys)
-            val w = polyLabel!!.length * DEFAULT_AREA_FONT_SIZE * 0.55f * labelScale
+            val fontSize = DEFAULT_AREA_FONT_SIZE * style.fontScale * textScale
             labels.submit(
                 x = cx,
                 y = cy,
-                widthPx = w,
-                heightPx = DEFAULT_AREA_FONT_SIZE * 1.2f * labelScale,
+                widthPx = target.measureText(polyLabel!!, fontSize),
+                heightPx = labelHeight(fontSize, target),
                 priority = style.drawPriority,
                 text = polyLabel,
                 color = style.labelColor,
                 outlineColor = null,
-                fontSize = DEFAULT_AREA_FONT_SIZE,
+                fontSize = fontSize,
                 anchor = TextAnchor.CENTER,
             )
         }
@@ -315,29 +313,40 @@ class ImgRenderer(
         style: Style.LineStyle,
         target: RenderTarget,
         labels: LabelLayout,
-        labelScale: Float,
+        textScale: Float,
     ) {
         val n = xs.size
         target.drawPolylineStroke(xs, ys, style)
         val polyLabel = poly.label
         if (style.labelColor != null && isDisplayableLabel(polyLabel)) {
             val midIdx = n / 2
-            val w = polyLabel!!.length * DEFAULT_LINE_FONT_SIZE * 0.55f * labelScale
+            val fontSize = DEFAULT_LINE_FONT_SIZE * style.fontScale * textScale
             labels.submit(
                 x = xs[midIdx],
                 y = ys[midIdx],
-                widthPx = w,
-                heightPx = DEFAULT_LINE_FONT_SIZE * 1.2f * labelScale,
+                widthPx = target.measureText(polyLabel!!, fontSize),
+                heightPx = labelHeight(fontSize, target),
                 priority = style.drawPriority,
                 text = polyLabel,
                 color = style.labelColor,
                 outlineColor = null,
-                fontSize = DEFAULT_LINE_FONT_SIZE,
+                fontSize = fontSize,
                 anchor = TextAnchor.CENTER,
                 pathXs = xs,
                 pathYs = ys,
             )
         }
+    }
+
+    // a line of text with its leading, at the targets' minimum; widths are measured by the target
+    private fun labelHeight(fontSize: Float, target: RenderTarget): Float {
+        return (fontSize * target.renderScale).coerceAtLeast(RenderTarget.MIN_TEXT_PX) * 1.2f
+    }
+
+    // as the targets draw it: the icon at its render scale, never smaller, else a 2 px dot
+    private fun pointHalfHeight(style: Style.PointStyle, target: RenderTarget): Float {
+        val icon = style.icon ?: return POINT_DOT_RADIUS
+        return (icon.height * target.renderScale).coerceAtLeast(icon.height.toFloat()) / 2f
     }
 
     private fun isOnScreen(x: Float, y: Float, target: RenderTarget): Boolean {
@@ -585,7 +594,8 @@ class ImgRenderer(
         }
 
         private const val LN2: Double = 0.6931471805599453
-        private const val DEFAULT_POINT_LABEL_OFFSET: Float = 12f
+        private const val POINT_LABEL_GAP: Float = 2f
+        private const val POINT_DOT_RADIUS: Float = 2f
         private const val DEFAULT_POINT_FONT_SIZE: Float = 13f
         private const val DEFAULT_LINE_FONT_SIZE: Float = 12f
         private const val DEFAULT_AREA_FONT_SIZE: Float = 14f
@@ -643,6 +653,8 @@ fun interface StyleResolver {
                                 internal.copy(
                                     icon = typPoint.icon,
                                     labelColor = typPoint.font?.dayColour ?: internal.labelColor,
+                                    showLabel = internal.showLabel && !hidesLabel(typPoint.font),
+                                    fontScale = fontScaleOf(typPoint.font),
                                 )
                             } else {
                                 internal
@@ -669,7 +681,8 @@ fun interface StyleResolver {
                                     fillColor = typ.fillColor,
                                     strokeColor = typ.strokeColor ?: internal.strokeColor,
                                     pattern = typ.pattern,
-                                    labelColor = typ.font?.dayColour ?: internal.labelColor,
+                                    labelColor = labelColorOf(typ.font, internal.labelColor),
+                                    fontScale = fontScaleOf(typ.font),
                                 )
                             } else {
                                 InternalStyles.resolve(obj)
@@ -687,7 +700,8 @@ fun interface StyleResolver {
                                     strokeWidth = typ.strokeWidthPx,
                                     borderWidth = typ.totalWidthPx,
                                     pattern = typ.pattern,
-                                    labelColor = typ.font?.dayColour ?: internal.labelColor,
+                                    labelColor = labelColorOf(typ.font, internal.labelColor),
+                                    fontScale = fontScaleOf(typ.font),
                                 )
                             } else {
                                 InternalStyles.resolve(obj)
@@ -697,6 +711,31 @@ fun interface StyleResolver {
                 }
             }
         }
+
+        // the TYP's label colour; null hides the label
+        private fun labelColorOf(font: com.asamm.vectormaps.garminimg.parser.TypFontInfo?, default: Color?): Color? {
+            if (hidesLabel(font)) {
+                return null
+            }
+            return font?.dayColour ?: default
+        }
+
+        // mkgmap `FontStyle`: 1 is NoLabel
+        private fun hidesLabel(font: com.asamm.vectormaps.garminimg.parser.TypFontInfo?): Boolean {
+            return font?.style == 1
+        }
+
+        // mkgmap `FontStyle` small (2) and large (4); our sizes, as Garmin publishes none
+        private fun fontScaleOf(font: com.asamm.vectormaps.garminimg.parser.TypFontInfo?): Float {
+            return when (font?.style) {
+                2 -> SMALL_FONT_SCALE
+                4 -> LARGE_FONT_SCALE
+                else -> 1f
+            }
+        }
+
+        private const val SMALL_FONT_SCALE: Float = 0.85f
+        private const val LARGE_FONT_SCALE: Float = 1.2f
 
         // Cache key tags so the three MapObject kinds don't collide on
         // shared `(type, subType)` triples.

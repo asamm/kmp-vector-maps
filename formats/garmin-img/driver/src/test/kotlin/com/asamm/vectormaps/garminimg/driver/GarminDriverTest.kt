@@ -348,14 +348,75 @@ class GarminDriverTest {
         }
     }
 
+    @Test
+    fun datasetListsTheNightOfAnEmbeddedTypWithNightColours() {
+        val img = createTempFile(suffix = ".img").toFile()
+        try {
+            writeMultiMapImg(img, listOf(otm), typ = nightTyp())
+            driver.open(listOf(img)).use { dataset ->
+                val styles = dataset.styles
+                assertEquals(3, styles.size)
+                val day = assertIs<GarminStyle.Embedded>(styles[0])
+                val night = assertIs<GarminStyle.Embedded>(styles[1])
+                assertFalse(day.isNight)
+                assertTrue(night.isNight)
+                assertTrue(day.id != night.id)
+                assertFalse(pixels(render(dataset, day, harbour)).contentEquals(pixels(render(dataset, night, harbour))))
+            }
+        } finally {
+            img.delete()
+        }
+    }
+
+    @Test
+    fun loadStyleOffersTheNightOfATypWithNightColours() {
+        val typ = createTempFile(suffix = ".typ").toFile()
+        try {
+            typ.writeBytes(nightTyp())
+            val night = assertIs<GarminStyle.External>(driver.loadStyle(typ)).night
+            assertTrue(night != null && night.isNight)
+            typ.writeBytes(extractTyp(otm))
+            assertNull(assertIs<GarminStyle.External>(driver.loadStyle(typ)).night)
+        } finally {
+            typ.delete()
+        }
+    }
+
+    @Test
+    fun textScaleEnlargesLabels() {
+        driver.open(listOf(otm)).use { dataset ->
+            val normal = pixels(render(dataset, dataset.styles[0], harbour))
+            val large = pixels(render(dataset, dataset.styles[0], harbour, textScale = 2f))
+            assertFalse(normal.contentEquals(large))
+        }
+    }
+
+    @Test
+    fun awtTargetMeasuresTextWidths() {
+        val target = AwtRenderTarget(widthPx = 16, heightPx = 16, renderScale = 1f)
+
+        assertTrue(target.measureText("WWWW", 12f) > target.measureText("iiii", 12f))
+        assertTrue(target.measureText("Monaco", 24f) > target.measureText("Monaco", 12f))
+    }
+
+    // every polygon type white by day and black at night
+    private fun nightTyp(): ByteArray {
+        val typ = TestTyp()
+        for (type in 0x01..0x53) {
+            typ.polygon(type, day = 0xFFFFFF to 0xFFFFFF, night = 0x000000 to 0x000000)
+        }
+        return typ.build()
+    }
+
     private fun render(
         dataset: GarminDataset,
         style: MapStyle,
         tile: TileRequest,
         options: GarminOptions = GarminOptions(),
         sizePx: Int = 256,
+        textScale: Float = 1f,
     ): BufferedImage {
-        val config = RenderConfig(tileSizePx = sizePx)
+        val config = RenderConfig(tileSizePx = sizePx, textScale = textScale)
         dataset.createRenderer(style, StyleSelection.DEFAULT, config, options).use { renderer ->
             val target = GarminTileTarget(sizePx)
             assertEquals(RenderResult.DRAWN, renderer.render(tile, target) { false })

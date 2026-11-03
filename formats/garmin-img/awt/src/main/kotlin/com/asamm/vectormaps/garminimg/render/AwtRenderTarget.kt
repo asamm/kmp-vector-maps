@@ -443,6 +443,10 @@ class AwtRenderTarget(
         g.drawString(text, drawX, drawY)
     }
 
+    override fun measureText(text: String, fontSize: Float): Float {
+        return g.getFontMetrics(fontFor(fontSize)).stringWidth(text).toFloat()
+    }
+
     override fun drawTextOnPath(
         xs: FloatArray,
         ys: FloatArray,
@@ -598,7 +602,7 @@ class AwtRenderTarget(
      * `Paint.setTextSize(Float)`.
      */
     private fun fontFor(fontSize: Float): Font {
-        val pxSize = (fontSize * renderScale).coerceAtLeast(8f)
+        val pxSize = (fontSize * renderScale).coerceAtLeast(RenderTarget.MIN_TEXT_PX)
         return font.deriveFont(pxSize)
     }
 

@@ -196,6 +196,7 @@ class ViewerState(
             viewport = null
         }
         val previousStyle = style
+        val previousIndex = mapStyles.indexOf(previousStyle)
         // a style file the new map cannot read stays the one for its own format
         styleFile?.takeUnless(probed.driver::readsStyle)?.let { rememberStyle(file = it, layerId = layerId) }
         // a map with its own styles starts with them, not with a file remembered from another map
@@ -221,8 +222,11 @@ class ViewerState(
         if (viewport == null) {
             startView()
         }
-        // a new dataset has new style instances; the same kind is the same choice
-        val ownStyle = opened.styles.firstOrNull { sameMap && previousStyle != null && it::class == previousStyle::class }
+        // a new dataset has new style instances; the same kind at the same place is the same choice,
+        // as the day and night TYP styles share a kind, else the first of that kind
+        val ownStyle = opened.styles.getOrNull(previousIndex)
+            ?.takeIf { sameMap && previousStyle != null && it::class == previousStyle::class }
+            ?: opened.styles.firstOrNull { sameMap && previousStyle != null && it::class == previousStyle::class }
             ?: opened.styles.firstOrNull()
         val built = keptStyle != null
             && openStyle(keptStyle)

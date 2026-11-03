@@ -228,7 +228,7 @@ private val NO_STYLE = StyleChoice(name = "none", file = null, style = null)
 
 private fun styleName(style: MapStyle): String {
     return when (style) {
-        is GarminStyle.Embedded -> "map TYP"
+        is GarminStyle.Embedded -> if (style.isNight) "map TYP, night" else "map TYP"
         is GarminStyle.BuiltIn -> "built-in"
         else -> style.id
     }

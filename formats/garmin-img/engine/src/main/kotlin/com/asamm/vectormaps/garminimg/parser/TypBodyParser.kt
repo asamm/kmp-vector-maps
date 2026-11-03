@@ -79,7 +79,11 @@ object TypBodyParser {
                 val type = typeForFile ushr 5
                 val subType = typeForFile and 0x1F
                 val priority = findPriority(drawOrder, type, subType)
-                if (priority != null) style.copy(drawPriority = priority) else style
+                if (priority != null) {
+                    style.copy(drawPriority = priority, night = style.night?.copy(drawPriority = priority))
+                } else {
+                    style
+                }
             }
         }
         return TypStyleTable(polygons = withPriority, lines = lines, points = points)
@@ -120,8 +124,9 @@ object TypBodyParser {
     /**
      * Resolves a polygon's `(type, subType)` to a draw priority via the
      * DRAWORDER entries. Plain types (T < 0x100) match by `type` alone —
-     * the byte stored on disk IS the type. Extended types are stored
-     * modulo 256 with the subType bit set in [DrawOrderEntry.subTypeMask].
+     * the byte stored on disk IS the type — in entries without a subtype
+     * mask. Extended types are stored modulo 256 with the subType bit set
+     * in [DrawOrderEntry.subTypeMask], so they never match a plain entry.
      */
     private fun findPriority(
         entries: List<DrawOrderEntry>,
@@ -135,12 +140,13 @@ object TypBodyParser {
             if (entry.type != (type and 0xFF)) {
                 continue
             }
-            // Plain types: subTypeMask is typically 0 ("any subType matches").
-            // Extended types: the bitmask carries which subtypes are at this
-            // priority.
-            if (entry.subTypeMask == 0L ||
+            // mkgmap `DrawOrder`: mask 0 for a plain entry, its subtypes' bits for an extended one
+            val matches = if (type < 0x100) {
+                entry.subTypeMask == 0L
+            } else {
                 (entry.subTypeMask and (1L shl subType)) != 0L
-            ) {
+            }
+            if (matches) {
                 return entry.priority
             }
         }
@@ -163,7 +169,9 @@ object TypBodyParser {
             index = index,
             data = data,
             budget = budget,
-            bitmapBytes = { it.pattern?.rgba?.size ?: 0 },
+            charge = { style, budget ->
+                charged(style, budget, style.pattern, style.night?.pattern) { it.copy(night = null) }
+            },
             parseOne = ::parseOnePolygon,
         )
     }
@@ -216,33 +224,46 @@ object TypBodyParser {
         // tiles via TexturePaint. Solid polygons (no bitmap) keep their
         // raw fg colour; the optional second day colour acts as a thin
         // outline so adjacent same-fg polygons stay separable.
-        val fg = dayColours.firstOrNull() ?: Color.Transparent
-        val bg = if (dayColours.size >= 2 && !dayTransparent) dayColours[1] else null
-        val pattern = if (bitmapBytes != null) {
-            expandPattern(bitmapBytes, fg, bg ?: Color.Transparent)
+        fun styleOf(colours: List<Color>, transparent: Boolean, font: TypFontInfo?): TypPolygonStyle {
+            val fg = colours.firstOrNull() ?: Color.Transparent
+            val bg = if (colours.size >= 2 && !transparent) colours[1] else null
+            val pattern = if (bitmapBytes != null) {
+                expandPattern(bitmapBytes, fg, bg ?: Color.Transparent)
+            } else {
+                null
+            }
+            // When `transparent` is set on a patterned polygon (military
+            // hatching, restricted-zone overlays, etc.), there's no ground
+            // colour — the pattern paints over whatever's underneath. Using
+            // `fg` as the fill in that case bleeds the pattern colour across
+            // the whole polygon and obliterates the layers below; QMS / mkgmap
+            // both correctly leave the base showing through. The non-pattern
+            // path keeps `fg` because solid 1-colour polygons (parks, marshes
+            // without a stipple) need a ground colour.
+            val fill = when {
+                bitmapBytes != null && transparent -> Color.Transparent
+                bitmapBytes != null -> bg ?: fg
+                else -> fg
+            }
+            val stroke = if (bitmapBytes == null) bg else null
+            return TypPolygonStyle(
+                fillColor = fill,
+                strokeColor = stroke,
+                pattern = pattern,
+                font = font,
+            )
+        }
+        val day = styleOf(dayColours, dayTransparent, font)
+        if (nightColours.isEmpty() && font?.nightColour == null) {
+            return day
+        }
+        // the night colours over the same pattern; a record without them keeps the day ones
+        val night = if (nightColours.isEmpty()) {
+            day.copy(font = font?.night())
         } else {
-            null
+            styleOf(nightColours, nightTransparent, font?.night())
         }
-        // When `dayTransparent` is set on a patterned polygon (military
-        // hatching, restricted-zone overlays, etc.), there's no ground
-        // colour — the pattern paints over whatever's underneath. Using
-        // `fg` as the fill in that case bleeds the pattern colour across
-        // the whole polygon and obliterates the layers below; QMS / mkgmap
-        // both correctly leave the base showing through. The non-pattern
-        // path keeps `fg` because solid 1-colour polygons (parks, marshes
-        // without a stipple) need a ground colour.
-        val fill = when {
-            bitmapBytes != null && dayTransparent -> Color.Transparent
-            bitmapBytes != null -> bg ?: fg
-            else -> fg
-        }
-        val stroke = if (bitmapBytes == null) bg else null
-        return TypPolygonStyle(
-            fillColor = fill,
-            strokeColor = stroke,
-            pattern = pattern,
-            font = font,
-        )
+        return day.copy(night = night)
     }
 
     //********************************
@@ -261,7 +282,9 @@ object TypBodyParser {
             index = index,
             data = data,
             budget = budget,
-            bitmapBytes = { it.pattern?.rgba?.size ?: 0 },
+            charge = { style, budget ->
+                charged(style, budget, style.pattern, style.night?.pattern) { it.copy(night = null) }
+            },
             parseOne = ::parseOneLine,
         )
     }
@@ -291,17 +314,9 @@ object TypBodyParser {
         // which forces 1 bit per pixel regardless of the colour count:
         // the bit selects between fg/bg of the active day colour pair.
         // Width is fixed at 32 → 4 bytes per row.
-        val linePattern: Bitmap? = if (bitmapHeight > 0) {
+        val bitmapBytes = if (bitmapHeight > 0) {
             val rowBytes = (LINE_BITMAP_WIDTH * 1 + 7) / 8
-            val raw = ByteArray(rowBytes * bitmapHeight)
-            reader.readBlock(raw)
-            val fg = dayColours.firstOrNull() ?: Color.Black
-            val bg = if (dayColours.size >= 2 && !dayTransparent) {
-                dayColours[1]
-            } else {
-                Color.Transparent
-            }
-            expandLinePattern(raw, bitmapHeight, fg, bg)
+            ByteArray(rowBytes * bitmapHeight).also { reader.readBlock(it) }
         } else {
             null
         }
@@ -328,20 +343,29 @@ object TypBodyParser {
         }
         val font = if (hasExtended) readExtendedFontInfo(reader) else null
 
-        val stroke = dayColours.firstOrNull() ?: Color.Black
-        val border = if (dayColours.size >= 2 && !dayTransparent) {
-            dayColours[1]
-        } else {
-            null
+        fun styleOf(colours: List<Color>, transparent: Boolean, font: TypFontInfo?): TypLineStyle {
+            val stroke = colours.firstOrNull() ?: Color.Black
+            val border = if (colours.size >= 2 && !transparent) colours[1] else null
+            val pattern = bitmapBytes?.let { expandLinePattern(it, bitmapHeight, stroke, border ?: Color.Transparent) }
+            return TypLineStyle(
+                strokeColor = stroke,
+                borderColor = border,
+                strokeWidthPx = lineWidth.toFloat().coerceAtLeast(1f),
+                totalWidthPx = totalWidth.toFloat().coerceAtLeast(lineWidth.toFloat()),
+                pattern = pattern,
+                font = font,
+            )
         }
-        return TypLineStyle(
-            strokeColor = stroke,
-            borderColor = border,
-            strokeWidthPx = lineWidth.toFloat().coerceAtLeast(1f),
-            totalWidthPx = totalWidth.toFloat().coerceAtLeast(lineWidth.toFloat()),
-            pattern = linePattern,
-            font = font,
-        )
+        val day = styleOf(dayColours, dayTransparent, font)
+        if (nightColours.isEmpty() && font?.nightColour == null) {
+            return day
+        }
+        val night = if (nightColours.isEmpty()) {
+            day.copy(font = font?.night())
+        } else {
+            styleOf(nightColours, nightTransparent, font?.night())
+        }
+        return day.copy(night = night)
     }
 
     /**
@@ -400,7 +424,9 @@ object TypBodyParser {
             index = index,
             data = data,
             budget = budget,
-            bitmapBytes = { it.icon.rgba.size },
+            charge = { style, budget ->
+                charged(style, budget, style.icon, style.night?.icon) { it.copy(night = null) }
+            },
             parseOne = ::parseOnePoint,
         )
     }
@@ -421,7 +447,7 @@ object TypBodyParser {
      * - bitmap rows: each row `ceil(width × bitsPerPixel / 8)` bytes,
      *   pixel indices packed LSB-first per byte; row starts byte-aligned.
      *   `bitsPerPixel` is 1/2/4/8 depending on numberOfColours.
-     * - optional night image (same shape as day) — we skip it.
+     * - optional night image (same shape as day), the icon of [TypPointStyle.night].
      * - optional label / extended-font blocks — skipped.
      *
      * Returns null when the record uses a mode we don't yet decode (the
@@ -444,16 +470,23 @@ object TypBodyParser {
 
         val icon = readPointImage(reader, width, height) ?: return null
 
-        // Skip night image so subsequent label / font sections align —
-        // even though we ignore the result.
-        if (hasNight) {
-            readPointImage(reader, width, height)
+        val nightIcon = if (hasNight) readPointImage(reader, width, height) else null
+        // an image that does not decode stops mid-record: the label and font after it are unknown
+        if (hasNight
+            && nightIcon == null
+        ) {
+            return TypPointStyle(icon = icon)
         }
         if (hasLabel) {
             skipLabelBlock(reader)
         }
         val font = if (hasExtended) readExtendedFontInfo(reader) else null
-        return TypPointStyle(icon = icon, font = font)
+        val night = if (nightIcon != null || font?.nightColour != null) {
+            TypPointStyle(icon = nightIcon ?: icon, font = font?.night())
+        } else {
+            null
+        }
+        return TypPointStyle(icon = icon, font = font, night = night)
     }
 
     /**
@@ -655,7 +688,7 @@ object TypBodyParser {
         index: TypIndexDescriptor,
         data: SectionRange,
         budget: DecodeBudget,
-        bitmapBytes: (T) -> Int,
+        charge: (T, DecodeBudget) -> T?,
         parseOne: (ImgRandomAccessReader) -> T?,
     ): Map<Int, T> {
         val out = HashMap<Int, T>()
@@ -668,10 +701,8 @@ object TypBodyParser {
             }
             try {
                 reader.seek(recordOffset)
-                val style = parseOne(reader)
-                if (style != null
-                    && budget.tryCharge(bitmapBytes(style))
-                ) {
+                val style = parseOne(reader)?.let { charge(it, budget) }
+                if (style != null) {
                     byOffset[recordOffset] = style
                     out[typeForFile] = style
                 }
@@ -680,6 +711,22 @@ object TypBodyParser {
             }
         }
         return out
+    }
+
+    // the day bitmap first, then the night one, counted once when shared; a night that no longer
+    // fits drops only the night variant, null when the day one does not fit
+    private fun <T> charged(
+        style: T,
+        budget: DecodeBudget,
+        day: Bitmap?,
+        night: Bitmap?,
+        withoutNight: (T) -> T,
+    ): T? {
+        if (!budget.tryCharge(day?.rgba?.size ?: 0)) {
+            return null
+        }
+        val nightBytes = night?.takeIf { it !== day }?.rgba?.size ?: 0
+        return if (budget.tryCharge(nightBytes)) style else withoutNight(style)
     }
 
     /**
@@ -792,14 +839,14 @@ object TypBodyParser {
     /**
      * Parses a TYP extended-font-info block per mkgmap
      * `TypElement.writeExtendedFontInfo`:
-     * - 1 byte fontExt: low 3 bits = font style (0=default, 1=nocaps,
-     *   2=normal, 3=small, 4=large), bit 0x08 = has day colour, bit
+     * - 1 byte fontExt: low 3 bits = font style (0 default, 1 no label,
+     *   2 small, 3 normal, 4 large), bit 0x08 = has day colour, bit
      *   0x10 = has night colour.
      * - optional 3-byte day BGR colour.
      * - optional 3-byte night BGR colour.
      *
-     * Returns a parsed [TypFontInfo] (with `dayColour` populated when
-     * present), or `null` if the block reads as zero (no info).
+     * Returns a parsed [TypFontInfo], or `null` if the block reads as zero
+     * (no info).
      */
     private fun readExtendedFontInfo(reader: ImgRandomAccessReader): TypFontInfo? {
         val fontExt = reader.readByte()
@@ -807,15 +854,14 @@ object TypBodyParser {
         val hasDay = fontExt and 0x08 != 0
         val hasNight = fontExt and 0x10 != 0
         val dayColour = if (hasDay) readRgb(reader) else null
-        if (hasNight) {
-            // Night colour bytes consumed but ignored — the renderer is
-            // currently day-mode only.
-            skipBytes(reader, 3)
-        }
-        if (style == 0 && dayColour == null) {
+        val nightColour = if (hasNight) readRgb(reader) else null
+        if (style == 0
+            && dayColour == null
+            && nightColour == null
+        ) {
             return null
         }
-        return TypFontInfo(style = style, dayColour = dayColour)
+        return TypFontInfo(style = style, dayColour = dayColour, nightColour = nightColour)
     }
 
     /**
@@ -891,35 +937,16 @@ object TypBodyParser {
  *   present, the renderer tiles this across the polygon instead of using [fillColor] solid. Set
  *   bits paint with the day foreground; clear bits paint with the day background (or transparent
  *   when the day-bg-transparent flag was set).
+ * @param night the record's night colours, null when it has none
  */
-// Non-data class — adding a field (e.g. night-mode bg) stays binary-
-// compatible for consumers as long as we don't change the existing
-// param positions. Explicit `copy()` exposes the one `.copy(drawPriority=…)`
-// the parser itself uses.
-class TypPolygonStyle(
+data class TypPolygonStyle(
     val fillColor: Color,
     val strokeColor: Color?,
     val drawPriority: Int = Int.MAX_VALUE,
     val pattern: Bitmap? = null,
     val font: TypFontInfo? = null,
-) {
-
-    fun copy(
-        fillColor: Color = this.fillColor,
-        strokeColor: Color? = this.strokeColor,
-        drawPriority: Int = this.drawPriority,
-        pattern: Bitmap? = this.pattern,
-        font: TypFontInfo? = this.font,
-    ): TypPolygonStyle {
-        return TypPolygonStyle(
-            fillColor = fillColor,
-            strokeColor = strokeColor,
-            drawPriority = drawPriority,
-            pattern = pattern,
-            font = font,
-        )
-    }
-}
+    val night: TypPolygonStyle? = null,
+)
 
 /**
  * One DRAWORDER entry: a (type, subTypeMask) tuple with its file-position
@@ -939,45 +966,52 @@ internal data class DrawOrderEntry(
  *   When present, the renderer paints the polyline as the pattern (rotated to follow the line
  *   direction) instead of a solid stroke — that's how dashed roads, railways, and multi-stripe
  *   casings get drawn.
+ * @param night the record's night colours, null when it has none
  */
-// Non-data class — see [TypPolygonStyle].
-class TypLineStyle(
+data class TypLineStyle(
     val strokeColor: Color,
     val borderColor: Color?,
     val strokeWidthPx: Float,
     val totalWidthPx: Float,
     val pattern: Bitmap? = null,
     val font: TypFontInfo? = null,
+    val night: TypLineStyle? = null,
 )
 
 /**
  * One point's resolved TYP style: the day icon as RGBA, plus optional
  * extended-font info that lets the TYP override label colour/style for
  * this `(type, subType)`.
+ *
+ * @param night the record's night icon and label colour, null when it has neither
  */
-// Non-data class — see [TypPolygonStyle].
-class TypPointStyle(
+data class TypPointStyle(
     val icon: Bitmap,
     val font: TypFontInfo? = null,
+    val night: TypPointStyle? = null,
 )
 
 /**
  * TYP extended-font-info block (per mkgmap `TypElement.writeExtendedFontInfo`).
- * Surfaces just the day-side label colour and the font style flag — that's
- * what the renderer can act on right now. Night colour and font-family
- * variants are decoded but discarded.
  *
- * @property style 0..7 — 0 = default font, others map to mkgmap's nocaps /
- *   normal / small / large variants. Currently treated as a hint; the
- *   renderer doesn't yet swap font sizes per style.
+ * @property style 0..7, mkgmap's `FontStyle`: 0 default, 1 no label, 2 small, 3 normal, 4 large.
  * @property dayColour Optional override for the label text colour. When
  *   null, the style resolver keeps its default label colour.
+ * @property nightColour the label colour at night, null to keep [dayColour]
  */
-// Non-data class — see [TypPolygonStyle].
-class TypFontInfo(
+data class TypFontInfo(
     val style: Int,
     val dayColour: Color?,
-)
+    val nightColour: Color? = null,
+) {
+
+    /**
+     * The night label: [nightColour] in place of [dayColour].
+     */
+    fun night(): TypFontInfo {
+        return copy(dayColour = nightColour ?: dayColour)
+    }
+}
 
 /**
  * Lookup table built once from a TYP body parse. Keys are `typeForFile`
@@ -985,12 +1019,36 @@ class TypFontInfo(
  * [lookupPoint] for the by-(type, subType) call shape the renderer actually
  * wants.
  */
-// Non-data class — see [TypPolygonStyle].
 class TypStyleTable(
     val polygons: Map<Int, TypPolygonStyle>,
     val lines: Map<Int, TypLineStyle>,
     val points: Map<Int, TypPointStyle> = emptyMap(),
 ) {
+
+    /**
+     * True when a record carries night colours, a night icon or a night label colour.
+     */
+    val hasNight: Boolean
+        get() = night !== this
+
+    /**
+     * The table with each record's night variant, the day one where a record has none; this
+     * table itself when none has one.
+     */
+    val night: TypStyleTable by lazy {
+        if (polygons.values.none { it.night != null }
+            && lines.values.none { it.night != null }
+            && points.values.none { it.night != null }
+        ) {
+            this
+        } else {
+            TypStyleTable(
+                polygons = polygons.mapValues { (_, style) -> style.night ?: style },
+                lines = lines.mapValues { (_, style) -> style.night ?: style },
+                points = points.mapValues { (_, style) -> style.night ?: style },
+            )
+        }
+    }
 
     fun lookupPolygon(type: Int, subType: Int): TypPolygonStyle? {
         return polygons[typeForFile(type, subType)]
