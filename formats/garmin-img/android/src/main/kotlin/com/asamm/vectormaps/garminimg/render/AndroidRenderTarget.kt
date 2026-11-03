@@ -348,7 +348,7 @@ class AndroidRenderTarget(
             return
         }
         resetPaintForFill()
-        paint.textSize = (fontSize * renderScale).coerceAtLeast(8f)
+        paint.textSize = textSizeOf(fontSize)
         val w = paint.measureText(text)
         val fm = paint.fontMetrics
         val ascent = -fm.ascent
@@ -372,6 +372,16 @@ class AndroidRenderTarget(
         canvas.drawText(text, drawX, drawY, paint)
     }
 
+    // the size text is drawn and measured at
+    private fun textSizeOf(fontSize: Float): Float {
+        return (fontSize * renderScale).coerceAtLeast(8f)
+    }
+
+    override fun measureText(text: String, fontSize: Float): Float {
+        paint.textSize = textSizeOf(fontSize)
+        return paint.measureText(text)
+    }
+
     override fun drawTextOnPath(
         xs: FloatArray,
         ys: FloatArray,
@@ -384,7 +394,7 @@ class AndroidRenderTarget(
             return
         }
         resetPaintForFill()
-        paint.textSize = (fontSize * renderScale).coerceAtLeast(8f)
+        paint.textSize = textSizeOf(fontSize)
 
         // Total path length and net direction — same shortest-path
         // fallback as AWT, and the same left-to-right readability

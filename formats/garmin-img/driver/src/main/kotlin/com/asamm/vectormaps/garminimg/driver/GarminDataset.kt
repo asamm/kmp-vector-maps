@@ -61,8 +61,8 @@ class GarminDataset internal constructor(
         get() = current().levels
 
     /**
-     * The embedded TYP when a file has one, then the built-in styles; the same instances until
-     * [addMap].
+     * The embedded TYP when a file has one, by day and, when it has night colours, at night; then
+     * the built-in styles. The same instances until [addMap].
      */
     override val styles: List<GarminStyle>
         get() = current().styles
@@ -185,7 +185,11 @@ class GarminDataset internal constructor(
             if (typFile == null) {
                 listOf(GarminStyle.BuiltIn)
             } else {
-                listOf(GarminStyle.Embedded(file = typFile.file, lastModified = typFile.lastModified), GarminStyle.BuiltIn)
+                val day = GarminStyle.Embedded(file = typFile.file, lastModified = typFile.lastModified)
+                // parsed on add, so this reads no file
+                val hasNight = typFile.parsed().first().typStyles?.hasNight == true
+                val night = GarminStyle.Embedded(file = typFile.file, lastModified = typFile.lastModified, isNight = true)
+                listOfNotNull(day, night.takeIf { hasNight }, GarminStyle.BuiltIn)
             }
         }
     }

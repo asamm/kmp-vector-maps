@@ -21,7 +21,7 @@ import com.asamm.vectormaps.garminimg.style.Color
  * # Algorithm
  *
  * 1. Caller adds candidates with [submit]. Each carries a draw priority and
- *    an estimated text-bounds rectangle.
+ *    its text bounds, as the target measures them ([RenderTarget.measureText]).
  * 2. [drawAccepted] sorts by descending priority and walks; for each
  *    candidate it tests bbox overlap against every already-accepted label.
  *    Non-overlapping → emit; overlapping → drop.
@@ -36,9 +36,8 @@ class LabelLayout {
     private val candidates = mutableListOf<LabelCandidate>()
 
     /**
-     * Register a label candidate. Estimated bounds drive the overlap test;
-     * the renderer should use a font-metrics-based estimate, not a guess —
-     * AWT and Canvas both expose this cheaply.
+     * Register a label candidate; its bounds, measured by the target, drive
+     * the overlap test.
      */
     fun submit(
         x: Float,

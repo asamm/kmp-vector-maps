@@ -95,6 +95,7 @@ class GarminRenderer internal constructor(
                     target = canvas,
                     objectKindFilter = options.objectKinds,
                     level = options.level,
+                    textScale = key.config.textScale,
                 )
                 target.canvas = canvas
                 return RenderResult.DRAWN

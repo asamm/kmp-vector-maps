@@ -14,14 +14,14 @@ import java.util.Locale
 
 /**
  * Writes a multi-map IMG, as a gmapsupp holds one map per tile: the maps of `sources` under the
- * names `00000001`, `00000002`, … and the first source's TYP for all of them.
+ * names `00000001`, `00000002`, … and the first source's TYP for all of them, or `typ` in its place.
  */
-internal fun writeMultiMapImg(target: File, sources: List<File>) {
+internal fun writeMultiMapImg(target: File, sources: List<File>, typ: ByteArray? = null) {
     val subFiles = ArrayList<Triple<String, String, ByteArray>>()
     for ((index, source) in sources.withIndex()) {
         val name = "%08d".format(Locale.ROOT, index + 1)
         for (type in if (index == 0) MAP_TYPES + "TYP" else MAP_TYPES) {
-            val bytes = readSubFile(source, type) ?: continue
+            val bytes = (if (type == "TYP") typ else null) ?: readSubFile(source, type) ?: continue
             subFiles += Triple(if (type == "TYP") "STYLES" else name, type, bytes)
         }
     }

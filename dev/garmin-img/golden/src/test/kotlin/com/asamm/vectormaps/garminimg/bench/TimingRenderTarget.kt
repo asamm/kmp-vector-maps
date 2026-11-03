@@ -98,6 +98,10 @@ class TimingRenderTarget(private val delegate: RenderTarget) : RenderTarget {
         pointCount++
     }
 
+    override fun measureText(text: String, fontSize: Float): Float {
+        return delegate.measureText(text, fontSize)
+    }
+
     override fun drawBitmap(x: Float, y: Float, bitmap: Bitmap) {
         val t = System.nanoTime()
         delegate.drawBitmap(x, y, bitmap)

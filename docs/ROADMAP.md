@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5 done; M4.1, M4.2, M4.3a and M4.3b done (PRs #27–#32); M4.3c (Garmin
-performance) in review.** Next action: M4.4, Garmin labels and TYP icons; M6 follows M4.
+**Status: M0–M3 and M5 done; M4.1–M4.3 done (PRs #27–#33); M4.4 (Garmin labels and TYP night
+style) in review.** Next action: M6, core label model; M4 closes with M4.4.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -206,8 +206,8 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 | M4.2c | Garmin golden through the driver; the pixel test off Windows with a bundled font; the M4.1 leftovers below | ✅ PR #30, `a661dac` |
 | M4.3a | Parallel renders: the map parsed once per dataset, a worker per core with its own readers and style cache | ✅ PR #31, `4901158` |
 | M4.3b | Multi-map IMGs and several `.img` per dataset; the nearest-finer level fallback | ✅ PR #32, `f861c39` |
-| M4.3c | Garmin benchmarks on the JVM and the A54, the performance items below measured against them | 🔧 |
-| M4.4 | Measured label bounds, TYP night colours, text scale; TYP point icons and extended-type (`≥ 0x100`) polygon styles, both falling back to the internal styles today | ⬜ |
+| M4.3c | Garmin benchmarks on the JVM and the A54, the performance items below measured against them | ✅ PR #33, `3f2f0cc` |
+| M4.4 | Measured label bounds, text scale, TYP font sizes; the TYP night style; DRAWORDER of extended types | 🔧 |
 
 - M4.1 audit (2026-11-02, all 53 commits): no secrets or keys, `local.properties` never committed,
   4 local paths in comments and a capture (removed at the tip, history kept); one author identity. Fixtures: `otm-monaco` ODbL data plus
@@ -320,11 +320,26 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   creates a shader, matrix, dash effect, path or rect per pattern, dash, curved label and icon draw;
   label halos draw the text nine times. One damaged gmapsupp seen (`CZE_osm_based.img`, 9 of 66 TREs
   zeroed in the original) is rejected whole, as recorded in M4.3b.
-- Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons →
-  M4.4; label collisions at level-pick boundaries → M6.1; Locus prefs from the helpdesk
-  (label colour, line width and colour overrides, area/line/point toggles, per-type visibility,
-  extended objects such as truck signs) → M8.2; an external `.typ` next to the `.img` → the
-  driver's `loadStyle` (M4.2); the iOS target is dropped (D22).
+- M4.4 as built: label widths come from the target's fonts (`RenderTarget.measureText`, an estimate
+  by default), label sizes take the render config's text scale and the TYP font style (small 0.85,
+  large 1.2, our sizes as mkgmap and Garmin publish none; no label hides it). A TYP record may carry
+  night colours, a night icon or a night label colour; the parser keeps them and
+  `TypStyleTable.night` uses them, the day ones where a record has none. A dataset lists the
+  embedded TYP's night style (`GarminStyle.Embedded.isNight`) only when the TYP has night data, so a
+  host picks it like any style and `RenderKey` keeps day and night tiles apart; no colours are
+  inverted (D34). An external `.typ` offers its night style as `GarminStyle.External.night`, a
+  Garmin-only property until M8's host API; the viewers do not offer it. A point whose night icon
+  does not decode keeps its day icon without its label font. DRAWORDER: a plain entry no longer
+  matches extended types of the same low byte. TYP point icons and extended-type styles already
+  applied (the carry-over below was stale): the Czech TYP styles 3.5 M extended polygons and 5.4 k
+  extended points. Measured widths and TYP font sizes change the label placement, so the four Monaco
+  goldens were rendered again. A test-built TYP (`TestTyp`) covers night colours, DRAWORDER and font
+  styles.
+- Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons → M4.4
+  (already applied, see M4.4 as built); label collisions at level-pick boundaries → M6.1; Locus
+  prefs from the helpdesk (label colour, line width and colour overrides, area/line/point toggles,
+  per-type visibility, extended objects such as truck signs) → M8.2; an external `.typ` next to the
+  `.img` → the driver's `loadStyle` (M4.2); the iOS target is dropped (D22).
 
 **M5 — Mapsforge to Kotlin.** One area per PR, its hot-spot fixes in a follow-up PR on the same
 area, so each conversion PR stays pixel-identical. Every PR gated by goldens, dumps and a device
@@ -538,7 +553,8 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D30 | M5.4 removes the unused hillshading code before converting the renderer, rather than converting it first; the renderer constructors keep their hills parameter as an ignored `Object`, so the golden harness shared with upstream still compiles; M6.2 re-captures the `<hillshading>` layer, level and `cat` in `RenderThemeHandler`, dropped here |
 | D31 | The M5 soak compares each `SEPARATE` render's label store entry with a serial render's: kind, text, priority, position, clash box, visibility, standalone symbol size (way-label text through `toString`, as its field is private; the display mode itself is protected in Mapsforge); the soak fails if no render had labels. Not compared: `IN_TILE` labels (render order, M6.1), placement across tiles (the label pass, M6.1), fonts, colours and symbol pixels |
 | D32 | Long term: our own OpenGL renderer in locus-core; this library moves from bitmap to bucket delivery (tessellated geometry, symbols, label data) and keeps its readers, style engines and label model; no VTM fork, VTM is a reference only. M6–M8 interfaces keep decode, style and draw separable so bucket output can join the bitmap one |
-| D33 | Garmin IMG is LGPL-2.1-or-later, as upstream JGarminImgParser (Q13), imported with history into this public repo after an audit (Q12); the kmp-garmin-img headers become LGPL-2.1-or-later. Locus keeps R8 on the Garmin code, a known §6 gap the owner accepts; if raised, the package is excluded from R8 |
+| D33 | Garmin IMG is LGPL-2.1-or-later, as upstream JGarminImgParser (Q13), imported with history into this public repo after an audit (Q12); the kmp-garmin-img headers become LGPL-2.1-or-later.
+| D34 | No host night mode: a night look is a style, as LoMaps' night themes are; a Garmin TYP's own night colours become a night style next to its day one, listed only when the TYP has night data, never day colours inverted (M4.4). | Locus keeps R8 on the Garmin code, a known §6 gap the owner accepts; if raised, the package is excluded from R8 |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.

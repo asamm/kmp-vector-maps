@@ -443,6 +443,10 @@ class AwtRenderTarget(
         g.drawString(text, drawX, drawY)
     }
 
+    override fun measureText(text: String, fontSize: Float): Float {
+        return g.getFontMetrics(fontFor(fontSize)).stringWidth(text).toFloat()
+    }
+
     override fun drawTextOnPath(
         xs: FloatArray,
         ys: FloatArray,
