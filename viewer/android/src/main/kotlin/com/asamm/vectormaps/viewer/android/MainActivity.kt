@@ -14,6 +14,7 @@ import android.widget.TextView
 import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.garminimg.driver.GarminDriver
+import com.asamm.vectormaps.garminimg.render.AndroidBitmapCache
 import com.asamm.vectormaps.garminimg.render.AndroidRenderTarget
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
@@ -57,13 +58,20 @@ class MainActivity : Activity() {
             val fixtures = unpackFixtures()
             val map = intent.getStringExtra("map")?.let(::File) ?: File(fixtures, "maps/monaco.osm.map")
             val theme = intent.getStringExtra("theme")?.let(::File) ?: File(fixtures, "themes/lomaps/theme.xml")
+            val garminBitmaps = AndroidBitmapCache()
             MapView(
                 context = this,
                 formats = MapFormats(
                     listOf(
                         MapsforgeDriver(AndroidGraphicFactory.INSTANCE),
                         GarminDriver { size, antiAliased, scale ->
-                            AndroidRenderTarget(widthPx = size, heightPx = size, antiAliased = antiAliased, renderScale = scale)
+                            AndroidRenderTarget(
+                                widthPx = size,
+                                heightPx = size,
+                                antiAliased = antiAliased,
+                                renderScale = scale,
+                                bitmapCache = garminBitmaps,
+                            )
                         },
                     ),
                 ),

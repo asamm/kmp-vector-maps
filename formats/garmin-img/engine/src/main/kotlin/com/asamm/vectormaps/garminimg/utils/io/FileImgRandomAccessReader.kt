@@ -25,7 +25,9 @@ import java.io.RandomAccessFile
  * The buffer drops the per-byte JNI cost of `RandomAccessFile.read()`
  * in the parser hot paths (RGN's bit-stream decoder reads byte-at-a-time
  * for thousands of bytes per polyline). One refill = one JNI crossing
- * for `BUFFER_SIZE` bytes, served from the heap thereafter.
+ * for `BUFFER_SIZE` bytes, served from the heap thereafter. A few such
+ * windows are kept, so reads alternating between regions, such as a
+ * POI record and its label in LBL, do not refill each time.
  *
  * Single-threaded by design — the same contract as the interface.
  * Callers must serialise access and call [close] when done so the
@@ -47,11 +49,22 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
     private var logicalPos: Long = 0L
 
     /**
-     * Read-ahead cache. `buffer[0]` corresponds to absolute file offset
+     * Read-ahead windows, the least recently selected one refilled on a miss; allocated when first
+     * needed, so a reader that only reads on keeps one.
+     */
+    private val windows: Array<ByteArray?> = arrayOfNulls(WINDOWS)
+    private var current: Int = 0
+    private val windowStarts: LongArray = LongArray(WINDOWS)
+    private val windowLens: IntArray = IntArray(WINDOWS)
+    private val windowUses: LongArray = LongArray(WINDOWS)
+    private var uses: Long = 0L
+
+    /**
+     * The current window. `buffer[0]` corresponds to absolute file offset
      * [bufferStart]; bytes are valid up to (but not including)
      * [bufferStart] + [bufferLen]. Initially empty.
      */
-    private val buffer: ByteArray = ByteArray(BUFFER_SIZE)
+    private var buffer: ByteArray = EMPTY
     private var bufferStart: Long = 0L
     private var bufferLen: Int = 0
 
@@ -106,11 +119,12 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
         if (logicalPos >= size) {
             throw IOException("EOF at position $logicalPos (size=$size)")
         }
-        refill(logicalPos)
-        if (bufferLen <= 0) {
+        refill(logicalPos, 1)
+        val at = logicalPos - bufferStart
+        if (at >= bufferLen) {
             throw IOException("short read at $logicalPos (size=$size)")
         }
-        val b = buffer[0].toInt() and 0xFF
+        val b = buffer[at.toInt()].toInt() and 0xFF
         logicalPos++
         return b
     }
@@ -128,9 +142,6 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
             raf.seek(logicalPos)
             raf.readFully(buffer)
             logicalPos += buffer.size
-            // Invalidate the cache — raf.filePointer is no longer
-            // related to bufferStart.
-            bufferLen = 0
             return
         }
         // compared as Long: an Int cast wraps for deltas past 2^31
@@ -149,16 +160,16 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
                 "readBlock(${buffer.size}) past EOF at $logicalPos (size=$size)",
             )
         }
-        refill(logicalPos)
-        if (buffer.size <= bufferLen) {
-            System.arraycopy(this.buffer, 0, buffer, 0, buffer.size)
+        refill(logicalPos, buffer.size)
+        val at = (logicalPos - bufferStart).toInt()
+        if (at + buffer.size <= bufferLen) {
+            System.arraycopy(this.buffer, at, buffer, 0, buffer.size)
             logicalPos += buffer.size
         } else {
             // Buffer didn't fill enough — straight raf read.
             raf.seek(logicalPos)
             raf.readFully(buffer)
             logicalPos += buffer.size
-            bufferLen = 0
         }
     }
 
@@ -216,8 +227,8 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
                 "ensureBuffered($n) past EOF at $logicalPos (size=$size)",
             )
         }
-        refill(logicalPos)
-        if (n > bufferLen) {
+        refill(logicalPos, n)
+        if (logicalPos - bufferStart + n > bufferLen) {
             // Hit EOF before reaching the requested count — shouldn't
             // happen given the size check above, but defensive.
             throw IOException(
@@ -227,23 +238,49 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
     }
 
     /**
-     * Refills the read-ahead buffer so it covers [absStart, …).
-     * Reads up to [BUFFER_SIZE] bytes — fewer near EOF. Always
-     * synchronises `raf.filePointer` with the requested position.
+     * Makes the current window cover `n` bytes from `absStart`: a window
+     * that already holds them, else the least recently selected one
+     * refilled from `absStart` with up to [BUFFER_SIZE] bytes — fewer
+     * near EOF.
      */
-    private fun refill(absStart: Long) {
+    private fun refill(absStart: Long, n: Int) {
+        for (i in windows.indices) {
+            if (windowStarts[i] <= absStart
+                && absStart + n <= windowStarts[i] + windowLens[i]
+            ) {
+                select(i)
+                return
+            }
+        }
+        // reading on past the current window reuses it; a jump elsewhere keeps it for a return
+        val readsOn = bufferLen > 0
+            && absStart >= bufferStart
+            && absStart <= bufferStart + bufferLen
+        val target = if (readsOn) current else windowUses.indices.minBy { windowUses[it] }
+        val window = windows[target] ?: ByteArray(BUFFER_SIZE).also { windows[target] = it }
+        // empty until filled, so a failed read leaves no stale window
+        windowLens[target] = 0
         raf.seek(absStart)
         val want = minOf(BUFFER_SIZE.toLong(), size - absStart).toInt()
         var read = 0
         while (read < want) {
-            val n = raf.read(buffer, read, want - read)
-            if (n <= 0) {
+            val count = raf.read(window, read, want - read)
+            if (count <= 0) {
                 break
             }
-            read += n
+            read += count
         }
-        bufferStart = absStart
-        bufferLen = read
+        windowStarts[target] = absStart
+        windowLens[target] = read
+        select(target)
+    }
+
+    private fun select(window: Int) {
+        current = window
+        buffer = checkNotNull(windows[window])
+        bufferStart = windowStarts[window]
+        bufferLen = windowLens[window]
+        windowUses[window] = ++uses
     }
 
     /**
@@ -252,19 +289,29 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
      */
     override fun close() {
         bufferLen = 0
+        buffer = EMPTY
+        windowLens.fill(0)
+        // parsed maps keep their closed readers
+        windows.fill(null)
         raf.close()
     }
 
     private companion object {
 
         /**
-         * Read-ahead buffer size in bytes. 8 KB matches OS page size
-         * on most modern platforms and is small enough to keep per-
-         * reader memory negligible (one buffer per open IMG sub-file
-         * × 5 sub-files = 40 KB / map). Larger buffers help less than
-         * the JNI-amortisation gain that the first 4–8 KB already
-         * provides.
+         * Read-ahead window size in bytes. 8 KB matches OS page size
+         * on most modern platforms; a reader keeps up to [WINDOWS] of
+         * them, 32 KB, so the 3–4 sub-file readers of each renderer
+         * worker cost up to about 128 KB per file. Larger windows help less than the
+         * JNI-amortisation gain that the first 4–8 KB already provides.
          */
         private const val BUFFER_SIZE: Int = 8 * 1024
+
+        /**
+         * Read-ahead windows per reader, 32 KB in all.
+         */
+        private const val WINDOWS: Int = 4
+
+        private val EMPTY = ByteArray(0)
     }
 }

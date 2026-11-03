@@ -124,6 +124,7 @@ class ImgRenderer(
                 maxLat = viewport.maxLat,
                 objectKindFilter = objectKindFilter,
                 levelFilter = targetLevel,
+                poiDetails = false,
             )) {
                 val style = layer.styleResolver.resolve(obj)
                 when (obj) {
@@ -161,11 +162,15 @@ class ImgRenderer(
         // centre at intersections, leaving dark blobs at every junction.
         // Two-pass produces continuous roads through junctions — same
         // technique mkgmap / QMapShack use.
-        for ((poly, style) in polylines) {
-            drawPolylineBorder(poly, style, projection, target)
+        // projected once for both passes; null when empty or off screen
+        val projected = polylines.map { (poly, _) -> projectLine(poly, projection, target) }
+        for ((i, line) in polylines.withIndex()) {
+            val xy = projected[i] ?: continue
+            target.drawPolylineBorder(xy.first, xy.second, line.second)
         }
-        for ((poly, style) in polylines) {
-            drawPolylineCentre(poly, style, projection, target, labels, labelScale)
+        for ((i, line) in polylines.withIndex()) {
+            val xy = projected[i] ?: continue
+            drawPolylineCentre(line.first, xy.first, xy.second, line.second, target, labels, labelScale)
         }
 
         for ((point, style) in points) {
@@ -220,7 +225,8 @@ class ImgRenderer(
         labels: LabelLayout,
         labelScale: Float,
     ) {
-        val (x, y) = projection.project(point.longitude, point.latitude).run { x to y }
+        val x = projection.projectX(point.longitude)
+        val y = projection.projectY(point.latitude)
         if (!isOnScreen(x, y, target)) {
             return
         }
@@ -285,42 +291,33 @@ class ImgRenderer(
         }
     }
 
-    private fun drawPolylineBorder(
+    private fun projectLine(
         poly: MapObject.PolyShape,
-        style: Style.LineStyle,
         projection: Projection,
         target: RenderTarget,
-    ) {
+    ): Pair<FloatArray, FloatArray>? {
         if (poly.longitudes.isEmpty()) {
-            return
+            return null
         }
         val xs = FloatArray(poly.longitudes.size)
         val ys = FloatArray(poly.longitudes.size)
         projection.projectBulk(poly.longitudes, poly.latitudes, xs, ys)
         if (allOffScreen(xs, ys, target)) {
-            return
+            return null
         }
-        target.drawPolylineBorder(xs, ys, style)
+        return xs to ys
     }
 
     private fun drawPolylineCentre(
         poly: MapObject.PolyShape,
+        xs: FloatArray,
+        ys: FloatArray,
         style: Style.LineStyle,
-        projection: Projection,
         target: RenderTarget,
         labels: LabelLayout,
         labelScale: Float,
     ) {
-        if (poly.longitudes.isEmpty()) {
-            return
-        }
-        val n = poly.longitudes.size
-        val xs = FloatArray(n)
-        val ys = FloatArray(n)
-        projection.projectBulk(poly.longitudes, poly.latitudes, xs, ys)
-        if (allOffScreen(xs, ys, target)) {
-            return
-        }
+        val n = xs.size
         target.drawPolylineStroke(xs, ys, style)
         val polyLabel = poly.label
         if (style.labelColor != null && isDisplayableLabel(polyLabel)) {
@@ -565,25 +562,13 @@ class ImgRenderer(
             // centre then falls outside the viewport even though the
             // sub-division covers it. Centre-only check returned false
             // for every level → the renderer drew nothing.
-            val bits = img.tre.levels
-            for (sd in img.subDivisionsWithData(level)) {
-                val bpc = bits.bitsPerCoordOf(sd.level) ?: continue
-                val scale = 1 shl (24 - bpc).coerceAtLeast(0)
-                val halfW = sd.halfWidth.toLong() * scale
-                val halfH = sd.halfHeight.toLong() * scale
-                val sdMinLon = sd.longitudeCenter - halfW
-                val sdMaxLon = sd.longitudeCenter + halfW
-                val sdMinLat = sd.latitudeCenter - halfH
-                val sdMaxLat = sd.latitudeCenter + halfH
-                if (sdMaxLon < viewport.minLon || sdMinLon > viewport.maxLon) {
-                    continue
-                }
-                if (sdMaxLat < viewport.minLat || sdMinLat > viewport.maxLat) {
-                    continue
-                }
-                return true
-            }
-            return false
+            return img.hasDataInBounds(
+                level = level,
+                minLong = viewport.minLon,
+                maxLong = viewport.maxLon,
+                minLat = viewport.minLat,
+                maxLat = viewport.maxLat,
+            )
         }
 
         /**

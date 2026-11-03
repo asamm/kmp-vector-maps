@@ -66,6 +66,13 @@ class BenchScene : AutoCloseable {
             prepare()
         }
 
+        /**
+         * The bundled fixtures, copied to the cache dir on first use.
+         */
+        fun fixturesDir(): File {
+            return fixtures
+        }
+
         fun newDisplayModel(): DisplayModel {
             return DisplayModel().apply {
                 setFixedTileSize(TILE_SIZE)
@@ -123,7 +130,7 @@ class BenchScene : AutoCloseable {
             return File(fixtures, "themes/lomaps/theme.xml")
         }
 
-        private fun argument(name: String): String? {
+        fun argument(name: String): String? {
             return InstrumentationRegistry.getArguments().getString(name)?.takeIf { it.isNotBlank() }
         }
 

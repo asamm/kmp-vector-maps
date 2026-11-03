@@ -1,7 +1,9 @@
 /*
  * JMH benchmarks of the renderers on the JVM. `./gradlew :dev:bench:jmh`; results in
  * build/results/jmh/results.json. Another map: `-Pbench.mapFile=<path>`, another centre than the
- * map's start position: `-Pbench.center=<lat>,<lon>`. Not published.
+ * map's start position: `-Pbench.center=<lat>,<lon>`; for Garmin `-Pbench.garmin.mapFile` and
+ * `-Pbench.garmin.center` (default: the bounds' centre). One renderer only:
+ * `-Pbench.includes=GarminBench`. Not published.
  */
 plugins {
     alias(libs.plugins.kotlinJvm)
@@ -14,12 +16,18 @@ kotlin {
 
 dependencies {
     jmh(project(":formats:mapsforge:awt"))
+    jmh(project(":formats:garmin-img:driver"))
+    jmh(project(":formats:garmin-img:awt"))
 }
 
 val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures").asFile
 val mapFile = providers.gradleProperty("bench.mapFile")
     .orElse(File(fixturesDir, "maps/monaco.osm.map").absolutePath)
 val center = providers.gradleProperty("bench.center").orElse("")
+val garminMapFile = providers.gradleProperty("bench.garmin.mapFile")
+    .orElse(File(fixturesDir, "maps/otm-monaco/otm-monaco.img").absolutePath)
+val garminCenter = providers.gradleProperty("bench.garmin.center").orElse("")
+val benchIncludes = providers.gradleProperty("bench.includes")
 
 jmh {
     jmhVersion = libs.versions.jmh
@@ -30,12 +38,17 @@ jmh {
     timeOnIteration = "2s"
     profilers = listOf("gc")
     resultFormat = "JSON"
+    if (benchIncludes.isPresent) {
+        includes.add(benchIncludes.get())
+    }
     jvmArgs = listOf(
         "-Xms2g",
         "-Xmx2g",
         "-Dbench.fixturesDir=${fixturesDir.absolutePath}",
         "-Dbench.mapFile=${mapFile.get()}",
         "-Dbench.center=${center.get()}",
+        "-Dbench.garmin.mapFile=${garminMapFile.get()}",
+        "-Dbench.garmin.center=${garminCenter.get()}",
     )
 }
 

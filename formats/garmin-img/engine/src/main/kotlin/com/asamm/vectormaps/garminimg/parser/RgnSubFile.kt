@@ -120,6 +120,7 @@ object RgnSubFile {
      *
      * @param objectKindFilter bit-mask of [ObjectKind] flags. The default
      *   `ObjectKind.ALL` emits every kind.
+     * @param poiDetails false reads only a POI's name, without the address and city lookups.
      */
     fun parseSubDivision(
         reader: ImgRandomAccessReader,
@@ -132,6 +133,7 @@ object RgnSubFile {
         netHeader: NetHeader? = null,
         cityResolver: LblSubFile.IndexedPointLabelResolver? = null,
         objectKindFilter: Int = ObjectKind.ALL,
+        poiDetails: Boolean = true,
     ): Sequence<MapObject> {
         // Bits-per-coord for this sub-division's level controls how the
         // record-encoded deltas scale into absolute Garmin coords. When
@@ -222,7 +224,8 @@ object RgnSubFile {
                             bitsPerCoord,
                             lblReader,
                             lblHeader,
-                            cityResolver
+                            cityResolver,
+                            poiDetails,
                         )
                     )
                 }
@@ -238,7 +241,8 @@ object RgnSubFile {
                             bitsPerCoord,
                             lblReader,
                             lblHeader,
-                            cityResolver
+                            cityResolver,
+                            poiDetails,
                         )
                     )
                 }
@@ -434,6 +438,7 @@ object RgnSubFile {
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
         cityResolver: LblSubFile.IndexedPointLabelResolver? = null,
+        poiDetails: Boolean = true,
     ): Sequence<MapObject.Point> = sequence {
         reader.seek(segment.start)
         while (reader.position() < segment.end) {
@@ -446,8 +451,23 @@ object RgnSubFile {
                 val longitudeDelta = readInt16(reader)
                 val latitudeDelta = readInt16(reader)
                 val subType = if (hasSubType) reader.readByte() else 0
+                val hasPoiTable = isPoi && lblReader != null && lblHeader != null && lblHeader.poiLength > 0L
+                // rendering needs the name only; the address fields seek all over LBL and RGN
+                val poiName = if (hasPoiTable && !poiDetails) {
+                    try {
+                        LblSubFile.readPoiName(
+                            reader = lblReader,
+                            header = lblHeader,
+                            offset = labelOffset.toLong(),
+                        )
+                    } catch (_: Exception) {
+                        null
+                    }
+                } else {
+                    null
+                }
                 val poiMetadata: com.asamm.vectormaps.garminimg.model.PoiMetadata? =
-                    if (isPoi && lblReader != null && lblHeader != null && lblHeader.poiLength > 0L) {
+                    if (hasPoiTable && poiDetails) {
                         try {
                             LblSubFile.readPoi(
                                 reader = lblReader,
@@ -463,7 +483,7 @@ object RgnSubFile {
                     }
                 // a POI's offset points into the POI table, never at a label
                 val rawLabel = if (isPoi) {
-                    poiMetadata?.name
+                    poiMetadata?.name ?: poiName
                 } else {
                     resolveLabel(labelOffset.toLong(), lblReader, lblHeader)
                 }

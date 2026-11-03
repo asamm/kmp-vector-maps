@@ -59,6 +59,33 @@ class FileImgRandomAccessReaderTest {
     }
 
     @Test
+    fun readsAlternatingAcrossMoreRegionsThanWindows() {
+        val bytes = monacoBytes()
+        val tmp = File.createTempFile("monaco-", ".img").apply {
+            deleteOnExit()
+            writeBytes(bytes)
+        }
+        val ba = ByteArrayImgRandomAccessReader(bytes)
+        FileImgRandomAccessReader(tmp).use { fr ->
+            // six regions over four windows, each read twice, values crossing window ends
+            // 100 + 8192 - 2 starts inside the first region's window and runs past its end
+            val regions = longArrayOf(100L, 50_000L, 8_290L, 400_000L, 1_000_000L, bytes.size - 5L)
+            repeat(2) {
+                for (pos in regions) {
+                    ba.seek(pos)
+                    fr.seek(pos)
+                    assertEquals(ba.readInt32(), fr.readInt32(), "readInt32 at $pos")
+                    assertEquals(ba.readByte(), fr.readByte(), "readByte at ${pos + 4}")
+                    val back = maxOf(0L, pos - 3)
+                    ba.seek(back)
+                    fr.seek(back)
+                    assertEquals(ba.readUInt24(), fr.readUInt24(), "readUInt24 at $back")
+                }
+            }
+        }
+    }
+
+    @Test
     fun readByteThrowsAtEof() {
         val tmp = File.createTempFile("eof-", ".bin").apply {
             deleteOnExit()

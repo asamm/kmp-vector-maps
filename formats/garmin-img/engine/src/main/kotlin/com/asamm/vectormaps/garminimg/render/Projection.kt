@@ -40,26 +40,34 @@ class Projection(
      * Projects a single Garmin coordinate to screen pixels.
      */
     fun project(longitude: Int, latitude: Int): FloatPair {
+        return FloatPair(x = projectX(longitude), y = projectY(latitude))
+    }
+
+    /**
+     * Screen x of a Garmin longitude, without the [FloatPair] of [project].
+     */
+    fun projectX(longitude: Int): Float {
         val lonDeg = CoordUtils.toWGS84(longitude)
-        val latDeg = CoordUtils.toWGS84(latitude)
-        return if (mercator) {
-            val mx = mercatorX(lonDeg)
-            val my = mercatorY(latDeg)
-            val nx = (mx - minXMercator) / (maxXMercator - minXMercator)
-            val ny = (my - minYMercator) / (maxYMercator - minYMercator)
-            // Y is flipped because screen Y grows down while Mercator Y grows up.
-            FloatPair(
-                x = (nx * widthPx).toFloat(),
-                y = ((1.0 - ny) * heightPx).toFloat(),
-            )
+        val nx = if (mercator) {
+            (mercatorX(lonDeg) - minXMercator) / (maxXMercator - minXMercator)
         } else {
-            val nx = (lonDeg - minLonDeg) / (maxLonDeg - minLonDeg)
-            val ny = (latDeg - minLatDeg) / (maxLatDeg - minLatDeg)
-            FloatPair(
-                x = (nx * widthPx).toFloat(),
-                y = ((1.0 - ny) * heightPx).toFloat(),
-            )
+            (lonDeg - minLonDeg) / (maxLonDeg - minLonDeg)
         }
+        return (nx * widthPx).toFloat()
+    }
+
+    /**
+     * Screen y of a Garmin latitude, without the [FloatPair] of [project].
+     */
+    fun projectY(latitude: Int): Float {
+        val latDeg = CoordUtils.toWGS84(latitude)
+        val ny = if (mercator) {
+            (mercatorY(latDeg) - minYMercator) / (maxYMercator - minYMercator)
+        } else {
+            (latDeg - minLatDeg) / (maxLatDeg - minLatDeg)
+        }
+        // Y is flipped because screen Y grows down while Mercator Y grows up.
+        return ((1.0 - ny) * heightPx).toFloat()
     }
 
     /**
@@ -74,9 +82,8 @@ class Projection(
     ) {
         val n = longitudes.size
         for (i in 0 until n) {
-            val p = project(longitudes[i], latitudes[i])
-            xsOut[i] = p.x
-            ysOut[i] = p.y
+            xsOut[i] = projectX(longitudes[i])
+            ysOut[i] = projectY(latitudes[i])
         }
     }
 

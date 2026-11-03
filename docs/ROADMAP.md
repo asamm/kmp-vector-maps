@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5 done; M4.1, M4.2 and M4.3a done (PRs #27–#31); M4.3b (multi-map Garmin
-files) in review.** Next action: M4.3c, Garmin performance against a baseline; M6 follows M4.
+**Status: M0–M3 and M5 done; M4.1, M4.2, M4.3a and M4.3b done (PRs #27–#32); M4.3c (Garmin
+performance) in review.** Next action: M4.4, Garmin labels and TYP icons; M6 follows M4.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -205,8 +205,8 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 | M4.2b | Desktop and Android viewers render Garmin maps, the desktop with anti-aliasing, kind toggles and TRE level; `.img` assets in the viewer APK | ✅ PR #29, `6bf158b` |
 | M4.2c | Garmin golden through the driver; the pixel test off Windows with a bundled font; the M4.1 leftovers below | ✅ PR #30, `a661dac` |
 | M4.3a | Parallel renders: the map parsed once per dataset, a worker per core with its own readers and style cache | ✅ PR #31, `4901158` |
-| M4.3b | Multi-map IMGs and several `.img` per dataset; the nearest-finer level fallback | 🔧 |
-| M4.3c | The performance items below, measured against a benchmark baseline | ⬜ |
+| M4.3b | Multi-map IMGs and several `.img` per dataset; the nearest-finer level fallback | ✅ PR #32, `f861c39` |
+| M4.3c | Garmin benchmarks on the JVM and the A54, the performance items below measured against them | 🔧 |
 | M4.4 | Measured label bounds, TYP night colours, text scale; TYP point icons and extended-type (`≥ 0x100`) polygon styles, both falling back to the internal styles today | ⬜ |
 
 - M4.1 audit (2026-11-02, all 53 commits): no secrets or keys, `local.properties` never committed,
@@ -238,12 +238,10 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   (`dev/fixtures/fonts/dejavu/`, `AwtRenderTarget(font = …)`), compared with committed PNGs on
   every system, 0.2 % of pixels allowed to differ; the Windows-only Monaco PNG is gone. The
   benchmark and the comparison sheet run with `-Pbench.garmin=true`.
-- Left for M4.3c (performance): multi-byte reads through `ImgSubFileStream`, reusable render
-  targets, POI metadata skipped when rendering, one projection per polyline without a `FloatPair`
-  per vertex, each sub-division frozen once, one sub-division overlap helper (`ImgRenderer`,
-  `ImgFile`), label and coordinate buffers without boxing, AWT icons cached as on Android, fewer
-  allocations per label and pattern on Android; the sub-division trees of every map, which a dataset
-  parses and keeps when a file is added (open time and retained heap of a large gmapsupp).
+- Left for M4.3c (performance), all done there but four: reusable render targets (the host owns
+  each canvas: M8.1's host-supplied bitmap), label and coordinate buffers without boxing (no
+  measurable share), fewer Android allocations per label and pattern, and the sub-division trees,
+  still parsed and kept on add (smaller since M4.3c, PR #32 decision); see M4.3c as built.
 - M4.2a as built: the host passes a `GarminCanvasFactory` (`AwtRenderTarget`, `AndroidRenderTarget`)
   and reads the canvas from `GarminTileTarget`; one `.img` per dataset (`addMap` adds nothing) and
   one tile at a time (`maxParallelism` 1) until M4.3a; in-tile labels only, cut at the tile edge
@@ -252,7 +250,7 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   pick reads that exact span. Edge strokes and icons stop at sub-division and map edges, and a tile
   partly outside the map gets the opaque background (both engine behaviour, with the M6.1 labels).
   Review left for M4.3: one parsed TRE tree and TYP per dataset instead of one per renderer (done in
-  M4.3a); TYP patterns are converted per tile, as each tile gets a new canvas. PR #28 review:
+  M4.3a); TYP patterns are converted per tile, as each tile gets a new canvas (done in M4.3c). PR #28 review:
   materialised levels and per-level sub-divisions cached per parsed map (shared by its `reopen`
   copies since M4.3a); the map file checked against the time it was opened.
 - M4.2b as built: both viewers register the Garmin driver and start a map with its own first style
@@ -287,6 +285,41 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   its maps, also those of another product family (no MPS family matching); the fixture writer
   repeats the engine's `SyntheticImg` FAT layout, as the driver tests cannot see engine test
   classes.
+- M4.3c as built: `GarminBench` (JMH) and `GarminBenchmarks` (A54) measure the driver as M2.7 and
+  M2.7b do Mapsforge: 512 px tiles, the map's own TYP, open, read and render per zoom, a 4×4 block
+  at z16 on 1–8 threads; the open benchmark prints the heap a dataset keeps. Fixes, each checked
+  against the Garmin goldens: every sub-division frozen once (each was copied once per ancestor
+  for the index) and the index an array; multi-byte reads through `ImgSubFileStream`; a render
+  reads a POI's name only, not its address and city, which seek all over LBL and RGN; four
+  read-ahead windows per file reader, as POI records and their labels alternate; per-level
+  sub-division extents in primitive arrays, one overlap test for the level pick and the read; each
+  polyline projected once for both passes, without a `FloatPair` per vertex; TYP patterns and icons
+  converted once per host through `AwtBitmapCache` and `AndroidBitmapCache` instead of once per
+  tile, AWT icons included. Trees stay parsed on add (PR #32): a corrupt file is still rejected
+  there. A render now labels a POI whose address block does not read, which the full read drops.
+- M4.3c numbers, p50 ms, `main` and the branch run alternately twice on 2026-11-03 (JVM: Ryzen AI 9
+  HX PRO 375, JDK 24, a busy desktop, so ±20 %; A54: clocks locked, one run each). Monaco:
+  `otm-monaco.img` at the harbour (43.735, 7.423); Czech: `CzechRep_by_Dave_Luv.img` (191,807,488 B,
+  38 maps, own TYP) at Prague (50.0875, 14.4214); Europe: `osm_europe_central.img` (3,741,319,168 B,
+  746 maps); Monaco is the committed fixture, Czech and Europe are local files outside the repo. JVM
+  open is single-shot (3 warm-up and 5 measured opens, their median), A54 open repeated; read tile
+  also picks the level of maps outside the tile, which the render skips. JVM runs used the JDK 24
+  `java` on the built benchmark jar.
+
+| Benchmark | JVM Monaco | JVM Czech | A54 Monaco | A54 Czech |
+|---|---|---|---|---|
+| open | 8.8 → 2.6 | 87 → 34 | 17 → 3.7 | 321 → 50 |
+| read tile z12 / z15 / z17 | 2.4 / 3.9 / 14.6 → 1.4 / 2.3 / 3.0 | 26 / 28 / 40 → 6.2 / 6.4 / 7.8 | 9.3 / 11 / 30 → 7.4 / 9.1 / 11 | 115 / 113 / 187 → 45 / 39 / 45 |
+| render tile z12 / z15 / z17 | 18 / 15 / 20 → 18 / 11 / 5.8 | 64 / 43 / 54 → 48 / 21 / 22 | 33 / 30 / 42 → 29 / 27 / 20 | 181 / 141 / 210 → 106 / 62 / 65 |
+| 4×4 block at z16, 1 / 2 / 4 / 8 threads | 493 / 291 / 172 / 107 → 302 / 166 / 88 / 53 | 940 / 493 / 292 / 261 → 409 / 205 / 106 / 69 | 1007 / 546 / 310 / 286 → 560 / 309 / 180 / 191 | 3354 / 1798 / 1005 / 857 → 1123 / 617 / 358 / 313 |
+| allocated per Czech render at z12 | | 8.4 → 6.3 MB | | |
+
+- M4.3c Europe gmapsupp on the JVM: open 2,729 → 198 ms, heap kept by the dataset after open, before
+  the first render, 665 → 81 MB (4.2 M sub-division copies for 549 k records). Left: reads on the
+  A54 still take ~6× the JVM time (file reads through `RandomAccessFile`); the Android target
+  creates a shader, matrix, dash effect, path or rect per pattern, dash, curved label and icon draw;
+  label halos draw the text nine times. One damaged gmapsupp seen (`CZE_osm_based.img`, 9 of 66 TREs
+  zeroed in the original) is rejected whole, as recorded in M4.3b.
 - Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons →
   M4.4; label collisions at level-pick boundaries → M6.1; Locus prefs from the helpdesk
   (label colour, line width and colour overrides, area/line/point toggles, per-type visibility,
@@ -441,6 +474,8 @@ goldens and dumps byte-exact after them.*
   `TileBitmapTarget` over a host-supplied bitmap.
 - M8.2 style-menu ids, Locus-extended attributes and asset themes kept, so prefs migrate as-is;
   the Garmin style prefs from the helpdesk (M4.1 carry-over).
+- M8 must: one `AndroidBitmapCache` per opened Garmin map or style, dropped with it; a cache kept
+  for the app holds the bitmaps of every TYP opened.
 - M8 must: Mapsforge's Android SVG cache keys unsized symbols without the scale, so renderers at
   two device scales share them; key them by scale or clear the cache per scale.
 - M8 must, while Locus still renders through Mapsforge directly: its `DISPLAY_MODEL` exists before
