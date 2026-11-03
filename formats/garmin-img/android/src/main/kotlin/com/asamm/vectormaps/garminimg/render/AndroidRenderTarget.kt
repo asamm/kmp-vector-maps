@@ -49,12 +49,14 @@ import com.asamm.vectormaps.garminimg.style.Color as GarminColor
  *   point-icon dimensions, font sizes, stroke widths). See [RenderTarget.renderScale]. Defaults
  *   to 1.0 — the host (Locus) is expected to handle device-density scaling externally by sizing
  *   the output bitmap appropriately.
+ * @param bitmapCache converted TYP patterns and icons; pass one to all targets of a host
  */
 class AndroidRenderTarget(
     override val widthPx: Int,
     override val heightPx: Int,
     private val antiAliased: Boolean = true,
     override val renderScale: Float = 1.0f,
+    private val bitmapCache: AndroidBitmapCache = AndroidBitmapCache(),
 ) : RenderTarget {
 
     /**
@@ -106,7 +108,7 @@ class AndroidRenderTarget(
         }
         val pattern = style.pattern
         if (pattern != null) {
-            val tile = patternCache.getOrPut(pattern) { pattern.toAndroidBitmap() }
+            val tile = bitmapCache.bitmap(pattern) { it.toAndroidBitmap() }
             resetPaintForFill()
             val shader = BitmapShader(tile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
             val matrix = Matrix()
@@ -131,15 +133,6 @@ class AndroidRenderTarget(
             canvas.drawPath(path, paint)
         }
     }
-
-    /**
-     * Pattern → [AndroidBitmap] cache. TYP patterns are interned by
-     * the parser, so identity-keying (System.identityHashCode +
-     * `===` equality via `IdentityHashMap`) drops the per-polygon
-     * lookup cost from O(rgba.size) — `Bitmap`'s content-based
-     * equals/hashCode walks the byte array — to O(1).
-     */
-    private val patternCache: MutableMap<Bitmap, AndroidBitmap> = java.util.IdentityHashMap()
 
     override fun drawPolylineBorder(xs: FloatArray, ys: FloatArray, style: Style.LineStyle) {
         if (xs.size < 2) {
@@ -293,7 +286,7 @@ class AndroidRenderTarget(
         pattern: Bitmap,
         scale: Float = renderScale,
     ) {
-        val tile = patternCache.getOrPut(pattern) { pattern.toAndroidBitmap() }
+        val tile = bitmapCache.bitmap(pattern) { it.toAndroidBitmap() }
         val tileH = tile.height * scale
         var carriedOffset = 0f
         val shader = BitmapShader(tile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
@@ -454,7 +447,7 @@ class AndroidRenderTarget(
     }
 
     override fun drawBitmap(x: Float, y: Float, bitmap: Bitmap) {
-        val img = patternCache.getOrPut(bitmap) { bitmap.toAndroidBitmap() }
+        val img = bitmapCache.bitmap(bitmap) { it.toAndroidBitmap() }
         val w = (bitmap.width * renderScale).toInt().coerceAtLeast(bitmap.width)
         val h = (bitmap.height * renderScale).toInt().coerceAtLeast(bitmap.height)
         val src = Rect(0, 0, bitmap.width, bitmap.height)

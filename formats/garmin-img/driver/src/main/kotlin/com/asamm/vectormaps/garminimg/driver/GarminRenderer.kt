@@ -190,6 +190,18 @@ class GarminRenderer internal constructor(
             reader().readBlock(buffer)
         }
 
+        override fun readUInt16(): Int {
+            return reader().readUInt16()
+        }
+
+        override fun readUInt24(): Int {
+            return reader().readUInt24()
+        }
+
+        override fun readInt32(): Int {
+            return reader().readInt32()
+        }
+
         override fun close() {
             reader?.close()
         }
@@ -235,8 +247,9 @@ fun interface GarminCanvasFactory {
 /**
  * Receives the canvas the renderer created through its [GarminCanvasFactory]. After
  * [RenderResult.DRAWN] the caller owns [canvas] and reads its pixels, such as
- * `AwtRenderTarget.image`; the canvas holds nothing else, so dropping it releases it (recycle an
- * `AndroidRenderTarget.bitmap` to free it early).
+ * `AwtRenderTarget.image`; the canvas holds nothing else of its own, so dropping it releases it
+ * (recycle an `AndroidRenderTarget.bitmap` to free it early), while converted TYP bitmaps stay in
+ * the host's bitmap cache.
  */
 class GarminTileTarget(sizePx: Int) : CoreRenderTarget {
 

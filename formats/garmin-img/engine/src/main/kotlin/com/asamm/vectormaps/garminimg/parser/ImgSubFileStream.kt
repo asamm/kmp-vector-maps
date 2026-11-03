@@ -103,6 +103,38 @@ class ImgSubFileStream(
         logicalPos += buffer.size
     }
 
+    // the container's own multi-byte reads, one bounds check and seek per value instead of per byte
+
+    override fun readUInt16(): Int {
+        ensureAvailable(2)
+        val v = container.readUInt16()
+        logicalPos += 2
+        return v
+    }
+
+    override fun readUInt24(): Int {
+        ensureAvailable(3)
+        val v = container.readUInt24()
+        logicalPos += 3
+        return v
+    }
+
+    override fun readInt32(): Int {
+        ensureAvailable(4)
+        val v = container.readInt32()
+        logicalPos += 4
+        return v
+    }
+
+    private fun ensureAvailable(n: Int) {
+        if (logicalPos + n > fileSize) {
+            throw IndexOutOfBoundsException(
+                "read of $n bytes past sub-file EOF: logicalPos=$logicalPos, size=$fileSize",
+            )
+        }
+        ensureContainerPositioned()
+    }
+
     /**
      * Re-seeks the underlying container if its position is anywhere other than
      * where we expect. The check is cheap; the seek is no-op when we're already

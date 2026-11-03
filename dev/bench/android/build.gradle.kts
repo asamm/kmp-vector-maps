@@ -2,7 +2,8 @@
  * Android microbenchmarks of the renderers, run on a device as instrumented tests:
  * `./gradlew :dev:bench:android:connectedReleaseAndroidTest`. Another map on the device:
  * `-Pandroid.testInstrumentationRunnerArguments.bench.mapFile=<device path>`, a centre:
- * `...bench.center=<lat>,<lon>`; a map in shared storage needs
+ * `...bench.center=<lat>,<lon>`; for Garmin `...bench.garmin.mapFile` and `...bench.garmin.center`
+ * (`GarminBenchmarks`); one class: `...class=<fully qualified name>`; a map in shared storage needs
  * `adb shell appops set com.asamm.vectormaps.bench.android.test MANAGE_EXTERNAL_STORAGE allow`.
  * Results in build/outputs/connected_android_test_additional_output. The M5 soak, skipped
  * without `soak.minutes`: see `SoakTest`; native and Java heap per Paint, skipped without
@@ -36,10 +37,10 @@ android {
     }
 
     androidResources {
-        noCompress += "map"
-        // only the Mapsforge map is benchmarked; the Garmin maps and the golden font folder stay out.
-        // A set list replaces aapt's default ignores, so they are repeated first
-        ignoreAssetsPatterns += listOf("!.svn", "!.git", "!.ds_store", "!*.scc", ".*", "<dir>_*", "!CVS", "!thumbs.db", "!picasa.ini", "!*~", "!*.img", "<dir>fonts")
+        noCompress += listOf("map", "img")
+        // the golden font folder stays out. A set list replaces aapt's default ignores, so they are
+        // repeated first
+        ignoreAssetsPatterns += listOf("!.svn", "!.git", "!.ds_store", "!*.scc", ".*", "<dir>_*", "!CVS", "!thumbs.db", "!picasa.ini", "!*~", "<dir>fonts")
     }
 }
 
@@ -63,6 +64,8 @@ tasks.named("assemble") {
 dependencies {
     androidTestImplementation(project(":formats:mapsforge:android"))
     androidTestImplementation(project(":formats:mapsforge:driver"))
+    androidTestImplementation(project(":formats:garmin-img:android"))
+    androidTestImplementation(project(":formats:garmin-img:driver"))
     androidTestImplementation(project(":viewer:common"))
     androidTestImplementation(libs.androidxBenchmarkJunit4)
     androidTestImplementation(libs.androidxTestExtJunit)

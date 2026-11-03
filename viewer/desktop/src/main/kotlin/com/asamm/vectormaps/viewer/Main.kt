@@ -18,6 +18,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.garminimg.driver.GarminDriver
+import com.asamm.vectormaps.garminimg.render.AwtBitmapCache
 import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
@@ -32,8 +33,15 @@ import java.io.File
 fun main() {
     val sessionFile = Session.userFile
     val session = Session.read(sessionFile)
+    val garminBitmaps = AwtBitmapCache()
     val garmin = GarminDriver { size, antiAliased, scale ->
-        AwtRenderTarget(widthPx = size, heightPx = size, antiAliased = antiAliased, renderScale = scale)
+        AwtRenderTarget(
+            widthPx = size,
+            heightPx = size,
+            antiAliased = antiAliased,
+            renderScale = scale,
+            bitmapCache = garminBitmaps,
+        )
     }
     val formats = MapFormats(listOf(MapsforgeDriver(AwtGraphicFactory.INSTANCE), garmin))
     val state = ViewerState(

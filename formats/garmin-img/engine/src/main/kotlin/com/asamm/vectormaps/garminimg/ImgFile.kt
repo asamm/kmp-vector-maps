@@ -76,7 +76,7 @@ class ImgFile internal constructor(
      */
     private val ownedReaders: List<ImgRandomAccessReader> = emptyList(),
     // shared with the reopened copies, so the tree is indexed once per parsed map
-    private val levelIndex: LevelIndex = LevelIndex(tre.tree),
+    private val levelIndex: LevelIndex = LevelIndex(tre.tree, tre.levels),
 ) : AutoCloseable {
 
     /**
@@ -198,9 +198,11 @@ class ImgFile internal constructor(
     }
 
     /**
-     * Walks just the sub-divisions whose centre lies within the given Garmin
+     * Walks just the sub-divisions whose extent overlaps the given Garmin
      * fixed-point bounding box. Useful for tile rendering where you only want
      * features near the visible viewport. Inclusive on all four bounds.
+     *
+     * @param poiDetails false reads only a POI's name, without the address and city lookups.
      */
     fun readMapInBounds(
         minLong: Int,
@@ -209,17 +211,18 @@ class ImgFile internal constructor(
         maxLat: Int,
         objectKindFilter: Int = ObjectKind.ALL,
         levelFilter: Int? = null,
+        poiDetails: Boolean = true,
     ): Sequence<MapObject> {
         return sequence {
             val candidates = if (levelFilter == null) {
-                tre.tree.all().filter { subDivisionHasAnyData(it) }
+                tre.tree.all().filter { sd ->
+                    subDivisionHasAnyData(sd)
+                        && levelIndex.intersects(sd, minLong, maxLong, minLat, maxLat)
+                }
             } else {
-                subDivisionsWithData(levelFilter).asSequence()
+                levelIndex.withData(levelFilter, minLong, maxLong, minLat, maxLat).asSequence()
             }
             for (subDivision in candidates) {
-                if (!subDivisionIntersects(subDivision, minLong, maxLong, minLat, maxLat)) {
-                    continue
-                }
                 yieldAll(
                     RgnSubFile.parseSubDivision(
                         reader = rgn.reader,
@@ -232,6 +235,7 @@ class ImgFile internal constructor(
                         netHeader = net?.header,
                         cityResolver = cityResolver,
                         objectKindFilter = objectKindFilter,
+                        poiDetails = poiDetails,
                     ),
                 )
             }
@@ -245,44 +249,10 @@ class ImgFile internal constructor(
         get() = levelIndex.materialisedLevels
 
     /**
-     * Sub-divisions of `level` with drawable data, in tree order.
+     * True when `level` has a sub-division with drawable data overlapping the bounds.
      */
-    internal fun subDivisionsWithData(level: Int): List<SubDivision> {
-        return levelIndex.withData(level)
-    }
-
-    private fun subDivisionIntersects(
-        sd: SubDivision,
-        minLong: Int,
-        maxLong: Int,
-        minLat: Int,
-        maxLat: Int,
-    ): Boolean {
-        // Convert the sub-division's level-local half-extents to Garmin
-        // coords (a delta unit at level L = `1 shl (24 - bitsPerCoord(L))`
-        // Garmin coord units). A pure centre-only check skips sub-divisions
-        // whose centre lies just outside the viewport but whose extents
-        // overlap into it — that produced rectangular "missing" gaps in
-        // the rendered map after pan/zoom. Add a small inflation so
-        // border-crossing labels (which anchor at the polyline mid-point
-        // sometimes outside the sub-division proper) aren't accidentally
-        // clipped either.
-        val bits = tre.levels.bitsPerCoordOf(sd.level) ?: return true
-        val scale = 1 shl (24 - bits).coerceAtLeast(0)
-        val halfW = sd.halfWidth.toLong() * scale
-        val halfH = sd.halfHeight.toLong() * scale
-        val sdMinLon = sd.longitudeCenter - halfW
-        val sdMaxLon = sd.longitudeCenter + halfW
-        val sdMinLat = sd.latitudeCenter - halfH
-        val sdMaxLat = sd.latitudeCenter + halfH
-        // Standard rectangle overlap: not(separating).
-        if (sdMaxLon < minLong || sdMinLon > maxLong) {
-            return false
-        }
-        if (sdMaxLat < minLat || sdMinLat > maxLat) {
-            return false
-        }
-        return true
+    internal fun hasDataInBounds(level: Int, minLong: Int, maxLong: Int, minLat: Int, maxLat: Int): Boolean {
+        return levelIndex.withData(level, minLong, maxLong, minLat, maxLat).isNotEmpty()
     }
 
     /**
@@ -524,20 +494,114 @@ class ImgFile internal constructor(
  * Indexes over a sub-division tree, built on first use and shared by an [ImgFile] and its
  * [ImgFile.reopen] copies.
  */
-internal class LevelIndex(private val tree: SubDivisionTree) {
+internal class LevelIndex(
+    private val tree: SubDivisionTree,
+    private val levels: TreLevels,
+) {
 
     val materialisedLevels: Set<Int> by lazy {
         tree.all().mapTo(HashSet()) { it.level }
     }
 
     // tile renders query one level each; walking the whole tree per tile is the cost (PR #28)
-    private val withDataByLevel: Map<Int, List<SubDivision>> by lazy {
-        tree.all().filter { subDivisionHasAnyData(it) }.groupBy { it.level }
+    private val withDataByLevel: Map<Int, LevelBoxes> by lazy {
+        tree.all()
+            .filter { subDivisionHasAnyData(it) }
+            .groupBy { it.level }
+            .mapValues { (level, subDivisions) -> LevelBoxes(subDivisions, levels.bitsPerCoordOf(level)) }
     }
 
-    fun withData(level: Int): List<SubDivision> {
-        return withDataByLevel[level] ?: emptyList()
+    /**
+     * Sub-divisions of `level` with drawable data whose extent overlaps the bounds, in tree order.
+     */
+    fun withData(level: Int, minLong: Int, maxLong: Int, minLat: Int, maxLat: Int): List<SubDivision> {
+        val boxes = withDataByLevel[level] ?: return emptyList()
+        return boxes.overlapping(minLong, maxLong, minLat, maxLat)
     }
+
+    fun intersects(sd: SubDivision, minLong: Int, maxLong: Int, minLat: Int, maxLat: Int): Boolean {
+        val bits = levels.bitsPerCoordOf(sd.level) ?: return true
+        val scale = scaleOf(bits)
+        return overlaps(
+            minLon = sd.longitudeCenter - sd.halfWidth * scale,
+            maxLon = sd.longitudeCenter + sd.halfWidth * scale,
+            minLat = sd.latitudeCenter - sd.halfHeight * scale,
+            maxLat = sd.latitudeCenter + sd.halfHeight * scale,
+            minLong = minLong,
+            maxLong = maxLong,
+            viewMinLat = minLat,
+            viewMaxLat = maxLat,
+        )
+    }
+}
+
+/**
+ * Extents of one level's sub-divisions in Garmin units, in primitive arrays a tile scans without
+ * touching the objects. The half sizes count in units of the level, `1 shl (24 - bitsPerCoord)`
+ * Garmin units each; a level without a record overlaps everything.
+ */
+private class LevelBoxes(
+    private val subDivisions: List<SubDivision>,
+    bitsPerCoord: Int?,
+) {
+
+    // min lon, max lon, min lat, max lat per sub-division
+    private val boxes: LongArray? = bitsPerCoord?.let { bits ->
+        val scale = scaleOf(bits)
+        val array = LongArray(subDivisions.size * 4)
+        for ((i, sd) in subDivisions.withIndex()) {
+            val halfW = sd.halfWidth * scale
+            val halfH = sd.halfHeight * scale
+            array[i * 4] = sd.longitudeCenter - halfW
+            array[i * 4 + 1] = sd.longitudeCenter + halfW
+            array[i * 4 + 2] = sd.latitudeCenter - halfH
+            array[i * 4 + 3] = sd.latitudeCenter + halfH
+        }
+        array
+    }
+
+    fun overlapping(minLong: Int, maxLong: Int, minLat: Int, maxLat: Int): List<SubDivision> {
+        val boxes = boxes ?: return subDivisions
+        val result = ArrayList<SubDivision>()
+        for (i in subDivisions.indices) {
+            if (overlaps(
+                    minLon = boxes[i * 4],
+                    maxLon = boxes[i * 4 + 1],
+                    minLat = boxes[i * 4 + 2],
+                    maxLat = boxes[i * 4 + 3],
+                    minLong = minLong,
+                    maxLong = maxLong,
+                    viewMinLat = minLat,
+                    viewMaxLat = maxLat,
+                )
+            ) {
+                result.add(subDivisions[i])
+            }
+        }
+        return result
+    }
+}
+
+// Garmin units per level unit
+private fun scaleOf(bitsPerCoord: Int): Long {
+    return 1L shl (24 - bitsPerCoord).coerceAtLeast(0)
+}
+
+// rectangle overlap, edges included
+private fun overlaps(
+    minLon: Long,
+    maxLon: Long,
+    minLat: Long,
+    maxLat: Long,
+    minLong: Int,
+    maxLong: Int,
+    viewMinLat: Int,
+    viewMaxLat: Int,
+): Boolean {
+    return maxLon >= minLong
+        && minLon <= maxLong
+        && maxLat >= viewMinLat
+        && minLat <= viewMaxLat
 }
 
 /**

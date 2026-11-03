@@ -45,6 +45,7 @@ import java.io.OutputStream
  *   mid-density Android — and is configurable per-target so tests can stay byte-stable.
  * @param font typeface of labels at any size; a bundled font keeps renders alike across systems,
  *   whose sans-serif fonts differ, but has no fallback for glyphs it lacks
+ * @param bitmapCache converted TYP patterns and icons; pass one to all targets of a host
  */
 class AwtRenderTarget(
     override val widthPx: Int,
@@ -52,6 +53,7 @@ class AwtRenderTarget(
     private val antiAliased: Boolean = true,
     override val renderScale: Float = 1.5f,
     private val font: Font = Font(Font.SANS_SERIF, Font.PLAIN, 1),
+    private val bitmapCache: AwtBitmapCache = AwtBitmapCache(),
 ) : RenderTarget {
 
     /**
@@ -106,7 +108,7 @@ class AwtRenderTarget(
             // [renderScale] so handheld-DPI bitmaps don't read at ant-size
             // on desktop. Anchor the tile at (0,0) in the target so
             // adjacent polygons of the same type share a tile grid.
-            val tile = patternCache.getOrPut(pattern) { pattern.toBufferedImage() }
+            val tile = bitmapCache.image(pattern) { it.toBufferedImage() }
             val tileW = tile.width * renderScale
             val tileH = tile.height * renderScale
             val savedPaint = g.paint
@@ -134,14 +136,6 @@ class AwtRenderTarget(
             g.draw(path)
         }
     }
-
-    /**
-     * Pattern → BufferedImage cache. TYP patterns are interned by parser
-     * (one [Bitmap] per `(type, subType)`), so identity-keying drops
-     * the per-polygon lookup cost from O(rgba.size) — `Bitmap`'s
-     * content-based equals/hashCode walks the byte array — to O(1).
-     */
-    private val patternCache: MutableMap<Bitmap, BufferedImage> = java.util.IdentityHashMap()
 
     /** Counters for quick diagnostic of label placement effectiveness. */
     var curvedPlacements: Int = 0
@@ -347,7 +341,7 @@ class AwtRenderTarget(
         pattern: Bitmap,
         scale: Float = renderScale,
     ) {
-        val tile = patternCache.getOrPut(pattern) { pattern.toBufferedImage() }
+        val tile = bitmapCache.image(pattern) { it.toBufferedImage() }
         // TYP line bitmaps were authored at handheld DPI (~3×). At 1:1
         // they read as ant-thin lines on a desktop display. Scaling the
         // *paint rectangle* up makes the TexturePaint stretch the tile
@@ -565,7 +559,7 @@ class AwtRenderTarget(
     private data class PathPoint(val x: Double, val y: Double, val angle: Double)
 
     override fun drawBitmap(x: Float, y: Float, bitmap: Bitmap) {
-        val img = bitmap.toBufferedImage()
+        val img = bitmapCache.image(bitmap) { it.toBufferedImage() }
         val w = (bitmap.width * renderScale).toInt().coerceAtLeast(bitmap.width)
         val h = (bitmap.height * renderScale).toInt().coerceAtLeast(bitmap.height)
         g.drawImage(

@@ -142,8 +142,7 @@ object SubDivisionParser {
         state.assignEnds(rgnInfo)
 
         val roots = rootBuilders.map { it.freeze() }
-        val byIndex = state.builders.values.associate { it.index to it.freeze() }
-        return SubDivisionTree(roots = roots, byIndex = byIndex)
+        return SubDivisionTree(roots = roots, byIndex = IndexedSubDivisions(state.builders.values.map { it.freeze() }))
     }
 
     private class ParseState(
@@ -463,7 +462,11 @@ private class SubDivisionBuilder(
     var extendedPoiOffset: Long = 0L
     var extendedPoiEnd: Long = 0L
 
+    // the tree and `byIndex` share one instance per record; freezing per reference copied subtrees
+    private var frozen: SubDivision? = null
+
     fun freeze(): SubDivision {
+        frozen?.let { return it }
         return SubDivision(
             index = index,
             level = level,
@@ -475,14 +478,45 @@ private class SubDivisionBuilder(
             halfWidth = halfWidth,
             halfHeight = halfHeight,
             indexNextLevel = indexNextLevel,
-            children = children.map { it.freeze() },
+            children = if (children.isEmpty()) emptyList() else children.map { it.freeze() },
             extendedPolygonOffset = extendedPolygonOffset,
             extendedPolygonEnd = extendedPolygonEnd,
             extendedPolylineOffset = extendedPolylineOffset,
             extendedPolylineEnd = extendedPolylineEnd,
             extendedPoiOffset = extendedPoiOffset,
             extendedPoiEnd = extendedPoiEnd,
-        )
+        ).also { frozen = it }
+    }
+}
+
+/**
+ * Sub-divisions by their record index, which runs from 1 without gaps in a sound TRE; an array
+ * instead of a boxed hash map, as a gmapsupp holds hundreds of thousands.
+ */
+private class IndexedSubDivisions(subDivisions: List<SubDivision>) : AbstractMap<Int, SubDivision>() {
+
+    private val byIndex = arrayOfNulls<SubDivision>((subDivisions.maxOfOrNull { it.index } ?: 0) + 1)
+        .also { array ->
+            for (subDivision in subDivisions) {
+                array[subDivision.index] = subDivision
+            }
+        }
+
+    override val size: Int = subDivisions.size
+
+    override val entries: Set<Map.Entry<Int, SubDivision>>
+        get() = byIndex.withIndex()
+            .mapNotNull { (index, subDivision) ->
+                subDivision?.let { java.util.AbstractMap.SimpleImmutableEntry(index, it) }
+            }
+            .toSet()
+
+    override fun get(key: Int): SubDivision? {
+        return byIndex.getOrNull(key)
+    }
+
+    override fun containsKey(key: Int): Boolean {
+        return get(key) != null
     }
 }
 

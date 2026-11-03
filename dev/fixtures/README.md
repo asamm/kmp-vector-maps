@@ -6,7 +6,7 @@ engine tests, the benchmarks and both viewers.
 | Path | Content | Source | Licence |
 |---|---|---|---|
 | `maps/monaco.osm.map` | LoMaps vector map of Monaco, 2.3 MB | Locus Map download, copied 2026-10-22 from the A54 | see attribution below, [ODbL](https://opendatacommons.org/licenses/odbl/) |
-| `maps/otm-monaco/` | OpenTopoMap Garmin IMG of Monaco, 8.5 MB, with contours and TYP; Garmin tests | [garmin.opentopomap.org](https://garmin.opentopomap.org/), downloaded 2026-05-04, see its `NOTES.md` | ODbL data, CC-BY-SA 4.0 style, see its `LICENCE` |
+| `maps/otm-monaco/` | OpenTopoMap Garmin IMG of Monaco, 8.5 MB, with contours and TYP; Garmin tests and benchmarks | [garmin.opentopomap.org](https://garmin.opentopomap.org/), downloaded 2026-05-04, see its `NOTES.md` | ODbL data, CC-BY-SA 4.0 style, see its `LICENCE` |
 | `maps/mkgmap-monaco/` | Garmin IMG of Monaco built with mkgmap r4924, 152 KB; fast Garmin parser tests | Geofabrik extract, recipe in its `NOTES.md` | ODbL, see its `LICENCE` |
 | `fonts/dejavu/` | DejaVu Sans 2.37 (`DejaVuSans.ttf`, 757 KB, SHA-256 `7da195a7…ed848954`), the label font of the Garmin golden tiles | [dejavu-fonts](https://github.com/dejavu-fonts/dejavu-fonts) release `version_2_37`, `ttf/`, downloaded 2026-11-02 | Bitstream Vera and Arev licences, DejaVu changes public domain, see its `LICENCE` |
 | `themes/lomaps/` | LoMaps theme 1.8.0, day, night and POI themes with symbols | [asamm/lomaps-mapsforge](https://github.com/asamm/lomaps-mapsforge) tag `1.8.0`, `theme/` | Apache-2.0, see `themes/lomaps/LICENSE`; the release has no NOTICE file |
@@ -27,4 +27,4 @@ carry "Map style © OpenTopoMap (CC-BY-SA)".
 - Large maps stay outside the repo: the desktop viewer reads them from `local.properties` when no
   saved session map exists, the Android viewer from `--es map` / `--es theme` intent extras
   (`am start -S`), the benchmarks from `-Pbench.mapFile` (JVM) or the `bench.mapFile`
-  instrumentation argument.
+  instrumentation argument, Garmin ones from `bench.garmin.mapFile`.
