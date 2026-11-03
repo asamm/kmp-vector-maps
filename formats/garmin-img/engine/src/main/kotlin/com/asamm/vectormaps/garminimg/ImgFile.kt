@@ -389,7 +389,8 @@ class ImgFile internal constructor(
          * closes them all.
          *
          * @param onUnreadable receives each map that does not parse, which is then skipped; null
-         *   throws on the first. Throws when no map is left.
+         *   throws on the first. Throws when no map is left. A read error mid-parse counts as such
+         *   a map, as the reader's own end-of-data checks throw the same `IOException`.
          */
         fun openAll(
             onUnreadable: ((mapName: String, cause: Exception) -> Unit)? = null,

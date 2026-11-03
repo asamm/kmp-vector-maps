@@ -411,7 +411,8 @@ class GarminDriverTest {
                 val otmOnly = driver.open(listOf(otm)).use { pixels(render(it, GarminStyle.BuiltIn, harbour)) }
                 assertContentEquals(otmOnly, pixels(render(dataset, GarminStyle.BuiltIn, harbour)))
             }
-            assertTrue(driver.probe(combined).bounds.minLat < 43.735)
+            // the probe skips the damaged map too
+            assertEquals(driver.probe(otm).bounds, driver.probe(combined).bounds)
         }
     }
 

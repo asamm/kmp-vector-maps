@@ -318,8 +318,9 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   the first render, 665 → 81 MB (4.2 M sub-division copies for 549 k records). Left: reads on the
   A54 still take ~6× the JVM time (file reads through `RandomAccessFile`); the Android target
   creates a shader, matrix, dash effect, path or rect per pattern, dash, curved label and icon draw;
-  label halos draw the text nine times. One damaged gmapsupp seen (`CZE_osm_based.img`, 9 of 66 TREs
-  zeroed in the original) is rejected whole, as recorded in M4.3b (opens since D35).
+  label halos draw the text nine times. One damaged gmapsupp seen (`CZE_osm_based.img`, 66 maps, 11
+  damaged in the original: 9 TREs and 1 RGN header zeroed, 1 header with a garbage lock flag) is
+  rejected whole, as recorded in M4.3b (opens since D35).
 - M4.4 as built: label widths come from the target's fonts (`RenderTarget.measureText`, an estimate
   by default), label sizes take the render config's text scale and the TYP font style (small 0.85,
   large 1.2, our sizes as mkgmap and Garmin publish none; no label hides it); a point label sits
@@ -339,8 +340,11 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
   (background), which cover each map, as sea, so a map without a TYP (`swusatopo.img`) was blue
   under its streets; they now draw nothing and 0x4C (intermittent water) draws as water.
 - After M4 (2026-11-03): a gmapsupp with damaged maps opens with the readable ones (D35);
-  `CZE_osm_based.img` opens with 55 of its 66 maps. Hosts learn why a file has no driver from
-  `MapFormats.unreadableReason`; the desktop viewer shows that and the skipped maps behind a "?".
+  `CZE_osm_based.img` opens with 55 of its 66 maps; probe bounds cover each map whose TRE header
+  reads, so they may include a map the open skips further in. The built-in river areas (0x45–0x49)
+  draw as water, and a TYP river record without an outline colour gets the water outline, as lakes
+  do. Hosts learn why a file has no driver from `MapFormats.unreadableReason`; the desktop viewer
+  shows that and the skipped maps behind a "?".
 - Carried over from the kmp-garmin-img roadmap: TYP point icons and extended-type polygons → M4.4
   (already applied, see M4.4 as built); label collisions at level-pick boundaries → M6.1; Locus
   prefs from the helpdesk (label colour, line width and colour overrides, area/line/point toggles,
@@ -561,7 +565,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D32 | Long term: our own OpenGL renderer in locus-core; this library moves from bitmap to bucket delivery (tessellated geometry, symbols, label data) and keeps its readers, style engines and label model; no VTM fork, VTM is a reference only. M6–M8 interfaces keep decode, style and draw separable so bucket output can join the bitmap one |
 | D33 | Garmin IMG is LGPL-2.1-or-later, as upstream JGarminImgParser (Q13), imported with history into this public repo after an audit (Q12); the kmp-garmin-img headers become LGPL-2.1-or-later. Locus keeps R8 on the Garmin code, a known §6 gap the owner accepts; if raised, the package is excluded from R8 |
 | D34 | No host night mode: a night look is a style, as LoMaps' night themes are; a Garmin TYP's own night colours become a night style next to its day one, listed only when the TYP has night data, never day colours inverted (M4.4). |
-| D35 | A Garmin file opens with the maps that parse; the others are skipped and listed (`GarminDataset.unreadableMaps`), as gmapsupps merged from many tiles carry damaged ones; a file without a readable map, or with overlapping sub-files, is still rejected. Replaces the M4.3b "one unreadable map rejects its whole file". |
+| D35 | A Garmin file opens with the maps that parse; the others are skipped and listed (`GarminDataset.unreadableMaps`; a read error mid-parse counts as damage, reopening retries), as gmapsupps merged from many tiles carry damaged ones; a file without a readable map, or with overlapping sub-files, is still rejected. Replaces the M4.3b "one unreadable map rejects its whole file". |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.

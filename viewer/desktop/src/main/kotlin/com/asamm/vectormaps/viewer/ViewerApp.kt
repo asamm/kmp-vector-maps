@@ -8,6 +8,7 @@ import androidx.compose.animation.core.AnimationState
 import androidx.compose.animation.core.animateDecay
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -358,7 +360,7 @@ private fun StatusLine(state: ViewerState) {
                 state.skippedMaps?.let { skipped ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(skipped, style = text, color = MaterialTheme.colorScheme.primary)
-                        state.skippedMapsDetails?.let { DetailsButton(title = skipped, details = it) }
+                        state.skippedMapsDetails?.let { DetailsButton(details = it) }
                     }
                 }
             }
@@ -366,7 +368,7 @@ private fun StatusLine(state: ViewerState) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(problem, style = text, color = MaterialTheme.colorScheme.error)
                     // the error itself when it has no more to say, as a long one is cut in the status line
-                    DetailsButton(title = problem, details = state.errorDetails.takeIf { state.error != null } ?: problem)
+                    DetailsButton(details = state.errorDetails.takeIf { state.error != null } ?: problem)
                 }
             }
         }
@@ -374,14 +376,18 @@ private fun StatusLine(state: ViewerState) {
 }
 
 /**
- * A "?" that opens the full, selectable text behind a status-line message.
+ * A "?" that opens the full, selectable text behind a status-line message; as small as the text, so
+ * the status line keeps its height.
  */
 @Composable
-private fun DetailsButton(title: String, details: String) {
+private fun DetailsButton(details: String) {
     var open by remember { mutableStateOf(false) }
-    TextButton(onClick = { open = true }) {
-        Text("?")
-    }
+    Text(
+        text = "?",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.clickable { open = true }.padding(horizontal = 8.dp),
+    )
     if (open) {
         AlertDialog(
             onDismissRequest = { open = false },
@@ -390,10 +396,15 @@ private fun DetailsButton(title: String, details: String) {
                     Text("Close")
                 }
             },
-            title = { Text(title, style = MaterialTheme.typography.titleSmall) },
+            title = { Text("Details", style = MaterialTheme.typography.titleSmall) },
             text = {
                 SelectionContainer {
-                    Text(details, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+                    Text(
+                        text = details,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        // a long list of skipped maps or causes
+                        modifier = Modifier.verticalScroll(rememberScrollState()),
+                    )
                 }
             },
         )

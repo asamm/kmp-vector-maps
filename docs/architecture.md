@@ -33,7 +33,7 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 | Type | Role |
 |---|---|
 | `MapFormatDriver` | map and style extensions; `probe(file)` → `MapInfo` or null; `open(files)` → `MapDataset`; `loadStyle(file)` → `MapStyle` |
-| `MapFormats` | registry; probes the drivers claiming the file's extension, first success wins |
+| `MapFormats` | registry; probes the drivers claiming the file's extension, first success wins; `unreadableReason(file)` gives each driver's reason when none reads it |
 | `MapDataset` | one or more files: Mapsforge multi-map, Garmin `.img` files with one or many maps each; `addMap` at runtime, then hosts recreate renderers; `styles` it brings itself (embedded TYP, built-in); creates renderers |
 | `MapStyle` | style source and menu: Mapsforge theme, Garmin TYP, MVT style; compiled per renderer |
 | `StyleMenu` | layers, overlays, titles; **keeps Mapsforge ids** for Locus prefs; `StyleSelection` = layer + overlays |

@@ -231,7 +231,9 @@ class ViewerState(
         val unreadable = (opened as? GarminDataset)?.unreadableMaps.orEmpty()
         // the previous map's notice does not carry over
         notice = null
-        skippedMaps = unreadable.takeIf { it.isNotEmpty() }?.let { "${it.size} maps of ${file.name} unreadable, skipped" }
+        skippedMaps = unreadable.takeIf { it.isNotEmpty() }?.let {
+            "${if (it.size == 1) "1 map" else "${it.size} maps"} of ${file.name} unreadable, skipped"
+        }
         skippedMapsDetails = unreadable.takeIf { it.isNotEmpty() }?.joinToString("\n") { "map ${it.mapName}: ${it.reason}" }
         garminLevels = (opened as? GarminDataset)?.levels.orEmpty()
         garmin = if (sameMap) {

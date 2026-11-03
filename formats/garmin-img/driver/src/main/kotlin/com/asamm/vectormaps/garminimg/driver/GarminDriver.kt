@@ -35,7 +35,9 @@ class GarminDriver(
     override val styleExtensions: Set<String> = setOf("typ")
 
     /**
-     * Reads the IMG directory (a map with TRE, RGN and LBL required) and every map's TRE header.
+     * Reads the IMG directory (a map with TRE, RGN and LBL required) and every map's TRE header;
+     * the bounds cover each map whose header reads, so they may include a map the dataset skips
+     * as damaged further in (D35).
      */
     override fun probe(file: File): MapInfo {
         return MapInfo(bounds = readSummary(file = file, full = false).bounds, languages = emptyList())
@@ -74,12 +76,20 @@ class GarminDriver(
                 "readSummary(), no map with TRE, RGN and LBL in $file"
             }
             // a map whose header does not read is skipped; the dataset's own skip comes from the parse
+            var firstFailure: Exception? = null
             val headers = names.mapNotNull { name ->
-                runCatching { TreSubFile.parseHeader(archive.openSubFile(checkNotNull(archive.find(name, "TRE")), reader)) }
-                    .getOrNull()
+                try {
+                    TreSubFile.parseHeader(archive.openSubFile(checkNotNull(archive.find(name, "TRE")), reader))
+                } catch (e: Exception) {
+                    firstFailure = firstFailure ?: e
+                    null
+                }
             }
-            require(headers.isNotEmpty()) {
-                "readSummary(), none of the ${names.size} maps in $file reads"
+            if (headers.isEmpty()) {
+                throw IllegalArgumentException(
+                    "readSummary(), none of the ${names.size} maps in $file reads: ${firstFailure?.message}",
+                    firstFailure,
+                )
             }
             val typ = archive.findFirst("TYP")
             ImgSummary(
