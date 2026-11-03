@@ -6,14 +6,15 @@ render pipeline and viewer shared by every format.
 ## Status
 
 **Pre-release.** Mapsforge 0.30.0 render subset converted to Kotlin (M5; differences in
-[docs/upstream.md](docs/upstream.md)); Garmin IMG imported from kmp-garmin-img 0.5.2 (M4.1), its
-driver since M4.2a; golden tests green, desktop and Android viewers running. Not published yet.
+[docs/upstream.md](docs/upstream.md)); Garmin IMG imported from kmp-garmin-img 0.5.2 and done in
+M4: driver, parallel and multi-map renders, benchmarks, measured labels, TYP night style; golden
+tests green, desktop and Android viewers running. Not published yet.
 Milestones: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 | Format | State |
 |---|---|
 | Mapsforge `.map` v5 | vendored from [Mapsforge](https://github.com/mapsforge/mapsforge) 0.30.0 |
-| Garmin IMG | from `asamm/kmp-garmin-img` 0.5.2, its history in [docs/garmin-img/](docs/garmin-img/) |
+| Garmin IMG | from `asamm/kmp-garmin-img` 0.5.2 (history in [docs/garmin-img/](docs/garmin-img/)), extended in M4 |
 | Mapbox Vector Tiles | planned |
 
 Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.

@@ -1,7 +1,7 @@
 # CLAUDE.md — kmp-vector-maps
 
 Asamm-owned vector map renderers for Locus Map behind one driver interface: Mapsforge `.map` first
-(extracted from Mapsforge 0.30.0), Garmin IMG next, Mapbox Vector Tiles later. Android is the
+(extracted from Mapsforge 0.30.0), Garmin IMG (M4), Mapbox Vector Tiles later. Android is the
 product; JVM desktop runs benchmarks and tools; no iOS.
 
 **Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, commit-sized

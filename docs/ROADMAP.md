@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M3 and M5 done; M4.1–M4.3 done (PRs #27–#33); M4.4 (Garmin labels and TYP night
-style) in review.** Next action: M6, core label model; M4 closes with M4.4.
+**Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34).** Next action: M6, core label model,
+hillshade anchor and feature query.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -23,7 +23,7 @@ settles, labels before speed, the Locus-facing API last.
 | M1 | Review hardening: CI, supply chain, licence docs, this plan | S | ✅ PR #1, `42f1598` |
 | M2 | Safety net: golden coverage of Locus modes, benchmark baseline | M | ✅ PR #2, `5e5b037` |
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PRs #3–#5, `028d746` |
-| M4 | Garmin IMG joins | M | 🔧 |
+| M4 | Garmin IMG joins | M | ✅ PRs #27–#34, `e3c3aef` |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
 | M6 | Core features: label model, hillshade anchor, feature query | M | ⬜ |
 | M7 | Performance and Skia desktop backend | L | ⬜ needs Q15 |
@@ -207,7 +207,7 @@ most captions; a driver test pins it); viewer GUI pass on desktop and on the A54
 | M4.3a | Parallel renders: the map parsed once per dataset, a worker per core with its own readers and style cache | ✅ PR #31, `4901158` |
 | M4.3b | Multi-map IMGs and several `.img` per dataset; the nearest-finer level fallback | ✅ PR #32, `f861c39` |
 | M4.3c | Garmin benchmarks on the JVM and the A54, the performance items below measured against them | ✅ PR #33, `3f2f0cc` |
-| M4.4 | Measured label bounds, text scale, TYP font sizes; the TYP night style; DRAWORDER of extended types | 🔧 |
+| M4.4 | Measured label bounds, text scale, TYP font sizes; the TYP night style; DRAWORDER of extended types | ✅ PR #34, `e3c3aef` |
 
 - M4.1 audit (2026-11-02, all 53 commits): no secrets or keys, `local.properties` never committed,
   4 local paths in comments and a capture (removed at the tip, history kept); one author identity. Fixtures: `otm-monaco` ODbL data plus
