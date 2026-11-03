@@ -26,8 +26,20 @@ class InternalStylesTest {
     @Test
     fun seaAndIntermittentWaterAreWater() {
         val water = InternalStyles.resolvePolygon(0x3C)
-        for (type in listOf(0x28, 0x32, 0x4C)) {
+        // sea, rivers and intermittent water
+        for (type in listOf(0x28, 0x32, 0x45, 0x46, 0x47, 0x48, 0x49, 0x4C)) {
             assertEquals(water.fillColor, InternalStyles.resolvePolygon(type).fillColor, "type 0x${type.toString(16)}")
+        }
+    }
+
+    @Test
+    fun whiteStreetsHaveAVisibleCasing() {
+        // arterial to residential, white on the light land
+        for (type in 0x04..0x09) {
+            val style = InternalStyles.resolveLine(type)
+            if (style.strokeColor == Color.White) {
+                assertTrue(style.borderWidth - style.strokeWidth >= 1.2f, "type 0x${type.toString(16)}")
+            }
         }
     }
 }

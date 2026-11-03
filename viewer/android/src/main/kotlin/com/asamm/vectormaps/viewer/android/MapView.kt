@@ -158,7 +158,7 @@ class MapView(
             "MapView(), cannot read $mapFile"
         }
         val probed = checkNotNull(formats.probe(mapFile)) {
-            "MapView(), no driver reads $mapFile"
+            "MapView(), no driver reads $mapFile: ${formats.unreadableReason(mapFile)}"
         }
         val images = imagesFor(probed.driver)
         val ownStyleFile = styleFile.takeIf(probed.driver::readsStyle)

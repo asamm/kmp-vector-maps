@@ -86,9 +86,9 @@ object InternalStyles {
             in 0x17..0x1A -> AREA_FOREST
             // Water bodies — Garmin's water-area type codes vary by tooling:
             //   0x28 sea/ocean (older Garmin), 0x32 sea (mkgmap, OpenTopoMap),
-            //   0x3B..0x44 mkgmap-style water (river/lake/etc.), 0x4C intermittent water
+            //   0x3B..0x44 mkgmap-style water (lake/etc.), 0x45..0x49 rivers, 0x4C intermittent water
             0x28, 0x32 -> AREA_WATER
-            in 0x3B..0x44 -> AREA_WATER
+            in 0x3B..0x49 -> AREA_WATER
             0x4C -> AREA_WATER
             // 0x4A definition area and 0x4B background cover the whole map: land, not sea
             0x4A, 0x4B -> AREA_BACKGROUND
@@ -171,21 +171,22 @@ object InternalStyles {
         labelColor = ROAD_LABEL_COLOR,
     )
 
+    // white roads need a casing wide enough to show on the light land
     private val ROAD_LOCAL = Style.LineStyle(
         drawPriority = 60,
         strokeColor = Color.White,
         borderColor = Color.rgb(0x80, 0x80, 0x80),
         strokeWidth = 1.8f,
-        borderWidth = 2.4f,
+        borderWidth = 3.4f,
         labelColor = ROAD_LABEL_COLOR,
     )
 
     private val ROAD_RESIDENTIAL = Style.LineStyle(
         drawPriority = 50,
         strokeColor = Color.White,
-        borderColor = Color.rgb(0xA0, 0xA0, 0xA0),
+        borderColor = Color.rgb(0x90, 0x90, 0x90),
         strokeWidth = 1.4f,
-        borderWidth = 1.8f,
+        borderWidth = 3.0f,
         labelColor = ROAD_LABEL_COLOR,
     )
 

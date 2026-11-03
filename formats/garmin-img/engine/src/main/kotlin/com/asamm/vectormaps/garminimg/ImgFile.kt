@@ -387,8 +387,15 @@ class ImgFile internal constructor(
          * IMG gives one. The archive's first TYP, decoded once, styles all its maps, also those of
          * another product family; the maps share one reader per sub-file type, so closing one map
          * closes them all.
+         *
+         * @param onUnreadable receives each map that does not parse, which is then skipped; null
+         *   throws on the first. Throws when no map is left. A read error mid-parse counts as such
+         *   a map, as the reader's own end-of-data checks throw the same `IOException`.
          */
-        fun openAll(byteSourceFactory: () -> ImgRandomAccessReader): List<ImgFile> {
+        fun openAll(
+            onUnreadable: ((mapName: String, cause: Exception) -> Unit)? = null,
+            byteSourceFactory: () -> ImgRandomAccessReader,
+        ): List<ImgFile> {
             val archive = byteSourceFactory().use { ImgArchive.open(it) }
             val names = archive.mapNames()
             require(names.isNotEmpty()) {
@@ -401,24 +408,43 @@ class ImgFile internal constructor(
             val shared = mutableListOf<ImgRandomAccessReader>()
             val containers = HashMap<String, ImgRandomAccessReader>()
             try {
-                return names.map { name ->
+                // opened before the maps, so a file that does not open fails as such, not as damage
+                for (type in SUB_FILE_TYPES) {
+                    if (names.any { archive.find(it, type) != null }) {
+                        containers[type] = byteSourceFactory().also { shared += it }
+                    }
+                }
+                var firstFailure: Exception? = null
+                val maps = names.mapNotNull { name ->
                     fun subFile(type: String): ImgRandomAccessReader? {
                         val entry = archive.find(name, type) ?: return null
-                        val container = containers.getOrPut(type) { byteSourceFactory().also { shared += it } }
-                        return archive.openSubFile(entry, container)
+                        return archive.openSubFile(entry, checkNotNull(containers[type]))
                     }
-                    openInternal(
-                        archive = archive,
-                        mapName = name,
-                        treReader = checkNotNull(subFile("TRE")),
-                        rgnReader = checkNotNull(subFile("RGN")),
-                        lblReader = checkNotNull(subFile("LBL")),
-                        netReader = subFile("NET"),
-                        typHeader = typHeader,
-                        typStyles = typStyles,
-                        ownedReaders = shared,
-                    )
+                    try {
+                        openInternal(
+                            archive = archive,
+                            mapName = name,
+                            treReader = checkNotNull(subFile("TRE")),
+                            rgnReader = checkNotNull(subFile("RGN")),
+                            lblReader = checkNotNull(subFile("LBL")),
+                            netReader = subFile("NET"),
+                            typHeader = typHeader,
+                            typStyles = typStyles,
+                            ownedReaders = shared,
+                        )
+                    } catch (e: Exception) {
+                        if (onUnreadable == null) {
+                            throw e
+                        }
+                        onUnreadable(name, e)
+                        firstFailure = firstFailure ?: e
+                        null
+                    }
                 }
+                if (maps.isEmpty()) {
+                    throw IllegalArgumentException("IMG has no readable map of ${names.size}", firstFailure)
+                }
+                return maps
             } catch (e: Throwable) {
                 closeQuietly(shared)
                 throw e
@@ -633,6 +659,9 @@ private fun subDivisionHasAnyData(sd: SubDivision): Boolean {
         sd.extendedPolylineEnd > sd.extendedPolylineOffset ||
         sd.extendedPoiEnd > sd.extendedPoiOffset
 }
+
+// the sub-files a map reads through the shared containers
+private val SUB_FILE_TYPES = listOf("TRE", "RGN", "LBL", "NET")
 
 // a failure closing one reader does not stop the others
 private fun closeQuietly(readers: List<ImgRandomAccessReader>) {

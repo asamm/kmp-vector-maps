@@ -68,7 +68,14 @@ class GarminDataset internal constructor(
         get() = current().styles
 
     /**
-     * Adds a file with all its maps; false when it is not a readable Garmin map or already added.
+     * Maps of the files that do not parse and are skipped, such as the damaged tiles of a
+     * gmapsupp; a file without a readable map is not added at all.
+     */
+    val unreadableMaps: List<UnreadableMap>
+        get() = current().unreadableMaps
+
+    /**
+     * Adds a file with all its readable maps; false when it has none or is already added.
      */
     override fun addMap(file: File): Boolean {
         return try {
@@ -90,7 +97,7 @@ class GarminDataset internal constructor(
             if (entries.any { it.isFile(file) }) {
                 return false
             }
-            snapshot = Snapshot(entries + entry)
+            snapshot = Snapshot(driver = driver, entries = entries + entry)
         }
         return true
     }
@@ -137,9 +144,10 @@ class GarminDataset internal constructor(
         val sources = entries.map { entry ->
             // the bounds and style ids hold for the file as added: reopen after a map update
             entry.checkUnchanged("createRenderer()")
+            val maps = entry.parsed()
             GarminRenderer.Source(
-                maps = entry.parsed(),
-                bounds = entry.summary.mapBounds,
+                maps = maps,
+                bounds = maps.map { driver.toBounds(it.tre.header) },
                 openReader = {
                     // workers open the file when they are first needed; it must still be the parsed one
                     entry.checkUnchanged("render()")
@@ -169,14 +177,25 @@ class GarminDataset internal constructor(
     /**
      * The files and what derives from them, replaced as a whole by [addMap].
      */
-    private class Snapshot(val entries: List<Entry>) {
+    private class Snapshot(
+        private val driver: GarminDriver,
+        val entries: List<Entry>,
+    ) {
 
         val files: List<File> = entries.map { it.file }
 
-        val bounds: GeoBounds = entries.map { it.summary.bounds }.reduce(GeoBounds::union)
+        val unreadableMaps: List<UnreadableMap> = entries.flatMap { it.unreadable }
+
+        // of the maps that parsed, which add has already done: a skipped map adds neither
+        val bounds: GeoBounds = entries
+            .flatMap { it.parsed() }
+            .map { driver.toBounds(it.tre.header) }
+            .reduce(GeoBounds::union)
 
         val levels: List<GarminLevel> = entries
-            .flatMap { it.summary.levels }
+            .flatMap { it.parsed() }
+            .flatMap { map -> map.tre.levels.levels.filterNot { it.inherited } }
+            .map { GarminLevel(level = it.level, bitsPerCoord = it.bitsPerCoord) }
             .distinctBy { it.level }
             .sortedBy { it.level }
 
@@ -202,6 +221,10 @@ class GarminDataset internal constructor(
 
         private var parsed: List<ImgFile>? = null
 
+        // set by the first parse, which add runs
+        var unreadable: List<UnreadableMap> = emptyList()
+            private set
+
         // a relative and an absolute path to one file are the same map
         fun isFile(other: File): Boolean {
             return file.absoluteFile.normalize() == other.absoluteFile.normalize()
@@ -217,13 +240,30 @@ class GarminDataset internal constructor(
         @Synchronized
         fun parsed(): List<ImgFile> {
             parsed?.let { return it }
-            val maps = ImgFile.openAll { FileImgRandomAccessReader(file) }
+            val skipped = ArrayList<UnreadableMap>()
+            val maps = ImgFile.openAll(
+                onUnreadable = { mapName, cause ->
+                    skipped += UnreadableMap(file = file, mapName = mapName, reason = cause.message ?: cause.javaClass.simpleName)
+                },
+            ) {
+                FileImgRandomAccessReader(file)
+            }
             maps.first().close()
+            unreadable = skipped
             parsed = maps
             return maps
         }
     }
 }
+
+/**
+ * A map of a file that does not parse, with the parser's reason.
+ */
+data class UnreadableMap(
+    val file: File,
+    val mapName: String,
+    val reason: String,
+)
 
 /**
  * A TRE level of a map: lower levels are finer, `bitsPerCoord` is its coordinate precision.

@@ -46,6 +46,20 @@ class MapFormatsTest {
     }
 
     @Test
+    fun unreadableReasonGivesEachDriversFailure() {
+        val throwing = FakeDriver(
+            id = "a",
+            extensions = setOf("map"),
+            failure = IllegalArgumentException("bad header"),
+        )
+        val rejecting = FakeDriver(id = "b", extensions = setOf("map"), info = null)
+        val formats = MapFormats(listOf(throwing, rejecting))
+
+        assertEquals("a: bad header\nb: not a file of this format", formats.unreadableReason(File("monaco.map")))
+        assertEquals("no driver reads .img files", formats.unreadableReason(File("monaco.img")))
+    }
+
+    @Test
     fun probeSkipsDriversOfOtherExtensions() {
         val garmin = FakeDriver(id = "garmin", extensions = setOf("img"), info = monaco)
         val formats = MapFormats(listOf(garmin))
