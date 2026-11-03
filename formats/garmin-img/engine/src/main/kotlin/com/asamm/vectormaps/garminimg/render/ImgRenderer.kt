@@ -235,11 +235,13 @@ class ImgRenderer(
         val pointLabel = point.label
         if (style.showLabel && isDisplayableLabel(pointLabel)) {
             val fontSize = DEFAULT_POINT_FONT_SIZE * style.fontScale * textScale
+            val height = labelHeight(fontSize, target)
             labels.submit(
                 x = x,
-                y = y + DEFAULT_POINT_LABEL_OFFSET,
+                // below the icon, however large the label grows
+                y = y + pointHalfHeight(style, target) + POINT_LABEL_GAP + height / 2f,
                 widthPx = target.measureText(pointLabel!!, fontSize),
-                heightPx = labelHeight(fontSize, target),
+                heightPx = height,
                 priority = style.drawPriority,
                 text = pointLabel,
                 color = style.labelColor,
@@ -336,9 +338,15 @@ class ImgRenderer(
         }
     }
 
-    // a line of text with its leading, at the targets' 8 px minimum; widths are measured by the target
+    // a line of text with its leading, at the targets' minimum; widths are measured by the target
     private fun labelHeight(fontSize: Float, target: RenderTarget): Float {
-        return (fontSize * target.renderScale).coerceAtLeast(MIN_TEXT_PX) * 1.2f
+        return (fontSize * target.renderScale).coerceAtLeast(RenderTarget.MIN_TEXT_PX) * 1.2f
+    }
+
+    // as the targets draw it: the icon at its render scale, never smaller, else a 2 px dot
+    private fun pointHalfHeight(style: Style.PointStyle, target: RenderTarget): Float {
+        val icon = style.icon ?: return POINT_DOT_RADIUS
+        return (icon.height * target.renderScale).coerceAtLeast(icon.height.toFloat()) / 2f
     }
 
     private fun isOnScreen(x: Float, y: Float, target: RenderTarget): Boolean {
@@ -586,14 +594,12 @@ class ImgRenderer(
         }
 
         private const val LN2: Double = 0.6931471805599453
-        private const val DEFAULT_POINT_LABEL_OFFSET: Float = 12f
+        private const val POINT_LABEL_GAP: Float = 2f
+        private const val POINT_DOT_RADIUS: Float = 2f
         private const val DEFAULT_POINT_FONT_SIZE: Float = 13f
         private const val DEFAULT_LINE_FONT_SIZE: Float = 12f
         private const val DEFAULT_AREA_FONT_SIZE: Float = 14f
         private const val OFFSCREEN_MARGIN: Int = 32
-
-        // the smallest text the AWT and Android targets draw
-        private const val MIN_TEXT_PX: Float = 8f
         private const val OFFSCREEN_LINE_MARGIN: Int = 64
     }
 }

@@ -169,7 +169,9 @@ object TypBodyParser {
             index = index,
             data = data,
             budget = budget,
-            bitmapBytes = { style -> bitmapBytesOf(style.pattern, style.night?.pattern) },
+            charge = { style, budget ->
+                charged(style, budget, style.pattern, style.night?.pattern) { it.copy(night = null) }
+            },
             parseOne = ::parseOnePolygon,
         )
     }
@@ -280,7 +282,9 @@ object TypBodyParser {
             index = index,
             data = data,
             budget = budget,
-            bitmapBytes = { style -> bitmapBytesOf(style.pattern, style.night?.pattern) },
+            charge = { style, budget ->
+                charged(style, budget, style.pattern, style.night?.pattern) { it.copy(night = null) }
+            },
             parseOne = ::parseOneLine,
         )
     }
@@ -420,7 +424,9 @@ object TypBodyParser {
             index = index,
             data = data,
             budget = budget,
-            bitmapBytes = { style -> bitmapBytesOf(style.icon, style.night?.icon) },
+            charge = { style, budget ->
+                charged(style, budget, style.icon, style.night?.icon) { it.copy(night = null) }
+            },
             parseOne = ::parseOnePoint,
         )
     }
@@ -682,7 +688,7 @@ object TypBodyParser {
         index: TypIndexDescriptor,
         data: SectionRange,
         budget: DecodeBudget,
-        bitmapBytes: (T) -> Int,
+        charge: (T, DecodeBudget) -> T?,
         parseOne: (ImgRandomAccessReader) -> T?,
     ): Map<Int, T> {
         val out = HashMap<Int, T>()
@@ -695,10 +701,8 @@ object TypBodyParser {
             }
             try {
                 reader.seek(recordOffset)
-                val style = parseOne(reader)
-                if (style != null
-                    && budget.tryCharge(bitmapBytes(style))
-                ) {
+                val style = parseOne(reader)?.let { charge(it, budget) }
+                if (style != null) {
                     byOffset[recordOffset] = style
                     out[typeForFile] = style
                 }
@@ -709,11 +713,20 @@ object TypBodyParser {
         return out
     }
 
-    // a night bitmap shared with the day one counts once
-    private fun bitmapBytesOf(day: Bitmap?, night: Bitmap?): Int {
-        val dayBytes = day?.rgba?.size ?: 0
+    // the day bitmap first, then the night one, counted once when shared; a night that no longer
+    // fits drops only the night variant, null when the day one does not fit
+    private fun <T> charged(
+        style: T,
+        budget: DecodeBudget,
+        day: Bitmap?,
+        night: Bitmap?,
+        withoutNight: (T) -> T,
+    ): T? {
+        if (!budget.tryCharge(day?.rgba?.size ?: 0)) {
+            return null
+        }
         val nightBytes = night?.takeIf { it !== day }?.rgba?.size ?: 0
-        return dayBytes + nightBytes
+        return if (budget.tryCharge(nightBytes)) style else withoutNight(style)
     }
 
     /**

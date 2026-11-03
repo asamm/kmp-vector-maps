@@ -374,7 +374,7 @@ class AndroidRenderTarget(
 
     // the size text is drawn and measured at
     private fun textSizeOf(fontSize: Float): Float {
-        return (fontSize * renderScale).coerceAtLeast(8f)
+        return (fontSize * renderScale).coerceAtLeast(RenderTarget.MIN_TEXT_PX)
     }
 
     override fun measureText(text: String, fontSize: Float): Float {

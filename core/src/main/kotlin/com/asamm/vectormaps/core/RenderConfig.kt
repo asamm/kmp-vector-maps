@@ -25,7 +25,9 @@ data class RenderConfig(
             "RenderConfig(), tileSizePx $tileSizePx"
         }
         require(deviceScale > 0.0f
+            && deviceScale.isFinite()
             && textScale > 0.0f
+            && textScale.isFinite()
         ) {
             "RenderConfig(), deviceScale $deviceScale, textScale $textScale"
         }

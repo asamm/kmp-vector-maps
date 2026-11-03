@@ -129,7 +129,7 @@ interface RenderTarget {
      * from the character count, 0.55 × the drawn size each, at least 8 px as the targets draw.
      */
     fun measureText(text: String, fontSize: Float): Float {
-        return text.length * (fontSize * renderScale).coerceAtLeast(8f) * 0.55f
+        return text.length * (fontSize * renderScale).coerceAtLeast(MIN_TEXT_PX) * 0.55f
     }
 
     /**
@@ -166,6 +166,14 @@ interface RenderTarget {
      * or otherwise finalise the underlying surface.
      */
     fun endFrame()
+
+    companion object {
+
+        /**
+         * The smallest text size in pixels the targets draw and measure.
+         */
+        const val MIN_TEXT_PX: Float = 8f
+    }
 }
 
 /**

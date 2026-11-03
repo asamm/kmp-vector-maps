@@ -602,7 +602,7 @@ class AwtRenderTarget(
      * `Paint.setTextSize(Float)`.
      */
     private fun fontFor(fontSize: Float): Font {
-        val pxSize = (fontSize * renderScale).coerceAtLeast(8f)
+        val pxSize = (fontSize * renderScale).coerceAtLeast(RenderTarget.MIN_TEXT_PX)
         return font.deriveFont(pxSize)
     }
 
