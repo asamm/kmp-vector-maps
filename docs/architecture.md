@@ -103,12 +103,12 @@ anchors, each with a per-format default.
 
 | Layer | Gate | When |
 |---|---|---|
-| Differential pixels | vendored vs upstream 0.30.0, same host | ✅ M0 |
-| Android pixels | Robolectric native graphics, vendored vs upstream | ✅ M2.4 |
+| Differential pixels | vendored vs upstream 0.30.0, same host; from M6.0 tiles without labels only | ✅ M0 |
+| Android pixels | Robolectric native graphics, vendored vs upstream; from M6.0 tiles without labels only | ✅ M2.4 |
 | Text dumps | reader output, `RenderCallback`, sorted | ✅ M2.2, M2.5 |
 | Garmin committed pixels | Monaco tiles through the driver, bundled DejaVu Sans, AA off, ≤ 0.2 % differing | ✅ M4.2c |
 | Mapsforge drawing | without labels vs upstream, a per-tile share of differing pixels; over the limit only through a committed accepted entry with its C-row (D37) | ✅ M6.0a |
-| Mapsforge labels | committed label store dumps (`LabelDump`) and tiles with labels, drawn in the bundled DejaVu Sans on AWT (C8): dumps exact, tiles ≤ 0.2 % on every system | 🔧 M6.0b |
+| Mapsforge labels | committed label store dumps (`LabelDump`, AWT) and tiles with labels, AWT in the bundled DejaVu Sans (C8), Android in Robolectric's fonts: dumps exact, tiles ≤ 0.2 %, anti-aliased | 🔧 M6.0b |
 
 - Reading stays identical to upstream: the reader and `RenderCallback` dumps are compared exactly,
   also by `verify_upstream.py` for each new upstream tag.

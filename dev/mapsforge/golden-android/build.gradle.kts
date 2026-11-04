@@ -90,7 +90,7 @@ val upstreamDoc = rootProject.layout.projectDirectory.file("docs/upstream.md").a
 val labelsDir = rootProject.layout.projectDirectory.dir("dev/mapsforge/golden/labels/android").asFile
 // the update renders through the test, which then skips the label comparison
 val updatingLabels = gradle.startParameter.taskNames.any {
-    it == ":dev:mapsforge:golden-android:updateLabelGoldens"
+    it.removePrefix(":") == "dev:mapsforge:golden-android:updateLabelGoldens"
         || it == "updateLabelGoldens"
 }
 

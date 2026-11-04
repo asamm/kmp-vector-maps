@@ -46,7 +46,8 @@ drawing passes through the committed accepted-differences entries
 ([architecture.md](architecture.md), golden strategy): they do not depend on the upstream tag, so
 step 3 changes them only when a port changes our labels, and the port then refreshes them
 (`updateLabelGoldens`). No golden catches a label change of the tag itself: a `VENDORED` change in
-label placement or text measuring is ported and reviewed by hand.
+label placement, text measuring or symbol drawing (symbols are stored with the labels) is ported
+and reviewed by hand.
 
 The local Mapsforge clone (`54e8654f`) is read-only and stays on 0.30.0; newer tags are read
 through `gh` or the scripts.

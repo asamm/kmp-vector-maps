@@ -107,10 +107,6 @@ class DrawingCheck(acceptedFile: File, upstreamDoc: File, private val backend: S
         return result
     }
 
-    private fun percent(share: Double): String {
-        return "%.3f %%".format(Locale.ROOT, share * 100.0)
-    }
-
     // rounded up, so the printed share accepts the tile it was measured on
     private fun entryShare(share: Double): String {
         return "%.3f".format(Locale.ROOT, ceil(share * 100_000.0) / 1_000.0)
@@ -141,4 +137,11 @@ class DrawingCheck(acceptedFile: File, upstreamDoc: File, private val backend: S
             return "_separate_" in fileName
         }
     }
+}
+
+/**
+ * A share of pixels as a percentage, for failure messages.
+ */
+internal fun percent(share: Double): String {
+    return "%.3f %%".format(Locale.ROOT, share * 100.0)
 }

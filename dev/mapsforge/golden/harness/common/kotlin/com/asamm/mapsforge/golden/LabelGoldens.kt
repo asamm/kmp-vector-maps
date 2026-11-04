@@ -4,7 +4,6 @@
  */
 package com.asamm.mapsforge.golden
 
-import java.util.Locale
 import kotlin.math.abs
 
 /**
@@ -53,7 +52,4 @@ object LabelGoldens {
         return max
     }
 
-    private fun percent(share: Double): String {
-        return "%.3f %%".format(Locale.ROOT, share * 100.0)
-    }
 }
