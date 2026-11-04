@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: LGPL-3.0-or-later
 """
 Runs both Mapsforge goldens against an upstream tag built from source, for tags without published
-jars (docs/upstream.md, "Following upstream"). Equal dumps and tiles with labels, and label-free
-tiles within the accepted differences (D37), mean the vendored render matches that release.
+jars (docs/upstream.md, "Following upstream"). Equal reader and theme-callback dumps, and label-free
+tiles within the accepted differences (D37), mean the vendored render matches that release; the label
+goldens are our own and do not depend on the tag.
 
 Steps, all outside the repo and outside ~/.m2:
   1. shallow-clones the tag into a temporary folder (long paths on, as upstream's exceed 260) and

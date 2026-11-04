@@ -135,7 +135,7 @@ class DrawingCheck(acceptedFile: File, upstreamDoc: File, private val backend: S
         private val C_ROW = Regex("^\\| (C\\d+) \\|", RegexOption.MULTILINE)
 
         /**
-         * True for tiles drawn without labels, which [DrawingCheck] judges; the others stay exact.
+         * True for tiles drawn without labels, which [DrawingCheck] judges; the others go to [LabelGoldens].
          */
         fun isDrawingTile(fileName: String): Boolean {
             return "_separate_" in fileName

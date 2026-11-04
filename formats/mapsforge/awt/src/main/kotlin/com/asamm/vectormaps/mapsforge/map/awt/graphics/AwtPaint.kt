@@ -45,6 +45,7 @@ open class AwtPaint : Paint {
     internal var style: Style
     internal var texturePaint: TexturePaint? = null
     private var cap: Int
+    private var fontFamily: FontFamily? = null
     private var fontName: String? = null
     private var fontStyle = 0
     private var join: Int
@@ -59,7 +60,11 @@ open class AwtPaint : Paint {
     // Avoid creating unnecessary objects
     private val bufferedImage = BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB)
 
-    internal constructor() {
+    // fonts that replace the logical font of their family (AwtGraphicFactory.withFonts)
+    private val fonts: Map<FontFamily, Font>
+
+    internal constructor(fonts: Map<FontFamily, Font>) {
+        this.fonts = fonts
         this.cap = getCap(Cap.ROUND)
         this.awtColor = java.awt.Color.BLACK
         this.style = Style.FILL
@@ -68,6 +73,7 @@ open class AwtPaint : Paint {
 
     internal constructor(paint: Paint) {
         val ap = paint as AwtPaint
+        this.fonts = ap.fonts
         this.cap = ap.cap
         this.awtColor = ap.awtColor
         this.style = ap.style
@@ -75,6 +81,7 @@ open class AwtPaint : Paint {
         this.stroke = ap.stroke
         this.fontStyle = ap.fontStyle
         this.font = ap.font
+        this.fontFamily = ap.fontFamily
         this.fontName = ap.fontName
         this.strokeWidthValue = ap.strokeWidthValue
         this.textSize = ap.textSize
@@ -209,6 +216,7 @@ open class AwtPaint : Paint {
     }
 
     final override fun setTypeface(fontFamily: FontFamily, fontStyle: FontStyle) {
+        this.fontFamily = fontFamily
         this.fontName = getFontName(fontFamily)
         this.fontStyle = getFontStyle(fontStyle)
         createFont()
@@ -216,7 +224,9 @@ open class AwtPaint : Paint {
 
     private fun createFont() {
         if (this.textSize > 0) {
-            this.font = Font(this.fontName, this.fontStyle, this.textSize.toInt())
+            val base = this.fonts[this.fontFamily]
+            this.font = (base?.deriveFont(this.fontStyle, this.textSize.toInt().toFloat())
+                ?: Font(this.fontName, this.fontStyle, this.textSize.toInt()))
                 .deriveFont(TEXT_ATTRIBUTES)
         } else {
             this.font = null

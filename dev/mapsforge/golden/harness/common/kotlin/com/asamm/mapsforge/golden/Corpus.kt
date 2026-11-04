@@ -81,6 +81,13 @@ object Corpus {
         return File(fixturesDir, "maps/monaco.osm.map")
     }
 
+    /**
+     * The font of the label goldens, for every font family and style.
+     */
+    fun labelFontFile(fixturesDir: File): File {
+        return File(fixturesDir, "fonts/dejavu/DejaVuSans.ttf")
+    }
+
     fun themeFile(fixturesDir: File, theme: String): File {
         return File(fixturesDir, "themes/lomaps/$theme.xml")
     }

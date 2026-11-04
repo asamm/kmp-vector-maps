@@ -14,35 +14,44 @@ import kotlin.test.fail
 
 /**
  * Compares the vendored render (`:dev:mapsforge:golden:renderVendored`) with the upstream 0.30.0
- * render (`:dev:mapsforge:golden-upstream:renderGoldens`), both made on this machine: tiles with
- * labels and the text dumps (labels, reader, theme callbacks) must be equal, tiles drawn without
- * labels close to upstream ([DrawingCheck], D37). The Paint counts differ on purpose, as the
- * vendored theme keeps scaled Paints for a window of zoom levels only (D29).
+ * render (`:dev:mapsforge:golden-upstream:renderGoldens`), both made on this machine (D37): the
+ * reader and theme-callback dumps must be equal, tiles drawn without labels close to upstream
+ * ([DrawingCheck]). Tiles with labels and the label dumps are compared with the committed label
+ * goldens ([LabelGoldens]). The Paint counts differ on purpose, as the vendored theme keeps scaled
+ * Paints for a window of zoom levels only (D29).
  */
 class GoldenRenderTest {
 
     @Test
     fun vendoredRenderMatchesUpstream() {
-        val expected = TestDirs.expected.listFiles { f -> f.extension == "png" }.orEmpty().sortedBy { it.name }
-        val actual = TestDirs.actual.listFiles { f -> f.extension == "png" }.orEmpty().sortedBy { it.name }
+        val expected = pngs(TestDirs.expected)
+        val actual = pngs(TestDirs.actual)
         assertTrue(expected.isNotEmpty(), "no expected renders in ${TestDirs.expected}")
         assertEquals(expected.map { it.name }, actual.map { it.name }, "rendered tile sets differ")
+        val labelGoldens = pngs(TestDirs.labels)
+        assertEquals(
+            actual.map { it.name }.filter { LabelGoldens.isLabelGolden(it) },
+            labelGoldens.map { it.name },
+            "label golden tiles differ, $UPDATE_TASK",
+        )
 
         val drawingCheck = DrawingCheck(acceptedFile = TestDirs.accepted, upstreamDoc = TestDirs.upstreamDoc, backend = "awt")
-        val mismatches = expected.mapNotNull { exp ->
-            val diffPixels = compare(exp, File(TestDirs.actual, exp.name))
-            when {
-                DrawingCheck.isDrawingTile(exp.name) -> {
-                    drawingCheck.verdict(
-                        tile = exp.name,
-                        differingPixels = diffPixels,
-                        totalPixels = Corpus.TILE_SIZE * Corpus.TILE_SIZE,
-                    )
-                }
-                diffPixels == 0 -> null
-                else -> "${exp.name}: $diffPixels px"
-            }
+        val drawingMismatches = expected.filter { DrawingCheck.isDrawingTile(it.name) }.mapNotNull { exp ->
+            drawingCheck.verdict(
+                tile = exp.name,
+                differingPixels = compare(exp, File(TestDirs.actual, exp.name), channelTolerance = 0),
+                totalPixels = Corpus.TILE_SIZE * Corpus.TILE_SIZE,
+            )
         } + drawingCheck.staleEntries()
+        val labelMismatches = labelGoldens.mapNotNull { golden ->
+            LabelGoldens.verdict(
+                tile = golden.name,
+                differingPixels = compare(golden, File(TestDirs.actual, golden.name), LabelGoldens.CHANNEL_TOLERANCE),
+                totalPixels = Corpus.TILE_SIZE * Corpus.TILE_SIZE,
+                updateTask = UPDATE_TASK,
+            )
+        }
+        val mismatches = drawingMismatches + labelMismatches
         if (mismatches.isNotEmpty()) {
             fail("${mismatches.size} problems in ${expected.size} tiles, diffs in ${TestDirs.diff}\n" + mismatches.joinToString("\n"))
         }
@@ -52,23 +61,27 @@ class GoldenRenderTest {
 
     @Test
     fun vendoredTextDumpsMatchUpstream() {
-        val expected = textDumps(TestDirs.expected)
-        val actual = textDumps(TestDirs.actual)
+        val expected = textDumps(TestDirs.expected).filterNot { LabelGoldens.isLabelGolden(it.name) }
+        val actual = textDumps(TestDirs.actual).filterNot { LabelGoldens.isLabelGolden(it.name) }
         assertTrue(expected.isNotEmpty(), "no expected text dumps in ${TestDirs.expected}")
         assertEquals(expected.map { it.name }, actual.map { it.name }, "text dump sets differ")
         for (exp in expected) {
-            val expLines = exp.readLines()
-            val actLines = File(TestDirs.actual, exp.name).readLines()
-            if (expLines != actLines) {
-                val line = expLines.indices.firstOrNull { it >= actLines.size || expLines[it] != actLines[it] }
-                    ?: expLines.size
-                fail(
-                    "${exp.name} differs at line ${line + 1}: " +
-                        "expected '${expLines.getOrNull(line)}', actual '${actLines.getOrNull(line)}'",
-                )
-            }
-            // guard against an empty dump passing trivially
-            assertTrue(expLines.count { it.startsWith("  ") } > 0, "${exp.name} holds no entries")
+            assertSameLines(expected = exp, actual = File(TestDirs.actual, exp.name), hint = "")
+        }
+    }
+
+    @Test
+    fun vendoredLabelDumpsMatchGoldens() {
+        val goldens = textDumps(TestDirs.labels)
+        val actual = textDumps(TestDirs.actual).filter { LabelGoldens.isLabelGolden(it.name) }
+        assertTrue(goldens.isNotEmpty(), "no label dumps in ${TestDirs.labels}")
+        assertEquals(goldens.map { it.name }, actual.map { it.name }, "label dump sets differ, $UPDATE_TASK")
+        for (golden in goldens) {
+            assertSameLines(
+                expected = golden,
+                actual = File(TestDirs.actual, golden.name),
+                hint = "; an intended change: $UPDATE_TASK",
+            )
         }
     }
 
@@ -96,6 +109,25 @@ class GoldenRenderTest {
         assertTrue(live(expected.last()) > bound, "$PAINT_COUNTS upstream stays below $bound")
     }
 
+    private fun assertSameLines(expected: File, actual: File, hint: String) {
+        val expLines = expected.readLines()
+        val actLines = actual.readLines()
+        if (expLines != actLines) {
+            val line = expLines.indices.firstOrNull { it >= actLines.size || expLines[it] != actLines[it] }
+                ?: expLines.size
+            fail(
+                "${expected.name} differs at line ${line + 1}: " +
+                    "expected '${expLines.getOrNull(line)}', actual '${actLines.getOrNull(line)}'$hint",
+            )
+        }
+        // guard against an empty dump passing trivially
+        assertTrue(expLines.count { it.startsWith("  ") } > 0, "${expected.name} holds no entries")
+    }
+
+    private fun pngs(dir: File): List<File> {
+        return dir.listFiles { f -> f.extension == "png" }.orEmpty().sortedBy { it.name }
+    }
+
     private fun textDumps(dir: File): List<File> {
         return dir.listFiles { f -> f.extension == "txt" && f.name != PAINT_COUNTS }
             .orEmpty()
@@ -111,9 +143,10 @@ class GoldenRenderTest {
     }
 
     /**
-     * Returns the count of differing pixels and writes a diff image when there are any.
+     * Returns the count of pixels with a channel differing by more than `channelTolerance` and writes
+     * a diff image when there are any.
      */
-    private fun compare(expectedFile: File, actualFile: File): Int {
+    private fun compare(expectedFile: File, actualFile: File, channelTolerance: Int): Int {
         val exp = ImageIO.read(expectedFile)
         val act = ImageIO.read(actualFile)
         if (exp.width != act.width
@@ -125,7 +158,7 @@ class GoldenRenderTest {
         var count = 0
         for (y in 0 until exp.height) {
             for (x in 0 until exp.width) {
-                if (exp.getRGB(x, y) != act.getRGB(x, y)) {
+                if (LabelGoldens.channelDistance(exp.getRGB(x, y), act.getRGB(x, y)) > channelTolerance) {
                     count++
                     diff.setRGB(x, y, 0xFFFF0000.toInt())
                 } else {
@@ -155,6 +188,8 @@ class GoldenRenderTest {
     private companion object {
 
         private const val PAINT_COUNTS = "paint_counts.txt"
+
+        private const val UPDATE_TASK = "./gradlew :dev:mapsforge:golden:updateLabelGoldens"
 
         // RenderTheme's window of zoom levels with scaled Paints no job holds
         private const val ZOOM_WINDOW = 4

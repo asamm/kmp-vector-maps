@@ -8,6 +8,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.asamm.mapsforge.golden.AndroidCorpus
 import com.asamm.mapsforge.golden.DrawingCheck
+import com.asamm.mapsforge.golden.LabelGoldens
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -20,10 +21,10 @@ import org.robolectric.annotation.GraphicsMode
 import java.io.File
 
 /**
- * Renders the golden corpus with the vendored `:formats:mapsforge:android` module and compares it
- * with the upstream 0.30.0 render of `:dev:mapsforge:golden-android-upstream`, both made on this
- * machine under Robolectric's native graphics: exact for tiles with labels, close for tiles drawn
- * without ([DrawingCheck], D37).
+ * Renders the golden corpus with the vendored `:formats:mapsforge:android` module under Robolectric's
+ * native graphics (D37): tiles drawn without labels close to the upstream 0.30.0 render of
+ * `:dev:mapsforge:golden-android-upstream`, made on this machine ([DrawingCheck]); tiles with labels
+ * against the committed label goldens ([LabelGoldens]).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -35,6 +36,7 @@ class AndroidGoldenRenderTest {
     private val diffDir = dirProperty("golden.diffDir")
     private val acceptedFile = dirProperty("golden.acceptedFile")
     private val upstreamDoc = dirProperty("golden.upstreamDoc")
+    private val labelsDir = dirProperty("golden.labelsDir")
 
     @Test
     fun vendoredRenderMatchesUpstream() {
@@ -52,24 +54,21 @@ class AndroidGoldenRenderTest {
         assertEquals("rendered tile sets differ", expected.map { it.name }, actual.map { it.name })
 
         var nonUniform = 0
-        val mismatches = expected.mapNotNull { exp ->
+        val drawingMismatches = expected.mapNotNull { exp ->
             val expBitmap = decode(exp)
             if (!isUniform(expBitmap)) {
                 nonUniform++
             }
-            val diffPixels = compare(expected = expBitmap, actual = decode(File(actualDir, exp.name)), name = exp.name)
-            when {
-                DrawingCheck.isDrawingTile(exp.name) -> {
-                    drawingCheck.verdict(
-                        tile = exp.name,
-                        differingPixels = diffPixels,
-                        totalPixels = expBitmap.width * expBitmap.height,
-                    )
-                }
-                diffPixels == 0 -> null
-                else -> "${exp.name}: $diffPixels px"
+            if (!DrawingCheck.isDrawingTile(exp.name)) {
+                return@mapNotNull null
             }
+            drawingCheck.verdict(
+                tile = exp.name,
+                differingPixels = compare(expBitmap, decode(File(actualDir, exp.name)), exp.name, channelTolerance = 0),
+                totalPixels = expBitmap.width * expBitmap.height,
+            )
         } + drawingCheck.staleEntries()
+        val mismatches = drawingMismatches + labelMismatches(actual)
         if (mismatches.isNotEmpty()) {
             fail("${mismatches.size} problems in ${expected.size} tiles, diffs in $diffDir\n" + mismatches.joinToString("\n"))
         }
@@ -78,9 +77,40 @@ class AndroidGoldenRenderTest {
     }
 
     /**
-     * Returns the count of differing pixels and writes a diff image when there are any.
+     * Compares the tiles with labels with the committed label goldens, unless `updateLabelGoldens`
+     * is replacing them.
      */
-    private fun compare(expected: Bitmap, actual: Bitmap, name: String): Int {
+    private fun labelMismatches(actual: List<File>): List<String> {
+        if (System.getProperty("golden.updatingLabels").toBoolean()) {
+            return emptyList()
+        }
+        val goldens = pngs(labelsDir)
+        assertEquals(
+            "label golden tiles differ, $UPDATE_TASK",
+            actual.map { it.name }.filter { LabelGoldens.isLabelGolden(it) },
+            goldens.map { it.name },
+        )
+        return goldens.mapNotNull { golden ->
+            val goldenBitmap = decode(golden)
+            LabelGoldens.verdict(
+                tile = golden.name,
+                differingPixels = compare(
+                    goldenBitmap,
+                    decode(File(actualDir, golden.name)),
+                    golden.name,
+                    LabelGoldens.CHANNEL_TOLERANCE,
+                ),
+                totalPixels = goldenBitmap.width * goldenBitmap.height,
+                updateTask = UPDATE_TASK,
+            )
+        }
+    }
+
+    /**
+     * Returns the count of pixels with a channel differing by more than `channelTolerance` and writes
+     * a diff image when there are any.
+     */
+    private fun compare(expected: Bitmap, actual: Bitmap, name: String, channelTolerance: Int): Int {
         if (expected.width != actual.width
             || expected.height != actual.height
         ) {
@@ -91,7 +121,7 @@ class AndroidGoldenRenderTest {
         val diff = IntArray(exp.size)
         var count = 0
         for (i in exp.indices) {
-            if (exp[i] != act[i]) {
+            if (LabelGoldens.channelDistance(exp[i], act[i]) > channelTolerance) {
                 count++
                 diff[i] = 0xFFFF0000.toInt()
             } else {
@@ -134,5 +164,10 @@ class AndroidGoldenRenderTest {
             "dirProperty($key), not set; run through Gradle: ./gradlew :dev:mapsforge:golden-android:test"
         }
         return File(path)
+    }
+
+    private companion object {
+
+        private const val UPDATE_TASK = "./gradlew :dev:mapsforge:golden-android:updateLabelGoldens"
     }
 }
