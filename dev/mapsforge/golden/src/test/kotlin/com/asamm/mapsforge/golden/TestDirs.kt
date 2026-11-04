@@ -31,6 +31,10 @@ object TestDirs {
         dirProperty("golden.acceptedFile")
     }
 
+    val labels: File by lazy {
+        dirProperty("golden.labelsDir")
+    }
+
     val upstreamDoc: File by lazy {
         dirProperty("golden.upstreamDoc")
     }

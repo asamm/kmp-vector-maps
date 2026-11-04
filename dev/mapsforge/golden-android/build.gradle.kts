@@ -1,8 +1,9 @@
 /*
  * Android golden render test: renders the corpus with the vendored `:formats:mapsforge:android`
  * module under Robolectric's native Android graphics and compares it with the upstream 0.30.0
- * render from `:dev:mapsforge:golden-android-upstream`: exact for tiles with labels, within
- * `dev/mapsforge/golden/accepted-differences.txt` for tiles without (D37). Not published.
+ * render from `:dev:mapsforge:golden-android-upstream`: tiles without labels within
+ * `dev/mapsforge/golden/accepted-differences.txt`; tiles with labels against the committed
+ * `dev/mapsforge/golden/labels/android`, refreshed by `updateLabelGoldens` (D37). Not published.
  */
 plugins {
     alias(libs.plugins.androidLibrary)
@@ -85,6 +86,13 @@ val upstreamRender = project(":dev:mapsforge:golden-android-upstream").layout.bu
 val acceptedFile = rootProject.layout.projectDirectory.file("dev/mapsforge/golden/accepted-differences.txt").asFile
 // the C-rows an accepted entry may cite
 val upstreamDoc = rootProject.layout.projectDirectory.file("docs/upstream.md").asFile
+// the committed label goldens (D37)
+val labelsDir = rootProject.layout.projectDirectory.dir("dev/mapsforge/golden/labels/android").asFile
+// the update renders through the test, which then skips the label comparison
+val updatingLabels = gradle.startParameter.taskNames.any {
+    it.removePrefix(":") == "dev:mapsforge:golden-android:updateLabelGoldens"
+        || it == "updateLabelGoldens"
+}
 
 tasks.withType<Test>().configureEach {
     dependsOn(":dev:mapsforge:golden-android-upstream:testDebugUnitTest")
@@ -102,6 +110,8 @@ tasks.withType<Test>().configureEach {
     inputs.dir(upstreamRender)
     inputs.file(acceptedFile)
     inputs.file(upstreamDoc)
+    // files, not dir: the update recreates a missing folder through this task
+    inputs.files(labelsDir)
     outputs.dir(actualDir)
     // keeps the diff images when the result comes from the build cache
     outputs.dir(diffDir)
@@ -116,4 +126,17 @@ tasks.withType<Test>().configureEach {
     systemProperty("golden.diffDir", diffDir.absolutePath)
     systemProperty("golden.acceptedFile", acceptedFile.absolutePath)
     systemProperty("golden.upstreamDoc", upstreamDoc.absolutePath)
+    systemProperty("golden.labelsDir", labelsDir.absolutePath)
+    systemProperty("golden.updatingLabels", updatingLabels)
+}
+
+tasks.register<Sync>("updateLabelGoldens") {
+    description = "Replaces the committed label goldens with the vendored render, for an intended change."
+    dependsOn("testDebugUnitTest")
+    from(actualDir) {
+        include("*.png")
+        // tiles without labels are compared with upstream
+        exclude("*_separate_*.png")
+    }
+    into(labelsDir)
 }

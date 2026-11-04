@@ -34,9 +34,10 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 - **`:formats:garmin-img:android`**, **`:awt`** — its render targets.
 - **`:formats:garmin-img:driver`** — the `:core` driver over the Garmin engine; the host passes its
   `GarminCanvasFactory`. `./gradlew :formats:garmin-img:driver:test`.
-- **`:dev:mapsforge:golden`** — render comparison against upstream 0.30.0: exact for tiles with
-  labels and the text dumps, label-free tiles within `accepted-differences.txt` (D37).
-  `./gradlew :dev:mapsforge:golden:test`.
+- **`:dev:mapsforge:golden`** — render comparison against upstream 0.30.0: exact for the reader
+  and theme-callback dumps, label-free tiles within `accepted-differences.txt`; tiles with labels
+  and the label dumps against the committed `labels/` (D37). `./gradlew :dev:mapsforge:golden:test`;
+  an intended label change: `updateLabelGoldens`.
 - **`dev/mapsforge/upstream/`** — upstream sync helpers, Python 3 and `gh`, run by hand; see
   [docs/upstream.md](docs/upstream.md).
 - **`:dev:garmin-img:golden`** — Garmin Monaco tiles through the driver against committed PNGs

@@ -1,7 +1,8 @@
 /*
  * Golden render test: renders the corpus with the vendored modules through the Mapsforge driver and
- * compares it with the plain upstream 0.30.0 render from `:dev:mapsforge:golden-upstream`: exact
- * for tiles with labels, within `accepted-differences.txt` for tiles without (D37). Not published.
+ * compares it with the plain upstream 0.30.0 render from `:dev:mapsforge:golden-upstream`: dumps
+ * exact, tiles without labels within `accepted-differences.txt`; tiles with labels and the label
+ * dumps against the committed `labels/awt`, refreshed by `updateLabelGoldens` (D37). Not published.
  */
 plugins {
     alias(libs.plugins.kotlinJvm)
@@ -43,6 +44,8 @@ val upstreamRender = project(":dev:mapsforge:golden-upstream").layout.buildDirec
 val acceptedFile = layout.projectDirectory.file("accepted-differences.txt").asFile
 // the C-rows an accepted entry may cite
 val upstreamDoc = rootProject.layout.projectDirectory.file("docs/upstream.md").asFile
+// the committed label goldens, drawn in the bundled font (D37)
+val labelsDir = layout.projectDirectory.dir("labels/awt").asFile
 
 // Same entry point and JVM flags as `:dev:mapsforge:golden-upstream:renderGoldens`, so both
 // renders get the same identity hashes and match exactly (see that task).
@@ -77,6 +80,8 @@ tasks.test {
     inputs.dir(fixturesDir)
     inputs.file(acceptedFile)
     inputs.file(upstreamDoc)
+    inputs.dir(labelsDir)
+    mustRunAfter("updateLabelGoldens")
     // keeps the diff images when the result comes from the build cache
     outputs.dir(diffDir)
     // a task-local copy: the configuration cache cannot capture script values
@@ -90,4 +95,16 @@ tasks.test {
     systemProperty("golden.diffDir", diffDir.absolutePath)
     systemProperty("golden.acceptedFile", acceptedFile.absolutePath)
     systemProperty("golden.upstreamDoc", upstreamDoc.absolutePath)
+    systemProperty("golden.labelsDir", labelsDir.absolutePath)
+}
+
+tasks.register<Sync>("updateLabelGoldens") {
+    description = "Replaces the committed label goldens with the vendored render, for an intended change."
+    dependsOn(renderVendored)
+    from(actualDir) {
+        include("*.png", "*_labels.txt")
+        // tiles without labels are compared with upstream
+        exclude("*_separate_*.png")
+    }
+    into(labelsDir)
 }

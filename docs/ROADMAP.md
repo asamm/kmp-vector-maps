@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34).** Next action: M6.0, the Mapsforge
-golden split (D37).
+**Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34).** Next action: M6.4 (A9, A8), the first
+intended output change, after M6.0b's label goldens.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -493,8 +493,8 @@ change gets its upstream.md C-row in the same PR.
 
 | Step | Content | Verify | Status |
 |---|---|---|---|
-| M6.0a | Mapsforge drawing without labels compared with upstream: the corpus gets a label-free (`SEPARATE`) variant of each of its sets, so every theme, menu layer and scale stays covered; compared by the share of differing pixels per tile; a tile over the limit fails unless listed in a committed accepted-differences file (tile, measured share, C-row); the failing tiles' diff images in the build directory; same on the Android golden | today's corpus at 0 differing pixels; a mutation over the limit fails, its listed entry passes | 🔧 |
-| M6.0b | Label goldens: the label store dump (`LabelDump`) and PNGs of the labelled corpus tiles committed, rendered from today's output (equal to upstream); exact on CI's pinned runner, tolerant elsewhere with a diff as the Garmin golden's (H5); the labelled tiles leave the upstream comparison; reader and `RenderCallback` dumps stay exact against upstream | the committed files equal today's upstream render; `verify_upstream.py` still runs every exact check | ⬜ |
+| M6.0a | Mapsforge drawing without labels compared with upstream: the corpus gets a label-free (`SEPARATE`) variant of each of its sets, so every theme, menu layer and scale stays covered; compared by the share of differing pixels per tile; a tile over the limit fails unless listed in a committed accepted-differences file (tile, measured share, C-row); the failing tiles' diff images in the build directory; same on the Android golden | today's corpus at 0 differing pixels; a mutation over the limit fails, its listed entry passes | ✅ PR #36, `3fb2bec` |
+| M6.0b | Label goldens: the label store dump (`LabelDump`) and PNGs of the labelled corpus tiles committed, rendered by the vendored side in the bundled DejaVu Sans (C8), so they hold on every system (H5); dumps exact, tiles within a small share as the Garmin golden's; the labelled tiles leave the upstream comparison; reader and `RenderCallback` dumps stay exact against upstream; `updateLabelGoldens` refreshes them | the label-free tiles still match upstream with the font; a changed dump line and a swapped tile fail; CI on Linux passes against goldens made on Windows | 🔧 |
 | M6.4 | A9: `Line` with `scale="all"` and no `stroke-dasharray` no longer throws; A8: the symbol boundary's top scales by height; both C-rows | A9 test theme renders; A8 changes only label output (symbol position and clash box): label goldens updated and confirmed in the PR; drawing and the reader and `RenderCallback` dumps unchanged | ⬜ |
 | M6.1a | Core label model (`:core`, Apache-2.0): `LabelCandidate` (stable identity, world position, priority, measured collision geometry, neutral style, kind: point, line symbol, path text) and placement with a spatial grid (from Locus' `collisionFreeOrderedFast`), rotation-aware and upright | unit tests: priority order, rotation, ties broken by identity, not by hash (A7) | ⬜ |
 | M6.1b | `SEPARATE` label pass: the Mapsforge driver turns its label store into candidates; `prepare(viewport)` off the caller's thread, cancelling the previous run, `draw`, `onPrepared` (architecture.md, host API); desktop viewer draws it with rotation | label goldens of the pass at 0° and a rotation; soak as D31 against the pass | ⬜ |
@@ -511,9 +511,22 @@ change gets its upstream.md C-row in the same PR.
   backend, tile, accepted share and C-row, and fails on an entry no tile needs. The limit is 0.5 %
   of a tile's pixels: both renders run on one host, so there is no cross-JDK noise to absorb, and
   a stroke widened by 15 % moved the label-free tiles by 0.67–30 %. An entry must cite a C-row of
-  upstream.md, and a failing tile prints its ready-to-paste entry. Until M6.0b the tiles with labels
-  stay exact, so a drawing change also fails them. The CI runner image is already pinned
-  (ubuntu-24.04); pinning the JDK patch level and fonts moves to M6.0b, the first committed PNGs.
+  upstream.md, and a failing tile prints its ready-to-paste entry.
+- M6.0b as built: on AWT upstream draws text in the system's logical fonts (Arial on Windows,
+  DejaVu on the CI runner), so goldens committed from one system would fail on the other.
+  `AwtGraphicFactory.withFonts` (C8) draws every family in the bundled DejaVu Sans, styles
+  synthesised; the Android side keeps Robolectric's own fonts. Goldens in
+  `dev/mapsforge/golden/labels/{awt,android}` (72 tiles each, 7.7 and 6.8 MB, and the 5 AWT label
+  dumps); a tile passes at ≤ 0.2 % of its pixels differing by more than 8 in a channel, as the
+  Garmin golden, with text anti-aliased. The dumps are exact and matched on Windows and Linux CI
+  (Temurin 17.0.21); a JDK font-scaler change may need `updateLabelGoldens`, so the JDK patch stays
+  unpinned. Before the font switch the label dumps equalled upstream's (M6.0a); with it, the 90
+  label-free tiles still do, so the hook changes text only.
+- M6.0b gaps, accepted: the 4 sets with labels in the tiles and all Android tiles have no dump, so a
+  small label (about 500 px) can drop or move within 0.2 %; M6.1c's goldens add an in-tile dump.
+  Symbols are stored with the labels, so symbol drawing is no longer compared with upstream (D37).
+  Each refresh adds its changed PNGs to git history in full, up to the 14.5 MB of all tiles; plain
+  git until that hurts.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.
@@ -595,7 +608,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D34 | No host night mode: a night look is a style, as LoMaps' night themes are; a Garmin TYP's own night colours become a night style next to its day one, listed only when the TYP has night data, never day colours inverted (M4.4). |
 | D35 | A Garmin file opens with the maps that parse; the others are skipped and listed (`GarminDataset.unreadableMaps`; a read error mid-parse counts as damage, reopening retries), as gmapsupps merged from many tiles carry damaged ones; a file without a readable map, or with overlapping sub-files, is still rejected. Replaces the M4.3b "one unreadable map rejects its whole file". |
 | D36 | Upstream Mapsforge is followed tag by tag: each sync ports the changes to vendored files by hand and proves pixel and dump parity with both goldens against the new tag, built from source when JitPack has no jars; CI's golden reference stays on the last tag with jars while that proof passes. Procedure and log in upstream.md |
-| D37 | Mapsforge goldens from M6: reading (reader and `RenderCallback` dumps) identical to upstream; drawing without labels close to upstream, a per-tile share of differing pixels, a tile over the limit accepted only through a committed entry with its C-row; labels against committed goldens, as our label model replaces upstream's placement on purpose. A significant change is confirmed by its entry or golden update in the PR. Replaces "goldens move to committed PNGs" (H5) |
+| D37 | Mapsforge goldens from M6: reading (reader and `RenderCallback` dumps) identical to upstream; drawing without labels close to upstream, a per-tile share of differing pixels, a tile over the limit accepted only through a committed entry with its C-row; labels (text and the symbols stored with them) against committed goldens, as our label model replaces upstream's placement on purpose. A significant change is confirmed by its entry or golden update in the PR. Replaces "goldens move to committed PNGs" (H5) |
 | D38 | `FeatureQuery` is format-neutral in `:core`, implemented by the Mapsforge driver only in M6.3 for LoPoints; Garmin follows when a host needs it |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
@@ -624,7 +637,7 @@ See the locus-core plan, R1–R7. Repo-specific:
 | H2 | Vendored code misses upstream changes | per tag: `upstream_diff.py` grouping, hand port, parity with both goldens against the tag (`verify_upstream.py`, D36), deviation tables in [upstream.md](upstream.md) |
 | H3 | Interface shaped by Mapsforge alone | Garmin (M4) right after core v0 (M3) |
 | H4 | Locus sees nothing until M9 | A54 runs in the shared viewer; I7 fallback flag |
-| H5 | Committed PNGs break across OS, JDK, fonts | committed PNGs only for Mapsforge labels, exact on the pinned CI runner and tolerant outside, and Garmin, ≤ 0.2 % everywhere (D37) |
+| H5 | Committed PNGs break across OS, JDK, fonts | committed PNGs only for Mapsforge labels (AWT in the bundled DejaVu Sans, Android in Robolectric's fonts) and Garmin (DejaVu Sans), ≤ 0.2 % everywhere; a tile without an exact dump can lose a small label within it (D37, M6.0b gaps) |
 | H6 | JitPack outage or rebuild | checksum verification; cache the jars if outages hurt |
 | H7 | Host API drifts from Locus' real seam | mirrors `MapSourceRenderer`; M8.3 throwaway wiring |
 

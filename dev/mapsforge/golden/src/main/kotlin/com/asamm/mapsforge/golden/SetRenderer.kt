@@ -11,20 +11,24 @@ import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.TileBitmapTarget
+import com.asamm.vectormaps.mapsforge.core.graphics.FontFamily
 import com.asamm.vectormaps.mapsforge.core.graphics.TileBitmap
 import com.asamm.vectormaps.mapsforge.core.model.Tile
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import com.asamm.vectormaps.mapsforge.map.layer.labels.TileBasedLabelStore
+import java.awt.Font
 import java.io.File
 
 /**
  * The vendored side renders through the Mapsforge driver, so the golden test compares the driver
- * against plain upstream Mapsforge (`golden-upstream`'s `SetRenderer`).
+ * against plain upstream Mapsforge (`golden-upstream`'s `SetRenderer`). Text is drawn in the bundled
+ * DejaVu Sans, so the committed label goldens hold on every system (D37).
  */
 object SetRenderer {
 
     fun render(set: Corpus.RenderSet, fixturesDir: File, onTile: (Tile, TileBitmap) -> Unit): TileBasedLabelStore? {
-        val driver = MapsforgeDriver(AwtGraphicFactory.INSTANCE)
+        val font = Font.createFont(Font.TRUETYPE_FONT, Corpus.labelFontFile(fixturesDir))
+        val driver = MapsforgeDriver(AwtGraphicFactory.withFonts(FontFamily.entries.associateWith { font }))
         val style = driver.loadStyle(Corpus.themeFile(fixturesDir, set.theme))
         val config = RenderConfig(
             tileSizePx = Corpus.TILE_SIZE,

@@ -12,7 +12,7 @@ permissions:
 jobs:
   build:
     name: Build and test (Android + JVM)
-    # pinned: golden renders depend on the runner's JDK and, for Mapsforge, its fonts
+    # pinned: committed goldens (Garmin, Mapsforge labels) are compared with this runner's renders
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository

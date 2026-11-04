@@ -26,6 +26,7 @@ import com.asamm.vectormaps.mapsforge.core.graphics.Bitmap
 import com.asamm.vectormaps.mapsforge.core.graphics.Canvas
 import com.asamm.vectormaps.mapsforge.core.graphics.Color
 import com.asamm.vectormaps.mapsforge.core.graphics.Display
+import com.asamm.vectormaps.mapsforge.core.graphics.FontFamily
 import com.asamm.vectormaps.mapsforge.core.graphics.GraphicFactory
 import com.asamm.vectormaps.mapsforge.core.graphics.Matrix
 import com.asamm.vectormaps.mapsforge.core.graphics.Paint
@@ -37,6 +38,7 @@ import com.asamm.vectormaps.mapsforge.core.mapelements.PointTextContainer
 import com.asamm.vectormaps.mapsforge.core.mapelements.SymbolContainer
 import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.kitfox.svg.SVGCache
+import java.awt.Font
 import java.awt.Graphics
 import java.awt.Graphics2D
 import java.awt.geom.AffineTransform
@@ -45,9 +47,9 @@ import java.io.IOException
 import java.io.InputStream
 
 /**
- * The AWT [GraphicFactory], a singleton: use [INSTANCE].
+ * The AWT [GraphicFactory]: use [INSTANCE], or [withFonts] for text in given fonts.
  */
-open class AwtGraphicFactory private constructor() : GraphicFactory {
+open class AwtGraphicFactory private constructor(private val fonts: Map<FontFamily, Font>) : GraphicFactory {
 
     final override fun createBitmap(width: Int, height: Int): Bitmap {
         return AwtBitmap(width, height)
@@ -74,7 +76,7 @@ open class AwtGraphicFactory private constructor() : GraphicFactory {
     }
 
     final override fun createPaint(): Paint {
-        return AwtPaint()
+        return AwtPaint(fonts)
     }
 
     final override fun createPaint(paint: Paint): Paint {
@@ -158,10 +160,20 @@ open class AwtGraphicFactory private constructor() : GraphicFactory {
     companion object {
 
         @JvmField
-        val INSTANCE: GraphicFactory = AwtGraphicFactory()
+        val INSTANCE: GraphicFactory = AwtGraphicFactory(emptyMap())
 
         @JvmField
         val TRANSPARENT = java.awt.Color(0, 0, 0, 0)
+
+        /**
+         * A factory whose paints draw a family listed in `fonts` in its font, at the paint's size and
+         * style, instead of the system's logical font; the golden tests use it to render text alike on
+         * every system.
+         */
+        @JvmStatic
+        fun withFonts(fonts: Map<FontFamily, Font>): GraphicFactory {
+            return AwtGraphicFactory(fonts.toMap())
+        }
 
         @JvmStatic
         fun createGraphicContext(graphics: Graphics): Canvas {
