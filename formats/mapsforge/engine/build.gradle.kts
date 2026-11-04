@@ -1,7 +1,7 @@
 /*
- * Mapsforge engine, vendored from Mapsforge 0.30.0 and converted to Kotlin (M5, D24): core model,
- * util, graphics and map elements, the `.map` reader, datastore, renderer, label stores and the
- * theme engine, in `com.asamm.vectormaps.mapsforge` (M5.7b).
+ * Mapsforge engine, vendored from Mapsforge 0.30.0 (synced to 0.31.0) and converted to Kotlin (M5,
+ * D24): core model, util, graphics and map elements, the `.map` reader, datastore, renderer, label
+ * stores and the theme engine, in `com.asamm.vectormaps.mapsforge` (M5.7b).
  */
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 

@@ -6,26 +6,56 @@ build intentionally differs from it.
 | Item | Value |
 |---|---|
 | Upstream | [mapsforge/mapsforge](https://github.com/mapsforge/mapsforge) |
-| Last synced tag | `0.30.0` (commit `54e8654f`) |
-| Synced on | 2026-10-22 |
+| Last synced tag | `0.31.0` (commit `19518627`); vendored from `0.30.0` (commit `54e8654f`) |
+| Synced on | 2026-11-04 |
+| Golden reference | `0.30.0` jars from JitPack (`upstreamMapsforge`); later tags from source, see below |
 | Scope | 177 files, the closure of locus-core's imports ([ROADMAP](ROADMAP.md) M0); 157 now Kotlin, 20 hillshading files removed (C5, C6) |
 
-## Sync routine
+## Following upstream
 
-Every vendored file is Kotlin since M5.7a, so none compares against the tag any more; upstream
-changes are ported by hand:
+Every vendored file is Kotlin since M5.7a, so upstream changes are ported by hand, one tag at a
+time, with the render kept pixel-identical to the new tag. The helpers need Python 3, `gh` and,
+for step 3, the Android SDK in `local.properties`:
 
-- Read each upstream release's changelog; port theme-format changes and render bug fixes.
-- Diff the upstream paths under "Converted to Kotlin" between tags,
-  `git -C <mapsforge> diff 54e8654f <newTag> -- <upstream path>`, and port what applies to the
-  Kotlin file, keeping the C-rows.
-- Update the table above and both deviation lists in the same change.
+1. **List.** `python dev/mapsforge/upstream/upstream_diff.py <lastTag> <newTag>` puts every changed
+   upstream file in one group: `VENDORED` (a vendored file's upstream), `BUILD`, `THEME`, `MODULE`
+   (other files of the vendored modules) or `OUT`. Read the commits and the upstream
+   `docs/Changelog.md` too.
+2. **Port.** Each `VENDORED` change goes into its Kotlin file, keeping the C-rows; the upstream
+   diff is `gh api repos/mapsforge/mapsforge/compare/<lastTag>...<newTag>` or the commit page.
+   `BUILD`: dependency versions of the vendored modules (`androidsvg`, `kxml2`, `svgSalamander` in
+   `gradle/libs.versions.toml`). `THEME`: a new element or attribute in `renderTheme.xsd` needs the
+   theme parser. `MODULE`: read; layers, overlays and views are not vendored, but a fix there may
+   point at a vendored class.
+3. **Verify.** `python dev/mapsforge/upstream/verify_upstream.py <newTag>` builds the tag from
+   source and runs both Mapsforge goldens against it (JitPack fails to build `mapsforge-map-android`
+   since 0.31.0, and Maven Central stops at 0.25.0). Before porting it shows what the new tag
+   changes in the render, after porting it must pass; a difference that stays is a new C-row,
+   decided with the owner.
+4. **CI.** If JitPack has the tag's jars, raise `upstreamMapsforge` and replace the five
+   components' checksums in `gradle/verification-metadata.xml`; otherwise CI keeps the last tag with
+   jars, which is sound only while step 3 passes.
+5. **Record.** The table above, a sync-log row below, both deviation lists and the K-rows when an
+   API changed, all in the sync's commit.
+
+From M6, when the vendored output changes on purpose, step 3 runs with the override sets of each
+deviation ([architecture.md](architecture.md), golden strategy).
+
+The local Mapsforge clone (`54e8654f`) is read-only and stays on 0.30.0; newer tags are read
+through `gh` or the scripts.
+
+### Sync log
+
+| Tag | Date | Upstream commits | Result |
+|---|---|---|---|
+| `0.30.0` | 2026-10-22 | — | vendored (M0, D4) |
+| `0.31.0` | 2026-11-04 | 7: `Marker` hit test without a bitmap, `TileRendererLayer` re-add, POI v5 multilingual categories, map-writer tag mapping, XML formatting of `renderTheme.xsd` and themes, changelog, release | no vendored file changed, nothing ported; dependencies unchanged; goldens pass against 0.31.0 from source |
 
 ## Converted to Kotlin
 
 M5 converts one area per PR in place (D24); a converted file keeps its upstream licence header.
 Upstream `org.mapsforge.X` is `com.asamm.vectormaps.mapsforge.X` since M5.7b (K64). Upstream changes
-are ported by hand, as the sync routine above describes.
+are ported by hand, as "Following upstream" above describes.
 
 | Area | Step | Upstream path |
 |---|---|---|

@@ -1,11 +1,11 @@
 # CLAUDE.md — kmp-vector-maps
 
 Asamm-owned vector map renderers for Locus Map behind one driver interface: Mapsforge `.map` first
-(extracted from Mapsforge 0.30.0), Garmin IMG (M4), Mapbox Vector Tiles later. Android is the
-product; JVM desktop runs benchmarks and tools; no iOS.
+(extracted from Mapsforge 0.30.0, synced to 0.31.0), Garmin IMG (M4), Mapbox Vector Tiles later.
+Android is the product; JVM desktop runs benchmarks and tools; no iOS.
 
 **Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, commit-sized
-steps, decisions D1–D35, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
+steps, decisions D1–D36, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
 not relitigate a decision without asking. Update the roadmap status in the same commit as the work.
 
 ## Scope
@@ -25,13 +25,14 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 
 | Path | Content |
 |---|---|
-| `formats/mapsforge/engine`, `android`, `awt` | vendored Mapsforge 0.30.0 in Kotlin (M5), `com.asamm.vectormaps.mapsforge.*`: the engine (model, reader, renderer, labels, theme), its Android and AWT graphics |
+| `formats/mapsforge/engine`, `android`, `awt` | vendored Mapsforge (0.30.0, synced to 0.31.0) in Kotlin (M5), `com.asamm.vectormaps.mapsforge.*`: the engine (model, reader, renderer, labels, theme), its Android and AWT graphics |
 | `formats/mapsforge/driver` | Mapsforge driver: the `core/` interface over the engine |
 | `formats/garmin-img/engine`, `android`, `awt` | Garmin IMG from kmp-garmin-img (M4.1, D33), `com.asamm.vectormaps.garminimg.*`: the reader, TYP styles and renderer over its own `RenderTarget`, its Android and AWT targets |
 | `formats/garmin-img/driver` | Garmin driver: the `core/` interface over the engine |
 | `viewer/*` | dev viewers for every registered format: `common` tile engine, `desktop` (Compose), `android` |
 | `dev/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored corpus tiles render through the driver; the shared harness in `golden/harness` |
 | `dev/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `formats/mapsforge/android`, Robolectric; plain Mapsforge, not the driver |
+| `dev/mapsforge/upstream` | upstream sync helpers: `upstream_diff.py` groups a tag's changes, `verify_upstream.py` runs both goldens against a tag built from source ([docs/upstream.md](docs/upstream.md)) |
 | `dev/garmin-img/golden` | Garmin pixel test of Monaco tiles through the driver against committed PNGs (bundled font, every system) and the dump comparison against the legacy Java parser libGarminImg |
 | `dev/fixtures/` | test maps, themes and the golden font, see [dev/fixtures/README.md](dev/fixtures/README.md) |
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines in ROADMAP M2.7 (Mapsforge) and M4.3c (Garmin) |
@@ -46,8 +47,8 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 
 ## Hard rules
 
-- **Every difference from upstream Mapsforge 0.30.0** (code, API, build) has a row in
-  [docs/upstream.md](docs/upstream.md).
+- **Every difference from upstream Mapsforge** (its last synced tag; code, API, build) has a row
+  in [docs/upstream.md](docs/upstream.md); a new upstream tag follows its "Following upstream".
 - **`./gradlew :dev:mapsforge:golden:test` before and after every Mapsforge change**, and
   `./gradlew :dev:garmin-img:golden:test` before and after every Garmin change.
 - **Never remove a licence header** or `COPYING*`; on a vendored file's first change, append
@@ -74,7 +75,7 @@ need it (`golden-android*`, `dev/bench/android`).
 
 | Source | Where |
 |---|---|
-| Mapsforge 0.30.0 (`54e8654f`) | local clone `c:\menion\asamm\tools\mapsforge` |
+| Mapsforge 0.30.0 (`54e8654f`) | local clone `c:\menion\asamm\tools\mapsforge`; later tags through `gh` or `dev/mapsforge/upstream/` |
 | LoMaps themes | [asamm/lomaps-mapsforge](https://github.com/asamm/lomaps-mapsforge) |
 | `kmp-garmin-img` (imported in M4.1, D33) | local clone `c:\menion\asamm\tools\kmp-garmin-img`, kept until locus-core leaves its packages (M9) |
 | JGarminImgParser (Garmin upstream, LGPL-2.1-or-later) | `c:\menion\asamm\tools\_refs\GarminImg` |

@@ -5,15 +5,15 @@ render pipeline and viewer shared by every format.
 
 ## Status
 
-**Pre-release.** Mapsforge 0.30.0 render subset converted to Kotlin (M5; differences in
-[docs/upstream.md](docs/upstream.md)); Garmin IMG imported from kmp-garmin-img 0.5.2 and done in
-M4: driver, parallel and multi-map renders, benchmarks, measured labels, TYP night style; golden
-tests green, desktop and Android viewers running. Not published yet.
+**Pre-release.** Mapsforge 0.30.0 render subset, synced to 0.31.0, converted to Kotlin (M5;
+differences in [docs/upstream.md](docs/upstream.md)); Garmin IMG imported from kmp-garmin-img 0.5.2
+and done in M4: driver, parallel and multi-map renders, benchmarks, measured labels, TYP night
+style; golden tests green, desktop and Android viewers running. Not published yet.
 Milestones: [docs/ROADMAP.md](docs/ROADMAP.md).
 
 | Format | State |
 |---|---|
-| Mapsforge `.map` v5 | vendored from [Mapsforge](https://github.com/mapsforge/mapsforge) 0.30.0 |
+| Mapsforge `.map` v5 | vendored from [Mapsforge](https://github.com/mapsforge/mapsforge) 0.30.0, synced to 0.31.0 |
 | Garmin IMG | from `asamm/kmp-garmin-img` 0.5.2 (history in [docs/garmin-img/](docs/garmin-img/)), extended in M4 |
 | Mapbox Vector Tiles | planned |
 
@@ -23,8 +23,9 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 
 - **`:core`** — format-neutral driver interface, registry, styles, render configuration
   (Apache-2.0). `./gradlew :core:test`.
-- **`:formats:mapsforge:engine`** — vendored Mapsforge 0.30.0 in Kotlin (M5), platform-independent:
-  model, `.map` reader, renderer, labels, theme engine. `./gradlew :formats:mapsforge:engine:test`.
+- **`:formats:mapsforge:engine`** — vendored Mapsforge (0.30.0, synced to 0.31.0) in Kotlin (M5),
+  platform-independent: model, `.map` reader, renderer, labels, theme engine.
+  `./gradlew :formats:mapsforge:engine:test`.
 - **`:formats:mapsforge:android`**, **`:awt`** — its graphics backends, also Kotlin.
 - **`:formats:mapsforge:driver`** — the `:core` driver over the vendored Mapsforge; the host
   passes its `GraphicFactory`. `./gradlew :formats:mapsforge:driver:test`.
@@ -35,6 +36,8 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
   `GarminCanvasFactory`. `./gradlew :formats:garmin-img:driver:test`.
 - **`:dev:mapsforge:golden`** — pixel-exact render comparison against upstream 0.30.0.
   `./gradlew :dev:mapsforge:golden:test`.
+- **`dev/mapsforge/upstream/`** — upstream sync helpers, Python 3 and `gh`, run by hand; see
+  [docs/upstream.md](docs/upstream.md).
 - **`:dev:garmin-img:golden`** — Garmin Monaco tiles through the driver against committed PNGs
   and the dump comparison against the legacy Java parser. `./gradlew :dev:garmin-img:golden:test`;
   the benchmark with `-Pbench.garmin=true`.

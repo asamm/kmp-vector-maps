@@ -480,6 +480,12 @@ differed, labels of 0 differed (36,151 with labels); `IN_TILE` 81,109, no failur
 rename and module merge, before the golden move and review fixes (build files, imports, docs);
 goldens and dumps byte-exact after them.*
 
+- After M5 (2026-11-04): synced to upstream Mapsforge 0.31.0; none of its 7 commits touches a
+  vendored file, so nothing was ported, and both Mapsforge goldens pass against 0.31.0 built from
+  source. CI keeps the 0.30.0 jars, as JitPack has none for 0.31.0. The procedure for later tags,
+  with `dev/mapsforge/upstream/upstream_diff.py` and `verify_upstream.py`, is in
+  [upstream.md](upstream.md) (D36).
+
 **M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
 - M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14);
   Garmin labels piling up at level-pick boundaries (M4.1 carry-over).
@@ -527,7 +533,7 @@ goldens and dumps byte-exact after them.*
 
 ## Decisions
 
-D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27; D32–D33 2026-11-02; D34–D35 2026-11-03.
+D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27; D32–D33 2026-11-02; D34–D35 2026-11-03; D36 2026-11-04.
 
 | ID | Decision |
 |---|---|
@@ -566,6 +572,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D33 | Garmin IMG is LGPL-2.1-or-later, as upstream JGarminImgParser (Q13), imported with history into this public repo after an audit (Q12); the kmp-garmin-img headers become LGPL-2.1-or-later. Locus keeps R8 on the Garmin code, a known §6 gap the owner accepts; if raised, the package is excluded from R8 |
 | D34 | No host night mode: a night look is a style, as LoMaps' night themes are; a Garmin TYP's own night colours become a night style next to its day one, listed only when the TYP has night data, never day colours inverted (M4.4). |
 | D35 | A Garmin file opens with the maps that parse; the others are skipped and listed (`GarminDataset.unreadableMaps`; a read error mid-parse counts as damage, reopening retries), as gmapsupps merged from many tiles carry damaged ones; a file without a readable map, or with overlapping sub-files, is still rejected. Replaces the M4.3b "one unreadable map rejects its whole file". |
+| D36 | Upstream Mapsforge is followed tag by tag: each sync ports the changes to vendored files by hand and proves pixel and dump parity with both goldens against the new tag, built from source when JitPack has no jars; CI's golden reference stays on the last tag with jars while that proof passes. Procedure and log in upstream.md |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.
@@ -590,7 +597,7 @@ See the locus-core plan, R1–R7. Repo-specific:
 | ID | Hazard | Mitigation |
 |---|---|---|
 | H1 | Upstream and vendored Mapsforge, and the shared golden harness, on one classpath | golden generation in its own module |
-| H2 | Vendored code misses upstream changes | changelog review and hand port per release, deviation tables in [upstream.md](upstream.md) |
+| H2 | Vendored code misses upstream changes | per tag: `upstream_diff.py` grouping, hand port, parity with both goldens against the tag (`verify_upstream.py`, D36), deviation tables in [upstream.md](upstream.md) |
 | H3 | Interface shaped by Mapsforge alone | Garmin (M4) right after core v0 (M3) |
 | H4 | Locus sees nothing until M9 | A54 runs in the shared viewer; I7 fallback flag |
 | H5 | Committed PNGs break across OS, JDK, fonts | pinned container exact, tolerant diff outside |

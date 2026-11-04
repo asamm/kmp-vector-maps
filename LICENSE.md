@@ -15,8 +15,9 @@ The LGPL development viewers were deleted in M3.3.
 
 ## Mapsforge
 
-Derivative work of [Mapsforge](https://github.com/mapsforge/mapsforge) 0.30.0, © the Mapsforge
-contributors as named in each file header, with modifications © 2026 Asamm Software.
+Derivative work of [Mapsforge](https://github.com/mapsforge/mapsforge) 0.30.0, synced to 0.31.0,
+© the Mapsforge contributors as named in each file header, with modifications © 2026 Asamm
+Software.
 
 ### Additional permission: LGPL v3 §4(d) and §4(e) waived
 
