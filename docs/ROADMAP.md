@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34).** Next action: M6.4 (A9, A8), the first
-intended output change, after M6.0b's label goldens.
+**Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34).** Next action: M6.1a, the core label model,
+after M6.4's upstream fixes.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -494,8 +494,8 @@ change gets its upstream.md C-row in the same PR.
 | Step | Content | Verify | Status |
 |---|---|---|---|
 | M6.0a | Mapsforge drawing without labels compared with upstream: the corpus gets a label-free (`SEPARATE`) variant of each of its sets, so every theme, menu layer and scale stays covered; compared by the share of differing pixels per tile; a tile over the limit fails unless listed in a committed accepted-differences file (tile, measured share, C-row); the failing tiles' diff images in the build directory; same on the Android golden | today's corpus at 0 differing pixels; a mutation over the limit fails, its listed entry passes | ✅ PR #36, `3fb2bec` |
-| M6.0b | Label goldens: the label store dump (`LabelDump`) and PNGs of the labelled corpus tiles committed, rendered by the vendored side in the bundled DejaVu Sans (C8), so they hold on every system (H5); dumps exact, tiles within a small share as the Garmin golden's; the labelled tiles leave the upstream comparison; reader and `RenderCallback` dumps stay exact against upstream; `updateLabelGoldens` refreshes them | the label-free tiles still match upstream with the font; a changed dump line and a swapped tile fail; CI on Linux passes against goldens made on Windows | 🔧 |
-| M6.4 | A9: `Line` with `scale="all"` and no `stroke-dasharray` no longer throws; A8: the symbol boundary's top scales by height; both C-rows | A9 test theme renders; A8 changes only label output (symbol position and clash box): label goldens updated and confirmed in the PR; drawing and the reader and `RenderCallback` dumps unchanged | ⬜ |
+| M6.0b | Label goldens: the label store dump (`LabelDump`) and PNGs of the labelled corpus tiles committed, rendered by the vendored side in the bundled DejaVu Sans (C8), so they hold on every system (H5); dumps exact, tiles within a small share as the Garmin golden's; the labelled tiles leave the upstream comparison; reader and `RenderCallback` dumps stay exact against upstream; `updateLabelGoldens` refreshes them | the label-free tiles still match upstream with the font; a changed dump line and a swapped tile fail; CI on Linux passes against goldens made on Windows | ✅ PR #37, `9bd702e` |
+| M6.4 | A9: `Line` with `scale="all"` and no `stroke-dasharray` no longer throws; A8: the symbol boundary's top scales by height; both C-rows | A9 test theme renders; A8 changes only label output (symbol position and clash box): label goldens updated and confirmed in the PR; drawing and the reader and `RenderCallback` dumps unchanged | 🔧 |
 | M6.1a | Core label model (`:core`, Apache-2.0): `LabelCandidate` (stable identity, world position, priority, measured collision geometry, neutral style, kind: point, line symbol, path text) and placement with a spatial grid (from Locus' `collisionFreeOrderedFast`), rotation-aware and upright | unit tests: priority order, rotation, ties broken by identity, not by hash (A7) | ⬜ |
 | M6.1b | `SEPARATE` label pass: the Mapsforge driver turns its label store into candidates; `prepare(viewport)` off the caller's thread, cancelling the previous run, `draw`, `onPrepared` (architecture.md, host API); desktop viewer draws it with rotation | label goldens of the pass at 0° and a rotation; soak as D31 against the pass | ⬜ |
 | M6.1c | `IN_TILE` labels placed over the tile plus a one-tile margin, independent of render order, replacing Mapsforge `TileDependencies`; equal `RenderKey` gives equal tiles | the parallel golden renders in shuffled orders, tiles byte-equal | ⬜ |
@@ -527,6 +527,13 @@ change gets its upstream.md C-row in the same PR.
   Symbols are stored with the labels, so symbol drawing is no longer compared with upstream (D37).
   Each refresh adds its changed PNGs to git history in full, up to the 14.5 MB of all tiles; plain
   git until that hurts.
+- M6.4 as built: both fixes are C9. A8 changes nothing for LoMaps, so every golden is unchanged:
+  653 of its 654 symbols are square, and the one that is not (`poi_cliff_way.svg`, 7×6) sits below
+  its way, where the top offset is 0 either way; `SymbolBoundaryTest` covers it. For other themes
+  A8 also moves a caption placed against a non-square symbol (`symbol-id`), and with it that
+  caption's offset in the `RenderCallback` dump, which then differs from upstream (C9). A9 has no
+  LoMaps use (its 108 `<line>` with `scale="all"` all have a `stroke-dasharray`);
+  `ThemeCachesTest` scales such a line, which throws on the upstream code.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.
@@ -644,7 +651,7 @@ See the locus-core plan, R1–R7. Repo-specific:
 ## Adjacent, out of scope
 
 A1–A6 found in locus-core `development` @ `79226d9`, A7–A9 in upstream Mapsforge 0.30.0; not fixed
-here, except A8 and A9 in M6.4, as fixing them changes pixels.
+here, except A8 and A9, fixed in M6.4 (C9), as fixing them changes output against upstream.
 
 | ID | Finding |
 |---|---|
@@ -655,8 +662,8 @@ here, except A8 and A9 in M6.4, as fixing them changes pixels.
 | A5 | `MapContent` tests `is MapSourceMapsForgeV4` in both branches, the second is dead |
 | A6 | Theme parse runs synchronously on the caller, dark variant under the pref lock |
 | A7 | Equal-priority labels survive in identity-hash order (`DatabaseRenderer`), output varies between runs |
-| A8 | `RenderInstruction.computeBoundary` scales the symbol boundary's top by width, not height (Mapsforge 0.30.0, kept in M5.6b) |
-| A9 | `Line` with `scale="all"` and no `stroke-dasharray` throws in `scaleStrokeWidth` (Mapsforge 0.30.0, kept in M5.6b) |
+| A8 | `RenderInstruction.computeBoundary` scales the symbol boundary's top by width, not height (Mapsforge 0.30.0, kept in M5.6b, fixed in M6.4) |
+| A9 | `Line` with `scale="all"` and no `stroke-dasharray` throws in `scaleStrokeWidth` (Mapsforge 0.30.0, kept in M5.6b, fixed in M6.4) |
 
 ## Open
 

@@ -36,7 +36,7 @@ import kotlin.test.assertSame
 
 /**
  * The theme's matching caches compare tags in full, and its scaled Paints are kept for a window of
- * zoom levels plus the ones a job holds (D29).
+ * zoom levels plus the ones a job holds (D29); a `scale="all"` line without dashes scales (A9, C9).
  */
 class ThemeCachesTest {
 
@@ -45,6 +45,7 @@ class ThemeCachesTest {
         """
             <rule e="node" k="k1" v="a"><circle radius="5" fill="#ff0000"/></rule>
             <rule e="way" k="highway" v="*"><line stroke="#000000" stroke-width="1"/></rule>
+            <rule e="way" k="railway" v="*"><line stroke="#000000" stroke-width="1" scale="all"/></rule>
             <rule e="node" k="place" v="*"><caption k="name" font-size="10" fill="#000000"/></rule>
         """,
     )
@@ -107,6 +108,15 @@ class ThemeCachesTest {
         assertNotEquals(scaled, strokeWidth(held))
     }
 
+    @Test
+    fun scaleAllLineWithoutDashesScalesItsWidth() {
+        val context = context(zoom = 14)
+
+        // upstream throws while scaling this line (A9)
+        assertEquals(strokeWidth(context), strokeWidth(context, key = "railway", value = "rail"))
+        assertNotEquals(1f, strokeWidth(context, key = "railway", value = "rail"))
+    }
+
     private fun context(zoom: Int): RenderContext {
         val tile = Tile(0, 0, zoom.toByte(), 256)
         val store = MultiMapDataStore(MultiMapDataStore.DataPolicy.RETURN_ALL)
@@ -124,13 +134,13 @@ class ThemeCachesTest {
         return recorder.lastCaption!!
     }
 
-    private fun strokeWidth(context: RenderContext): Float {
+    private fun strokeWidth(context: RenderContext, key: String = "highway", value: String = "track"): Float {
         val tile = context.rendererJob.tile
         val way = PolylineContainer(
             arrayOf(Point(0.0, 0.0), Point(10.0, 10.0)),
             tile,
             tile,
-            listOf(Tag("highway", "track")),
+            listOf(Tag(key, value)),
         )
         themeFuture.get().matchLinearWay(recorder, context, way)
         return recorder.lastStroke!!.strokeWidth

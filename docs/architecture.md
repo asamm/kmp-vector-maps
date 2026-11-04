@@ -108,7 +108,7 @@ anchors, each with a per-format default.
 | Text dumps | reader output, `RenderCallback`, sorted | ✅ M2.2, M2.5 |
 | Garmin committed pixels | Monaco tiles through the driver, bundled DejaVu Sans, AA off, ≤ 0.2 % differing | ✅ M4.2c |
 | Mapsforge drawing | without labels vs upstream, a per-tile share of differing pixels; over the limit only through a committed accepted entry with its C-row (D37) | ✅ M6.0a |
-| Mapsforge labels | committed label store dumps (`LabelDump`, AWT) and tiles with labels, AWT in the bundled DejaVu Sans (C8), Android in Robolectric's fonts: dumps exact, tiles ≤ 0.2 %, anti-aliased | 🔧 M6.0b |
+| Mapsforge labels | committed label store dumps (`LabelDump`, AWT) and tiles with labels, AWT in the bundled DejaVu Sans (C8), Android in Robolectric's fonts: dumps exact, tiles ≤ 0.2 %, anti-aliased | ✅ M6.0b |
 
 - Reading stays identical to upstream: the reader and `RenderCallback` dumps are compared exactly,
   also by `verify_upstream.py` for each new upstream tag.
