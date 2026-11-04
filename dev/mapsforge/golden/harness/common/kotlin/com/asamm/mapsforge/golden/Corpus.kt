@@ -38,15 +38,19 @@ object Corpus {
     private const val CASINO_LAT = 43.7396
     private const val CASINO_LON = 7.4277
 
-    /**
-     * Render configurations; together they cover each theme, menu layer, device scale and text
-     * scale at least once without the full cross-product, plus Locus' primary label mode.
-     */
-    val SETS = listOf(
+    private val IN_TILE_SETS = listOf(
         RenderSet(theme = "theme", menuLayer = "hike_bike", deviceScale = 1.0f, textScale = 1.0f),
         RenderSet(theme = "theme", menuLayer = "car", deviceScale = 2.625f, textScale = 1.0f),
         RenderSet(theme = "theme_dark", menuLayer = "hike_bike", deviceScale = 3.0f, textScale = 1.5f),
         RenderSet(theme = "theme_dark", menuLayer = "car", deviceScale = 1.0f, textScale = 1.5f),
+    )
+
+    /**
+     * Render configurations; together they cover each theme, menu layer, device scale and text
+     * scale at least once without the full cross-product, each also without labels in the tiles
+     * (Locus' primary mode), whose drawing is compared with upstream on its own (ROADMAP D37).
+     */
+    val SETS = IN_TILE_SETS + IN_TILE_SETS.map { it.copy(labelsInTile = false) } + listOf(
         RenderSet(
             theme = "theme",
             menuLayer = "hike_bike",

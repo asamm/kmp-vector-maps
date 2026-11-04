@@ -1,7 +1,8 @@
 /*
  * Android golden render test: renders the corpus with the vendored `:formats:mapsforge:android`
- * module under Robolectric's native Android graphics and compares it pixel by pixel with the
- * upstream 0.30.0 render from `:dev:mapsforge:golden-android-upstream`. Not published.
+ * module under Robolectric's native Android graphics and compares it with the upstream 0.30.0
+ * render from `:dev:mapsforge:golden-android-upstream`: exact for tiles with labels, within
+ * `dev/mapsforge/golden/accepted-differences.txt` for tiles without (D37). Not published.
  */
 plugins {
     alias(libs.plugins.androidLibrary)
@@ -80,6 +81,10 @@ val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures").asFile
 val actualDir = layout.buildDirectory.dir("golden/actual").get().asFile
 val diffDir = layout.buildDirectory.dir("golden/diff").get().asFile
 val upstreamRender = project(":dev:mapsforge:golden-android-upstream").layout.buildDirectory.dir("golden/expected")
+// confirmed drawing differences against upstream, shared with golden (D37)
+val acceptedFile = rootProject.layout.projectDirectory.file("dev/mapsforge/golden/accepted-differences.txt").asFile
+// the C-rows an accepted entry may cite
+val upstreamDoc = rootProject.layout.projectDirectory.file("docs/upstream.md").asFile
 
 tasks.withType<Test>().configureEach {
     dependsOn(":dev:mapsforge:golden-android-upstream:testDebugUnitTest")
@@ -95,6 +100,8 @@ tasks.withType<Test>().configureEach {
     )
     inputs.dir(fixturesDir)
     inputs.dir(upstreamRender)
+    inputs.file(acceptedFile)
+    inputs.file(upstreamDoc)
     outputs.dir(actualDir)
     // keeps the diff images when the result comes from the build cache
     outputs.dir(diffDir)
@@ -107,4 +114,6 @@ tasks.withType<Test>().configureEach {
     systemProperty("golden.expectedDir", upstreamRender.get().asFile.absolutePath)
     systemProperty("golden.actualDir", actualDir.absolutePath)
     systemProperty("golden.diffDir", diffDir.absolutePath)
+    systemProperty("golden.acceptedFile", acceptedFile.absolutePath)
+    systemProperty("golden.upstreamDoc", upstreamDoc.absolutePath)
 }
