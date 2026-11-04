@@ -198,9 +198,11 @@ open class Line @Throws(IOException::class, XmlPullParserException::class) const
             }
             val paint = graphicFactory.createPaint(stroke)
             paint.strokeWidth = this.strokeWidth * factor
-            if (this.scale == Scale.ALL) {
-                // throws without a stroke-dasharray, as upstream (A9)
-                val strokeDasharray = this.strokeDasharray!!
+            val strokeDasharray = this.strokeDasharray
+            // upstream throws without a stroke-dasharray (A9, C9)
+            if (this.scale == Scale.ALL
+                && strokeDasharray != null
+            ) {
                 val strokeDasharrayScaled = FloatArray(strokeDasharray.size)
                 for (i in 0 until strokeDasharray.size) {
                     strokeDasharrayScaled[i] = strokeDasharray[i] * factor
