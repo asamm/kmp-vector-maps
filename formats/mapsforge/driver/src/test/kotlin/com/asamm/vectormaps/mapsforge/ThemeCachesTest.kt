@@ -110,9 +110,9 @@ class ThemeCachesTest {
 
     @Test
     fun scaleAllLineWithoutDashesScalesItsWidth() {
+        // upstream throws while scaling the railway line (A9)
         val context = context(zoom = 14)
 
-        // upstream throws while scaling this line (A9)
         assertEquals(strokeWidth(context), strokeWidth(context, key = "railway", value = "rail"))
         assertNotEquals(1f, strokeWidth(context, key = "railway", value = "rail"))
     }

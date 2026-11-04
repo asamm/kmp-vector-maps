@@ -68,7 +68,7 @@ class DrawingCheckTest {
             "awt $TILE NaN% C8 not a number",
             "awt $TILE 0.4% C8 within the limit",
             "awt $TILE 2% TODO no C-row",
-            "awt $TILE 2% C9 C-row not in upstream.md",
+            "awt $TILE 2% C999 C-row not in upstream.md",
         )
         for (entry in invalid) {
             assertFailsWith<IllegalArgumentException>(entry) {

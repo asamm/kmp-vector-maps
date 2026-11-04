@@ -14,8 +14,8 @@ build intentionally differs from it.
 ## Following upstream
 
 Every vendored file is Kotlin since M5.7a, so upstream changes are ported by hand, one tag at a
-time, with reading kept identical to the new tag and drawing within the accepted differences
-(D37). The helpers need Python 3, `gh` and, for step 3, the Android SDK in `local.properties`:
+time, with reading kept identical to the new tag (C9 aside: a caption placed against a
+non-square symbol) and drawing within the accepted differences (D37). The helpers need Python 3, `gh` and, for step 3, the Android SDK in `local.properties`:
 
 1. **List.** `python dev/mapsforge/upstream/upstream_diff.py <lastTag> <newTag>` puts every changed
    upstream file in one group: `VENDORED` (a vendored file's upstream), `BUILD`, `THEME`, `MODULE`
