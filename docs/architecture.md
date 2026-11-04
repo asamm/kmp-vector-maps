@@ -105,12 +105,15 @@ anchors, each with a per-format default.
 |---|---|---|
 | Differential pixels | vendored vs upstream 0.30.0, same host | ✅ M0 |
 | Android pixels | Robolectric native graphics, vendored vs upstream | ✅ M2.4 |
-| Text dumps | reader output, label store, `RenderCallback`, sorted | ✅ M2.2, M2.5 |
+| Text dumps | reader output, `RenderCallback`, sorted; label store until M6.0b | ✅ M2.2, M2.5 |
 | Garmin committed pixels | Monaco tiles through the driver, bundled DejaVu Sans, AA off, ≤ 0.2 % differing | ✅ M4.2c |
-| Mapsforge committed pixels | exact in a pinned container, tolerant outside | M6, once output changes |
+| Mapsforge drawing | without labels vs upstream, a per-tile share of differing pixels; over the limit only through a committed accepted entry with its C-row (D37) | M6.0a |
+| Mapsforge labels | committed label store dump (`LabelDump`) and PNGs, exact on the pinned CI runner, tolerant outside | M6.0b |
 
-- An override set per [upstream.md](upstream.md) deviation keeps one intentional change from
-  dropping the whole corpus off the differential test.
+- Reading stays identical to upstream: the reader and `RenderCallback` dumps are compared exactly,
+  also by `verify_upstream.py` for each new upstream tag.
+- An intended change is confirmed in its PR: an accepted-differences entry for drawing, a golden
+  update for labels.
 
 ## Notes
 

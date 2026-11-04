@@ -38,8 +38,9 @@ for step 3, the Android SDK in `local.properties`:
 5. **Record.** The table above, a sync-log row below, both deviation lists and the K-rows when an
    API changed, all in the sync's commit.
 
-From M6, when the vendored output changes on purpose, step 3 runs with the override sets of each
-deviation ([architecture.md](architecture.md), golden strategy).
+From M6.0 (D37), when the vendored output changes on purpose, step 3 still compares reading
+exactly; drawing passes through the committed accepted-differences entries, labels are compared
+against our own goldens ([architecture.md](architecture.md), golden strategy).
 
 The local Mapsforge clone (`54e8654f`) is read-only and stays on 0.30.0; newer tags are read
 through `gh` or the scripts.

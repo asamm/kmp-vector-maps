@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34).** Next action: M6, core label model,
-hillshade anchor and feature query.
+**Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34).** Next action: M6.0, the Mapsforge
+golden split (D37).
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -486,12 +486,27 @@ goldens and dumps byte-exact after them.*
   with `dev/mapsforge/upstream/upstream_diff.py` and `verify_upstream.py`, is in
   [upstream.md](upstream.md) (D36).
 
-**M6 — Core features.** Output changes on purpose: goldens move to committed PNGs here (H5).
-- M6.1 label model: `SEPARATE` with rotation and `onPrepared`, `IN_TILE` with a tile margin (D14);
-  Garmin labels piling up at level-pick boundaries (M4.1 carry-over).
-- M6.2 `HILLSHADE` anchor: theme `<hillshading>` element, else after features (D13, D16); re-capture its position, dropped in M5.4a (D30).
-- M6.3 pull-based `FeatureQuery` returning a symbol bitmap, for LoPoints.
-- M6.4 upstream bugs A8 and A9 fixed.
+**M6 — Core features.** Planned 2026-11-04. Output changes on purpose from M6.4 on (run before
+M6.1), so M6.0 first splits the Mapsforge goldens (D37): reading stays identical to upstream,
+drawing close to it, labels against our own goldens. One PR per step; every Mapsforge output
+change gets its upstream.md C-row in the same PR.
+
+| Step | Content | Verify | Status |
+|---|---|---|---|
+| M6.0a | Mapsforge drawing without labels compared with upstream: the corpus gets a label-free (`SEPARATE`) variant of each of its sets, so every theme, menu layer and scale stays covered; compared by the share of differing pixels per tile; a tile over the limit fails unless listed in a committed accepted-differences file (tile, measured share, C-row); the failing tiles' diff images in the build directory; same on the Android golden | today's corpus at 0 differing pixels; a mutation over the limit fails, its listed entry passes | ⬜ |
+| M6.0b | Label goldens: the label store dump (`LabelDump`) and PNGs of the labelled corpus tiles committed, rendered from today's output (equal to upstream); exact on CI's pinned runner, tolerant elsewhere with a diff as the Garmin golden's (H5); the labelled tiles leave the upstream comparison; reader and `RenderCallback` dumps stay exact against upstream | the committed files equal today's upstream render; `verify_upstream.py` still runs every exact check | ⬜ |
+| M6.4 | A9: `Line` with `scale="all"` and no `stroke-dasharray` no longer throws; A8: the symbol boundary's top scales by height; both C-rows | A9 test theme renders; A8 changes only label output (symbol position and clash box): label goldens updated and confirmed in the PR; drawing and the reader and `RenderCallback` dumps unchanged | ⬜ |
+| M6.1a | Core label model (`:core`, Apache-2.0): `LabelCandidate` (stable identity, world position, priority, measured collision geometry, neutral style, kind: point, line symbol, path text) and placement with a spatial grid (from Locus' `collisionFreeOrderedFast`), rotation-aware and upright | unit tests: priority order, rotation, ties broken by identity, not by hash (A7) | ⬜ |
+| M6.1b | `SEPARATE` label pass: the Mapsforge driver turns its label store into candidates; `prepare(viewport)` off the caller's thread, cancelling the previous run, `draw`, `onPrepared` (architecture.md, host API); desktop viewer draws it with rotation | label goldens of the pass at 0° and a rotation; soak as D31 against the pass | ⬜ |
+| M6.1c | `IN_TILE` labels placed over the tile plus a one-tile margin, independent of render order, replacing Mapsforge `TileDependencies`; equal `RenderKey` gives equal tiles | the parallel golden renders in shuffled orders, tiles byte-equal | ⬜ |
+| M6.1d | Garmin on the core label model: `SEPARATE` and `IN_TILE`, its `LabelLayout` retired; labels piling up at level-pick boundaries (M4.1 carry-over) | Garmin goldens updated and confirmed in the PR; both label modes render | ⬜ |
+| M6.2 | `HILLSHADE` anchor: `RenderThemeHandler` re-captures `<hillshading>` layer, level and `cat` (D30); the renderer calls a host hook with geo bounds and pixel scale at that position, else after all features (D13, D16); Garmin after polygons | no hook: goldens unchanged; a test hook's fill lands between the right layers on both formats | ⬜ |
+| M6.3 | `FeatureQuery` in `:core`, Mapsforge only (D38): tags at a zoom → resolved symbol bitmap (what LoPoints' `PointGeneratorV4Theme` takes from `RenderCallback.renderPointOfInterestSymbol`), plus priority and caption style | the corpus POIs resolve as the `RenderCallback` path does | ⬜ |
+
+- Order: M6.0, M6.4, M6.1, M6.2, M6.3; the small upstream fixes go before the label model so its
+  golden updates show only its own change; hillshade and the query do not change default output.
+- Open to settle in M6.0a: the per-tile limit (start at 0.5 % of a tile's pixels, tuned to the
+  corpus noise between JDKs) and the CI runner pin.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.
@@ -533,7 +548,7 @@ goldens and dumps byte-exact after them.*
 
 ## Decisions
 
-D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27; D32–D33 2026-11-02; D34–D35 2026-11-03; D36 2026-11-04.
+D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27; D32–D33 2026-11-02; D34–D35 2026-11-03; D36–D38 2026-11-04.
 
 | ID | Decision |
 |---|---|
@@ -573,6 +588,8 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D34 | No host night mode: a night look is a style, as LoMaps' night themes are; a Garmin TYP's own night colours become a night style next to its day one, listed only when the TYP has night data, never day colours inverted (M4.4). |
 | D35 | A Garmin file opens with the maps that parse; the others are skipped and listed (`GarminDataset.unreadableMaps`; a read error mid-parse counts as damage, reopening retries), as gmapsupps merged from many tiles carry damaged ones; a file without a readable map, or with overlapping sub-files, is still rejected. Replaces the M4.3b "one unreadable map rejects its whole file". |
 | D36 | Upstream Mapsforge is followed tag by tag: each sync ports the changes to vendored files by hand and proves pixel and dump parity with both goldens against the new tag, built from source when JitPack has no jars; CI's golden reference stays on the last tag with jars while that proof passes. Procedure and log in upstream.md |
+| D37 | Mapsforge goldens from M6: reading (reader and `RenderCallback` dumps) identical to upstream; drawing without labels close to upstream, a per-tile share of differing pixels, a tile over the limit accepted only through a committed entry with its C-row; labels against committed goldens, as our label model replaces upstream's placement on purpose. A significant change is confirmed by its entry or golden update in the PR. Replaces "goldens move to committed PNGs" (H5) |
+| D38 | `FeatureQuery` is format-neutral in `:core`, implemented by the Mapsforge driver only in M6.3 for LoPoints; Garmin follows when a host needs it |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.
@@ -600,7 +617,7 @@ See the locus-core plan, R1–R7. Repo-specific:
 | H2 | Vendored code misses upstream changes | per tag: `upstream_diff.py` grouping, hand port, parity with both goldens against the tag (`verify_upstream.py`, D36), deviation tables in [upstream.md](upstream.md) |
 | H3 | Interface shaped by Mapsforge alone | Garmin (M4) right after core v0 (M3) |
 | H4 | Locus sees nothing until M9 | A54 runs in the shared viewer; I7 fallback flag |
-| H5 | Committed PNGs break across OS, JDK, fonts | pinned container exact, tolerant diff outside |
+| H5 | Committed PNGs break across OS, JDK, fonts | committed PNGs only for Mapsforge labels, exact on the pinned CI runner and tolerant outside, and Garmin, ≤ 0.2 % everywhere (D37) |
 | H6 | JitPack outage or rebuild | checksum verification; cache the jars if outages hurt |
 | H7 | Host API drifts from Locus' real seam | mirrors `MapSourceRenderer`; M8.3 throwaway wiring |
 
