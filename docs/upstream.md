@@ -31,7 +31,9 @@ time, with reading kept identical to the new tag and drawing within the accepted
    source and runs both Mapsforge goldens against it (JitPack fails to build `mapsforge-map-android`
    since 0.31.0, and Maven Central stops at 0.25.0). Before porting it shows what the new tag
    changes in the render, after porting it must pass; a difference that stays is a new C-row,
-   decided with the owner.
+   decided with the owner. Label-free tiles pass up to 0.5 % differing pixels without an entry, so
+   read `build/golden/diff` even on a pass; an entry reported stale is removed, with its C-row when
+   the deviation is gone.
 4. **CI.** If JitPack has the tag's jars, raise `upstreamMapsforge` and replace the five
    components' checksums in `gradle/verification-metadata.xml`; otherwise CI keeps the last tag with
    jars, which is sound only while step 3 passes.
@@ -41,7 +43,8 @@ time, with reading kept identical to the new tag and drawing within the accepted
 From M6.0 (D37), when the vendored output changes on purpose, step 3 still compares reading exactly;
 drawing passes through the committed accepted-differences entries
 (`dev/mapsforge/golden/accepted-differences.txt`), labels are compared against our own goldens
-([architecture.md](architecture.md), golden strategy).
+([architecture.md](architecture.md), golden strategy). Until M6.0b the tiles with labels stay exact
+against upstream, so a drawing change also fails them and an entry alone does not pass it.
 
 The local Mapsforge clone (`54e8654f`) is read-only and stays on 0.30.0; newer tags are read
 through `gh` or the scripts.

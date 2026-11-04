@@ -34,9 +34,12 @@ class AndroidGoldenRenderTest {
     private val actualDir = dirProperty("golden.actualDir")
     private val diffDir = dirProperty("golden.diffDir")
     private val acceptedFile = dirProperty("golden.acceptedFile")
+    private val upstreamDoc = dirProperty("golden.upstreamDoc")
 
     @Test
     fun vendoredRenderMatchesUpstream() {
+        // parsed first, so a malformed entry fails before the corpus renders
+        val drawingCheck = DrawingCheck(acceptedFile = acceptedFile, upstreamDoc = upstreamDoc, backend = "android")
         AndroidCorpus.renderAll(
             application = RuntimeEnvironment.getApplication(),
             fixturesDir = dirProperty("golden.fixturesDir"),
@@ -48,7 +51,6 @@ class AndroidGoldenRenderTest {
         assertTrue("no expected renders in $expectedDir", expected.isNotEmpty())
         assertEquals("rendered tile sets differ", expected.map { it.name }, actual.map { it.name })
 
-        val drawingCheck = DrawingCheck(acceptedFile = acceptedFile, backend = "android")
         var nonUniform = 0
         val mismatches = expected.mapNotNull { exp ->
             val expBitmap = decode(exp)

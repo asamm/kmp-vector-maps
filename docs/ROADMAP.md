@@ -510,8 +510,10 @@ change gets its upstream.md C-row in the same PR.
   label-free tiles against `dev/mapsforge/golden/accepted-differences.txt`, whose entries carry
   backend, tile, accepted share and C-row, and fails on an entry no tile needs. The limit is 0.5 %
   of a tile's pixels: both renders run on one host, so there is no cross-JDK noise to absorb, and
-  a stroke widened by 15 % moved the label-free tiles by 0.67–30 %. The CI runner pin moves to
-  M6.0b, the first committed PNGs.
+  a stroke widened by 15 % moved the label-free tiles by 0.67–30 %. An entry must cite a C-row of
+  upstream.md, and a failing tile prints its ready-to-paste entry. Until M6.0b the tiles with labels
+  stay exact, so a drawing change also fails them. The CI runner image is already pinned
+  (ubuntu-24.04); pinning the JDK patch level and fonts moves to M6.0b, the first committed PNGs.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.

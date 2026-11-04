@@ -6,6 +6,7 @@ package com.asamm.mapsforge.golden
 
 import java.io.File
 import java.util.Locale
+import kotlin.math.ceil
 
 /**
  * Judges tiles drawn without labels against upstream (ROADMAP D37): a tile passes when at most
@@ -16,9 +17,12 @@ import java.util.Locale
  * Accepted file, one entry per line, a line starting with `#` is a comment:
  * `<backend> <tile file> <max share>% <upstream.md C-row> <reason>`.
  *
+ * @param upstreamDoc `docs/upstream.md`, whose deviation table holds the C-rows an entry may cite
  * @param backend `awt` or `android`; entries of the other backend are validated, then ignored
  */
-class DrawingCheck(acceptedFile: File, private val backend: String) {
+class DrawingCheck(acceptedFile: File, upstreamDoc: File, private val backend: String) {
+
+    private val cRows: Set<String> = C_ROW.findAll(upstreamDoc.readText()).map { it.groupValues[1] }.toSet()
 
     private val accepted: Map<String, Entry> = parse(acceptedFile)
 
@@ -36,7 +40,8 @@ class DrawingCheck(acceptedFile: File, private val backend: String) {
             return null
         }
         if (entry == null) {
-            return "$tile: ${percent(share)} differ, over the ${percent(MAX_DIFFERING_SHARE)} limit and not accepted"
+            return "$tile: ${percent(share)} differ, over the ${percent(MAX_DIFFERING_SHARE)} limit and not accepted;" +
+                " entry: $backend $tile ${entryShare(share)}% <C-row> <reason>"
         }
         if (share > entry.maxShare) {
             return "$tile: ${percent(share)} differ, over its accepted ${percent(entry.maxShare)} (${entry.deviation})"
@@ -62,7 +67,7 @@ class DrawingCheck(acceptedFile: File, private val backend: String) {
         val result = mutableMapOf<String, Entry>()
         file.readLines().forEachIndexed { index, raw ->
             // an editor may save a byte-order mark, which trim() keeps
-            val line = raw.removePrefix("﻿").trim()
+            val line = raw.removePrefix("\uFEFF").trim()
             if (line.isEmpty()
                 || line.startsWith("#")
             ) {
@@ -84,8 +89,8 @@ class DrawingCheck(acceptedFile: File, private val backend: String) {
             ) {
                 "$where: share '${parts[2]}', expected a percentage above the limit, up to 100%"
             }
-            require(C_ROW.matches(parts[3])) {
-                "$where: '${parts[3]}' is no upstream.md C-row"
+            require(parts[3] in cRows) {
+                "$where: '${parts[3]}' is no C-row of upstream.md"
             }
             if (parts[0] != backend) {
                 return@forEachIndexed
@@ -106,6 +111,11 @@ class DrawingCheck(acceptedFile: File, private val backend: String) {
         return "%.3f %%".format(Locale.ROOT, share * 100.0)
     }
 
+    // rounded up, so the printed share accepts the tile it was measured on
+    private fun entryShare(share: Double): String {
+        return "%.3f".format(Locale.ROOT, ceil(share * 100_000.0) / 1_000.0)
+    }
+
     private data class Entry(
         val tile: String,
         val maxShare: Double,
@@ -121,7 +131,8 @@ class DrawingCheck(acceptedFile: File, private val backend: String) {
 
         private val WHITESPACE = Regex("\\s+")
 
-        private val C_ROW = Regex("C\\d+")
+        // a row of the deviation table: `| C7 | ...`
+        private val C_ROW = Regex("^\\| (C\\d+) \\|", RegexOption.MULTILINE)
 
         /**
          * True for tiles drawn without labels, which [DrawingCheck] judges; the others stay exact.

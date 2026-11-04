@@ -83,6 +83,8 @@ val diffDir = layout.buildDirectory.dir("golden/diff").get().asFile
 val upstreamRender = project(":dev:mapsforge:golden-android-upstream").layout.buildDirectory.dir("golden/expected")
 // confirmed drawing differences against upstream, shared with golden (D37)
 val acceptedFile = rootProject.layout.projectDirectory.file("dev/mapsforge/golden/accepted-differences.txt").asFile
+// the C-rows an accepted entry may cite
+val upstreamDoc = rootProject.layout.projectDirectory.file("docs/upstream.md").asFile
 
 tasks.withType<Test>().configureEach {
     dependsOn(":dev:mapsforge:golden-android-upstream:testDebugUnitTest")
@@ -99,6 +101,7 @@ tasks.withType<Test>().configureEach {
     inputs.dir(fixturesDir)
     inputs.dir(upstreamRender)
     inputs.file(acceptedFile)
+    inputs.file(upstreamDoc)
     outputs.dir(actualDir)
     // keeps the diff images when the result comes from the build cache
     outputs.dir(diffDir)
@@ -112,4 +115,5 @@ tasks.withType<Test>().configureEach {
     systemProperty("golden.actualDir", actualDir.absolutePath)
     systemProperty("golden.diffDir", diffDir.absolutePath)
     systemProperty("golden.acceptedFile", acceptedFile.absolutePath)
+    systemProperty("golden.upstreamDoc", upstreamDoc.absolutePath)
 }

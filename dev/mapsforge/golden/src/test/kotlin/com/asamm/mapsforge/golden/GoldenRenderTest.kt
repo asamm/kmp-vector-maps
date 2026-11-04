@@ -28,7 +28,7 @@ class GoldenRenderTest {
         assertTrue(expected.isNotEmpty(), "no expected renders in ${TestDirs.expected}")
         assertEquals(expected.map { it.name }, actual.map { it.name }, "rendered tile sets differ")
 
-        val drawingCheck = DrawingCheck(acceptedFile = TestDirs.accepted, backend = "awt")
+        val drawingCheck = DrawingCheck(acceptedFile = TestDirs.accepted, upstreamDoc = TestDirs.upstreamDoc, backend = "awt")
         val mismatches = expected.mapNotNull { exp ->
             val diffPixels = compare(exp, File(TestDirs.actual, exp.name))
             when {

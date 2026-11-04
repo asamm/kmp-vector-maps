@@ -68,6 +68,7 @@ class DrawingCheckTest {
             "awt $TILE NaN% C8 not a number",
             "awt $TILE 0.4% C8 within the limit",
             "awt $TILE 2% TODO no C-row",
+            "awt $TILE 2% C9 C-row not in upstream.md",
         )
         for (entry in invalid) {
             assertFailsWith<IllegalArgumentException>(entry) {
@@ -78,8 +79,18 @@ class DrawingCheckTest {
 
     @Test
     fun hashInReasonAndByteOrderMarkRead() {
-        val check = check("﻿# header\nawt $TILE 2% C8 see #412")
+        val check = check("\uFEFF# header\nawt $TILE 2% C8 see #412")
         assertNull(check.verdict(tile = TILE, differingPixels = 5_000, totalPixels = TOTAL))
+    }
+
+    @Test
+    fun printedEntryAcceptsItsTile() {
+        for (differingPixels in 1_311..TOTAL step 7) {
+            val verdict = check("").verdict(tile = TILE, differingPixels = differingPixels, totalPixels = TOTAL)
+            val entry = assertNotNull(verdict).substringAfter("entry: ").replace("<C-row> <reason>", "C8 measured")
+            val accepted = check(entry)
+            assertNull(accepted.verdict(tile = TILE, differingPixels = differingPixels, totalPixels = TOTAL), entry)
+        }
     }
 
     @Test
@@ -91,7 +102,9 @@ class DrawingCheckTest {
     private fun check(content: String): DrawingCheck {
         val file = File(dir, "accepted.txt")
         file.writeText(content.trimIndent())
-        return DrawingCheck(acceptedFile = file, backend = "awt")
+        val upstreamDoc = File(dir, "upstream.md")
+        upstreamDoc.writeText("| ID | Where |\n|---|---|\n| C8 | theme `Line` |\n")
+        return DrawingCheck(acceptedFile = file, upstreamDoc = upstreamDoc, backend = "awt")
     }
 
     private companion object {
