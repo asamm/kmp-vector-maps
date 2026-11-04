@@ -14,9 +14,10 @@ import kotlin.test.fail
 
 /**
  * Compares the vendored render (`:dev:mapsforge:golden:renderVendored`) with the upstream 0.30.0
- * render (`:dev:mapsforge:golden-upstream:renderGoldens`), both made on this machine: pixels
- * and text dumps (labels, reader, theme callbacks) must be equal. The Paint counts differ on
- * purpose, as the vendored theme keeps scaled Paints for a window of zoom levels only (D29).
+ * render (`:dev:mapsforge:golden-upstream:renderGoldens`), both made on this machine: tiles with
+ * labels and the text dumps (labels, reader, theme callbacks) must be equal, tiles drawn without
+ * labels close to upstream ([DrawingCheck], D37). The Paint counts differ on purpose, as the
+ * vendored theme keeps scaled Paints for a window of zoom levels only (D29).
  */
 class GoldenRenderTest {
 
@@ -27,16 +28,23 @@ class GoldenRenderTest {
         assertTrue(expected.isNotEmpty(), "no expected renders in ${TestDirs.expected}")
         assertEquals(expected.map { it.name }, actual.map { it.name }, "rendered tile sets differ")
 
+        val drawingCheck = DrawingCheck(acceptedFile = TestDirs.accepted, backend = "awt")
         val mismatches = expected.mapNotNull { exp ->
             val diffPixels = compare(exp, File(TestDirs.actual, exp.name))
-            if (diffPixels == 0) {
-                null
-            } else {
-                "${exp.name}: $diffPixels px"
+            when {
+                DrawingCheck.isDrawingTile(exp.name) -> {
+                    drawingCheck.verdict(
+                        tile = exp.name,
+                        differingPixels = diffPixels,
+                        totalPixels = Corpus.TILE_SIZE * Corpus.TILE_SIZE,
+                    )
+                }
+                diffPixels == 0 -> null
+                else -> "${exp.name}: $diffPixels px"
             }
-        }
+        } + drawingCheck.staleEntries()
         if (mismatches.isNotEmpty()) {
-            fail("${mismatches.size} of ${expected.size} tiles differ, diffs in ${TestDirs.diff}\n" + mismatches.joinToString("\n"))
+            fail("${mismatches.size} problems in ${expected.size} tiles, diffs in ${TestDirs.diff}\n" + mismatches.joinToString("\n"))
         }
         // guard against a corpus of empty tiles passing trivially
         assertTrue(expected.count { !isUniform(ImageIO.read(it)) } >= expected.size / 2, "corpus is mostly blank")

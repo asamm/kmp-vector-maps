@@ -1,7 +1,7 @@
 /*
  * Golden render test: renders the corpus with the vendored modules through the Mapsforge driver and
- * compares it pixel by pixel with the plain upstream 0.30.0 render from
- * `:dev:mapsforge:golden-upstream`. Not published.
+ * compares it with the plain upstream 0.30.0 render from `:dev:mapsforge:golden-upstream`: exact
+ * for tiles with labels, within `accepted-differences.txt` for tiles without (D37). Not published.
  */
 plugins {
     alias(libs.plugins.kotlinJvm)
@@ -39,6 +39,8 @@ val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures")
 val actualDir = layout.buildDirectory.dir("golden/actual").get().asFile
 val diffDir = layout.buildDirectory.dir("golden/diff").get().asFile
 val upstreamRender = project(":dev:mapsforge:golden-upstream").layout.buildDirectory.dir("golden/expected")
+// confirmed drawing differences against upstream, shared with golden-android (D37)
+val acceptedFile = layout.projectDirectory.file("accepted-differences.txt").asFile
 
 // Same entry point and JVM flags as `:dev:mapsforge:golden-upstream:renderGoldens`, so both
 // renders get the same identity hashes and match exactly (see that task).
@@ -71,6 +73,7 @@ tasks.test {
     inputs.dir(upstreamRender)
     inputs.dir(actualDir)
     inputs.dir(fixturesDir)
+    inputs.file(acceptedFile)
     // keeps the diff images when the result comes from the build cache
     outputs.dir(diffDir)
     // a task-local copy: the configuration cache cannot capture script values
@@ -82,4 +85,5 @@ tasks.test {
     systemProperty("golden.expectedDir", upstreamRender.get().asFile.absolutePath)
     systemProperty("golden.actualDir", actualDir.absolutePath)
     systemProperty("golden.diffDir", diffDir.absolutePath)
+    systemProperty("golden.acceptedFile", acceptedFile.absolutePath)
 }

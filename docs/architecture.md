@@ -107,7 +107,7 @@ anchors, each with a per-format default.
 | Android pixels | Robolectric native graphics, vendored vs upstream | ✅ M2.4 |
 | Text dumps | reader output, `RenderCallback`, sorted; label store until M6.0b | ✅ M2.2, M2.5 |
 | Garmin committed pixels | Monaco tiles through the driver, bundled DejaVu Sans, AA off, ≤ 0.2 % differing | ✅ M4.2c |
-| Mapsforge drawing | without labels vs upstream, a per-tile share of differing pixels; over the limit only through a committed accepted entry with its C-row (D37) | M6.0a |
+| Mapsforge drawing | without labels vs upstream, a per-tile share of differing pixels; over the limit only through a committed accepted entry with its C-row (D37) | 🔧 M6.0a |
 | Mapsforge labels | committed label store dump (`LabelDump`) and PNGs, exact on the pinned CI runner, tolerant outside | M6.0b |
 
 - Reading stays identical to upstream: the reader and `RenderCallback` dumps are compared exactly,

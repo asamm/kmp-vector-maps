@@ -27,6 +27,10 @@ object TestDirs {
         dirProperty("golden.diffDir")
     }
 
+    val accepted: File by lazy {
+        dirProperty("golden.acceptedFile")
+    }
+
     private fun dirProperty(key: String): File {
         val path = requireNotNull(System.getProperty(key)) {
             "dirProperty($key), not set; run through Gradle: ./gradlew :dev:mapsforge:golden:test"

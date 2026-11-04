@@ -1,0 +1,6 @@
+# Confirmed differences of Mapsforge drawing without labels against upstream (ROADMAP D37).
+# A tile drawn without labels may differ from upstream in up to 0.5 % of its pixels; one listed
+# here may differ up to its share. Each entry needs its C-row in docs/upstream.md and is added in
+# the PR that changes the drawing; an entry no tile needs fails the golden test.
+#
+# <backend: awt|android> <tile file> <max share>% <C-row> <reason>

@@ -14,8 +14,8 @@ build intentionally differs from it.
 ## Following upstream
 
 Every vendored file is Kotlin since M5.7a, so upstream changes are ported by hand, one tag at a
-time, with the render kept pixel-identical to the new tag. The helpers need Python 3, `gh` and,
-for step 3, the Android SDK in `local.properties`:
+time, with reading kept identical to the new tag and drawing within the accepted differences
+(D37). The helpers need Python 3, `gh` and, for step 3, the Android SDK in `local.properties`:
 
 1. **List.** `python dev/mapsforge/upstream/upstream_diff.py <lastTag> <newTag>` puts every changed
    upstream file in one group: `VENDORED` (a vendored file's upstream), `BUILD`, `THEME`, `MODULE`
@@ -38,9 +38,10 @@ for step 3, the Android SDK in `local.properties`:
 5. **Record.** The table above, a sync-log row below, both deviation lists and the K-rows when an
    API changed, all in the sync's commit.
 
-From M6.0 (D37), when the vendored output changes on purpose, step 3 still compares reading
-exactly; drawing passes through the committed accepted-differences entries, labels are compared
-against our own goldens ([architecture.md](architecture.md), golden strategy).
+From M6.0 (D37), when the vendored output changes on purpose, step 3 still compares reading exactly;
+drawing passes through the committed accepted-differences entries
+(`dev/mapsforge/golden/accepted-differences.txt`), labels are compared against our own goldens
+([architecture.md](architecture.md), golden strategy).
 
 The local Mapsforge clone (`54e8654f`) is read-only and stays on 0.30.0; newer tags are read
 through `gh` or the scripts.

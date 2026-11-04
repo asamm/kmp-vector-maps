@@ -7,6 +7,7 @@ package com.asamm.mapsforge.golden.android
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import com.asamm.mapsforge.golden.AndroidCorpus
+import com.asamm.mapsforge.golden.DrawingCheck
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -20,8 +21,9 @@ import java.io.File
 
 /**
  * Renders the golden corpus with the vendored `:formats:mapsforge:android` module and compares it
- * pixel by pixel with the upstream 0.30.0 render of `:dev:mapsforge:golden-android-upstream`, both
- * made on this machine under Robolectric's native graphics.
+ * with the upstream 0.30.0 render of `:dev:mapsforge:golden-android-upstream`, both made on this
+ * machine under Robolectric's native graphics: exact for tiles with labels, close for tiles drawn
+ * without ([DrawingCheck], D37).
  */
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
@@ -31,6 +33,7 @@ class AndroidGoldenRenderTest {
     private val expectedDir = dirProperty("golden.expectedDir")
     private val actualDir = dirProperty("golden.actualDir")
     private val diffDir = dirProperty("golden.diffDir")
+    private val acceptedFile = dirProperty("golden.acceptedFile")
 
     @Test
     fun vendoredRenderMatchesUpstream() {
@@ -45,6 +48,7 @@ class AndroidGoldenRenderTest {
         assertTrue("no expected renders in $expectedDir", expected.isNotEmpty())
         assertEquals("rendered tile sets differ", expected.map { it.name }, actual.map { it.name })
 
+        val drawingCheck = DrawingCheck(acceptedFile = acceptedFile, backend = "android")
         var nonUniform = 0
         val mismatches = expected.mapNotNull { exp ->
             val expBitmap = decode(exp)
@@ -52,14 +56,20 @@ class AndroidGoldenRenderTest {
                 nonUniform++
             }
             val diffPixels = compare(expected = expBitmap, actual = decode(File(actualDir, exp.name)), name = exp.name)
-            if (diffPixels == 0) {
-                null
-            } else {
-                "${exp.name}: $diffPixels px"
+            when {
+                DrawingCheck.isDrawingTile(exp.name) -> {
+                    drawingCheck.verdict(
+                        tile = exp.name,
+                        differingPixels = diffPixels,
+                        totalPixels = expBitmap.width * expBitmap.height,
+                    )
+                }
+                diffPixels == 0 -> null
+                else -> "${exp.name}: $diffPixels px"
             }
-        }
+        } + drawingCheck.staleEntries()
         if (mismatches.isNotEmpty()) {
-            fail("${mismatches.size} of ${expected.size} tiles differ, diffs in $diffDir\n" + mismatches.joinToString("\n"))
+            fail("${mismatches.size} problems in ${expected.size} tiles, diffs in $diffDir\n" + mismatches.joinToString("\n"))
         }
         // guard against a corpus of empty tiles passing trivially
         assertTrue("corpus is mostly blank", nonUniform >= expected.size / 2)

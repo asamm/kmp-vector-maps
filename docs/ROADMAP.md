@@ -493,7 +493,7 @@ change gets its upstream.md C-row in the same PR.
 
 | Step | Content | Verify | Status |
 |---|---|---|---|
-| M6.0a | Mapsforge drawing without labels compared with upstream: the corpus gets a label-free (`SEPARATE`) variant of each of its sets, so every theme, menu layer and scale stays covered; compared by the share of differing pixels per tile; a tile over the limit fails unless listed in a committed accepted-differences file (tile, measured share, C-row); the failing tiles' diff images in the build directory; same on the Android golden | today's corpus at 0 differing pixels; a mutation over the limit fails, its listed entry passes | ⬜ |
+| M6.0a | Mapsforge drawing without labels compared with upstream: the corpus gets a label-free (`SEPARATE`) variant of each of its sets, so every theme, menu layer and scale stays covered; compared by the share of differing pixels per tile; a tile over the limit fails unless listed in a committed accepted-differences file (tile, measured share, C-row); the failing tiles' diff images in the build directory; same on the Android golden | today's corpus at 0 differing pixels; a mutation over the limit fails, its listed entry passes | 🔧 |
 | M6.0b | Label goldens: the label store dump (`LabelDump`) and PNGs of the labelled corpus tiles committed, rendered from today's output (equal to upstream); exact on CI's pinned runner, tolerant elsewhere with a diff as the Garmin golden's (H5); the labelled tiles leave the upstream comparison; reader and `RenderCallback` dumps stay exact against upstream | the committed files equal today's upstream render; `verify_upstream.py` still runs every exact check | ⬜ |
 | M6.4 | A9: `Line` with `scale="all"` and no `stroke-dasharray` no longer throws; A8: the symbol boundary's top scales by height; both C-rows | A9 test theme renders; A8 changes only label output (symbol position and clash box): label goldens updated and confirmed in the PR; drawing and the reader and `RenderCallback` dumps unchanged | ⬜ |
 | M6.1a | Core label model (`:core`, Apache-2.0): `LabelCandidate` (stable identity, world position, priority, measured collision geometry, neutral style, kind: point, line symbol, path text) and placement with a spatial grid (from Locus' `collisionFreeOrderedFast`), rotation-aware and upright | unit tests: priority order, rotation, ties broken by identity, not by hash (A7) | ⬜ |
@@ -505,8 +505,13 @@ change gets its upstream.md C-row in the same PR.
 
 - Order: M6.0, M6.4, M6.1, M6.2, M6.3; the small upstream fixes go before the label model so its
   golden updates show only its own change; hillshade and the query do not change default output.
-- Open to settle in M6.0a: the per-tile limit (start at 0.5 % of a tile's pixels, tuned to the
-  corpus noise between JDKs) and the CI runner pin.
+- M6.0a as built: the corpus has 9 sets (4 with labels in the tiles, their 4 label-free variants,
+  the existing label-free one), 162 tiles per backend; `DrawingCheck` (shared harness) judges the
+  label-free tiles against `dev/mapsforge/golden/accepted-differences.txt`, whose entries carry
+  backend, tile, accepted share and C-row, and fails on an entry no tile needs. The limit is 0.5 %
+  of a tile's pixels: both renders run on one host, so there is no cross-JDK noise to absorb, and
+  a stroke widened by 15 % moved the label-free tiles by 0.67–30 %. The CI runner pin moves to
+  M6.0b, the first committed PNGs.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.
