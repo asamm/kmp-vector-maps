@@ -43,8 +43,6 @@ import org.junit.runner.RunWith
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-import kotlin.math.ceil
-import kotlin.math.hypot
 import kotlin.random.Random
 
 /**
@@ -290,9 +288,7 @@ class SoakTest {
         pass: LabelPass,
         reference: MapRenderer,
     ): Boolean {
-        // the square around the screen's diagonal covers it at any rotation
-        val diagonal = ceil(hypot(SCREEN_WIDTH.toDouble(), SCREEN_HEIGHT.toDouble())).toInt()
-        val covered = viewport.tiles(diagonal, diagonal)
+        val covered = viewport.coveredTiles(SCREEN_WIDTH, SCREEN_HEIGHT)
         engine.show(covered)
         waitFor(timeoutMs = 40_000, what = "turned screen not drawn") {
             engine.error?.let { error(it) }

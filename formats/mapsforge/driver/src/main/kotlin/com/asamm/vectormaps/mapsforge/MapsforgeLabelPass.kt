@@ -13,12 +13,14 @@ import com.asamm.vectormaps.core.label.LabelKind
 import com.asamm.vectormaps.core.label.LabelText
 import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.core.label.PathTextDirection
+import com.asamm.vectormaps.mapsforge.core.graphics.Bitmap
 import com.asamm.vectormaps.mapsforge.core.graphics.Canvas
 import com.asamm.vectormaps.mapsforge.core.graphics.Display
 import com.asamm.vectormaps.mapsforge.core.graphics.GraphicFactory
 import com.asamm.vectormaps.mapsforge.core.graphics.TextOrientation
 import com.asamm.vectormaps.mapsforge.core.mapelements.MapElementContainer
 import com.asamm.vectormaps.mapsforge.core.mapelements.PointTextContainer
+import com.asamm.vectormaps.mapsforge.core.mapelements.SymbolContainer
 import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Rotation
 import com.asamm.vectormaps.mapsforge.core.model.Tile
@@ -27,13 +29,15 @@ import com.asamm.vectormaps.mapsforge.map.layer.labels.LabelShape
 import com.asamm.vectormaps.mapsforge.map.layer.labels.LabelShapeKind
 import com.asamm.vectormaps.mapsforge.map.layer.labels.LabelShapes
 import com.asamm.vectormaps.mapsforge.map.layer.labels.TileBasedLabelStore
+import java.io.ByteArrayOutputStream
+import java.util.WeakHashMap
 
 /**
  * The label pass of a [MapsforgeRenderer] in `SEPARATE` mode: places the labels its tiles stored
  * and draws them through Mapsforge's own containers. A tile's labels show while the label store
- * keeps it ([TileBasedLabelStore.capacity] tiles, least recently used dropped), so a host must not
- * keep more rendered tiles than that. [draw] is for AWT canvases until M8: Android captions turn
- * the canvas back themselves.
+ * keeps it ([TileBasedLabelStore.capacity] tiles, least recently used dropped), so the store must
+ * hold at least the tiles one screen covers (`MapsforgeDataset.createRenderer`'s
+ * `labelStoreTiles`), and a host keeps no more rendered tiles than it holds.
  */
 class MapsforgeLabelPass internal constructor(
     private val labelStore: TileBasedLabelStore,
@@ -43,6 +47,9 @@ class MapsforgeLabelPass internal constructor(
 
     // draw runs on one thread at a time
     private val matrix = graphicFactory.createMatrix()
+
+    // the theme's symbol bitmaps live as long as the renderer; weak, so a dropped one goes
+    private val symbolHashes = WeakHashMap<Bitmap, Long>()
 
     override fun collect(view: LabelViewport, isCancelled: () -> Boolean): List<LabelCandidate> {
         val bounds = view.worldBounds()
@@ -73,7 +80,8 @@ class MapsforgeLabelPass internal constructor(
 
     /**
      * Draws the latest placement on a canvas the size of [view], not turned; nothing while the
-     * placement is for another zoom.
+     * placement is for another zoom. One thread at a time; AWT canvases only until M8, as Android
+     * captions turn the canvas back themselves.
      */
     fun draw(canvas: Canvas, view: LabelViewport) {
         val prepared = prepared ?: return
@@ -94,8 +102,11 @@ class MapsforgeLabelPass internal constructor(
                 continue
             }
             canvas.rotate(rotation)
-            container.draw(canvas, origin, matrix, rotation)
-            canvas.rotate(-rotation.degrees, rotation.px, rotation.py)
+            try {
+                container.draw(canvas, origin, matrix, rotation)
+            } finally {
+                canvas.rotate(-rotation.degrees, rotation.px, rotation.py)
+            }
         }
     }
 
@@ -167,6 +178,34 @@ class MapsforgeLabelPass internal constructor(
         }
         shape.text?.value?.forEach { char ->
             hash = mix(hash = hash, value = char.code.toLong())
+        }
+        // two symbols of one size at one anchor differ only by their image
+        val symbol = (shape.container as? SymbolContainer)?.symbol
+        if (symbol != null) {
+            hash = mix(hash = hash, value = contentHash(symbol))
+        }
+        return hash
+    }
+
+    /**
+     * A hash of the bitmap's PNG, the same in every run; computed once per bitmap.
+     */
+    private fun contentHash(bitmap: Bitmap): Long {
+        synchronized(symbolHashes) {
+            symbolHashes[bitmap]?.let {
+                return it
+            }
+        }
+        val png = ByteArrayOutputStream()
+        synchronized(bitmap.mutex) {
+            bitmap.compress(png)
+        }
+        var hash = FNV_OFFSET
+        for (byte in png.toByteArray()) {
+            hash = (hash xor (byte.toLong() and 0xFF)) * FNV_PRIME
+        }
+        synchronized(symbolHashes) {
+            symbolHashes[bitmap] = hash
         }
         return hash
     }

@@ -11,6 +11,7 @@ import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.hypot
 import kotlin.math.ln
 import kotlin.math.log2
 import kotlin.math.min
@@ -105,6 +106,15 @@ data class Viewport(
     }
 
     /**
+     * Tiles under a `width` × `height` screen at any rotation: those of the square around its
+     * diagonal, nearest the centre first.
+     */
+    fun coveredTiles(width: Int, height: Int): List<TileRequest> {
+        val side = diagonal(width, height)
+        return tiles(side, side)
+    }
+
+    /**
      * The label pass's view of a `width` × `height` screen turned clockwise by `rotationDeg`.
      */
     fun labelViewport(width: Int, height: Int, rotationDeg: Double): LabelViewport {
@@ -133,6 +143,13 @@ data class Viewport(
     companion object {
 
         const val MIN_ZOOM = 2
+
+        /**
+         * The side of the square that holds a `width` × `height` screen at any rotation.
+         */
+        fun diagonal(width: Int, height: Int): Int {
+            return ceil(hypot(width.toDouble(), height.toDouble())).toInt()
+        }
 
         const val MAX_ZOOM = 21
 

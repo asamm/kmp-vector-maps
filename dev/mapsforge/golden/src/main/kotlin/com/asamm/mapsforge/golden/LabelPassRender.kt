@@ -25,7 +25,6 @@ import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
-import kotlin.math.floor
 
 /**
  * The label pass goldens (M6.1b): the Mapsforge driver's `SEPARATE` pass placed and drawn for a few
@@ -116,11 +115,13 @@ object LabelPassRender {
     private fun tilesUnder(views: List<LabelViewport>): List<TileRequest> {
         val tiles = LinkedHashSet<TileRequest>()
         for (view in views) {
+            // the tile range MapsforgeLabelPass.collect reads
             val bounds = view.worldBounds()
-            val minX = floor(bounds.minX / Corpus.TILE_SIZE).toInt()
-            val maxX = floor(bounds.maxX / Corpus.TILE_SIZE).toInt()
-            val minY = floor(bounds.minY / Corpus.TILE_SIZE).toInt()
-            val maxY = floor(bounds.maxY / Corpus.TILE_SIZE).toInt()
+            val zoom = view.zoom.toByte()
+            val minX = MercatorProjection.pixelXToTileX(bounds.minX, zoom, Corpus.TILE_SIZE)
+            val maxX = MercatorProjection.pixelXToTileX(bounds.maxX, zoom, Corpus.TILE_SIZE)
+            val minY = MercatorProjection.pixelYToTileY(bounds.minY, zoom, Corpus.TILE_SIZE)
+            val maxY = MercatorProjection.pixelYToTileY(bounds.maxY, zoom, Corpus.TILE_SIZE)
             for (y in minY..maxY) {
                 for (x in minX..maxX) {
                     tiles += TileRequest(x = x, y = y, zoom = view.zoom)

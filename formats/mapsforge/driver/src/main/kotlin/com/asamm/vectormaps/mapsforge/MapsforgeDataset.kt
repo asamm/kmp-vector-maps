@@ -77,6 +77,27 @@ class MapsforgeDataset internal constructor(
         selection: StyleSelection,
         config: RenderConfig,
     ): MapsforgeRenderer {
+        return createRenderer(
+            style = style,
+            selection = selection,
+            config = config,
+            labelStoreTiles = LABEL_STORE_SIZE,
+        )
+    }
+
+    /**
+     * As [createRenderer], with a `SEPARATE` label store of [labelStoreTiles] tiles: at least the
+     * tiles a host's screen covers, or labels of visible tiles drop out of the store.
+     */
+    fun createRenderer(
+        style: MapStyle,
+        selection: StyleSelection,
+        config: RenderConfig,
+        labelStoreTiles: Int,
+    ): MapsforgeRenderer {
+        require(labelStoreTiles > 0) {
+            "createRenderer(), labelStoreTiles $labelStoreTiles"
+        }
         require(style is MapsforgeStyle) {
             "createRenderer(), not a Mapsforge style: ${style.id}"
         }
@@ -126,7 +147,7 @@ class MapsforgeDataset internal constructor(
             displayModel = displayModel,
             // in-tile labels look up already drawn neighbours in the tile cache
             tileCache = if (isInTile) DrawnTiles(TILE_CACHE_SIZE) else null,
-            labelStore = if (isInTile) null else TileBasedLabelStore(LABEL_STORE_SIZE),
+            labelStore = if (isInTile) null else TileBasedLabelStore(labelStoreTiles),
         )
     }
 

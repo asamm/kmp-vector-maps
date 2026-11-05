@@ -20,10 +20,13 @@ import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.label.LabelPass
+import com.asamm.vectormaps.core.label.LabelViewport
+import com.asamm.vectormaps.core.label.PreparedLabels
 import com.asamm.vectormaps.garminimg.driver.GarminDataset
 import com.asamm.vectormaps.garminimg.driver.GarminDriver
 import com.asamm.vectormaps.garminimg.driver.GarminOptions
 import com.asamm.vectormaps.garminimg.driver.GarminLevel
+import com.asamm.vectormaps.mapsforge.MapsforgeDataset
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.MapsforgeLabelPass
 import com.asamm.vectormaps.mapsforge.MapsforgeRenderer
@@ -37,12 +40,13 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import java.util.Properties
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import javax.swing.SwingUtilities
 import javax.imageio.ImageIO
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.floor
-import kotlin.math.hypot
 import kotlin.math.sin
 
 /**
@@ -107,7 +111,7 @@ class ViewerState(
     var threads: Int by mutableStateOf(session.threads)
         private set
 
-    var labelMode: LabelMode by mutableStateOf(LabelMode.IN_TILE)
+    var labelMode: LabelMode by mutableStateOf(session.labelMode)
         private set
 
     /**
@@ -177,6 +181,14 @@ class ViewerState(
     // the pass of the engine createEngine built last, until install shows it
     private var builtLabelPass: LabelPass? = null
 
+    // the label store size of the last Mapsforge renderer built
+    private var builtLabelStoreTiles = 0
+
+    private val labelsRequested = AtomicBoolean()
+
+    // the last label image and the placement and view it shows; UI thread only
+    private var labelImageCache: Pair<Pair<PreparedLabels, LabelViewport>, ImageBitmap>? = null
+
     // the last style file and layer per driver id, so switching formats keeps each one's style
     private val lastStyleFiles = HashMap<String, Pair<File, String?>>().apply {
         for ((driverId, style) in session.formatStyles) {
@@ -212,6 +224,7 @@ class ViewerState(
             textScale = textScale,
             tileSize = tileSize,
             threads = threads,
+            labelMode = labelMode,
             place = vp?.let { Session.Place(lat = it.lat, lon = it.lon, zoom = it.zoom) },
         )
     }
@@ -387,18 +400,29 @@ class ViewerState(
     fun labelImage(width: Int, height: Int): ImageBitmap? {
         val pass = labelPass as? MapsforgeLabelPass ?: return null
         val vp = viewport ?: return null
+        val prepared = pass.prepared
         if (width <= 0
             || height <= 0
-            || pass.prepared?.view?.zoom != vp.zoom
+            || prepared?.view?.zoom != vp.zoom
         ) {
             return null
+        }
+        val view = vp.labelViewport(width, height, rotationDeg.toDouble())
+        // frames that change neither the placement nor the view reuse the image
+        val key = Pair(prepared, view)
+        labelImageCache?.let { (cachedKey, image) ->
+            if (cachedKey == key) {
+                return image
+            }
         }
         val bitmap = AwtGraphicFactory.INSTANCE.createBitmap(width, height, true)
         val canvas = AwtGraphicFactory.INSTANCE.createCanvas()
         try {
             canvas.setBitmap(bitmap)
-            pass.draw(canvas = canvas, view = vp.labelViewport(width, height, rotationDeg.toDouble()))
-            return AwtGraphicFactory.getBitmap(bitmap).toComposeImageBitmap()
+            pass.draw(canvas = canvas, view = view)
+            val image = AwtGraphicFactory.getBitmap(bitmap).toComposeImageBitmap()
+            labelImageCache = Pair(key, image)
+            return image
         } finally {
             canvas.destroy()
             bitmap.decrementRefCount()
@@ -437,6 +461,14 @@ class ViewerState(
         screenHeight = height
         if (viewport == null) {
             startView()
+        }
+        val store = (labelPass as? MapsforgeLabelPass)?.let { builtLabelStoreTiles }
+        if (store != null
+            && store < labelStoreTiles()
+        ) {
+            // a larger screen needs a larger label store
+            rebuild()
+            return
         }
         showTiles()
     }
@@ -498,7 +530,8 @@ class ViewerState(
         view["screen"] = "${width}x$height"
         view["tileSize"] = vp.tileSize.toString()
         view["textScale"] = textScale.toString()
-        view["labelMode"] = labelMode.name
+        // what the renderer draws: Garmin stays in tiles whatever the picker says
+        view["labelMode"] = (if (labelPass != null) LabelMode.SEPARATE else LabelMode.IN_TILE).name
         view["rotation"] = rotation.toString()
         if (dataset is GarminDataset) {
             view["garmin.antiAliasing"] = garmin.antiAliasing.toString()
@@ -579,6 +612,14 @@ class ViewerState(
                 // Garmin has no label pass until M6.1d
                 val inTile = config.copy(labelMode = LabelMode.IN_TILE)
                 dataset.createRenderer(style = style, selection = selection, config = inTile, options = garmin)
+            } else if (dataset is MapsforgeDataset) {
+                builtLabelStoreTiles = labelStoreTiles()
+                dataset.createRenderer(
+                    style = style,
+                    selection = selection,
+                    config = config,
+                    labelStoreTiles = builtLabelStoreTiles,
+                )
             } else {
                 dataset.createRenderer(style = style, selection = selection, config = config)
             }
@@ -594,7 +635,7 @@ class ViewerState(
             ) {
                 frame = frames.incrementAndGet()
                 // a new tile stored its labels
-                prepareLabels()
+                requestLabels()
             }.also {
                 builtLabelPass = renderer.labelPass
             }
@@ -683,8 +724,26 @@ class ViewerState(
         if (rotationDeg == 0.0f) {
             return Pair(screenWidth, screenHeight)
         }
-        val diagonal = ceil(hypot(screenWidth.toDouble(), screenHeight.toDouble())).toInt()
+        val diagonal = Viewport.diagonal(screenWidth, screenHeight)
         return Pair(diagonal, diagonal)
+    }
+
+    // the tiles under the screen at any rotation and alignment, plus a ring; a store this size
+    // keeps every visible tile's labels
+    private fun labelStoreTiles(): Int {
+        val side = ceil(Viewport.diagonal(screenWidth, screenHeight).toDouble() / tileSize).toInt() + 2
+        return maxOf(MIN_LABEL_STORE_TILES, side * side)
+    }
+
+    // tile arrivals come on render threads; the view is read on the UI thread, once per burst, so
+    // an older view never replaces a newer one
+    private fun requestLabels() {
+        if (labelsRequested.compareAndSet(false, true)) {
+            SwingUtilities.invokeLater {
+                labelsRequested.set(false)
+                prepareLabels()
+            }
+        }
     }
 
     private fun prepareLabels() {
@@ -713,5 +772,8 @@ class ViewerState(
 
         // native pixels the kept tiles may hold: 256 tiles at 512 px
         const val CACHE_BYTES = 256L shl 20
+
+        // the Mapsforge driver's own default
+        const val MIN_LABEL_STORE_TILES = 100
     }
 }

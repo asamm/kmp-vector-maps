@@ -43,7 +43,8 @@ enum class LabelMode {
     IN_TILE,
 
     /**
-     * Tiles carry no labels; the host draws them in a separate screen-space pass.
+     * Tiles carry no labels; the renderer's [MapRenderer.labelPass] places them per screen, and the
+     * format's pass draws them for the host.
      */
     SEPARATE,
 }

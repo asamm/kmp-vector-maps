@@ -55,21 +55,12 @@ class LabelPassGoldenTest {
 
     private fun imageVerdict(golden: File, actual: File): String? {
         val expected = ImageIO.read(golden)
-        val image = ImageIO.read(actual)
-        if (expected.width != image.width
-            || expected.height != image.height
-        ) {
-            return "${golden.name}: size ${image.width}x${image.height}, golden ${expected.width}x${expected.height}"
-        }
-        var differing = 0
-        for (y in 0 until expected.height) {
-            for (x in 0 until expected.width) {
-                val distance = LabelGoldens.channelDistance(expected.getRGB(x, y), image.getRGB(x, y))
-                if (distance > LabelGoldens.CHANNEL_TOLERANCE) {
-                    differing++
-                }
-            }
-        }
+        val differing = LabelGoldens.differingPixels(
+            expectedFile = golden,
+            actualFile = actual,
+            channelTolerance = LabelGoldens.CHANNEL_TOLERANCE,
+            diffFile = File(TestDirs.diff, "pass/${golden.name}"),
+        )
         return LabelGoldens.verdict(
             tile = golden.name,
             differingPixels = differing,
@@ -79,12 +70,12 @@ class LabelPassGoldenTest {
     }
 
     private fun dumpVerdict(golden: File, actual: File): String? {
-        val expected = golden.readLines()
-        val lines = actual.readLines()
-        val first = expected.indices.firstOrNull { it >= lines.size || expected[it] != lines[it] }
-            ?: if (lines.size > expected.size) expected.size else return null
-        return "${golden.name} differs at line ${first + 1}: expected '${expected.getOrNull(first)}'," +
-            " actual '${lines.getOrNull(first)}'; an intended change: $UPDATE_TASK"
+        // guard against an empty dump passing trivially
+        if (golden.readLines().none { it.startsWith("  ") }) {
+            return "${golden.name} holds no entries"
+        }
+        val difference = LabelGoldens.firstDifference(expected = golden, actual = actual) ?: return null
+        return "$difference; an intended change: $UPDATE_TASK"
     }
 
     private fun files(dir: File): List<File> {
