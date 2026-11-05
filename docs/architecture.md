@@ -94,6 +94,8 @@ anchors, each with a per-format default.
 
 - A `LabelCandidate` has a stable identity, world coordinates, priority, **measured** collision
   geometry, a neutral text style and a kind: point, line symbol, path text.
+- `LabelPlacer` keeps candidates by priority, ties by identity, each only when it clashes with
+  none kept before; boxes stay upright or turn with the map, path text flips to read upright.
 - `SEPARATE`: tiles carry no labels; candidates are placed per screen, rotation-aware and
   upright — Locus' grid collision moved into the library.
 - `IN_TILE`: placed over the tile plus a one-tile margin, independent of render order; replaces
