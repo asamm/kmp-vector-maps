@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34).** Next action: M6.1a, the core label model,
-after M6.4's upstream fixes.
+**Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34); M6.0 and M6.4 done (PRs #36–#38).** Next
+action: M6.1a, the core label model.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -25,7 +25,7 @@ settles, labels before speed, the Locus-facing API last.
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PRs #3–#5, `028d746` |
 | M4 | Garmin IMG joins | M | ✅ PRs #27–#34, `e3c3aef` |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
-| M6 | Core features: label model, hillshade anchor, feature query | M | ⬜ |
+| M6 | Core features: label model, hillshade anchor, feature query | M | 🔧 M6.0, M6.4 done |
 | M7 | Performance and Skia desktop backend | L | ⬜ needs Q15 |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⬜ |
 | M9 | Locus integration | M | ⬜ needs Q14, Q16 |
@@ -495,7 +495,7 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
 |---|---|---|---|
 | M6.0a | Mapsforge drawing without labels compared with upstream: the corpus gets a label-free (`SEPARATE`) variant of each of its sets, so every theme, menu layer and scale stays covered; compared by the share of differing pixels per tile; a tile over the limit fails unless listed in a committed accepted-differences file (tile, measured share, C-row); the failing tiles' diff images in the build directory; same on the Android golden | today's corpus at 0 differing pixels; a mutation over the limit fails, its listed entry passes | ✅ PR #36, `3fb2bec` |
 | M6.0b | Label goldens: the label store dump (`LabelDump`) and PNGs of the labelled corpus tiles committed, rendered by the vendored side in the bundled DejaVu Sans (C8), so they hold on every system (H5); dumps exact, tiles within a small share as the Garmin golden's; the labelled tiles leave the upstream comparison; reader and `RenderCallback` dumps stay exact against upstream; `updateLabelGoldens` refreshes them | the label-free tiles still match upstream with the font; a changed dump line and a swapped tile fail; CI on Linux passes against goldens made on Windows | ✅ PR #37, `9bd702e` |
-| M6.4 | A9: `Line` with `scale="all"` and no `stroke-dasharray` no longer throws; A8: the symbol boundary's top scales by height; both C-rows | A9 test theme renders; A8 unit-tested (`SymbolBoundaryTest`); LoMaps goldens unchanged (see as built); drawing and the reader and `RenderCallback` dumps unchanged on the corpus | 🔧 |
+| M6.4 | A9: `Line` with `scale="all"` and no `stroke-dasharray` no longer throws; A8: the symbol boundary's top scales by height; both C-rows | A9 test theme renders; A8 unit-tested (`SymbolBoundaryTest`); LoMaps goldens unchanged (see as built); drawing and the reader and `RenderCallback` dumps unchanged on the corpus | ✅ PR #38, `a51e04b` |
 | M6.1a | Core label model (`:core`, Apache-2.0): `LabelCandidate` (stable identity, world position, priority, measured collision geometry, neutral style, kind: point, line symbol, path text) and placement with a spatial grid (from Locus' `collisionFreeOrderedFast`), rotation-aware and upright | unit tests: priority order, rotation, ties broken by identity, not by hash (A7) | ⬜ |
 | M6.1b | `SEPARATE` label pass: the Mapsforge driver turns its label store into candidates; `prepare(viewport)` off the caller's thread, cancelling the previous run, `draw`, `onPrepared` (architecture.md, host API); desktop viewer draws it with rotation | label goldens of the pass at 0° and a rotation; soak as D31 against the pass | ⬜ |
 | M6.1c | `IN_TILE` labels placed over the tile plus a one-tile margin, independent of render order, replacing Mapsforge `TileDependencies`; equal `RenderKey` gives equal tiles | the parallel golden renders in shuffled orders, tiles byte-equal | ⬜ |
