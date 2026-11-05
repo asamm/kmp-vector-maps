@@ -16,6 +16,7 @@ package com.asamm.vectormaps.core.label
  * @param boxes collision geometry relative to the anchor; empty never clashes
  * @param path [LabelKind.PATH_TEXT] only: the path as x, y pairs in world pixels, copied
  * @param direction [LabelKind.PATH_TEXT] only: which way the text runs along its path
+ * @param source the format's own object behind the candidate, for drawing it; placement ignores it
  */
 class LabelCandidate(
     val id: Long,
@@ -28,6 +29,7 @@ class LabelCandidate(
     val text: LabelText? = null,
     path: DoubleArray? = null,
     val direction: PathTextDirection = PathTextDirection.UPRIGHT,
+    val source: Any? = null,
 ) {
 
     val path: DoubleArray? = path?.copyOf()
@@ -98,6 +100,11 @@ enum class PathTextDirection {
      * Flipped so it never reads upside down (Mapsforge `auto`).
      */
     UPRIGHT,
+
+    /**
+     * Flipped so it always reads upside down (Mapsforge `auto_down`).
+     */
+    UPSIDE_DOWN,
 
     /**
      * From the path's first point to its last (Mapsforge `right`).

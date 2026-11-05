@@ -110,18 +110,11 @@ class GoldenRenderTest {
     }
 
     private fun assertSameLines(expected: File, actual: File, hint: String) {
-        val expLines = expected.readLines()
-        val actLines = actual.readLines()
-        if (expLines != actLines) {
-            val line = expLines.indices.firstOrNull { it >= actLines.size || expLines[it] != actLines[it] }
-                ?: expLines.size
-            fail(
-                "${expected.name} differs at line ${line + 1}: " +
-                    "expected '${expLines.getOrNull(line)}', actual '${actLines.getOrNull(line)}'$hint",
-            )
+        LabelGoldens.firstDifference(expected = expected, actual = actual)?.let {
+            fail(it + hint)
         }
         // guard against an empty dump passing trivially
-        assertTrue(expLines.count { it.startsWith("  ") } > 0, "${expected.name} holds no entries")
+        assertTrue(expected.readLines().count { it.startsWith("  ") } > 0, "${expected.name} holds no entries")
     }
 
     private fun pngs(dir: File): List<File> {
@@ -142,35 +135,13 @@ class GoldenRenderTest {
         return line.substringAfter("live=").toInt()
     }
 
-    /**
-     * Returns the count of pixels with a channel differing by more than `channelTolerance` and writes
-     * a diff image when there are any.
-     */
     private fun compare(expectedFile: File, actualFile: File, channelTolerance: Int): Int {
-        val exp = ImageIO.read(expectedFile)
-        val act = ImageIO.read(actualFile)
-        if (exp.width != act.width
-            || exp.height != act.height
-        ) {
-            return exp.width * exp.height
-        }
-        val diff = BufferedImage(exp.width, exp.height, BufferedImage.TYPE_INT_ARGB)
-        var count = 0
-        for (y in 0 until exp.height) {
-            for (x in 0 until exp.width) {
-                if (LabelGoldens.channelDistance(exp.getRGB(x, y), act.getRGB(x, y)) > channelTolerance) {
-                    count++
-                    diff.setRGB(x, y, 0xFFFF0000.toInt())
-                } else {
-                    diff.setRGB(x, y, (exp.getRGB(x, y) and 0x00FFFFFF) or 0x40000000)
-                }
-            }
-        }
-        if (count > 0) {
-            TestDirs.diff.mkdirs()
-            ImageIO.write(diff, "png", File(TestDirs.diff, expectedFile.name))
-        }
-        return count
+        return LabelGoldens.differingPixels(
+            expectedFile = expectedFile,
+            actualFile = actualFile,
+            channelTolerance = channelTolerance,
+            diffFile = File(TestDirs.diff, expectedFile.name),
+        )
     }
 
     private fun isUniform(image: BufferedImage): Boolean {

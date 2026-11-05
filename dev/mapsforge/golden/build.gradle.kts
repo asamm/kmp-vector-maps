@@ -2,7 +2,8 @@
  * Golden render test: renders the corpus with the vendored modules through the Mapsforge driver and
  * compares it with the plain upstream 0.30.0 render from `:dev:mapsforge:golden-upstream`: dumps
  * exact, tiles without labels within `accepted-differences.txt`; tiles with labels and the label
- * dumps against the committed `labels/awt`, refreshed by `updateLabelGoldens` (D37). Not published.
+ * dumps against the committed `labels/awt`, refreshed by `updateLabelGoldens` (D37); the label pass
+ * screens against `labels/pass`, refreshed by `updateLabelPassGoldens` (M6.1b). Not published.
  */
 plugins {
     alias(libs.plugins.kotlinJvm)
@@ -72,16 +73,38 @@ val renderVendored = tasks.register<JavaExec>("renderVendored") {
     args(fixturesDir.asFile.absolutePath, actualDir.absolutePath)
 }
 
+// the label pass goldens (M6.1b): vendored side only, compared with the committed `labels/pass`
+val passActualDir = layout.buildDirectory.dir("golden/pass").get().asFile
+val passLabelsDir = layout.projectDirectory.dir("labels/pass").asFile
+
+val renderLabelPass = tasks.register<JavaExec>("renderLabelPass") {
+    description = "Places and draws the Mapsforge label pass for the golden screens."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass = "com.asamm.mapsforge.golden.LabelPassRenderKt"
+    inputs.dir(fixturesDir)
+    outputs.dir(passActualDir)
+    // a task-local copy: the configuration cache cannot capture script values
+    val outDir = passActualDir
+    doFirst {
+        outDir.deleteRecursively()
+    }
+    args(fixturesDir.asFile.absolutePath, passActualDir.absolutePath)
+}
+
 tasks.test {
     useJUnitPlatform()
-    dependsOn(renderVendored, ":dev:mapsforge:golden-upstream:renderGoldens")
+    dependsOn(renderVendored, ":dev:mapsforge:golden-upstream:renderGoldens", renderLabelPass)
+    inputs.dir(passActualDir)
+    inputs.dir(passLabelsDir)
+    systemProperty("golden.passActualDir", passActualDir.absolutePath)
+    systemProperty("golden.passLabelsDir", passLabelsDir.absolutePath)
     inputs.dir(upstreamRender)
     inputs.dir(actualDir)
     inputs.dir(fixturesDir)
     inputs.file(acceptedFile)
     inputs.file(upstreamDoc)
     inputs.dir(labelsDir)
-    mustRunAfter("updateLabelGoldens")
+    mustRunAfter("updateLabelGoldens", "updateLabelPassGoldens")
     // keeps the diff images when the result comes from the build cache
     outputs.dir(diffDir)
     // a task-local copy: the configuration cache cannot capture script values
@@ -98,9 +121,16 @@ tasks.test {
     systemProperty("golden.labelsDir", labelsDir.absolutePath)
 }
 
+val updateLabelPassGoldens = tasks.register<Sync>("updateLabelPassGoldens") {
+    description = "Replaces the committed label pass goldens with the current render."
+    dependsOn(renderLabelPass)
+    from(passActualDir)
+    into(passLabelsDir)
+}
+
 tasks.register<Sync>("updateLabelGoldens") {
-    description = "Replaces the committed label goldens with the vendored render, for an intended change."
-    dependsOn(renderVendored)
+    description = "Replaces the committed label goldens and label pass goldens with the vendored render, for an intended change."
+    dependsOn(renderVendored, updateLabelPassGoldens)
     from(actualDir) {
         include("*.png", "*_labels.txt")
         // tiles without labels are compared with upstream

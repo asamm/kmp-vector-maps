@@ -6,10 +6,12 @@ package com.asamm.vectormaps.viewer
 
 import com.asamm.vectormaps.core.GeoBounds
 import com.asamm.vectormaps.core.TileRequest
+import com.asamm.vectormaps.core.label.LabelViewport
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.ceil
 import kotlin.math.floor
+import kotlin.math.hypot
 import kotlin.math.ln
 import kotlin.math.log2
 import kotlin.math.min
@@ -103,6 +105,29 @@ data class Viewport(
         return result
     }
 
+    /**
+     * Tiles under a `width` × `height` screen at any rotation: those of the square around its
+     * diagonal, nearest the centre first.
+     */
+    fun coveredTiles(width: Int, height: Int): List<TileRequest> {
+        val side = diagonal(width, height)
+        return tiles(side, side)
+    }
+
+    /**
+     * The label pass's view of a `width` × `height` screen turned clockwise by `rotationDeg`.
+     */
+    fun labelViewport(width: Int, height: Int, rotationDeg: Double): LabelViewport {
+        return LabelViewport(
+            zoom = zoom,
+            centerX = x * worldPx,
+            centerY = y * worldPx,
+            widthPx = width,
+            heightPx = height,
+            rotationDeg = rotationDeg,
+        )
+    }
+
     // tile indexes touched by `length` pixels from world pixel `start`, clamped to the grid
     private fun span(start: Double, length: Int): IntRange {
         val last = (1 shl zoom) - 1
@@ -118,6 +143,13 @@ data class Viewport(
     companion object {
 
         const val MIN_ZOOM = 2
+
+        /**
+         * The side of the square that holds a `width` × `height` screen at any rotation.
+         */
+        fun diagonal(width: Int, height: Int): Int {
+            return ceil(hypot(width.toDouble(), height.toDouble())).toInt()
+        }
 
         const val MAX_ZOOM = 21
 

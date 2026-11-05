@@ -16,6 +16,9 @@ import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
+import com.asamm.vectormaps.core.label.LabelPass
+import com.asamm.vectormaps.core.label.LabelViewport
+import com.asamm.vectormaps.core.label.PreparedLabels
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.MapsforgeRenderer
 import com.asamm.vectormaps.mapsforge.TileBitmapTarget
@@ -27,6 +30,7 @@ import com.asamm.vectormaps.mapsforge.core.mapelements.WayTextContainer
 import com.asamm.vectormaps.mapsforge.core.model.Rotation
 import com.asamm.vectormaps.mapsforge.core.model.Tile
 import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
+import com.asamm.vectormaps.mapsforge.map.layer.labels.TileBasedLabelStore
 import com.asamm.vectormaps.viewer.TileEngine
 import com.asamm.vectormaps.viewer.TileImages
 import com.asamm.vectormaps.viewer.Viewport
@@ -46,7 +50,9 @@ import kotlin.random.Random
  * the Mapsforge driver and the viewer's tile engine on [THREADS] threads for half of `soak.minutes`
  * per label mode. Every `SEPARATE` render is compared pixel by pixel with a render of the same tile,
  * one at a time, by a second renderer, and so is the tile's label store entry (kind, text,
- * position, priority, clash box, visibility, standalone symbol size).
+ * position, priority, clash box, visibility, standalone symbol size). On the steps that wait for
+ * the whole screen, the label pass places it at a random rotation and must place what a second
+ * pass over serially rendered tiles places (M6.1b).
  * `IN_TILE` tiles depend on render order (M6.1), so they are only checked to render. Skipped
  * without the argument:
  * `./gradlew :dev:bench:android:connectedReleaseAndroidTest
@@ -138,6 +144,8 @@ class SoakTest {
         var differed = 0
         var labelsDiffered = 0
         var withLabels = 0
+        var passCompared = 0
+        var passDiffered = 0
         fun drain() {
             while (true) {
                 val drawn = recording.drawn.poll() ?: return
@@ -157,6 +165,8 @@ class SoakTest {
             }
         }
         val random = Random(SEED)
+        // its own sequence, so the walk stays the one of the earlier baselines
+        val rotations = Random(SEED + 1)
         val home = home(dataset)
         var viewport = home
         val deadline = System.currentTimeMillis() + runMs
@@ -170,6 +180,22 @@ class SoakTest {
                 waitFor(timeoutMs = 20_000, what = "screen not drawn") {
                     engine.error?.let { error(it) }
                     tiles.all { engine[it] != null }
+                }
+                val pass = recording.labelPass
+                if (pass != null) {
+                    drain()
+                    val same = passMatchesSerial(
+                        viewport = viewport,
+                        rotationDeg = rotations.nextDouble(0.0, 360.0),
+                        engine = engine,
+                        recording = recording,
+                        pass = pass,
+                        reference = reference,
+                    )
+                    passCompared++
+                    if (!same) {
+                        passDiffered++
+                    }
                 }
             } else {
                 Thread.sleep(random.nextLong(5, 40))
@@ -187,11 +213,18 @@ class SoakTest {
         val summary = "$labelMode: $steps steps, $stats, ${recording.drawnCount.get()} drawn, " +
             "$compared compared, $differed differed, labels of $labelsDiffered differed " +
             "($withLabels with labels), " +
-            "in ${mismatches.size} tiles ${mismatches.take(10)}"
+            "in ${mismatches.size} tiles ${mismatches.take(10)}, " +
+            "label pass $passDiffered of $passCompared screens differed"
         Log.i(TAG, summary)
         writeReport(name = "soak-$labelMode.txt", text = summary)
         assertEquals(summary, 0, differed)
         assertEquals(summary, 0, labelsDiffered)
+        assertEquals(summary, 0, passDiffered)
+        if (recording.labelPass != null) {
+            check(passCompared > 0) {
+                "soak($labelMode), no screen compared its label pass: $summary"
+            }
+        }
         if (recording.hashing) {
             // an always-empty entry would make the label check pass without comparing anything
             check(withLabels > 0) {
@@ -243,6 +276,81 @@ class SoakTest {
         return next
     }
 
+    /**
+     * Renders every tile under the screen turned by [rotationDeg] in the walk and serially, then
+     * places its labels with both passes; true when they place the same labels.
+     */
+    private fun passMatchesSerial(
+        viewport: Viewport,
+        rotationDeg: Double,
+        engine: TileEngine<Unit>,
+        recording: Recording,
+        pass: LabelPass,
+        reference: MapRenderer,
+    ): Boolean {
+        val covered = viewport.coveredTiles(SCREEN_WIDTH, SCREEN_HEIGHT)
+        engine.show(covered)
+        waitFor(timeoutMs = 40_000, what = "turned screen not drawn") {
+            engine.error?.let { error(it) }
+            covered.all { engine[it] != null }
+        }
+        // both stores must hold every covered tile: the engine keeps tiles whose labels the store
+        // dropped, and rendering the missing ones must not evict covered ones
+        val keys = covered.map { Tile(it.x, it.y, it.zoom.toByte(), BenchScene.TILE_SIZE) }.toSet()
+        fillStore(renderer = recording, keys = keys) { tile ->
+            val target = TileBitmapTarget(BenchScene.TILE_SIZE)
+            check(recording.render(tile, target) { false } == RenderResult.DRAWN) {
+                "passMatchesSerial($tile), not drawn"
+            }
+            checkNotNull(target.bitmap).decrementRefCount()
+        }
+        fillStore(renderer = reference, keys = keys) { tile ->
+            serialRender(reference, tile)
+        }
+        val view = viewport.labelViewport(SCREEN_WIDTH, SCREEN_HEIGHT, rotationDeg)
+        val placed = describe(prepareAndWait(pass, view))
+        val serial = describe(prepareAndWait(checkNotNull(reference.labelPass), view))
+        if (placed != serial) {
+            Log.w(TAG, "label pass differs at $view: ${placed.size} placed, ${serial.size} serially")
+        }
+        return placed == serial
+    }
+
+    /**
+     * Touches [keys] in the renderer's label store, so they are evicted last, then renders those it
+     * lacks with [render].
+     */
+    private fun fillStore(renderer: MapRenderer, keys: Set<Tile>, render: (TileRequest) -> Unit) {
+        val store = checkNotNull(labelStoreOf(renderer))
+        synchronized(store) {
+            store.setWorkingSet(keys)
+        }
+        for (key in keys) {
+            val present = synchronized(store) {
+                store.containsKey(key)
+            }
+            if (!present) {
+                render(TileRequest(x = key.tileX, y = key.tileY, zoom = key.zoomLevel.toInt()))
+            }
+        }
+    }
+
+    private fun prepareAndWait(pass: LabelPass, view: LabelViewport): PreparedLabels {
+        pass.prepare(view)
+        waitFor(timeoutMs = 20_000, what = "label pass not prepared") {
+            pass.prepared?.view == view
+        }
+        return checkNotNull(pass.prepared)
+    }
+
+    // kind, id, position and direction of each placed label, in draw order
+    private fun describe(prepared: PreparedLabels): List<String> {
+        return prepared.placed.map { placed ->
+            val candidate = placed.candidate
+            "${candidate.kind} ${candidate.id} ${candidate.x},${candidate.y} ${placed.isReversed}"
+        }
+    }
+
     private fun serialRender(reference: MapRenderer, tile: TileRequest): Drawn {
         val target = TileBitmapTarget(BenchScene.TILE_SIZE)
         val result = reference.render(tile, target) { false }
@@ -280,7 +388,7 @@ class SoakTest {
      * @param hashing false skips the hash, for modes that are only checked to render
      */
     private class Recording(
-        private val renderer: MapRenderer,
+        val renderer: MapRenderer,
         val hashing: Boolean,
     ) : MapRenderer by renderer {
 
@@ -383,7 +491,7 @@ class SoakTest {
          * a label store.
          */
         fun labelEntry(renderer: MapRenderer, tile: TileRequest): Pair<Long, Int> {
-            val store = (renderer as MapsforgeRenderer).labelStore ?: return Pair(0L, 0)
+            val store = labelStoreOf(renderer) ?: return Pair(0L, 0)
             // keyed as the renderer keys its jobs
             val mapsforgeTile = Tile(tile.x, tile.y, tile.zoom.toByte(), renderer.key.config.tileSizePx)
             val lines = store.getVisibleItems(mapsforgeTile, mapsforgeTile).map { describe(it) }
@@ -407,6 +515,11 @@ class SoakTest {
                 is WayTextContainer -> "waytext $geometry \"${item.toString().substringAfter(", text=")}\""
                 else -> "other ${item.javaClass.simpleName} $geometry"
             }
+        }
+
+        fun labelStoreOf(renderer: MapRenderer): TileBasedLabelStore? {
+            val inner = (renderer as? Recording)?.renderer ?: renderer
+            return (inner as MapsforgeRenderer).labelStore
         }
 
         fun pixelHash(bitmap: TileBitmap): Long {

@@ -371,7 +371,8 @@ internal open class AwtCanvas : Canvas {
 
     final override fun rotate(degrees: Float, px: Float, py: Float) {
         if (degrees != 0f) {
-            this.graphics.rotate(degrees.toDouble(), px.toDouble(), py.toDouble())
+            // Graphics2D takes radians; upstream passes the degrees (A10, C11)
+            this.graphics.rotate(Math.toRadians(degrees.toDouble()), px.toDouble(), py.toDouble())
         }
     }
 

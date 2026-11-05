@@ -51,20 +51,24 @@ open class WayTextContainer(
     @JvmField
     protected val boundary: Rectangle
 
-    private val lineString: LineString
+    // internal: the label pass reads the line, text, paints, text height and orientation (C10)
+    internal val lineString: LineString
 
-    private val paintFront: Paint
+    internal val paintFront: Paint
 
-    private val paintBack: Paint?
+    internal val paintBack: Paint?
 
-    private val text: String
+    internal val text: String
 
-    private val textOrientation: TextOrientation
+    internal val textHeight: Double
+
+    internal val textOrientation: TextOrientation
 
     init {
         this.graphicFactory = graphicFactory
         this.lineString = lineString
         this.text = text
+        this.textHeight = textHeight
         this.paintFront = paintFront
         this.paintBack = paintBack
 

@@ -39,6 +39,14 @@ object TestDirs {
         dirProperty("golden.upstreamDoc")
     }
 
+    val passActual: File by lazy {
+        dirProperty("golden.passActualDir")
+    }
+
+    val passLabels: File by lazy {
+        dirProperty("golden.passLabelsDir")
+    }
+
     private fun dirProperty(key: String): File {
         val path = requireNotNull(System.getProperty(key)) {
             "dirProperty($key), not set; run through Gradle: ./gradlew :dev:mapsforge:golden:test"

@@ -44,6 +44,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.pointerInput
@@ -53,6 +55,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import com.asamm.vectormaps.core.LabelMode
 import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.garminimg.driver.GarminOptions
 import com.asamm.vectormaps.garminimg.driver.GarminStyle
@@ -136,6 +139,8 @@ private fun Controls(state: ViewerState) {
             Picker("Text", state.textScale, listOf(1.0f, 1.5f, 2.0f), { "×$it" }) { state.changeSettings(textScale = it) }
             Picker("Tile", state.tileSize, Session.TILE_SIZES, { "$it px" }) { state.changeSettings(tileSize = it) }
             Picker("Threads", state.threads, listOf(1, 2, 4, 8), { "$it" }) { state.changeSettings(threads = it) }
+            Picker("Labels", state.labelMode, LabelMode.entries, ::labelModeName) { state.changeSettings(labelMode = it) }
+            Picker("Rotate", state.rotationDeg, ROTATIONS, { "${it.toInt()}°" }, state::rotate)
             GroupDivider()
             TextButton(onClick = state::home, enabled = hasMap) {
                 Text("Home")
@@ -324,18 +329,26 @@ private fun MapArea(state: ViewerState, modifier: Modifier) {
         val width = size.width.toInt()
         val height = size.height.toInt()
         val tileSize = viewport.tileSize.toFloat()
-        for (tile in viewport.tiles(width, height)) {
-            val left = viewport.screenX(tile.x, width)
-            val top = viewport.screenY(tile.y, height)
-            val image = engine[tile]
-            if (image != null) {
-                // floor, not truncate, so tiles either side of the screen edge stay one grid
-                drawImage(image = image, dstOffset = IntOffset(floor(left).toInt(), floor(top).toInt()))
-            } else {
-                // a gap between missing tiles shows the grid
-                drawRect(missingTile, topLeft = Offset(left + 1f, top + 1f), size = Size(tileSize - 2f, tileSize - 2f))
+        // a turned map draws the tiles of the square around the screen's diagonal
+        val (coverWidth, coverHeight) = state.coveredSide()
+        rotate(degrees = state.rotationDeg, pivot = center) {
+            translate(left = (width - coverWidth) / 2f, top = (height - coverHeight) / 2f) {
+                for (tile in viewport.tiles(coverWidth, coverHeight)) {
+                    val left = viewport.screenX(tile.x, coverWidth)
+                    val top = viewport.screenY(tile.y, coverHeight)
+                    val image = engine[tile]
+                    if (image != null) {
+                        // floor, not truncate, so tiles either side of the screen edge stay one grid
+                        drawImage(image = image, dstOffset = IntOffset(floor(left).toInt(), floor(top).toInt()))
+                    } else {
+                        // a gap between missing tiles shows the grid
+                        drawRect(missingTile, topLeft = Offset(left + 1f, top + 1f), size = Size(tileSize - 2f, tileSize - 2f))
+                    }
+                }
             }
         }
+        // the label pass draws upright on the screen
+        state.labelImage(width, height)?.let { drawImage(it) }
     }
 }
 
@@ -456,6 +469,15 @@ private class Fling(
     fun stop() {
         job?.cancel()
         job = null
+    }
+}
+
+private val ROTATIONS = listOf(0.0f, 15.0f, 30.0f, 45.0f, 90.0f, 180.0f, 270.0f)
+
+private fun labelModeName(mode: LabelMode): String {
+    return when (mode) {
+        LabelMode.IN_TILE -> "in tiles"
+        LabelMode.SEPARATE -> "separate"
     }
 }
 

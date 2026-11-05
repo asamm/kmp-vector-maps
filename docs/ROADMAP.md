@@ -7,8 +7,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 [`mapsforge_render_extraction.md`](https://github.com/asamm/locus-core/blob/development/docs/plans/mapsforge_render_extraction.md)
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
-**Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34); M6.0 and M6.4 done (PRs #36–#38).** Next
-action: M6.1b, the `SEPARATE` label pass, after M6.1a's core label model.
+**Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34); M6.0, M6.4, M6.1a and M6.1b done (PRs
+#36–#40).** Next action: M6.1c, `IN_TILE` labels independent of render order.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -25,7 +25,7 @@ settles, labels before speed, the Locus-facing API last.
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PRs #3–#5, `028d746` |
 | M4 | Garmin IMG joins | M | ✅ PRs #27–#34, `e3c3aef` |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
-| M6 | Core features: label model, hillshade anchor, feature query | M | 🔧 M6.0, M6.4 done |
+| M6 | Core features: label model, hillshade anchor, feature query | M | 🔧 M6.0, M6.4, M6.1a, M6.1b done |
 | M7 | Performance and Skia desktop backend | L | ⬜ needs Q15 |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⬜ |
 | M9 | Locus integration | M | ⬜ needs Q14, Q16 |
@@ -496,8 +496,8 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
 | M6.0a | Mapsforge drawing without labels compared with upstream: the corpus gets a label-free (`SEPARATE`) variant of each of its sets, so every theme, menu layer and scale stays covered; compared by the share of differing pixels per tile; a tile over the limit fails unless listed in a committed accepted-differences file (tile, measured share, C-row); the failing tiles' diff images in the build directory; same on the Android golden | today's corpus at 0 differing pixels; a mutation over the limit fails, its listed entry passes | ✅ PR #36, `3fb2bec` |
 | M6.0b | Label goldens: the label store dump (`LabelDump`) and PNGs of the labelled corpus tiles committed, rendered by the vendored side in the bundled DejaVu Sans (C8), so they hold on every system (H5); dumps exact, tiles within a small share as the Garmin golden's; the labelled tiles leave the upstream comparison; reader and `RenderCallback` dumps stay exact against upstream; `updateLabelGoldens` refreshes them | the label-free tiles still match upstream with the font; a changed dump line and a swapped tile fail; CI on Linux passes against goldens made on Windows | ✅ PR #37, `9bd702e` |
 | M6.4 | A9: `Line` with `scale="all"` and no `stroke-dasharray` no longer throws; A8: the symbol boundary's top scales by height; both C-rows | A9 test theme renders; A8 unit-tested (`SymbolBoundaryTest`); LoMaps goldens unchanged (see as built); drawing and the reader and `RenderCallback` dumps unchanged on the corpus | ✅ PR #38, `a51e04b` |
-| M6.1a | Core label model (`:core`, Apache-2.0): `LabelCandidate` (stable identity, world position, priority, measured collision geometry, neutral style, kind: point, line symbol, path text) and placement with a spatial grid (written fresh; Locus' `collisionFreeOrderedFast` as reference only), rotation-aware and upright | unit tests: priority order, rotation, ties broken by identity, not by hash (A7) | 🔧 |
-| M6.1b | `SEPARATE` label pass: the Mapsforge driver turns its label store into candidates; `prepare(viewport)` off the caller's thread, cancelling the previous run, `draw`, `onPrepared` (architecture.md, host API); desktop viewer draws it with rotation | label goldens of the pass at 0° and a rotation; soak as D31 against the pass | ⬜ |
+| M6.1a | Core label model (`:core`, Apache-2.0): `LabelCandidate` (stable identity, world position, priority, measured collision geometry, neutral style, kind: point, line symbol, path text) and placement with a spatial grid (written fresh; Locus' `collisionFreeOrderedFast` as reference only), rotation-aware and upright | unit tests: priority order, rotation, ties broken by identity, not by hash (A7) | ✅ PR #39, `06b5aef` |
+| M6.1b | `SEPARATE` label pass: the Mapsforge driver turns its label store into candidates; `prepare(viewport)` off the caller's thread, cancelling the previous run, `draw`, `onPrepared` (architecture.md, host API); desktop viewer draws it with rotation | label goldens of the pass at 0° and a rotation; soak as D31 against the pass | ✅ PR #40 |
 | M6.1c | `IN_TILE` labels placed over the tile plus a one-tile margin, independent of render order, replacing Mapsforge `TileDependencies`; equal `RenderKey` gives equal tiles | the parallel golden renders in shuffled orders, tiles byte-equal | ⬜ |
 | M6.1d | Garmin on the core label model: `SEPARATE` and `IN_TILE`, its `LabelLayout` retired; labels piling up at level-pick boundaries (M4.1 carry-over) | Garmin goldens updated and confirmed in the PR; both label modes render | ⬜ |
 | M6.2 | `HILLSHADE` anchor: `RenderThemeHandler` re-captures `<hillshading>` layer, level and `cat` (D30); the renderer calls a host hook with geo bounds and pixel scale at that position, else after all features (D13, D16); Garmin after polygons | no hook: goldens unchanged; a test hook's fill lands between the right layers on both formats | ⬜ |
@@ -541,9 +541,33 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
   Mapsforge), then lower id; equal ids are one label (a label stored from neighbouring tiles, its
   copies identical), placed once. `LabelDisplay` keeps Mapsforge's `ALWAYS` and `ORDER` groups;
   point texts with equal text within 200 px clash, as Mapsforge's `PointTextContainer`; path text
-  runs `UPRIGHT`, `FORWARD` or `REVERSE` (Mapsforge `text-orientation` auto, right, left; LoMaps
-  contour elevations use `left`). Placement ignores the pinch scale between zoom levels, as
-  Locus'.
+  runs `UPRIGHT`, `UPSIDE_DOWN`, `FORWARD` or `REVERSE` (Mapsforge `text-orientation` auto,
+  auto_down, right, left; LoMaps contour elevations use `left`; `UPSIDE_DOWN` added in M6.1b).
+  Placement ignores the pinch scale between zoom levels, as Locus'.
+- M6.1b as built: `LabelPass` and `BackgroundLabelPass` in `:core` (prepare on one coroutine, a
+  newer view cancels the run; `:core` now depends on coroutines), `MapRenderer.labelPass`;
+  `MapsforgeLabelPass` reads the store's tiles under the turned screen, places them and draws
+  through Mapsforge's own containers (captions upright at turned positions, symbols and way texts
+  on the turned canvas). The engine describes its containers (`LabelShapes`, C10): captions and
+  upright symbols by their clash box, symbols along a way by a box turning with the map, way texts
+  by one box per segment, text height tall, where Mapsforge clashes the line's whole upright
+  bounds. Ids fingerprint kind, priority, display, position, every box (offset, size, angle), text
+  and a symbol's image (its PNG hash). Goldens in
+  `dev/mapsforge/golden/labels/pass`: 4 screens (z15 and z17, 0° and 30°) of `theme` `hike_bike`
+  at device scale 2.625, image and placement dump, refreshed by `updateLabelPassGoldens` (also run
+  by `updateLabelGoldens`). AWT turned the canvas by the degrees as radians (A10, C11); no tile
+  drawing turns it, so every golden is unchanged. The desktop viewer picks the label mode and a
+  rotation (Garmin stays in tiles until M6.1d), sizes the label store from its screen and asks
+  for placements on the UI thread, once per burst of tiles. `SoakTest` compares the pass with a
+  serial one at a random rotation on the steps that wait for the whole screen; on the A54
+  (2026-11-05, 15 min) 958 screens placed alike, 29665 tiles drew alike, `IN_TILE` 66316 tiles.
+- M6.1b open points: the pass sees a tile's labels only while the driver's label store keeps it
+  (least recently used dropped), so a host sizes the store to at least one screen's tiles
+  (`MapsforgeDataset.createRenderer(…, labelStoreTiles)`, default 100) and keeps no more rendered
+  tiles than it holds. `draw` is right on AWT only: Android captions turn the canvas back
+  themselves, expecting it turned as Mapsforge's `LayerManager` does; M8 settles it with an
+  Android golden of the pass. `collect` describes every stored container on each prepare; M7
+  measures it before caching per tile.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.
@@ -660,8 +684,9 @@ See the locus-core plan, R1–R7. Repo-specific:
 
 ## Adjacent, out of scope
 
-A1–A6 found in locus-core `development` @ `79226d9`, A7–A9 in upstream Mapsforge 0.30.0; not fixed
-here, except A8 and A9, fixed in M6.4 (C9), as fixing them changes output against upstream.
+A1–A6 found in locus-core `development` @ `79226d9`, A7–A10 in upstream Mapsforge 0.30.0; not
+fixed here, except A8 and A9, fixed in M6.4 (C9), and A10, fixed in M6.1b (C11), as fixing them
+changes output against upstream.
 
 | ID | Finding |
 |---|---|
@@ -674,6 +699,7 @@ here, except A8 and A9, fixed in M6.4 (C9), as fixing them changes output agains
 | A7 | Equal-priority labels survive in identity-hash order (`DatabaseRenderer`), output varies between runs |
 | A8 | `RenderInstruction.computeBoundary` scales the symbol boundary's top by width, not height (Mapsforge 0.30.0, kept in M5.6b, fixed in M6.4) |
 | A9 | `Line` with `scale="all"` and no `stroke-dasharray` throws in `scaleStrokeWidth` (Mapsforge 0.30.0, kept in M5.6b, fixed in M6.4) |
+| A10 | AWT `AwtCanvas.rotate` hands `Graphics2D.rotate` degrees, which takes radians (Mapsforge 0.30.0, fixed in M6.1b) |
 
 ## Open
 

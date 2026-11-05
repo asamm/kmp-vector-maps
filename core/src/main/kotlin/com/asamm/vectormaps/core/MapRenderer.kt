@@ -4,6 +4,7 @@
  */
 package com.asamm.vectormaps.core
 
+import com.asamm.vectormaps.core.label.LabelPass
 import java.io.Closeable
 
 /**
@@ -15,6 +16,15 @@ interface MapRenderer : Closeable {
     val key: RenderKey
 
     val maxParallelism: Int
+
+    /**
+     * Places and draws the labels when the configuration asks for [LabelMode.SEPARATE]; null when
+     * labels go into the tiles or the driver has no pass yet. Closed with the renderer.
+     */
+    val labelPass: LabelPass?
+        get() {
+            return null
+        }
 
     /**
      * Draws `tile` into `target`, whose size must match the configured tile size and whose type

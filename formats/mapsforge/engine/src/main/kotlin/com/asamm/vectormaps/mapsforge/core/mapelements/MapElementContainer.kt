@@ -74,6 +74,12 @@ abstract class MapElementContainer protected constructor(
             return display
         }
 
+    // the label pass reads the anchor (C10)
+    internal val xyInternal: Point
+        get() {
+            return xy
+        }
+
     protected abstract fun getBoundary(): Rectangle?
 
     /**

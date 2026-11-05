@@ -10,6 +10,7 @@ import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
+import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.mapsforge.core.util.Parameters
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
@@ -22,6 +23,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -36,6 +38,11 @@ class MapsforgeDriverTest {
 
     // Monaco harbour at z14
     private val harbour = TileRequest(x = 8529, y = 5974, zoom = 14)
+
+    // the harbour tile and its neighbours east, south and south-east
+    private val harbourBlock = listOf(0 to 0, 1 to 0, 0 to 1, 1 to 1).map { (dx, dy) ->
+        TileRequest(x = harbour.x + dx, y = harbour.y + dy, zoom = harbour.zoom)
+    }
 
     @Test
     fun probeReadsBoundsFromHeader() {
@@ -138,6 +145,46 @@ class MapsforgeDriverTest {
                 val labelStore = assertNotNull(renderer.labelStore)
                 assertTrue(labelStore.getVisibleItems(harbour.toMapsforge(), harbour.toMapsforge()).isNotEmpty())
             }
+        }
+    }
+
+    @Test
+    fun labelPassPlacesTheSameLabelsInEveryRun() {
+        val separate = config.copy(labelMode = LabelMode.SEPARATE)
+        driver.open(listOf(monaco)).use { dataset ->
+            val style = driver.loadStyle(theme)
+            dataset.createRenderer(style, StyleSelection.DEFAULT, config).use { inTile ->
+                assertNull(inTile.labelPass)
+            }
+            // two renderers, the second rendering the tiles in the other order
+            val runs = listOf(harbourBlock, harbourBlock.reversed()).map { tiles ->
+                dataset.createRenderer(style, StyleSelection.DEFAULT, separate).use { renderer ->
+                    for (tile in tiles) {
+                        val target = TileBitmapTarget(256)
+                        renderer.render(tile, target) { false }
+                        target.bitmap?.decrementRefCount()
+                    }
+                    val pass = assertIs<MapsforgeLabelPass>(renderer.labelPass)
+                    val view = LabelViewport(
+                        zoom = harbour.zoom,
+                        centerX = (harbour.x + 1) * 256.0,
+                        centerY = (harbour.y + 1) * 256.0,
+                        widthPx = 400,
+                        heightPx = 300,
+                        rotationDeg = 25.0,
+                    )
+                    pass.prepare(view)
+                    val deadline = System.currentTimeMillis() + 10_000
+                    while (pass.prepared?.view != view) {
+                        assertTrue(System.currentTimeMillis() < deadline, "label pass not prepared")
+                        Thread.sleep(10)
+                    }
+                    pass.prepared!!.placed.map { it.candidate.id to it.isReversed }
+                }
+            }
+
+            assertTrue(runs[0].size > 5, "${runs[0].size} labels placed")
+            assertEquals(runs[0], runs[1])
         }
     }
 
