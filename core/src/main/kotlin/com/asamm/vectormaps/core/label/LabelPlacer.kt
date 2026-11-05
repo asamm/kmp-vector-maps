@@ -82,13 +82,24 @@ object LabelPlacer {
             PathTextDirection.FORWARD -> false
             PathTextDirection.REVERSE -> true
             PathTextDirection.UPRIGHT -> {
-                val startX = path[0] * cos - path[1] * sin
-                val endX = path[path.size - 2] * cos - path[path.size - 1] * sin
                 // a vertical path reverses too, as Mapsforge's `auto`
-                endX <= startX
+                val endX = screenEndX(path = path, cos = cos, sin = sin)
+                endX <= screenStartX(path = path, cos = cos, sin = sin)
+            }
+            PathTextDirection.UPSIDE_DOWN -> {
+                val endX = screenEndX(path = path, cos = cos, sin = sin)
+                endX > screenStartX(path = path, cos = cos, sin = sin)
             }
         }
     }
+}
+
+private fun screenStartX(path: DoubleArray, cos: Double, sin: Double): Double {
+    return path[0] * cos - path[1] * sin
+}
+
+private fun screenEndX(path: DoubleArray, cos: Double, sin: Double): Double {
+    return path[path.size - 2] * cos - path[path.size - 1] * sin
 }
 
 /**

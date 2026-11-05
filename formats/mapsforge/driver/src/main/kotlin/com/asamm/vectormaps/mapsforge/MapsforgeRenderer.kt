@@ -42,6 +42,14 @@ class MapsforgeRenderer internal constructor(
      */
     val labelStore: TileBasedLabelStore? = labelStore
 
+    override val labelPass: MapsforgeLabelPass? = labelStore?.let {
+        MapsforgeLabelPass(
+            labelStore = it,
+            tileSize = key.config.tileSizePx,
+            graphicFactory = graphicFactory,
+        )
+    }
+
     override val maxParallelism: Int = Runtime.getRuntime().availableProcessors()
 
     private val permits = Semaphore(maxParallelism)
@@ -101,6 +109,7 @@ class MapsforgeRenderer internal constructor(
         if (!closed.compareAndSet(false, true)) {
             return
         }
+        labelPass?.close()
         // waits for running renders; later ones fail the closed check
         permits.acquireUninterruptibly(maxParallelism)
         try {

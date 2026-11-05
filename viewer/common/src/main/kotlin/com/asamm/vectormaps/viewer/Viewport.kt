@@ -6,6 +6,7 @@ package com.asamm.vectormaps.viewer
 
 import com.asamm.vectormaps.core.GeoBounds
 import com.asamm.vectormaps.core.TileRequest
+import com.asamm.vectormaps.core.label.LabelViewport
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.ceil
@@ -101,6 +102,20 @@ data class Viewport(
             dx * dx + dy * dy
         }
         return result
+    }
+
+    /**
+     * The label pass's view of a `width` × `height` screen turned clockwise by `rotationDeg`.
+     */
+    fun labelViewport(width: Int, height: Int, rotationDeg: Double): LabelViewport {
+        return LabelViewport(
+            zoom = zoom,
+            centerX = x * worldPx,
+            centerY = y * worldPx,
+            widthPx = width,
+            heightPx = height,
+            rotationDeg = rotationDeg,
+        )
     }
 
     // tile indexes touched by `length` pixels from world pixel `start`, clamped to the grid

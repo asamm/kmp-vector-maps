@@ -10,17 +10,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toAwtImage
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import com.asamm.vectormaps.core.LabelMode
 import com.asamm.vectormaps.core.MapDataset
 import com.asamm.vectormaps.core.MapFormatDriver
 import com.asamm.vectormaps.core.MapFormats
+import com.asamm.vectormaps.core.MapRenderer
 import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.StyleSelection
+import com.asamm.vectormaps.core.label.LabelPass
 import com.asamm.vectormaps.garminimg.driver.GarminDataset
 import com.asamm.vectormaps.garminimg.driver.GarminDriver
 import com.asamm.vectormaps.garminimg.driver.GarminOptions
 import com.asamm.vectormaps.garminimg.driver.GarminLevel
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
+import com.asamm.vectormaps.mapsforge.MapsforgeLabelPass
+import com.asamm.vectormaps.mapsforge.MapsforgeRenderer
+import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.awt.image.BufferedImage
@@ -32,7 +39,11 @@ import java.util.Locale
 import java.util.Properties
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
+import kotlin.math.ceil
+import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.hypot
+import kotlin.math.sin
 
 /**
  * One viewer window: the open map and style, render settings and the view. Changing the map, the
@@ -96,6 +107,21 @@ class ViewerState(
     var threads: Int by mutableStateOf(session.threads)
         private set
 
+    var labelMode: LabelMode by mutableStateOf(LabelMode.IN_TILE)
+        private set
+
+    /**
+     * Clockwise map rotation in degrees.
+     */
+    var rotationDeg: Float by mutableStateOf(0.0f)
+        private set
+
+    /**
+     * The renderer's label pass in [LabelMode.SEPARATE]; Mapsforge only until M6.1d.
+     */
+    var labelPass: LabelPass? by mutableStateOf(null)
+        private set
+
     var engine: TileEngine<ImageBitmap>? by mutableStateOf(null)
         private set
 
@@ -147,6 +173,9 @@ class ViewerState(
     private val frames = AtomicInteger()
 
     private var dataset: MapDataset? = null
+
+    // the pass of the engine createEngine built last, until install shows it
+    private var builtLabelPass: LabelPass? = null
 
     // the last style file and layer per driver id, so switching formats keeps each one's style
     private val lastStyleFiles = HashMap<String, Pair<File, String?>>().apply {
@@ -332,6 +361,7 @@ class ViewerState(
         textScale: Float = this.textScale,
         tileSize: Int = this.tileSize,
         threads: Int = this.threads,
+        labelMode: LabelMode = this.labelMode,
     ) {
         val vp = viewport
         if (vp != null
@@ -342,7 +372,37 @@ class ViewerState(
         this.textScale = textScale
         this.tileSize = tileSize
         this.threads = threads
+        this.labelMode = labelMode
         rebuild()
+    }
+
+    fun rotate(degrees: Float) {
+        rotationDeg = degrees
+        showTiles()
+    }
+
+    /**
+     * The placed labels drawn on a transparent screen-sized image; null without a Mapsforge pass.
+     */
+    fun labelImage(width: Int, height: Int): ImageBitmap? {
+        val pass = labelPass as? MapsforgeLabelPass ?: return null
+        val vp = viewport ?: return null
+        if (width <= 0
+            || height <= 0
+            || pass.prepared?.view?.zoom != vp.zoom
+        ) {
+            return null
+        }
+        val bitmap = AwtGraphicFactory.INSTANCE.createBitmap(width, height, true)
+        val canvas = AwtGraphicFactory.INSTANCE.createCanvas()
+        try {
+            canvas.setBitmap(bitmap)
+            pass.draw(canvas = canvas, view = vp.labelViewport(width, height, rotationDeg.toDouble()))
+            return AwtGraphicFactory.getBitmap(bitmap).toComposeImageBitmap()
+        } finally {
+            canvas.destroy()
+            bitmap.decrementRefCount()
+        }
     }
 
     /**
@@ -382,16 +442,24 @@ class ViewerState(
     }
 
     fun drag(dx: Float, dy: Float) {
-        viewport?.let { moveTo(it.dragged(dx.toDouble(), dy.toDouble())) }
+        val (mapDx, mapDy) = unrotated(dx.toDouble(), dy.toDouble())
+        viewport?.let { moveTo(it.dragged(mapDx, mapDy)) }
     }
 
     /**
      * Zooms around the screen point `x`, `y`.
      */
     fun zoom(steps: Int, x: Float, y: Float) {
+        val (focusX, focusY) = unrotated(x - screenWidth / 2.0, y - screenHeight / 2.0)
         viewport?.let {
-            moveTo(it.zoomed(steps = steps, focusX = x - screenWidth / 2.0, focusY = y - screenHeight / 2.0))
+            moveTo(it.zoomed(steps = steps, focusX = focusX, focusY = focusY))
         }
+    }
+
+    // a screen vector in the map's frame
+    private fun unrotated(dx: Double, dy: Double): Pair<Double, Double> {
+        val radians = Math.toRadians(-rotationDeg.toDouble())
+        return Pair(dx * cos(radians) - dy * sin(radians), dx * sin(radians) + dy * cos(radians))
     }
 
     /**
@@ -405,15 +473,19 @@ class ViewerState(
         val map = mapFile ?: return null
         val width = screenWidth
         val height = screenHeight
-        val shown = vp.tiles(width, height).mapNotNull { tile ->
+        val rotation = rotationDeg
+        // as MapArea draws: the tiles of the covered square turned, the labels upright on top
+        val (coverWidth, coverHeight) = coveredSide()
+        val shown = vp.tiles(coverWidth, coverHeight).mapNotNull { tile ->
             engine[tile]?.let { image ->
                 ShownTile(
                     image = image,
-                    x = floor(vp.screenX(tile.x, width)).toInt(),
-                    y = floor(vp.screenY(tile.y, height)).toInt(),
+                    x = floor(vp.screenX(tile.x, coverWidth)).toInt() + (width - coverWidth) / 2,
+                    y = floor(vp.screenY(tile.y, coverHeight)).toInt() + (height - coverHeight) / 2,
                 )
             }
         }
+        val labels = labelImage(width, height)?.toAwtImage()
         val name = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS"))
         val png = File(capturesDir, "$name.png")
         val view = Properties()
@@ -426,6 +498,8 @@ class ViewerState(
         view["screen"] = "${width}x$height"
         view["tileSize"] = vp.tileSize.toString()
         view["textScale"] = textScale.toString()
+        view["labelMode"] = labelMode.name
+        view["rotation"] = rotation.toString()
         if (dataset is GarminDataset) {
             view["garmin.antiAliasing"] = garmin.antiAliasing.toString()
             view["garmin.objectKinds"] = "0x" + garmin.objectKinds.toString(16)
@@ -436,9 +510,13 @@ class ViewerState(
                 val image = BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB)
                 val g = image.createGraphics()
                 try {
+                    val upright = g.transform
+                    g.rotate(Math.toRadians(rotation.toDouble()), width / 2.0, height / 2.0)
                     for (tile in shown) {
                         g.drawImage(tile.image.toAwtImage(), tile.x, tile.y, null)
                     }
+                    g.transform = upright
+                    labels?.let { g.drawImage(it, 0, 0, null) }
                 } finally {
                     g.dispose()
                 }
@@ -496,25 +574,41 @@ class ViewerState(
             val images = imagesFor(dataset.driver)
             val started = System.nanoTime()
             val selection = StyleSelection(layerId = layerId)
-            val config = RenderConfig(tileSizePx = tileSize, textScale = textScale)
+            val config = RenderConfig(tileSizePx = tileSize, textScale = textScale, labelMode = labelMode)
             val renderer = if (dataset is GarminDataset) {
-                dataset.createRenderer(style = style, selection = selection, config = config, options = garmin)
+                // Garmin has no label pass until M6.1d
+                val inTile = config.copy(labelMode = LabelMode.IN_TILE)
+                dataset.createRenderer(style = style, selection = selection, config = inTile, options = garmin)
             } else {
                 dataset.createRenderer(style = style, selection = selection, config = config)
             }
             setupMs = (System.nanoTime() - started) / 1_000_000
+            renderer.labelPass?.onPrepared = {
+                frame = frames.incrementAndGet()
+            }
             return TileEngine(
                 renderer = renderer,
                 images = images,
                 threads = threads,
-                capacity = (CACHE_BYTES / (4L * tileSize * tileSize)).toInt().coerceAtLeast(1),
+                capacity = engineCapacity(renderer),
             ) {
                 frame = frames.incrementAndGet()
+                // a new tile stored its labels
+                prepareLabels()
+            }.also {
+                builtLabelPass = renderer.labelPass
             }
         } catch (e: Exception) {
             fail("createEngine(), ${e.message}", causesOf(e))
             return null
         }
+    }
+
+    // a separate label pass keeps the labels of its store's tiles only, so no more tiles than that
+    private fun engineCapacity(renderer: MapRenderer): Int {
+        val byMemory = (CACHE_BYTES / (4L * tileSize * tileSize)).toInt().coerceAtLeast(1)
+        val labelTiles = (renderer as? MapsforgeRenderer)?.labelStore?.capacity ?: return byMemory
+        return minOf(byMemory, labelTiles)
     }
 
     private fun fail(message: String, details: String) {
@@ -535,6 +629,7 @@ class ViewerState(
     private fun install(built: TileEngine<ImageBitmap>) {
         dropEngine()
         engine = built
+        labelPass = builtLabelPass
         notice = null
         if (viewport == null) {
             startView()
@@ -546,6 +641,7 @@ class ViewerState(
     private fun dropEngine() {
         engine?.closeLater()
         engine = null
+        labelPass = null
     }
 
     private fun startView() {
@@ -573,7 +669,29 @@ class ViewerState(
         if (screenWidth > 0
             && vp.tileSize == engine.tileSizePx
         ) {
-            engine.show(vp.tiles(screenWidth, screenHeight))
+            val side = coveredSide()
+            engine.show(vp.tiles(side.first, side.second))
+            prepareLabels()
+        }
+    }
+
+    /**
+     * The screen size whose tiles cover the turned screen: the screen itself, or the square around
+     * its diagonal.
+     */
+    fun coveredSide(): Pair<Int, Int> {
+        if (rotationDeg == 0.0f) {
+            return Pair(screenWidth, screenHeight)
+        }
+        val diagonal = ceil(hypot(screenWidth.toDouble(), screenHeight.toDouble())).toInt()
+        return Pair(diagonal, diagonal)
+    }
+
+    private fun prepareLabels() {
+        val pass = labelPass ?: return
+        val vp = viewport ?: return
+        if (screenWidth > 0) {
+            pass.prepare(vp.labelViewport(screenWidth, screenHeight, rotationDeg.toDouble()))
         }
     }
 

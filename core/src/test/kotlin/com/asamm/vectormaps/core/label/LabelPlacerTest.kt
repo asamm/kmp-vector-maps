@@ -186,6 +186,11 @@ class LabelPlacerTest {
             assertFalse(LabelPlacer.place(listOf(forward), rotation).single().isReversed)
             assertTrue(LabelPlacer.place(listOf(reverse), rotation).single().isReversed)
         }
+
+        // upside down: the leftwards path is drawn as given at 0 degrees, flipped at 180
+        val down = pathText(id = 1, path = path, direction = PathTextDirection.UPSIDE_DOWN)
+        assertFalse(LabelPlacer.place(listOf(down), 0.0).single().isReversed)
+        assertTrue(LabelPlacer.place(listOf(down), 180.0).single().isReversed)
     }
 
     @Test

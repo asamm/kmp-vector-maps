@@ -37,7 +37,7 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 | `MapDataset` | one or more files: Mapsforge multi-map, Garmin `.img` files with one or many maps each; `addMap` at runtime, then hosts recreate renderers; `styles` it brings itself (embedded TYP, built-in); creates renderers |
 | `MapStyle` | style source and menu: Mapsforge theme, Garmin TYP, MVT style; compiled per renderer |
 | `StyleMenu` | layers, overlays, titles; **keeps Mapsforge ids** for Locus prefs; `StyleSelection` = layer + overlays |
-| `MapRenderer` | per (dataset, style, selection, config); `render(tile, target, isCancelled)`, hooks from M6 |
+| `MapRenderer` | per (dataset, style, selection, config); `render(tile, target, isCancelled)`, `labelPass` in `SEPARATE` mode, hooks from M6 |
 | `RenderConfig` | language, device scale, text scale, label mode, tile size |
 | `RenderKey` | hashable (style, selection, config) for host tile caches |
 | `FeatureQuery` | optional pull API: tags at a zoom → resolved symbol (LoPoints) |
@@ -97,6 +97,9 @@ anchors, each with a per-format default.
 - `LabelPlacer` keeps candidates by priority, ties by display and identity, each only when it
   clashes with none kept before; boxes stay upright or turn with the map, path text reads upright
   unless its style fixes the direction.
+- `LabelPass` (`:core`): `prepare(view)` on a background coroutine, cancelling the run before,
+  `prepared`, `onPrepared`; drawing is the format's (`MapsforgeLabelPass.draw` on a Mapsforge
+  canvas) until the host API wraps it (M8).
 - `SEPARATE`: tiles carry no labels; candidates are placed per screen, rotation-aware and
   upright, by `LabelPlacer` (written fresh, after Locus' grid collision).
 - `IN_TILE`: placed over the tile plus a one-tile margin, independent of render order; replaces
