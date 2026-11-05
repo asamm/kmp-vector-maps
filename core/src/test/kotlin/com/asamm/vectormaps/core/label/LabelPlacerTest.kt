@@ -117,6 +117,35 @@ class LabelPlacerTest {
     }
 
     @Test
+    fun alwaysNeverBlocksAndDrawsOnTopAtEqualPriority() {
+        // apart, so all are kept: at equal priority ALWAYS draws above ORDER above IF_SPACE
+        val ifSpace = point(id = 1, x = 0.0, y = 0.0, priority = 3)
+        val always = point(id = 2, x = 100.0, y = 0.0, priority = 3, display = LabelDisplay.ALWAYS)
+        val order = point(id = 3, x = 200.0, y = 0.0, priority = 3, display = LabelDisplay.ORDER)
+
+        assertEquals(
+            listOf(1L, 3L, 2L),
+            ids(LabelPlacer.place(listOf(always, order, ifSpace), rotationDeg = 0.0)),
+        )
+
+        // a top-priority ALWAYS label over a lower IF_SPACE one blocks nothing
+        val alwaysTop = point(id = 4, x = 0.0, y = 0.0, priority = 9, display = LabelDisplay.ALWAYS)
+        assertEquals(2, LabelPlacer.place(listOf(alwaysTop, ifSpace), rotationDeg = 0.0).size)
+    }
+
+    @Test
+    fun equalPointTextsCloseTogetherClash() {
+        val town = pointText(id = 1, x = 0.0, text = "Brno")
+        val near = pointText(id = 2, x = 150.0, text = "Brno")
+        val far = pointText(id = 2, x = 250.0, text = "Brno")
+        val other = pointText(id = 2, x = 150.0, text = "Praha")
+
+        assertEquals(listOf(1L), ids(LabelPlacer.place(listOf(town, near), rotationDeg = 0.0)))
+        assertEquals(2, LabelPlacer.place(listOf(town, far), rotationDeg = 0.0).size)
+        assertEquals(2, LabelPlacer.place(listOf(town, other), rotationDeg = 0.0).size)
+    }
+
+    @Test
     fun candidateWithoutBoxesNeverClashes() {
         val solid = point(id = 1, x = 0.0, y = 0.0, priority = 5)
         val empty = LabelCandidate(
@@ -141,6 +170,53 @@ class LabelPlacerTest {
         assertFalse(LabelPlacer.place(listOf(rightwards), 0.0).single().isReversed)
         assertTrue(LabelPlacer.place(listOf(rightwards), 180.0).single().isReversed)
         assertFalse(LabelPlacer.place(listOf(point(2, 0.0, 0.0, 1)), 180.0).single().isReversed)
+
+        // a vertical path reverses, as Mapsforge's `auto`
+        val vertical = pathText(id = 3, path = doubleArrayOf(0.0, 0.0, 0.0, 100.0))
+        assertTrue(LabelPlacer.place(listOf(vertical), 0.0).single().isReversed)
+    }
+
+    @Test
+    fun fixedDirectionIgnoresRotation() {
+        val path = doubleArrayOf(100.0, 0.0, 0.0, 0.0)
+        val forward = pathText(id = 1, path = path, direction = PathTextDirection.FORWARD)
+        val reverse = pathText(id = 1, path = path, direction = PathTextDirection.REVERSE)
+
+        for (rotation in listOf(0.0, 180.0)) {
+            assertFalse(LabelPlacer.place(listOf(forward), rotation).single().isReversed)
+            assertTrue(LabelPlacer.place(listOf(reverse), rotation).single().isReversed)
+        }
+    }
+
+    @Test
+    fun pathIsCopied() {
+        val path = doubleArrayOf(0.0, 0.0, 100.0, 0.0)
+        val candidate = pathText(id = 1, path = path)
+
+        path[2] = -100.0
+
+        assertEquals(100.0, candidate.path!![2])
+        assertFalse(LabelPlacer.place(listOf(candidate), 0.0).single().isReversed)
+    }
+
+    @Test
+    fun absurdGeometryDoesNotBreakTheGrid() {
+        val huge = LabelCandidate(
+            id = 1,
+            kind = LabelKind.POINT,
+            x = 0.0,
+            y = 0.0,
+            priority = 9,
+            boxes = listOf(
+                CollisionBox(centerX = 0.0, centerY = -1e38, halfWidth = 1e300, halfHeight = 1.0),
+            ),
+        )
+        val far = point(id = 2, x = 1e12, y = 0.0, priority = 1)
+
+        // whether the two clash is beside the point at this precision; placing them must not throw
+        val placed = LabelPlacer.place(listOf(huge, far), rotationDeg = 30.0)
+
+        assertTrue(1L in ids(placed))
     }
 
     @Test
@@ -150,7 +226,7 @@ class LabelPlacerTest {
             val candidates = List(400) { i ->
                 val alignment = BoxAlignment.entries[random.nextInt(BoxAlignment.entries.size)]
                 LabelCandidate(
-                    // a few repeated ids, as from neighbouring tiles
+                    // many repeated ids, each a different candidate, so deduplication runs too
                     id = random.nextLong(0, 380),
                     kind = LabelKind.POINT,
                     x = 100_000.0 + random.nextDouble(0.0, 3000.0),
@@ -200,12 +276,15 @@ class LabelPlacerTest {
         assertFailsWith<IllegalArgumentException> {
             CollisionBox(centerX = 0.0, centerY = 0.0, halfWidth = -1.0, halfHeight = 1.0)
         }
+        assertFailsWith<IllegalArgumentException> {
+            LabelPlacer.place(listOf(point(id = 1, x = 0.0, y = 0.0, priority = 1)), Double.NaN)
+        }
     }
 
     // reference placement: every candidate checked against every kept one
     private fun everyPair(candidates: List<LabelCandidate>, rotationDeg: Double): List<Long> {
         val order = candidates
-            .sortedWith(compareByDescending<LabelCandidate> { it.priority }.thenBy { it.id })
+            .sortedWith(LabelPlacer.PLACEMENT_ORDER)
             .distinctBy { it.id }
         val radians = Math.toRadians(rotationDeg)
         val shapes = order.map {
@@ -296,7 +375,26 @@ class LabelPlacerTest {
         )
     }
 
-    private fun pathText(id: Long, path: DoubleArray): LabelCandidate {
+    private fun pointText(id: Long, x: Double, text: String): LabelCandidate {
+        return LabelCandidate(
+            id = id,
+            kind = LabelKind.POINT,
+            x = x,
+            y = 0.0,
+            priority = 1,
+            // small boxes: they never overlap at these distances
+            boxes = listOf(
+                CollisionBox(centerX = 0.0, centerY = 0.0, halfWidth = 5.0, halfHeight = 5.0),
+            ),
+            text = LabelText(value = text, sizePx = 12.0f, fillArgb = 0xFF000000.toInt()),
+        )
+    }
+
+    private fun pathText(
+        id: Long,
+        path: DoubleArray,
+        direction: PathTextDirection = PathTextDirection.UPRIGHT,
+    ): LabelCandidate {
         return LabelCandidate(
             id = id,
             kind = LabelKind.PATH_TEXT,
@@ -308,6 +406,7 @@ class LabelPlacerTest {
             ),
             text = LabelText(value = "Main Street", sizePx = 12.0f, fillArgb = 0xFF000000.toInt()),
             path = path,
+            direction = direction,
         )
     }
 }

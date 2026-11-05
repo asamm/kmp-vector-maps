@@ -9,11 +9,13 @@ package com.asamm.vectormaps.core.label
  * along a path. Coordinates are world pixels at the zoom being labelled; collision geometry is
  * measured by the format, in screen pixels.
  *
- * @param id stable identity, equal for the same label stored from neighbouring tiles; breaks
- *  priority ties, so it must not come from an identity hash
+ * @param id stable identity, equal for the same label stored from neighbouring tiles, whose copies
+ *  must then carry identical geometry; breaks priority ties, so it must not come from an identity
+ *  hash
  * @param x anchor in world pixels; a path text's anchor is its path's first point
  * @param boxes collision geometry relative to the anchor; empty never clashes
- * @param path [LabelKind.PATH_TEXT] only: the path as x, y pairs in world pixels
+ * @param path [LabelKind.PATH_TEXT] only: the path as x, y pairs in world pixels, copied
+ * @param direction [LabelKind.PATH_TEXT] only: which way the text runs along its path
  */
 class LabelCandidate(
     val id: Long,
@@ -24,8 +26,11 @@ class LabelCandidate(
     val boxes: List<CollisionBox>,
     val display: LabelDisplay = LabelDisplay.IF_SPACE,
     val text: LabelText? = null,
-    val path: DoubleArray? = null,
+    path: DoubleArray? = null,
+    val direction: PathTextDirection = PathTextDirection.UPRIGHT,
 ) {
+
+    val path: DoubleArray? = path?.copyOf()
 
     init {
         require(x.isFinite()
@@ -57,13 +62,14 @@ enum class LabelKind {
     LINE_SYMBOL,
 
     /**
-     * A text along a path, flipped so it never reads upside down.
+     * A text along a path, running as its [LabelCandidate.direction] says.
      */
     PATH_TEXT,
 }
 
 /**
- * How a candidate takes part in collisions (Mapsforge `Display`).
+ * How a candidate takes part in collisions (Mapsforge `Display`); at equal priority, later entries
+ * draw above earlier ones, as in Mapsforge.
  */
 enum class LabelDisplay {
 
@@ -81,6 +87,27 @@ enum class LabelDisplay {
      * Always placed; never blocks another candidate.
      */
     ALWAYS,
+}
+
+/**
+ * Which way a path text runs (Mapsforge `text-orientation`).
+ */
+enum class PathTextDirection {
+
+    /**
+     * Flipped so it never reads upside down (Mapsforge `auto`).
+     */
+    UPRIGHT,
+
+    /**
+     * From the path's first point to its last (Mapsforge `right`).
+     */
+    FORWARD,
+
+    /**
+     * From the path's last point to its first (Mapsforge `left`).
+     */
+    REVERSE,
 }
 
 /**

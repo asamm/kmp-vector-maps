@@ -7,6 +7,7 @@ package com.asamm.vectormaps.core.label
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
@@ -14,8 +15,7 @@ import kotlin.math.sin
 /**
  * A candidate kept by [LabelPlacer].
  *
- * @param isReversed a path text to draw from its path's last point to its first, so it reads
- *  upright
+ * @param isReversed a path text to draw from its path's last point to its first
  */
 data class PlacedLabel(
     val candidate: LabelCandidate,
@@ -23,13 +23,19 @@ data class PlacedLabel(
 )
 
 /**
- * Places labels on a screen: highest priority first, ties by lower id, each candidate kept only
- * when it clashes with no candidate kept before it. A grid of screen cells limits the checks to
- * kept candidates nearby.
+ * Places labels on a screen: highest priority first, ties by display, then lower id, each candidate
+ * kept only when it clashes with no candidate kept before it. A grid of screen cells limits the
+ * checks to kept candidates nearby.
  */
 object LabelPlacer {
 
-    private val PLACEMENT_ORDER = compareByDescending<LabelCandidate> { it.priority }
+    /**
+     * Point texts with equal text closer than this, in world pixels, clash (Mapsforge's value).
+     */
+    const val SAME_TEXT_RADIUS_PX = 200.0
+
+    internal val PLACEMENT_ORDER = compareByDescending<LabelCandidate> { it.priority }
+        .thenByDescending { it.display }
         .thenBy { it.id }
 
     /**
@@ -37,6 +43,9 @@ object LabelPlacer {
      * by [rotationDeg]. Candidates sharing an id are one label, placed once.
      */
     fun place(candidates: List<LabelCandidate>, rotationDeg: Double): List<PlacedLabel> {
+        require(rotationDeg.isFinite()) {
+            "LabelPlacer.place(), rotation $rotationDeg"
+        }
         val order = candidates.sortedWith(PLACEMENT_ORDER).distinctBy { it.id }
         val radians = Math.toRadians(rotationDeg)
         val cos = cos(radians)
@@ -45,14 +54,18 @@ object LabelPlacer {
             ScreenShape.of(candidate = order[i], cos = cos, sin = sin)
         }
         val grid = Grid(shapes)
+        val texts = SameTextIndex()
         val kept = ArrayList<PlacedLabel>(order.size)
         for (i in order.indices) {
             val candidate = order[i]
             if (candidate.display != LabelDisplay.ALWAYS) {
-                if (grid.clashes(index = i, order = order)) {
+                if (grid.clashes(index = i, order = order)
+                    || texts.clashes(candidate)
+                ) {
                     continue
                 }
                 grid.add(i)
+                texts.add(candidate)
             }
             kept.add(PlacedLabel(
                 candidate = candidate,
@@ -65,9 +78,47 @@ object LabelPlacer {
 
     private fun isReversed(candidate: LabelCandidate, cos: Double, sin: Double): Boolean {
         val path = candidate.path ?: return false
-        val startX = path[0] * cos - path[1] * sin
-        val endX = path[path.size - 2] * cos - path[path.size - 1] * sin
-        return endX < startX
+        return when (candidate.direction) {
+            PathTextDirection.FORWARD -> false
+            PathTextDirection.REVERSE -> true
+            PathTextDirection.UPRIGHT -> {
+                val startX = path[0] * cos - path[1] * sin
+                val endX = path[path.size - 2] * cos - path[path.size - 1] * sin
+                // a vertical path reverses too, as Mapsforge's `auto`
+                endX <= startX
+            }
+        }
+    }
+}
+
+/**
+ * Kept point texts by their text, so equal ones close together clash (Mapsforge
+ * `PointTextContainer`).
+ */
+private class SameTextIndex {
+
+    private val keptByText = HashMap<String, MutableList<LabelCandidate>>()
+
+    fun clashes(candidate: LabelCandidate): Boolean {
+        val text = textOf(candidate) ?: return false
+        val kept = keptByText[text] ?: return false
+        return kept.any { other ->
+            val distance = hypot(other.x - candidate.x, other.y - candidate.y)
+            other.display == candidate.display
+                && distance < LabelPlacer.SAME_TEXT_RADIUS_PX
+        }
+    }
+
+    fun add(candidate: LabelCandidate) {
+        val text = textOf(candidate) ?: return
+        keptByText.getOrPut(text) { ArrayList(2) }.add(candidate)
+    }
+
+    private fun textOf(candidate: LabelCandidate): String? {
+        if (candidate.kind != LabelKind.POINT) {
+            return null
+        }
+        return candidate.text?.value
     }
 }
 
@@ -281,7 +332,8 @@ private class Grid(private val shapes: Array<ScreenShape?>) {
     }
 
     private fun cellOf(value: Double): Int {
-        return floor(value / CELL_SIZE).toInt()
+        // bounded, so differences of cells stay inside Int on absurd coordinates (see #39)
+        return floor(value / CELL_SIZE).coerceIn(-MAX_CELL_INDEX, MAX_CELL_INDEX).toInt()
     }
 
     private companion object {
@@ -289,6 +341,8 @@ private class Grid(private val shapes: Array<ScreenShape?>) {
         const val CELL_SIZE = 256.0
 
         const val MAX_CELLS = 512
+
+        const val MAX_CELL_INDEX = 268_435_456.0
     }
 }
 
