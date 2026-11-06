@@ -69,6 +69,11 @@ interface Paint {
 
     fun setTextSize(textSize: Float)
 
+    /**
+     * The text size last set, in pixels; 0 until set.
+     */
+    val textSize: Float
+
     fun setTypeface(fontFamily: FontFamily, fontStyle: FontStyle)
 
     companion object {

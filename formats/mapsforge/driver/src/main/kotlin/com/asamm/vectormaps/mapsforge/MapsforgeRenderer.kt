@@ -28,8 +28,8 @@ import java.util.logging.Logger
 /**
  * Renders through Mapsforge's `DatabaseRenderer` into [TileBitmapTarget]s without labels, which go
  * to [labelStore] for [labelPass] (D39). Never returns [RenderResult.EMPTY]: Mapsforge fills tiles
- * without data with the theme background. [close] waits for running renders, so it must not be
- * called from inside [render].
+ * without data with the theme background. [close] waits for running renders and [featureQuery]
+ * calls, so it must not be called from inside either.
  *
  * @param labelStore labels of the rendered tiles, for [labelPass]
  * @param hooks host drawing at the format's anchors, such as hillshading
@@ -38,16 +38,19 @@ class MapsforgeRenderer internal constructor(
     override val key: RenderKey,
     graphicFactory: GraphicFactory,
     private val store: MapDataStore,
-    private val themeFuture: RenderThemeFuture,
+    internal val themeFuture: RenderThemeFuture,
     internal val displayModel: DisplayModel,
     val labelStore: TileBasedLabelStore,
     hooks: RenderHooks,
 ) : MapRenderer {
 
+    private val symbols = SymbolPngs()
+
     override val labelPass: MapsforgeLabelPass = MapsforgeLabelPass(
         labelStore = labelStore,
         tileSize = key.config.tileSizePx,
         graphicFactory = graphicFactory,
+        symbols = symbols,
     )
 
     override val maxParallelism: Int = Runtime.getRuntime().availableProcessors()
@@ -60,6 +63,18 @@ class MapsforgeRenderer internal constructor(
     }
 
     private val closed = AtomicBoolean(false)
+
+    override val featureQuery: MapsforgeFeatureQuery = MapsforgeFeatureQuery(
+        graphicFactory = graphicFactory,
+        store = store,
+        themeFuture = themeFuture,
+        displayModel = displayModel,
+        textScale = key.config.textScale,
+        tileSize = key.config.tileSizePx,
+        symbols = symbols,
+        permits = permits,
+        closed = closed,
+    )
 
     private val renderer = DatabaseRenderer(
         store,
