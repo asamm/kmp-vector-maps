@@ -6,25 +6,26 @@ package com.asamm.vectormaps.garminimg.driver
 
 import com.asamm.vectormaps.core.GeoBounds
 import com.asamm.vectormaps.core.MapRenderer
+import com.asamm.vectormaps.core.RenderHooks
 import com.asamm.vectormaps.core.RenderKey
 import com.asamm.vectormaps.core.RenderResult
+import com.asamm.vectormaps.core.RenderTarget as CoreRenderTarget
 import com.asamm.vectormaps.core.TileRequest
+import com.asamm.vectormaps.core.bounds
 import com.asamm.vectormaps.core.label.TileLabelStore
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.render.ImgRenderer
 import com.asamm.vectormaps.garminimg.render.MapLabel
 import com.asamm.vectormaps.garminimg.render.RenderTarget
+import com.asamm.vectormaps.garminimg.render.StyleResolver
 import com.asamm.vectormaps.garminimg.render.Viewport
 import com.asamm.vectormaps.garminimg.utils.io.ImgRandomAccessReader
-import com.asamm.vectormaps.garminimg.render.StyleResolver
 import java.util.IdentityHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.math.PI
-import kotlin.math.atan
-import kotlin.math.sinh
-import com.asamm.vectormaps.core.RenderTarget as CoreRenderTarget
+import java.util.logging.Level
+import java.util.logging.Logger
 
 /**
  * Renders all maps of its files through the engine's `ImgRenderer` into [GarminTileTarget]s, up to
@@ -36,6 +37,7 @@ import com.asamm.vectormaps.core.RenderTarget as CoreRenderTarget
  * not be called from inside [render].
  *
  * @param labelStore where each rendered tile's labels go, for [labelPass]
+ * @param hooks host drawing at the format's anchors: hillshading after the polygons
  */
 class GarminRenderer internal constructor(
     override val key: RenderKey,
@@ -44,6 +46,7 @@ class GarminRenderer internal constructor(
     private val canvasFactory: GarminCanvasFactory,
     private val options: GarminOptions,
     private val labelStore: TileLabelStore<MapLabel>,
+    private val hooks: RenderHooks,
 ) : MapRenderer {
 
     override val labelPass: GarminLabelPass = GarminLabelPass(
@@ -109,6 +112,19 @@ class GarminRenderer internal constructor(
                     level = options.level,
                     textScale = key.config.textScale,
                     labels = labels::add,
+                    hillshade = {
+                        val hook = hooks.hillshade
+                        if (hook != null) {
+                            try {
+                                canvas.withPlatformCanvas { platform ->
+                                    hook.drawTile(canvas = platform, tile = tile, tileSizePx = tileSize)
+                                }
+                            } catch (e: Exception) {
+                                // the tile stays, unshaded
+                                LOGGER.log(Level.SEVERE, "hillshade($tile)", e)
+                            }
+                        }
+                    },
                 )
                 labelStore.store(tile = tile, labels = labels.map(GarminLabelPass::trimmedToText))
                 target.canvas = canvas
@@ -172,6 +188,8 @@ class GarminRenderer internal constructor(
 
     private companion object {
 
+        val LOGGER: Logger = Logger.getLogger(GarminRenderer::class.java.name)
+
         // the resolver key of maps without a TYP
         val NO_TYP = Any()
     }
@@ -232,19 +250,15 @@ class GarminRenderer internal constructor(
     }
 
     private fun viewportOf(tile: TileRequest, sizePx: Int): Viewport {
-        val n = (1 shl tile.zoom).toDouble()
+        val bounds = tile.bounds()
         return Viewport.ofDegrees(
             widthPx = sizePx,
             heightPx = sizePx,
-            minLonDeg = tile.x / n * 360.0 - 180.0,
-            maxLonDeg = (tile.x + 1) / n * 360.0 - 180.0,
-            minLatDeg = latitudeOf(tile.y + 1, n),
-            maxLatDeg = latitudeOf(tile.y, n),
+            minLonDeg = bounds.minLon,
+            maxLonDeg = bounds.maxLon,
+            minLatDeg = bounds.minLat,
+            maxLatDeg = bounds.maxLat,
         )
-    }
-
-    private fun latitudeOf(y: Int, n: Double): Double {
-        return atan(sinh(PI * (1.0 - 2.0 * y / n))) * 180.0 / PI
     }
 }
 

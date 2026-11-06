@@ -17,8 +17,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 /**
- * The `<hillshading>` element is parsed but not rendered (C5): it is still validated and takes its
- * drawing level, so the levels of the rules after it stay as upstream.
+ * The `<hillshading>` element is validated and takes its drawing level, so the levels of the rules
+ * after it stay as upstream; the host's drawer goes there (C12).
  */
 class ThemeHillshadingTest {
 

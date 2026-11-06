@@ -19,14 +19,17 @@
  */
 package com.asamm.vectormaps.mapsforge.map.rendertheme.rule
 
+import com.asamm.vectormaps.mapsforge.core.graphics.Paint
 import com.asamm.vectormaps.mapsforge.core.model.Tag
 import com.asamm.vectormaps.mapsforge.core.util.LRUCache
 import com.asamm.vectormaps.mapsforge.core.util.Utils
 import com.asamm.vectormaps.mapsforge.map.datastore.PointOfInterest
+import com.asamm.vectormaps.mapsforge.map.layer.renderer.HillshadingDrawer
 import com.asamm.vectormaps.mapsforge.map.layer.renderer.PolylineContainer
 import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
 import com.asamm.vectormaps.mapsforge.map.rendertheme.RenderCallback
 import com.asamm.vectormaps.mapsforge.map.rendertheme.RenderContext
+import com.asamm.vectormaps.mapsforge.map.rendertheme.renderinstruction.Hillshading
 import com.asamm.vectormaps.mapsforge.map.rendertheme.renderinstruction.RenderInstruction
 
 /**
@@ -62,6 +65,7 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
     // Note: rulesList is not synchronized because it seems it is not being updated once the theme
     // is loaded.
     private val rulesList: ArrayList<Rule> = ArrayList()
+    private val hillShadings: ArrayList<Hillshading> = ArrayList()
     private val poiMatchingCache: LRUCache<MatchingCacheKey, Array<RenderInstruction>> =
         LRUCache(MATCHING_CACHE_SIZE)
     private val wayMatchingCache: LRUCache<MatchingCacheKey, Array<RenderInstruction>> =
@@ -228,8 +232,13 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
         this.rulesList.add(rule)
     }
 
+    internal fun addHillShadings(hillshading: Hillshading) {
+        this.hillShadings.add(hillshading)
+    }
+
     internal fun complete() {
         this.rulesList.trimToSize()
+        this.hillShadings.trimToSize()
         for (i in 0 until this.rulesList.size) {
             this.rulesList[i].onComplete()
         }
@@ -272,6 +281,22 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
     fun traverseRules(visitor: Rule.RuleVisitor) {
         for (rule in this.rulesList) {
             rule.apply(visitor)
+        }
+    }
+
+    /**
+     * True when the theme has a `<hillshading>` element, whether or not its category shows.
+     */
+    @Volatile
+    var declaresHillshading: Boolean = false
+        internal set
+
+    /**
+     * Places [drawer] at each shown `<hillshading>` element's layer and level.
+     */
+    fun matchHillShadings(renderContext: RenderContext, drawer: HillshadingDrawer, paint: Paint) {
+        for (hillShading in hillShadings) {
+            hillShading.render(renderContext = renderContext, drawer = drawer, paint = paint)
         }
     }
 

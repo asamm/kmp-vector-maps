@@ -37,9 +37,17 @@ interface MapDataset : Closeable {
     /**
      * Creates a renderer for one style, menu selection and configuration; `style` must come from
      * this dataset's driver. May compile the style, which is costly: reuse renderers per
-     * [RenderKey]. A renderer may keep the file set it was created with: close and recreate it after
+     * [RenderKey] and [hooks]. A renderer may keep the file set it was created with: close and recreate it after
      * [addMap]. Closing the dataset leaves its renderers open. Throws `IllegalArgumentException`
      * for a configuration the driver does not support.
+     *
+     * @param hooks host drawing at the format's anchors; not part of [RenderKey], so a host keys its
+     *   tile caches on them too
      */
-    fun createRenderer(style: MapStyle, selection: StyleSelection, config: RenderConfig): MapRenderer
+    fun createRenderer(
+        style: MapStyle,
+        selection: StyleSelection,
+        config: RenderConfig,
+        hooks: RenderHooks = RenderHooks.NONE,
+    ): MapRenderer
 }

@@ -31,6 +31,7 @@ import com.asamm.vectormaps.mapsforge.map.rendertheme.XmlUtils
 import com.asamm.vectormaps.mapsforge.map.rendertheme.renderinstruction.Area
 import com.asamm.vectormaps.mapsforge.map.rendertheme.renderinstruction.Caption
 import com.asamm.vectormaps.mapsforge.map.rendertheme.renderinstruction.Circle
+import com.asamm.vectormaps.mapsforge.map.rendertheme.renderinstruction.Hillshading
 import com.asamm.vectormaps.mapsforge.map.rendertheme.renderinstruction.Line
 import com.asamm.vectormaps.mapsforge.map.rendertheme.renderinstruction.LineSymbol
 import com.asamm.vectormaps.mapsforge.map.rendertheme.renderinstruction.PathText
@@ -257,17 +258,22 @@ class RenderThemeHandler private constructor(
                     this.symbols[symbolId] = symbol
                 }
             } else if ("hillshading" == qName) {
-                // not rendered: the element is still validated and takes its level, as upstream
+                // the host draws the shading (D13): magnitude and color are only validated
                 checkState(qName, Element.RULE)
+                var category: String? = null
+                var minZoom: Byte = 9
+                var maxZoom: Byte = 17
+                var layer: Byte = 5
                 for (i in 0 until pullParser.attributeCount) {
                     val name = pullParser.getAttributeName(i)
                     val value = pullParser.getAttributeValue(i)
 
-                    if ("zoom-min" == name
-                        || "zoom-max" == name
-                        || "layer" == name
-                    ) {
-                        XmlUtils.parseNonNegativeByte(name, value)
+                    if ("cat" == name) {
+                        category = value
+                    } else if ("zoom-min" == name) {
+                        minZoom = XmlUtils.parseNonNegativeByte(name, value)
+                    } else if ("zoom-max" == name) {
+                        maxZoom = XmlUtils.parseNonNegativeByte(name, value)
                     } else if ("magnitude" == name) {
                         val magnitude = XmlUtils.parseNonNegativeInteger(name, value)
                         if (magnitude > 255) {
@@ -275,9 +281,20 @@ class RenderThemeHandler private constructor(
                         }
                     } else if ("color" == name) {
                         XmlUtils.getColor(this.graphicFactory, value)
+                    } else if ("layer" == name) {
+                        layer = XmlUtils.parseNonNegativeByte(name, value)
                     }
                 }
-                this.level++
+                val hillShadingLevel = this.level++
+                this.renderTheme!!.declaresHillshading = true
+                if (this.categories == null
+                    || category == null
+                    || this.categories!!.contains(category)
+                ) {
+                    this.renderTheme!!.addHillShadings(
+                        Hillshading(minZoom = minZoom, maxZoom = maxZoom, layer = layer, level = hillShadingLevel),
+                    )
+                }
             } else {
                 throw XmlPullParserException("unknown element: $qName")
             }

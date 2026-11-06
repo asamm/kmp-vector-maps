@@ -37,9 +37,9 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 | `MapDataset` | one or more files: Mapsforge multi-map, Garmin `.img` files with one or many maps each; `addMap` at runtime, then hosts recreate renderers; `styles` it brings itself (embedded TYP, built-in); creates renderers |
 | `MapStyle` | style source and menu: Mapsforge theme, Garmin TYP, MVT style; compiled per renderer |
 | `StyleMenu` | layers, overlays, titles; **keeps Mapsforge ids** for Locus prefs; `StyleSelection` = layer + overlays |
-| `MapRenderer` | per (dataset, style, selection, config); `render(tile, target, isCancelled)`, `labelPass` (D39), hooks from M6 |
+| `MapRenderer` | per (dataset, style, selection, config); `render(tile, target, isCancelled)`, `labelPass` (D39), `RenderHooks` given at creation (M6.2) |
 | `RenderConfig` | language, device scale, text scale, tile size |
-| `RenderKey` | hashable (style, selection, config) for host tile caches |
+| `RenderKey` | hashable (style, selection, config) for host tile caches; hooks are not in it |
 | `FeatureQuery` | optional pull API: tags at a zoom → resolved symbol (LoPoints) |
 
 - **Threads:** a dataset is thread-safe; a renderer declares `maxParallelism` and bounds itself.
@@ -87,8 +87,12 @@ anchors, each with a per-format default.
 | `HILLSHADE` | theme `<hillshading>` (layer + level); else after all features | after polygons | style layer |
 | `LABELS` | label pass | label pass | symbol layers |
 
-- The hillshade hook gets geo bounds and pixel scale and draws with alpha and blend mode; the host
-  prefetches DEM data.
+- The hillshade hook (`RenderHooks.hillshade`, a `createRenderer` argument outside `RenderKey`)
+  gets the tile's platform canvas (a `java.awt.Graphics2D` copy, or the `android.graphics.Canvas`
+  with matrix, clip and layers restored after), its geo bounds and pixels per metre, and draws
+  with its own alpha and blend mode; a throw is logged and the tile stays unshaded; the host
+  prefetches DEM data. A Mapsforge `<hillshading>` draws within its zoom range (default 9..17)
+  and not at all with its category off.
 
 ## Labels
 

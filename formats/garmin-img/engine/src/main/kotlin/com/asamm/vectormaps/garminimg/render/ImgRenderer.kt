@@ -79,6 +79,8 @@ class ImgRenderer(
      *   picks the level matching the viewport's resolution.
      * @param textScale factor on label sizes, on top of the target's render scale
      * @param labels receives every label of the render, in render order
+     * @param hillshade called once after the polygons, before the polylines and points, to draw
+     *   the host's hillshading through [RenderTarget.withPlatformCanvas]
      */
     fun render(
         viewport: Viewport,
@@ -88,6 +90,7 @@ class ImgRenderer(
         level: Int? = null,
         textScale: Float = 1f,
         labels: (MapLabel) -> Unit = {},
+        hillshade: () -> Unit = {},
     ) {
         require(target.widthPx == viewport.widthPx) {
             "RenderTarget width ${target.widthPx} != viewport width ${viewport.widthPx}"
@@ -158,6 +161,8 @@ class ImgRenderer(
         for ((poly, style) in polygons) {
             drawPolygon(poly, style, projection, target, labels, textScale)
         }
+        // the host's hillshading over the areas, under the lines and points
+        hillshade()
 
         // Two-pass polyline rendering: every border first, then every
         // centre stroke. Single-pass would let A's border draw over B's

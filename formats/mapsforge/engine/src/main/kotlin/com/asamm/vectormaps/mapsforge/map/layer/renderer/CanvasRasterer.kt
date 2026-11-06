@@ -128,6 +128,13 @@ open class CanvasRasterer(
         )
     }
 
+    /**
+     * Lets [drawer] draw the host's hillshading on this render's canvas.
+     */
+    internal fun drawHillshading(drawer: HillshadingDrawer) {
+        drawer.draw(canvas, renderContext.rendererJob.tile)
+    }
+
     private fun drawPath(
         shapePaintContainer: ShapePaintContainer,
         coordinates: Array<Array<Point>>,
@@ -194,6 +201,11 @@ open class CanvasRasterer(
         when (shapeContainer.shapeType) {
             ShapeType.CIRCLE -> {
                 drawCircleContainer(shapePaintContainer)
+            }
+
+            ShapeType.HILLSHADING -> {
+                val hillshadingContainer = shapeContainer as HillshadingContainer
+                drawHillshading(hillshadingContainer.drawer)
             }
 
             ShapeType.POLYLINE -> {

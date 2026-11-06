@@ -36,8 +36,9 @@ import com.asamm.vectormaps.garminimg.style.Style
  * The renderer:
  * 1. Calls [beginFrame] once at the start.
  * 2. Calls [drawPolygon] / [drawPolyline] / [drawPoint] in draw order (polygons first, then
- *    polylines, then points); a driver's label pass draws the labels through [drawText] and
- *    [drawTextOnPath].
+ *    polylines, then points); between the polygons and the polylines, the host's hillshading
+ *    draws through [withPlatformCanvas]; a driver's label pass draws the labels through
+ *    [drawText] and [drawTextOnPath].
  * 3. Calls [endFrame] once at the end. The platform impl flushes / commits.
  *
  * Targets must accept zero-length point arrays without crashing — the parser
@@ -63,6 +64,13 @@ interface RenderTarget {
      */
     val renderScale: Float
         get() = 1.0f
+
+    /**
+     * Runs [block] on the platform canvas drawn on, for host drawing such as hillshading: a
+     * `java.awt.Graphics2D` copy, or the `android.graphics.Canvas` with its matrix, clip and
+     * layers restored after.
+     */
+    fun withPlatformCanvas(block: (Any) -> Unit)
 
     /**
      * Called once at the start of a render pass. Implementations clear /
