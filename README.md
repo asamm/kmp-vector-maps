@@ -5,11 +5,12 @@ render pipeline and viewer shared by every format.
 
 ## Status
 
-**Pre-release.** Mapsforge 0.30.0 render subset, synced to 0.31.0, converted to Kotlin (M5;
-differences in [docs/upstream.md](docs/upstream.md)); Garmin IMG imported from kmp-garmin-img 0.5.2
-and done in M4: driver, parallel and multi-map renders, benchmarks, measured labels, TYP night
-style; golden tests green, desktop and Android viewers running. Not published yet.
-Milestones: [docs/ROADMAP.md](docs/ROADMAP.md).
+**Pre-release, M0–M6 done.** Mapsforge 0.30.0 render subset, synced to 0.31.0, converted to
+Kotlin (differences in [docs/upstream.md](docs/upstream.md)); Garmin IMG imported from
+kmp-garmin-img 0.5.2; both behind the core driver interface with a screen-wide label pass, a
+hillshade anchor for the host and, for Mapsforge, a feature query; golden tests green, desktop and
+Android viewers running. Not published yet. Milestones: [docs/ROADMAP.md](docs/ROADMAP.md);
+benchmarks: [docs/performance.md](docs/performance.md).
 
 | Format | State |
 |---|---|

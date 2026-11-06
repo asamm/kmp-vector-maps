@@ -1,7 +1,7 @@
 # Garmin IMG history
 
-What came with kmp-garmin-img 0.5.2, imported with its history in M4.1 (D33); current plans are in
-[ROADMAP.md](../ROADMAP.md) M4.
+What came with kmp-garmin-img 0.5.2, imported with its history in M4.1 (D33); the M4 work is in
+[ROADMAP.md](../ROADMAP.md), its detail in the [archive](../archive/roadmap-m0-m6.md).
 
 | Path | Content |
 |---|---|

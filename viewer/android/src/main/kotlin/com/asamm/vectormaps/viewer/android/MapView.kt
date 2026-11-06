@@ -411,7 +411,7 @@ class MapView(
 
     private companion object {
 
-        // the A54 stops scaling above its 4 big cores (ROADMAP M2.7b)
+        // the A54 stops scaling above its 4 big cores (docs/performance.md M2.7b)
         const val RENDER_THREADS = 4
 
         // 100 Mapsforge or 50 Garmin tiles at 512 px

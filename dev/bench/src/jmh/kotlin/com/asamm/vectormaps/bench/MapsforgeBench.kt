@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit
 
 /**
  * Baseline of the vendored Mapsforge renderer per stage, in Locus' primary label mode with 512 px
- * tiles (ROADMAP M2.7); M7 measures against it (D21).
+ * tiles (docs/performance.md M2.7); M7 measures against it (D21).
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.SampleTime)
