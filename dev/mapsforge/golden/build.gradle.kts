@@ -1,10 +1,10 @@
 /*
  * Golden render test: renders the corpus with the vendored modules, its label-free sets through the
- * Mapsforge driver (D39), and
- * compares it with the plain upstream 0.30.0 render from `:dev:mapsforge:golden-upstream`: dumps
- * exact, tiles without labels within `accepted-differences.txt`; tiles with labels and the label
- * dumps against the committed `labels/awt`, refreshed by `updateLabelGoldens` (D37); the label pass
- * screens against `labels/pass`, refreshed by `updateLabelPassGoldens` (M6.1b). Not published.
+ * Mapsforge driver (D39), and compares it with the plain upstream 0.30.0 render from
+ * `:dev:mapsforge:golden-upstream`: dumps exact, tiles without labels within
+ * `accepted-differences.txt`; tiles with labels and the label dumps against the committed
+ * `labels/awt`, refreshed by `updateLabelGoldens` (D37); the label pass screens against
+ * `labels/pass`, refreshed by `updateLabelPassGoldens` (M6.1b). Not published.
  */
 plugins {
     alias(libs.plugins.kotlinJvm)

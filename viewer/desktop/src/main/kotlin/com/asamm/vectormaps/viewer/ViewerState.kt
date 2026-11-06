@@ -182,6 +182,13 @@ class ViewerState(
 
     private val labelsRequested = AtomicBoolean()
 
+    // the view last asked of the label pass; UI thread only
+    private var labelsAskedFor: LabelViewport? = null
+
+    // a newer view waits for the placement in flight
+    @Volatile
+    private var labelsPending = false
+
     // the last label image and the placement and view it shows; UI thread only
     private var labelImageCache: Pair<Pair<PreparedLabels, LabelViewport>, ImageBitmap>? = null
 
@@ -412,7 +419,7 @@ class ViewerState(
         val canvas = AwtGraphicFactory.INSTANCE.createCanvas()
         try {
             canvas.setBitmap(bitmap)
-            pass.draw(canvas = canvas, view = view)
+            pass.draw(canvas = canvas, view = view, prepared = prepared)
             val image = AwtGraphicFactory.getBitmap(bitmap).toComposeImageBitmap()
             labelImageCache = Pair(key, image)
             return image
@@ -616,6 +623,9 @@ class ViewerState(
             setupMs = (System.nanoTime() - started) / 1_000_000
             renderer.labelPass?.onPrepared = {
                 frame = frames.incrementAndGet()
+                if (labelsPending) {
+                    requestLabels()
+                }
             }
             return TileEngine(
                 renderer = renderer,
@@ -661,6 +671,9 @@ class ViewerState(
         dropEngine()
         engine = built
         labelPass = builtLabelPass
+        // a new pass has placed nothing yet
+        labelsAskedFor = null
+        labelsPending = false
         notice = null
         if (viewport == null) {
             startView()
@@ -736,12 +749,25 @@ class ViewerState(
         }
     }
 
+    // one placement at a time, so a drag's moves don't cancel each other and labels keep landing;
+    // the placement's arrival asks for the latest view
     private fun prepareLabels() {
         val pass = labelPass ?: return
         val vp = viewport ?: return
-        if (screenWidth > 0) {
-            pass.prepare(vp.labelViewport(screenWidth, screenHeight, rotationDeg.toDouble()))
+        if (screenWidth <= 0) {
+            return
         }
+        val asked = labelsAskedFor
+        if (asked != null
+            && pass.prepared?.view != asked
+        ) {
+            labelsPending = true
+            return
+        }
+        labelsPending = false
+        val view = vp.labelViewport(screenWidth, screenHeight, rotationDeg.toDouble())
+        labelsAskedFor = view
+        pass.prepare(view)
     }
 
     private fun imagesFor(driver: MapFormatDriver): TileImages<ImageBitmap> {

@@ -262,11 +262,18 @@ class MapView(
     // the Mapsforge label pass over the tiles, upright, as the viewer never turns the map
     private fun drawLabels(canvas: Canvas, vp: Viewport) {
         val pass = engine.labelPass as? MapsforgeLabelPass ?: return
+        if (width <= 0
+            || height <= 0
+        ) {
+            return
+        }
         val view = vp.labelViewport(width, height, rotationDeg = 0.0)
-        // a placement wakes the next frame; asking again only on a new view or new labels keeps
-        // that from looping
-        if (view != preparedFor
-            || labelsStale
+        // one placement at a time, so a gesture's frames don't cancel each other and labels keep
+        // landing; a placement wakes the next frame, which asks for the latest view
+        val inFlight = preparedFor != null
+            && pass.prepared?.view != preparedFor
+        if (!inFlight
+            && (view != preparedFor || labelsStale)
         ) {
             preparedFor = view
             labelsStale = false

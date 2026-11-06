@@ -285,7 +285,7 @@ class SoakTest {
         }
         val view = viewport.labelViewport(SCREEN_WIDTH, SCREEN_HEIGHT, rotationDeg)
         val placed = describe(prepareAndWait(pass, view))
-        val serial = describe(prepareAndWait(checkNotNull(reference.labelPass), view))
+        val serial = describe(checkNotNull(reference.labelPass).prepareNow(view))
         if (placed != serial) {
             Log.w(TAG, "label pass differs at $view: ${placed.size} placed, ${serial.size} serially")
         }
