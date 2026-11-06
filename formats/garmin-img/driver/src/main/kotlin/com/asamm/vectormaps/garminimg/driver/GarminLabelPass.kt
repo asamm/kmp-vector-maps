@@ -5,93 +5,43 @@
 package com.asamm.vectormaps.garminimg.driver
 
 import com.asamm.vectormaps.core.TileRequest
-import com.asamm.vectormaps.core.label.BackgroundLabelPass
 import com.asamm.vectormaps.core.label.BoxAlignment
 import com.asamm.vectormaps.core.label.CollisionBox
 import com.asamm.vectormaps.core.label.LabelCandidate
+import com.asamm.vectormaps.core.label.LabelId
 import com.asamm.vectormaps.core.label.LabelKind
 import com.asamm.vectormaps.core.label.LabelText
 import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.core.label.PreparedLabels
+import com.asamm.vectormaps.core.label.ScreenTransform
+import com.asamm.vectormaps.core.label.TileLabelStore
+import com.asamm.vectormaps.core.label.TiledLabelPass
 import com.asamm.vectormaps.garminimg.render.MapLabel
 import com.asamm.vectormaps.garminimg.render.RenderTarget
 import com.asamm.vectormaps.garminimg.render.TextAnchor
 import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.floor
 import kotlin.math.hypot
 import kotlin.math.roundToLong
-import kotlin.math.sin
-
-/**
- * The labels of a [GarminRenderer]'s rendered tiles, least recently used dropped beyond
- * [capacity] tiles.
- */
-internal class GarminLabelStore(val capacity: Int) {
-
-    private val tiles = object : LinkedHashMap<TileRequest, List<MapLabel>>(capacity, 0.75f, true) {
-
-        override fun removeEldestEntry(
-            eldest: MutableMap.MutableEntry<TileRequest, List<MapLabel>>,
-        ): Boolean {
-            return size > capacity
-        }
-    }
-
-    @Synchronized
-    fun store(tile: TileRequest, labels: List<MapLabel>) {
-        tiles[tile] = labels
-    }
-
-    @Synchronized
-    fun labelsOf(tile: TileRequest): List<MapLabel>? {
-        return tiles[tile]
-    }
-}
 
 /**
  * The label pass of a [GarminRenderer] (D39): places the labels its tiles stored and draws them
- * through an engine [RenderTarget] the size of the screen. A tile's labels show while the store
- * keeps it, so the store holds at least the tiles one screen covers and a host keeps no more
- * rendered tiles than it holds.
+ * through an engine [RenderTarget] the size of the screen.
  */
 class GarminLabelPass internal constructor(
-    private val store: GarminLabelStore,
+    store: TileLabelStore<MapLabel>,
     private val tileSize: Int,
-) : BackgroundLabelPass() {
+) : TiledLabelPass<MapLabel>(source = store, tileSize = tileSize) {
 
-    /**
-     * Tiles the label store keeps.
-     */
-    val storeCapacity: Int
-        get() {
-            return store.capacity
+    override fun candidateOf(label: MapLabel, tile: TileRequest): LabelCandidate? {
+        // a corrupt map's degenerate geometry, which the core rejects
+        if (!isFinite(label)) {
+            return null
         }
-
-    override fun collect(view: LabelViewport, isCancelled: () -> Boolean): List<LabelCandidate> {
-        val bounds = view.worldBounds()
-        val maxTile = (1 shl view.zoom) - 1
-        val candidates = ArrayList<LabelCandidate>()
-        for (y in tileOf(bounds.minY, maxTile)..tileOf(bounds.maxY, maxTile)) {
-            for (x in tileOf(bounds.minX, maxTile)..tileOf(bounds.maxX, maxTile)) {
-                if (isCancelled()) {
-                    return emptyList()
-                }
-                val labels = store.labelsOf(TileRequest(x = x, y = y, zoom = view.zoom)) ?: continue
-                for (label in labels) {
-                    // a corrupt map's degenerate geometry, which the core rejects
-                    if (!isFinite(label)) {
-                        continue
-                    }
-                    candidates += candidateOf(
-                        label = label,
-                        originX = x.toDouble() * tileSize,
-                        originY = y.toDouble() * tileSize,
-                    )
-                }
-            }
-        }
-        return candidates
+        return candidateOf(
+            label = label,
+            originX = tile.x.toDouble() * tileSize,
+            originY = tile.y.toDouble() * tileSize,
+        )
     }
 
     /**
@@ -105,16 +55,15 @@ class GarminLabelPass internal constructor(
         ) {
             return
         }
-        val radians = Math.toRadians(view.rotationDeg)
-        val screen = ScreenTransform(view = view, cos = cos(radians), sin = sin(radians))
+        val screen = ScreenTransform(view)
         for (placed in prepared.placed) {
             val candidate = placed.candidate
             val label = candidate.source as MapLabel
             val path = candidate.path
             if (path == null) {
                 target.drawText(
-                    x = screen.x(candidate.x, candidate.y),
-                    y = screen.y(candidate.x, candidate.y) + label.offsetYPx,
+                    x = screen.x(candidate.x, candidate.y).toFloat(),
+                    y = screen.y(candidate.x, candidate.y).toFloat() + label.offsetYPx,
                     text = label.text,
                     color = label.color,
                     outlineColor = label.outlineColor,
@@ -124,8 +73,8 @@ class GarminLabelPass internal constructor(
                 continue
             }
             val points = path.size / 2
-            val xs = FloatArray(points) { screen.x(path[it * 2], path[it * 2 + 1]) }
-            val ys = FloatArray(points) { screen.y(path[it * 2], path[it * 2 + 1]) }
+            val xs = FloatArray(points) { screen.x(path[it * 2], path[it * 2 + 1]).toFloat() }
+            val ys = FloatArray(points) { screen.y(path[it * 2], path[it * 2 + 1]).toFloat() }
             // the target centres the text along the line and turns it to read upright
             target.drawTextOnPath(
                 xs = xs,
@@ -147,10 +96,6 @@ class GarminLabelPass internal constructor(
             && label.fontSize.isFinite()
             && label.pathXs?.all { it.isFinite() } != false
             && label.pathYs?.all { it.isFinite() } != false
-    }
-
-    private fun tileOf(value: Double, maxTile: Int): Int {
-        return floor(value / tileSize).toInt().coerceIn(0, maxTile)
     }
 
     private fun candidateOf(label: MapLabel, originX: Double, originY: Double): LabelCandidate {
@@ -286,28 +231,17 @@ class GarminLabelPass internal constructor(
      * rounded to 1/16 px, as each tile projects them in its own floats.
      */
     private fun idOf(label: MapLabel, x: Double, y: Double, path: DoubleArray?): Long {
-        var hash = FNV_OFFSET
-        hash = mix(hash = hash, value = label.kind.ordinal.toLong())
-        hash = mix(hash = hash, value = label.priority.toLong())
-        hash = mix(hash = hash, value = (x * POSITION_STEPS).roundToLong())
-        hash = mix(hash = hash, value = (y * POSITION_STEPS).roundToLong())
+        var hash = LabelId.START
+        hash = LabelId.mix(hash = hash, value = label.kind.ordinal.toLong())
+        hash = LabelId.mix(hash = hash, value = label.priority.toLong())
+        hash = LabelId.mix(hash = hash, value = (x * POSITION_STEPS).roundToLong())
+        hash = LabelId.mix(hash = hash, value = (y * POSITION_STEPS).roundToLong())
         if (path != null) {
-            hash = mix(hash = hash, value = path.size.toLong())
-            hash = mix(hash = hash, value = (path[path.size - 2] * POSITION_STEPS).roundToLong())
-            hash = mix(hash = hash, value = (path[path.size - 1] * POSITION_STEPS).roundToLong())
+            hash = LabelId.mix(hash = hash, value = path.size.toLong())
+            hash = LabelId.mix(hash = hash, value = (path[path.size - 2] * POSITION_STEPS).roundToLong())
+            hash = LabelId.mix(hash = hash, value = (path[path.size - 1] * POSITION_STEPS).roundToLong())
         }
-        label.text.forEach { char ->
-            hash = mix(hash = hash, value = char.code.toLong())
-        }
-        return hash
-    }
-
-    private fun mix(hash: Long, value: Long): Long {
-        var result = hash
-        for (shift in 0 until 64 step 8) {
-            result = (result xor ((value ushr shift) and 0xFF)) * FNV_PRIME
-        }
-        return result
+        return LabelId.mix(hash = hash, text = label.text)
     }
 
     // a road name's anchor, the middle of its line, which same-text distances count from
@@ -317,43 +251,91 @@ class GarminLabelPass internal constructor(
         val boxes: List<CollisionBox>,
     )
 
-    // world pixels to the turned screen, the label placer's convention
-    private class ScreenTransform(
-        private val view: LabelViewport,
-        private val cos: Double,
-        private val sin: Double,
-    ) {
+    internal companion object {
 
-        fun x(worldX: Double, worldY: Double): Float {
-            val dx = worldX - view.centerX
-            val dy = worldY - view.centerY
-            return (dx * cos - dy * sin + view.widthPx / 2.0).toFloat()
+        /**
+         * [label] with a line's path cut to the stretch its text covers and a margin each side,
+         * for the store; anything else, and a line too short for its text and margins, as it is.
+         */
+        fun trimmedToText(label: MapLabel): MapLabel {
+            val xs = label.pathXs
+            val ys = label.pathYs
+            if (xs == null
+                || ys == null
+                || xs.size < 2
+            ) {
+                return label
+            }
+            val along = DoubleArray(xs.size)
+            for (i in 1 until xs.size) {
+                along[i] = along[i - 1] + hypot((xs[i] - xs[i - 1]).toDouble(), (ys[i] - ys[i - 1]).toDouble())
+            }
+            val length = along.last()
+            val from = (length - label.widthPx) / 2.0 - TRIM_MARGIN_PX
+            val to = length - from
+            // a non-finite path stays whole, so the pass still skips it
+            if (!length.isFinite()
+                || label.widthPx > length - SHORT_PATH_PX
+                || from <= 0.0
+            ) {
+                return label
+            }
+            val keptXs = ArrayList<Float>()
+            val keptYs = ArrayList<Float>()
+            for (i in 1 until xs.size) {
+                val segment = along[i] - along[i - 1]
+                if (segment <= 0.0) {
+                    continue
+                }
+                if (from >= along[i - 1]
+                    && from < along[i]
+                ) {
+                    val t = ((from - along[i - 1]) / segment).toFloat()
+                    keptXs += xs[i - 1] + (xs[i] - xs[i - 1]) * t
+                    keptYs += ys[i - 1] + (ys[i] - ys[i - 1]) * t
+                }
+                if (to <= along[i]) {
+                    val t = ((to - along[i - 1]) / segment).toFloat()
+                    keptXs += xs[i - 1] + (xs[i] - xs[i - 1]) * t
+                    keptYs += ys[i - 1] + (ys[i] - ys[i - 1]) * t
+                    break
+                }
+                if (keptXs.isNotEmpty()) {
+                    keptXs += xs[i]
+                    keptYs += ys[i]
+                }
+            }
+            return MapLabel(
+                kind = label.kind,
+                x = label.x,
+                y = label.y,
+                offsetYPx = label.offsetYPx,
+                widthPx = label.widthPx,
+                heightPx = label.heightPx,
+                priority = label.priority,
+                text = label.text,
+                color = label.color,
+                outlineColor = label.outlineColor,
+                fontSize = label.fontSize,
+                pathXs = keptXs.toFloatArray(),
+                pathYs = keptYs.toFloatArray(),
+            )
         }
 
-        fun y(worldX: Double, worldY: Double): Float {
-            val dx = worldX - view.centerX
-            val dy = worldY - view.centerY
-            return (dx * sin + dy * cos + view.heightPx / 2.0).toFloat()
-        }
-    }
-
-    private companion object {
+        // kept past each end of a stored road name; over half SHORT_PATH_PX, so the text still fits
+        private const val TRIM_MARGIN_PX = 8.0
 
         // room between labels, as the engine's former LabelLayout
-        const val LABEL_PADDING_PX = 2.0
+        private const val LABEL_PADDING_PX = 2.0
 
         // the engine's former LabelLayout radius, now measured exactly
-        const val SAME_TEXT_RADIUS_PX = 200.0
+        private const val SAME_TEXT_RADIUS_PX = 200.0
 
         // the targets draw a line's text straight when it is longer than the line less this
-        const val SHORT_PATH_PX = 4.0
+        private const val SHORT_PATH_PX = 4.0
 
-        const val MIN_TEXT_SIZE = 1.0f
+        private const val MIN_TEXT_SIZE = 1.0f
 
-        const val POSITION_STEPS = 16.0
-
-        const val FNV_OFFSET = -0x340d631b7bdddcdbL
-
-        const val FNV_PRIME = 0x100000001b3L
+        private const val POSITION_STEPS = 16.0
     }
 }

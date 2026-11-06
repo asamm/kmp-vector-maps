@@ -500,7 +500,7 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
 | M6.1b | `SEPARATE` label pass: the Mapsforge driver turns its label store into candidates; `prepare(viewport)` off the caller's thread, cancelling the previous run, `draw`, `onPrepared` (architecture.md, host API); desktop viewer draws it with rotation | label goldens of the pass at 0° and a rotation; soak as D31 against the pass | ✅ PR #40 |
 | M6.1c | Labels only through the pass (D39): `LabelMode` and `RenderConfig.labelMode` removed, the Mapsforge driver always renders tiles without labels into its label store (no in-tile path, no `DrawnTiles`); `LabelPass.prepareNow` for one-shot images (previews, prints: tiles first, then the labels over them); the in-tile golden sets render through the vendored engine as engine goldens; viewers draw the pass (Android at 0°); `SoakTest` single-mode | driver, engine (in-tile sets) and pass goldens unchanged; `prepareNow` places on the caller's thread; the pass golden takes the one-shot path | ✅ PR #41 |
 | M6.1d | Garmin on the core label model: a label pass, tiles without labels (D39), its `LabelLayout` retired; labels piling up at level-pick boundaries (M4.1 carry-over) | Garmin goldens updated and confirmed in the PR; label pass goldens of a Monaco screen at 0° and a rotation | ✅ PR #42 |
-| M6.1e | Shared tiled label pass in `:core`: a `TileLabelStore`, a `TiledLabelPass` doing the tile-range collect and calling the driver's converter, id and screen-transform helpers, the store capacity on the pass for hosts, Garmin's stored paths trimmed to their text stretch; Mapsforge (through an adapter over its vendored store) and Garmin keep only their converter and `draw`. Mapsforge output stays as it is, Garmin may move | Mapsforge driver, engine and pass goldens unchanged; Garmin goldens unchanged or confirmed in the PR | ⬜ |
+| M6.1e | Shared tiled label pass in `:core`: a `TileLabelStore`, a `TiledLabelPass` doing the tile-range collect and calling the driver's converter, id and screen-transform helpers, the store capacity on the pass for hosts, Garmin's stored paths trimmed to their text stretch; Mapsforge (through an adapter over its vendored store) and Garmin keep only their converter and `draw`. Mapsforge output stays as it is, Garmin may move | Mapsforge driver, engine and pass goldens unchanged; Garmin goldens unchanged or confirmed in the PR | 🔧 |
 | M6.2 | `HILLSHADE` anchor: `RenderThemeHandler` re-captures `<hillshading>` layer, level and `cat` (D30); the renderer calls a host hook with geo bounds and pixel scale at that position, else after all features (D13, D16); Garmin after polygons | no hook: goldens unchanged; a test hook's fill lands between the right layers on both formats | ⬜ |
 | M6.3 | `FeatureQuery` in `:core`, Mapsforge only (D38): tags at a zoom → resolved symbol bitmap (what LoPoints' `PointGeneratorV4Theme` takes from `RenderCallback.renderPointOfInterestSymbol`), plus priority and caption style | the corpus POIs resolve as the `RenderCallback` path does | ⬜ |
 
@@ -590,6 +590,15 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
   place or draw labels, so the M4.3c numbers are not like for like. Open point: a road name over a
   sharp turn (`Quai Rainier 1er`, a U-shaped line) draws its letters around the bend, as the
   in-tile labels did.
+- M6.1e as built: `:core` has `TileLabelSource` and its LRU `TileLabelStore`, `TiledLabelPass`
+  (the tile-range collect, `storeCapacity`; the driver's `candidateOf(label, tile)`),
+  `ScreenTransform` and `LabelId` (FNV-1a, byte for byte the drivers' former hashes). Mapsforge
+  reads its vendored `TileBasedLabelStore` a tile at a time through `getVisibleItems` (no vendored
+  change); its ids, so its goldens, are unchanged. Garmin stores a `TileLabelStore<MapLabel>`, a
+  road's path cut to its text stretch and 8 px each side (lines too short for their text and
+  margins keep theirs); the shorter paths change the ids, so equal-priority ties fall differently,
+  and a curved road name reads by its stretch's ends: pass dumps updated, pass images within the
+  tolerance. Viewers size their tile caches from the pass.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.

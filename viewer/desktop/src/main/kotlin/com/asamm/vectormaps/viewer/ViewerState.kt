@@ -21,10 +21,10 @@ import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.label.LabelPass
 import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.core.label.PreparedLabels
+import com.asamm.vectormaps.core.label.TiledLabelPass
 import com.asamm.vectormaps.garminimg.driver.GarminDataset
 import com.asamm.vectormaps.garminimg.style.Color as GarminColor
 import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
-import com.asamm.vectormaps.garminimg.driver.GarminRenderer
 import com.asamm.vectormaps.garminimg.driver.GarminLabelPass
 import com.asamm.vectormaps.garminimg.driver.GarminDriver
 import com.asamm.vectormaps.garminimg.driver.GarminOptions
@@ -32,7 +32,6 @@ import com.asamm.vectormaps.garminimg.driver.GarminLevel
 import com.asamm.vectormaps.mapsforge.MapsforgeDataset
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.MapsforgeLabelPass
-import com.asamm.vectormaps.mapsforge.MapsforgeRenderer
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -685,11 +684,7 @@ class ViewerState(
     // a separate label pass keeps the labels of its store's tiles only, so no more tiles than that
     private fun engineCapacity(renderer: MapRenderer): Int {
         val byMemory = (CACHE_BYTES / (4L * tileSize * tileSize)).toInt().coerceAtLeast(1)
-        val labelTiles = when (renderer) {
-            is MapsforgeRenderer -> renderer.labelStore.capacity
-            is GarminRenderer -> renderer.labelPass.storeCapacity
-            else -> return byMemory
-        }
+        val labelTiles = (renderer.labelPass as? TiledLabelPass<*>)?.storeCapacity ?: return byMemory
         return minOf(byMemory, labelTiles)
     }
 

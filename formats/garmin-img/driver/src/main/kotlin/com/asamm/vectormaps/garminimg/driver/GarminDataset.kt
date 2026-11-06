@@ -10,6 +10,7 @@ import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.RenderKey
 import com.asamm.vectormaps.core.StyleSelection
+import com.asamm.vectormaps.core.label.TileLabelStore
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.model.ObjectKind
 import com.asamm.vectormaps.garminimg.utils.io.FileImgRandomAccessReader
@@ -168,7 +169,7 @@ class GarminDataset internal constructor(
             style = style,
             canvasFactory = driver.canvasFactory,
             options = options,
-            labelStore = GarminLabelStore(labelStoreTiles),
+            labelStore = TileLabelStore(labelStoreTiles),
         )
     }
 

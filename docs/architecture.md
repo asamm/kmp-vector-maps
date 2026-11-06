@@ -104,6 +104,10 @@ anchors, each with a per-format default.
 - Tiles carry no labels (D39); candidates are placed per screen, rotation-aware and upright, by
   `LabelPlacer` (written fresh, after Locus' grid collision). A preview or print renders its tiles,
   then draws the pass over them. Every driver has a pass: Mapsforge from M6.1b, Garmin from M6.1d.
+- `TiledLabelPass` (`:core`, M6.1e) collects the tiles under the turned screen from a
+  `TileLabelSource` (a `TileLabelStore`, or Mapsforge's vendored store through an adapter) and
+  turns each stored label into a candidate through the driver's converter; `LabelId` (FNV-1a) and
+  `ScreenTransform` are shared, and hosts size their tile caches from `storeCapacity`.
 
 ## Golden strategy
 
