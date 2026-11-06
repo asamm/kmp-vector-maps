@@ -133,6 +133,13 @@ class MapsforgeFeatureQueryTest {
 
                     assertEquals(named.symbols, blank.symbols)
                     assertTrue(blank.captions.none { it.text.value.isBlank() }, "$blank")
+                    // the font size, whatever the name's letters
+                    val low = query.point(tags = tags + ("name" to "ace"), zoom = 17)
+                    val tall = query.point(tags = tags + ("name" to "Ågy"), zoom = 17)
+                    assertEquals(
+                        low.captions.map { it.text.sizePx },
+                        tall.captions.map { it.text.sizePx },
+                    )
                 }
             }
         } finally {

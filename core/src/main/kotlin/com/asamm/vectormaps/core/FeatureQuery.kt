@@ -4,6 +4,7 @@
  */
 package com.asamm.vectormaps.core
 
+import com.asamm.vectormaps.core.label.LabelDisplay
 import com.asamm.vectormaps.core.label.LabelText
 
 /**
@@ -14,8 +15,10 @@ import com.asamm.vectormaps.core.label.LabelText
 interface FeatureQuery {
 
     /**
-     * What the style draws for a point with [tags] at [zoom]; [FeatureStyle.EMPTY] when nothing.
-     * Throws `IllegalStateException` once the renderer is closed.
+     * What the style draws for a point with [tags] at [zoom], in 0..[TileRequest.MAX_ZOOM] (else
+     * `IllegalArgumentException`); [FeatureStyle.EMPTY] when nothing. May wait for running renders,
+     * so call it off the main thread and never from a render hook; throws `IllegalStateException`
+     * once the renderer is closed.
      */
     fun point(tags: Map<String, String>, zoom: Int): FeatureStyle
 }
@@ -35,10 +38,12 @@ data class FeatureStyle(
 }
 
 /**
- * A symbol image as PNG, at the renderer's device scale; equal by [id].
+ * A symbol image as PNG, at the renderer's device scale; equal by every field but [png], which
+ * [id] stands for.
  *
  * @param id content hash of [png], equal for equal images in every run; a host caches by it
  * @param png shared with other results: not to be modified
+ * @param offsetXPx the image's top-left corner relative to the point, screen pixels
  * @param priority the style's label priority, higher drawn first
  */
 class FeatureSymbol(
@@ -46,7 +51,10 @@ class FeatureSymbol(
     val png: ByteArray,
     val widthPx: Int,
     val heightPx: Int,
+    val offsetXPx: Float,
+    val offsetYPx: Float,
     val priority: Int,
+    val display: LabelDisplay,
 ) {
 
     override fun equals(other: Any?): Boolean {
@@ -54,7 +62,10 @@ class FeatureSymbol(
             && other.id == id
             && other.widthPx == widthPx
             && other.heightPx == heightPx
+            && other.offsetXPx == offsetXPx
+            && other.offsetYPx == offsetYPx
             && other.priority == priority
+            && other.display == display
     }
 
     override fun hashCode(): Int {
@@ -63,10 +74,11 @@ class FeatureSymbol(
 }
 
 /**
- * A caption text with its size and colours, placed relative to the feature's point; the font
- * weight and slant are not reported.
+ * A caption text with its font size and colours, placed relative to the feature's point; the
+ * font weight and slant are not reported, so [LabelText.bold] and [LabelText.italic] are false.
  *
  * @param offsetXPx offset of the caption's [position] reference from the point, screen pixels
+ * @param maxWidthPx the width the map wraps the text at, screen pixels
  * @param priority the style's label priority, higher drawn first
  */
 data class FeatureCaption(
@@ -74,7 +86,9 @@ data class FeatureCaption(
     val position: CaptionPosition,
     val offsetXPx: Float,
     val offsetYPx: Float,
+    val maxWidthPx: Int,
     val priority: Int,
+    val display: LabelDisplay,
 )
 
 /**

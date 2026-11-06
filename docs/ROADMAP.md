@@ -8,7 +8,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
 **Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34); M6.0, M6.4, M6.1a and M6.1b done (PRs
-#36–#40); M6.1c–e and M6.2 done (PRs #41–#44).** Next action: M6.3, the Mapsforge `FeatureQuery`.
+#36–#40); M6.1c–e, M6.2 and M6.3 done (PRs #41–#45).** Next action: M7, performance (needs Q15).
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -25,7 +25,7 @@ settles, labels before speed, the Locus-facing API last.
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PRs #3–#5, `028d746` |
 | M4 | Garmin IMG joins | M | ✅ PRs #27–#34, `e3c3aef` |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
-| M6 | Core features: label model, hillshade anchor, feature query | M | 🔧 M6.0, M6.4, M6.1a–e, M6.2 done; M6.3 in review |
+| M6 | Core features: label model, hillshade anchor, feature query | M | ✅ M6.0–M6.4, PRs #36–#45 |
 | M7 | Performance and Skia desktop backend | L | ⬜ needs Q15 |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⬜ |
 | M9 | Locus integration | M | ⬜ needs Q14, Q16 |
@@ -502,7 +502,7 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
 | M6.1d | Garmin on the core label model: a label pass, tiles without labels (D39), its `LabelLayout` retired; labels piling up at level-pick boundaries (M4.1 carry-over) | Garmin goldens updated and confirmed in the PR; label pass goldens of a Monaco screen at 0° and a rotation | ✅ PR #42 |
 | M6.1e | Shared tiled label pass in `:core`: a `TileLabelStore`, a `TiledLabelPass` doing the tile-range collect and calling the driver's converter, id and screen-transform helpers, the store capacity on the pass for hosts, Garmin's stored paths trimmed to their text stretch; Mapsforge (through an adapter over its vendored store) and Garmin keep only their converter and `draw`. Mapsforge output stays as it is, Garmin may move | Mapsforge driver, engine and pass goldens unchanged; Garmin goldens unchanged or confirmed in the PR | ✅ PR #43 |
 | M6.2 | `HILLSHADE` anchor: `RenderThemeHandler` re-captures `<hillshading>` layer, level and `cat` (D30); the renderer calls a host hook with geo bounds and pixel scale at that position, else after all features (D13, D16); Garmin after polygons | no hook: goldens unchanged; a test hook's fill lands between the right layers on both formats | ✅ PR #44 |
-| M6.3 | `FeatureQuery` in `:core`, Mapsforge only (D38): tags at a zoom → resolved symbol bitmap (what LoPoints' `PointGeneratorV4Theme` takes from `RenderCallback.renderPointOfInterestSymbol`), plus priority and caption style | the corpus POIs resolve as the `RenderCallback` path does | 🔧 |
+| M6.3 | `FeatureQuery` in `:core`, Mapsforge only (D38): tags at a zoom → resolved symbol bitmap (what LoPoints' `PointGeneratorV4Theme` takes from `RenderCallback.renderPointOfInterestSymbol`), plus priority and caption style | the corpus POIs resolve as the `RenderCallback` path does | ✅ PR #45 |
 
 - Order: M6.0, M6.4, M6.1, M6.2, M6.3; the small upstream fixes go before the label model so its
   golden updates show only its own change; hillshade and the query do not change default output.
@@ -614,15 +614,19 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
   `CaptionPosition`, offsets, priority); `MapRenderer.featureQuery`, null by default. The Mapsforge
   renderer's query matches the tags against its compiled theme at that zoom (scaled Paints held, as
   a render does) with a recording `RenderCallback`, under the renderer's permits, so `close` waits
-  for it and a later call throws; a blank caption is skipped, as the label pass does; font weight
-  is not reported. Symbol PNGs are cached per bitmap, shared with the label pass's symbol ids
-  (unchanged). Every POI of the Monaco map at z14 and z16 resolves through the query as through a
-  render's own tile and position.
+  for it and a later call throws; a blank caption is skipped, as the label pass does. Symbols carry
+  their offset and display, captions the font size (`Paint.textSize`, upstream.md C13), wrap width
+  and display; font weight is not reported. Symbol ids are cached per bitmap for the label pass
+  (unchanged), PNGs only once a query asks. Every POI of the Monaco map at z14 and z16 resolves
+  through the query with a dummy tile and position as with its own tile's context; the
+  `RenderCallback` translation itself is shared by both sides. A query builds a full
+  `RenderContext`, about 0.7 MB of short-lived garbage for LoMaps: an M7 item.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.
 - M7.2 lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock.
-- M7.3 allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring.
+- M7.3 allocations: `RenderContext` lists (also built per `FeatureQuery.point`), `ReadBuffer`,
+  per-way text measuring.
 - M7.4 theme parse (~80 ms on the A54, M2.7b): compiled themes cached per `RenderKey`; SVG
   rasterising on first render is not measured yet.
 

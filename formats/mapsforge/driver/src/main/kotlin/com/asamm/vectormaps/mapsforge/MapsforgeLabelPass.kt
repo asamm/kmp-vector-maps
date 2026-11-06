@@ -161,7 +161,7 @@ class MapsforgeLabelPass internal constructor(
         // two symbols of one size at one anchor differ only by their image
         val symbol = (shape.container as? SymbolContainer)?.symbol
         if (symbol != null) {
-            hash = LabelId.mix(hash = hash, value = symbols.of(symbol).id)
+            hash = LabelId.mix(hash = hash, value = symbols.idOf(symbol))
         }
         return hash
     }

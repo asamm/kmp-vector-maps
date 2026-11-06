@@ -51,7 +51,8 @@ open class AwtPaint : Paint {
     private var join: Int
     private var strokeDasharray: FloatArray? = null
     private var strokeWidthValue = 0f
-    private var textSize = 0f
+    final override var textSize = 0f
+        private set
 
     // needed to record size of bitmap shader to compute the shift
     private var shaderWidth = 0

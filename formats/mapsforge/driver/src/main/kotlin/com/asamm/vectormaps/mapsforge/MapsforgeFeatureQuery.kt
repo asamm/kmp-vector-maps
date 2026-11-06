@@ -10,6 +10,7 @@ import com.asamm.vectormaps.core.FeatureQuery
 import com.asamm.vectormaps.core.FeatureStyle
 import com.asamm.vectormaps.core.FeatureSymbol
 import com.asamm.vectormaps.core.TileRequest
+import com.asamm.vectormaps.core.label.LabelDisplay
 import com.asamm.vectormaps.core.label.LabelText
 import com.asamm.vectormaps.mapsforge.core.graphics.Bitmap
 import com.asamm.vectormaps.mapsforge.core.graphics.Curve
@@ -127,7 +128,11 @@ class MapsforgeFeatureQuery internal constructor(
                 png = png.png,
                 widthPx = symbol.width,
                 heightPx = symbol.height,
+                // centred on the point without a boundary, as the map draws it
+                offsetXPx = boundary?.left?.toFloat() ?: (-symbol.width / 2f),
+                offsetYPx = boundary?.top?.toFloat() ?: (-symbol.height / 2f),
                 priority = priority,
+                display = displayOf(display),
             )
         }
 
@@ -144,15 +149,14 @@ class MapsforgeFeatureQuery internal constructor(
             maxTextWidth: Int,
             poi: PointOfInterest,
         ) {
-            val sizePx = fill.getTextHeight(caption)
             // a blank caption draws nothing, as the label pass skips it
-            if (sizePx <= 0) {
+            if (fill.getTextHeight(caption) <= 0) {
                 return
             }
             captions += FeatureCaption(
                 text = LabelText(
                     value = caption,
-                    sizePx = sizePx.toFloat(),
+                    sizePx = fill.textSize,
                     fillArgb = fill.color,
                     haloArgb = stroke.color,
                     haloWidthPx = stroke.strokeWidth,
@@ -160,7 +164,9 @@ class MapsforgeFeatureQuery internal constructor(
                 position = positionOf(position),
                 offsetXPx = horizontalOffset,
                 offsetYPx = verticalOffset,
+                maxWidthPx = maxTextWidth,
                 priority = priority,
+                display = displayOf(display),
             )
         }
 
@@ -253,6 +259,14 @@ class MapsforgeFeatureQuery internal constructor(
             way: PolylineContainer,
         ) {
             // ways only
+        }
+    }
+
+    private fun displayOf(display: Display): LabelDisplay {
+        return when (display) {
+            Display.ALWAYS -> LabelDisplay.ALWAYS
+            Display.ORDER -> LabelDisplay.ORDER
+            else -> LabelDisplay.IF_SPACE
         }
     }
 

@@ -10,12 +10,29 @@ import java.io.ByteArrayOutputStream
 import java.util.WeakHashMap
 
 /**
- * The PNG of each theme symbol bitmap and its content hash, the same in every run, cached per
- * bitmap. The theme's bitmaps live as long as the renderer; weak keys let a dropped one go.
+ * The content hash of each theme symbol bitmap's PNG, the same in every run, and the PNG itself
+ * for a [FeatureQuery][com.asamm.vectormaps.core.FeatureQuery], each cached per bitmap; the PNG
+ * only once a query asks. The theme's bitmaps live as long as the renderer; weak keys let a
+ * dropped one go.
  */
 internal class SymbolPngs {
 
+    private val ids = WeakHashMap<Bitmap, Long>()
+
     private val pngs = WeakHashMap<Bitmap, SymbolPng>()
+
+    fun idOf(bitmap: Bitmap): Long {
+        synchronized(ids) {
+            ids[bitmap]?.let {
+                return it
+            }
+        }
+        val id = encode(bitmap).id
+        synchronized(ids) {
+            ids[bitmap] = id
+        }
+        return id
+    }
 
     fun of(bitmap: Bitmap): SymbolPng {
         synchronized(pngs) {
@@ -23,6 +40,14 @@ internal class SymbolPngs {
                 return it
             }
         }
+        val result = encode(bitmap)
+        synchronized(pngs) {
+            pngs[bitmap] = result
+        }
+        return result
+    }
+
+    private fun encode(bitmap: Bitmap): SymbolPng {
         val out = ByteArrayOutputStream()
         synchronized(bitmap.mutex) {
             bitmap.compress(out)
@@ -32,11 +57,7 @@ internal class SymbolPngs {
         for (byte in png) {
             hash = LabelId.mixByte(hash = hash, byte = byte.toInt())
         }
-        val result = SymbolPng(id = hash, png = png)
-        synchronized(pngs) {
-            pngs[bitmap] = result
-        }
-        return result
+        return SymbolPng(id = hash, png = png)
     }
 }
 

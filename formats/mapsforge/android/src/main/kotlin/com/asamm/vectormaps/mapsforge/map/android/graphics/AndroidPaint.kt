@@ -188,6 +188,11 @@ internal open class AndroidPaint : Paint {
         paint.textSize = textSize
     }
 
+    final override val textSize: Float
+        get() {
+            return paint.textSize
+        }
+
     final override fun setTypeface(fontFamily: FontFamily, fontStyle: FontStyle) {
         paint.typeface = Typeface.create(getTypeface(fontFamily), getFontStyle(fontStyle))
     }
