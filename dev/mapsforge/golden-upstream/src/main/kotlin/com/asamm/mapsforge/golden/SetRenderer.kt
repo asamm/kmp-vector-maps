@@ -18,7 +18,7 @@ import java.io.File
 
 /**
  * The upstream side renders through plain Mapsforge; the vendored side has its own `SetRenderer`
- * that goes through the Mapsforge driver.
+ * that goes through the Mapsforge driver for the label-free sets (D39).
  */
 object SetRenderer {
 

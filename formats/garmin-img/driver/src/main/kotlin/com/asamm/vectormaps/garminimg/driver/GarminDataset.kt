@@ -5,7 +5,6 @@
 package com.asamm.vectormaps.garminimg.driver
 
 import com.asamm.vectormaps.core.GeoBounds
-import com.asamm.vectormaps.core.LabelMode
 import com.asamm.vectormaps.core.MapDataset
 import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
@@ -107,7 +106,7 @@ class GarminDataset internal constructor(
     }
 
     /**
-     * Renders with the default [GarminOptions]; throws for [LabelMode.SEPARATE] until M6.
+     * Renders with the default [GarminOptions]; labels go into the tiles until M6.1d.
      */
     override fun createRenderer(
         style: MapStyle,
@@ -120,7 +119,7 @@ class GarminDataset internal constructor(
     /**
      * Like [createRenderer] with the Garmin [options], which [RenderKey] does not cover: a host
      * that varies them keys its tile cache itself. Throws when a map file changed since it was
-     * added, for a level no map has, and for [LabelMode.SEPARATE] until M6.
+     * added and for a level no map has.
      */
     fun createRenderer(
         style: MapStyle,
@@ -137,9 +136,6 @@ class GarminDataset internal constructor(
             || entries.any { it.isFile(style.file) }
         ) {
             "createRenderer(), ${style.id} belongs to another map"
-        }
-        require(config.labelMode == LabelMode.IN_TILE) {
-            "createRenderer(), label mode ${config.labelMode} not supported"
         }
         val sources = entries.map { entry ->
             // the bounds and style ids hold for the file as added: reopen after a map update

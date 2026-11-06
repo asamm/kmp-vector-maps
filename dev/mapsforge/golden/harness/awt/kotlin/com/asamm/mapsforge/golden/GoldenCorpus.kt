@@ -18,8 +18,8 @@ import javax.imageio.ImageIO
  * Compiled twice — against upstream Mapsforge 0.30.0 (`:dev:mapsforge:golden-upstream`) and
  * against the vendored modules (`:dev:mapsforge:golden`) — so both renders run the same code on
  * the same machine. Each module's `SetRenderer` renders the tiles and label stores, the vendored one
- * through the Mapsforge driver; the reader, theme-callback and Paint-count dumps use the public
- * Mapsforge AWT API on both sides.
+ * the label-free sets through the Mapsforge driver (D39); the reader, theme-callback and
+ * Paint-count dumps use the public Mapsforge AWT API on both sides.
  */
 object GoldenCorpus {
 

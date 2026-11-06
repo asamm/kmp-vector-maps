@@ -4,7 +4,6 @@
  */
 package com.asamm.vectormaps.viewer
 
-import com.asamm.vectormaps.core.LabelMode
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -26,7 +25,6 @@ data class Session(
     val textScale: Float = 1.0f,
     val tileSize: Int = 512,
     val threads: Int = 4,
-    val labelMode: LabelMode = LabelMode.IN_TILE,
     val place: Place? = null,
     val window: Window? = null,
 ) {
@@ -64,7 +62,6 @@ data class Session(
         props["textScale"] = textScale.toString()
         props["tileSize"] = tileSize.toString()
         props["threads"] = threads.toString()
-        props["labelMode"] = labelMode.name
         place?.let {
             props["place"] = "${it.lat},${it.lon},${it.zoom}"
         }
@@ -149,8 +146,6 @@ data class Session(
                     ?: defaults.textScale,
                 tileSize = props.getProperty("tileSize")?.toIntOrNull()?.takeIf { it in TILE_SIZES } ?: defaults.tileSize,
                 threads = props.getProperty("threads")?.toIntOrNull()?.takeIf { it > 0 } ?: defaults.threads,
-                labelMode = LabelMode.entries.firstOrNull { it.name == props.getProperty("labelMode") }
-                    ?: defaults.labelMode,
                 place = place,
                 window = window,
             )

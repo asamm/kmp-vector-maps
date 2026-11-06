@@ -4,7 +4,6 @@
  */
 package com.asamm.mapsforge.golden
 
-import com.asamm.vectormaps.core.LabelMode
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.StyleSelection
@@ -22,12 +21,10 @@ import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import java.awt.Font
 import java.io.File
 import java.util.Locale
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
 import javax.imageio.ImageIO
 
 /**
- * The label pass goldens (M6.1b): the Mapsforge driver's `SEPARATE` pass placed and drawn for a few
+ * The label pass goldens (M6.1b): the Mapsforge driver's label pass placed and drawn for a few
  * screens, straight and turned, on a white background, plus a dump of what it placed, for the
  * hike_bike day theme at device scale 2.625. Vendored side only, as upstream has no such pass;
  * compared by `LabelPassGoldenTest` with `labels/pass`.
@@ -60,7 +57,6 @@ object LabelPassRender {
             tileSizePx = Corpus.TILE_SIZE,
             deviceScale = SET.deviceScale,
             textScale = SET.textScale,
-            labelMode = LabelMode.SEPARATE,
         )
         driver.open(listOf(Corpus.mapFile(fixturesDir))).use { dataset ->
             dataset.createRenderer(style, StyleSelection(layerId = SET.menuLayer), config).use { renderer ->
@@ -77,10 +73,12 @@ object LabelPassRender {
                         target.bitmap!!.decrementRefCount()
                     }
                     for (view in views) {
-                        val prepared = prepare(pass = pass, view = view)
+                        // the one-shot path a preview takes: tiles first, then the labels over them
+                        val prepared = pass.prepareNow(view)
                         val name = "pass_z${view.zoom}_r${view.rotationDeg.toInt()}"
                         writeImage(
                             pass = pass,
+                            prepared = prepared,
                             view = view,
                             graphicFactory = graphicFactory,
                             file = File(outDir, "$name.png"),
@@ -131,20 +129,9 @@ object LabelPassRender {
         return tiles.toList()
     }
 
-    private fun prepare(pass: MapsforgeLabelPass, view: LabelViewport): PreparedLabels {
-        val done = CountDownLatch(1)
-        pass.onPrepared = {
-            done.countDown()
-        }
-        pass.prepare(view)
-        check(done.await(60, TimeUnit.SECONDS)) {
-            "prepare($view), timed out"
-        }
-        return pass.prepared!!
-    }
-
     private fun writeImage(
         pass: MapsforgeLabelPass,
+        prepared: PreparedLabels,
         view: LabelViewport,
         graphicFactory: GraphicFactory,
         file: File,
@@ -153,7 +140,7 @@ object LabelPassRender {
         val canvas = graphicFactory.createCanvas()
         canvas.setBitmap(bitmap)
         canvas.fillColor(Color.WHITE)
-        pass.draw(canvas = canvas, view = view)
+        pass.draw(canvas = canvas, view = view, prepared = prepared)
         ImageIO.write(AwtGraphicFactory.getBitmap(bitmap), "png", file)
         canvas.destroy()
         bitmap.decrementRefCount()

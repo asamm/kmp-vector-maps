@@ -4,7 +4,6 @@
  */
 package com.asamm.mapsforge.golden
 
-import com.asamm.vectormaps.core.LabelMode
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.StyleSelection
@@ -21,20 +20,28 @@ import java.io.File
 
 /**
  * The vendored side renders through the Mapsforge driver, so the golden test compares the driver
- * against plain upstream Mapsforge (`golden-upstream`'s `SetRenderer`). Text is drawn in the bundled
- * DejaVu Sans, so the committed label goldens hold on every system (D37).
+ * against plain upstream Mapsforge (`golden-upstream`'s `SetRenderer`). The driver draws no labels
+ * into tiles (D39), so the sets with labels in the tiles render through the vendored engine, as
+ * upstream does, and stay engine goldens. Text is drawn in the bundled DejaVu Sans, so the
+ * committed label goldens hold on every system (D37).
  */
 object SetRenderer {
 
     fun render(set: Corpus.RenderSet, fixturesDir: File, onTile: (Tile, TileBitmap) -> Unit): TileBasedLabelStore? {
         val font = Font.createFont(Font.TRUETYPE_FONT, Corpus.labelFontFile(fixturesDir))
-        val driver = MapsforgeDriver(AwtGraphicFactory.withFonts(FontFamily.entries.associateWith { font }))
+        val graphicFactory = AwtGraphicFactory.withFonts(FontFamily.entries.associateWith { font })
+        val driver = MapsforgeDriver(graphicFactory)
         val style = driver.loadStyle(Corpus.themeFile(fixturesDir, set.theme))
+        if (set.labelsInTile) {
+            // the theme menu and map probe ran above, outside the slots, as upstream's
+            // mirrorDriverSetup does for these sets
+            driver.open(listOf(Corpus.mapFile(fixturesDir))).close()
+            return Corpus.renderSet(set = set, fixturesDir = fixturesDir, graphicFactory = graphicFactory, onTile = onTile)
+        }
         val config = RenderConfig(
             tileSizePx = Corpus.TILE_SIZE,
             deviceScale = set.deviceScale,
             textScale = set.textScale,
-            labelMode = if (set.labelsInTile) LabelMode.IN_TILE else LabelMode.SEPARATE,
         )
         driver.open(listOf(Corpus.mapFile(fixturesDir))).use { dataset ->
             // loads the driver's render-path classes outside the slots; upstream has none of them

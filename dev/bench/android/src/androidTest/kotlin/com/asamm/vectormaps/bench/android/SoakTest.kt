@@ -8,7 +8,6 @@ import android.util.Log
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.asamm.vectormaps.core.GeoBounds
-import com.asamm.vectormaps.core.LabelMode
 import com.asamm.vectormaps.core.MapDataset
 import com.asamm.vectormaps.core.MapRenderer
 import com.asamm.vectormaps.core.RenderConfig
@@ -47,14 +46,12 @@ import kotlin.random.Random
 
 /**
  * The M5 gate (ROADMAP): a random walk of pans and zooms on a phone-sized screen, rendered through
- * the Mapsforge driver and the viewer's tile engine on [THREADS] threads for half of `soak.minutes`
- * per label mode. Every `SEPARATE` render is compared pixel by pixel with a render of the same tile,
- * one at a time, by a second renderer, and so is the tile's label store entry (kind, text,
- * position, priority, clash box, visibility, standalone symbol size). On the steps that wait for
- * the whole screen, the label pass places it at a random rotation and must place what a second
- * pass over serially rendered tiles places (M6.1b).
- * `IN_TILE` tiles depend on render order (M6.1), so they are only checked to render. Skipped
- * without the argument:
+ * the Mapsforge driver and the viewer's tile engine on [THREADS] threads for `soak.minutes`. Every
+ * render is compared pixel by pixel with a render of the same tile, one at a time, by a second
+ * renderer, and so is the tile's label store entry (kind, text, position, priority, clash box,
+ * visibility, standalone symbol size). On the steps that wait for the whole screen, the label pass
+ * places it at a random rotation and must place what a second pass over serially rendered tiles
+ * places (M6.1b); the driver draws no labels into tiles (D39). Skipped without the argument:
  * `./gradlew :dev:bench:android:connectedReleaseAndroidTest
  * -Pandroid.testInstrumentationRunnerArguments.class=com.asamm.vectormaps.bench.android.SoakTest
  * -Pandroid.testInstrumentationRunnerArguments.soak.minutes=15`.
@@ -70,16 +67,7 @@ class SoakTest {
         .build()
 
     @Test
-    fun separateLabelsMatchSerialRenders() {
-        soak(labelMode = LabelMode.SEPARATE, compare = true)
-    }
-
-    @Test
-    fun inTileLabelsRender() {
-        soak(labelMode = LabelMode.IN_TILE, compare = false)
-    }
-
-    private fun soak(labelMode: LabelMode, compare: Boolean) {
+    fun labelsMatchSerialRenders() {
         val runMs = runMs()
         assumeTrue("soak.minutes not set", runMs != null)
         // the files first: preparing them creates the graphic factory the driver takes
@@ -88,12 +76,11 @@ class SoakTest {
         val driver = MapsforgeDriver(AndroidGraphicFactory.INSTANCE)
         val dataset = driver.open(listOf(mapFile))
         val style = driver.loadStyle(themeFile)
-        val config = RenderConfig(tileSizePx = BenchScene.TILE_SIZE, labelMode = labelMode)
+        val config = RenderConfig(tileSizePx = BenchScene.TILE_SIZE)
         val reference = dataset.createRenderer(style = style, selection = StyleSelection.DEFAULT, config = config)
         try {
             val recording = Recording(
                 renderer = dataset.createRenderer(style = style, selection = StyleSelection.DEFAULT, config = config),
-                hashing = compare,
             )
             val arrived = AtomicInteger()
             // owns the renderer from here
@@ -107,7 +94,6 @@ class SoakTest {
             }
             try {
                 walk(
-                    labelMode = labelMode,
                     runMs = checkNotNull(runMs),
                     dataset = dataset,
                     engine = engine,
@@ -117,7 +103,7 @@ class SoakTest {
                 )
             } catch (e: Throwable) {
                 // logged before the close below, which waits for a render that may never return
-                Log.e(TAG, "soak($labelMode) failed", e)
+                Log.e(TAG, "soak() failed", e)
                 throw e
             } finally {
                 engine.close()
@@ -129,7 +115,6 @@ class SoakTest {
     }
 
     private fun walk(
-        labelMode: LabelMode,
         runMs: Long,
         dataset: MapDataset,
         engine: TileEngine<Unit>,
@@ -181,21 +166,18 @@ class SoakTest {
                     engine.error?.let { error(it) }
                     tiles.all { engine[it] != null }
                 }
-                val pass = recording.labelPass
-                if (pass != null) {
-                    drain()
-                    val same = passMatchesSerial(
-                        viewport = viewport,
-                        rotationDeg = rotations.nextDouble(0.0, 360.0),
-                        engine = engine,
-                        recording = recording,
-                        pass = pass,
-                        reference = reference,
-                    )
-                    passCompared++
-                    if (!same) {
-                        passDiffered++
-                    }
+                drain()
+                val same = passMatchesSerial(
+                    viewport = viewport,
+                    rotationDeg = rotations.nextDouble(0.0, 360.0),
+                    engine = engine,
+                    recording = recording,
+                    pass = checkNotNull(recording.labelPass),
+                    reference = reference,
+                )
+                passCompared++
+                if (!same) {
+                    passDiffered++
                 }
             } else {
                 Thread.sleep(random.nextLong(5, 40))
@@ -210,34 +192,28 @@ class SoakTest {
             recording.running.get() == 0
         }
         drain()
-        val summary = "$labelMode: $steps steps, $stats, ${recording.drawnCount.get()} drawn, " +
+        val summary = "$steps steps, $stats, ${recording.drawnCount.get()} drawn, " +
             "$compared compared, $differed differed, labels of $labelsDiffered differed " +
             "($withLabels with labels), " +
             "in ${mismatches.size} tiles ${mismatches.take(10)}, " +
             "label pass $passDiffered of $passCompared screens differed"
         Log.i(TAG, summary)
-        writeReport(name = "soak-$labelMode.txt", text = summary)
+        writeReport(name = "soak.txt", text = summary)
         assertEquals(summary, 0, differed)
         assertEquals(summary, 0, labelsDiffered)
         assertEquals(summary, 0, passDiffered)
-        if (recording.labelPass != null) {
-            check(passCompared > 0) {
-                "soak($labelMode), no screen compared its label pass: $summary"
-            }
+        check(passCompared > 0) {
+            "soak(), no screen compared its label pass: $summary"
         }
-        if (recording.hashing) {
-            // an always-empty entry would make the label check pass without comparing anything
-            check(withLabels > 0) {
-                "soak($labelMode), no render had labels: $summary"
-            }
+        // an always-empty entry would make the label check pass without comparing anything
+        check(withLabels > 0) {
+            "soak(), no render had labels: $summary"
         }
         check(arrived.get() > 0) {
-            "soak($labelMode), no tile arrived"
+            "soak(), no tile arrived"
         }
-        if (recording.hashing) {
-            check(compared == recording.drawnCount.get()) {
-                "soak($labelMode), $compared of ${recording.drawnCount.get()} renders compared"
-            }
+        check(compared == recording.drawnCount.get()) {
+            "soak(), $compared of ${recording.drawnCount.get()} renders compared"
         }
     }
 
@@ -309,7 +285,7 @@ class SoakTest {
         }
         val view = viewport.labelViewport(SCREEN_WIDTH, SCREEN_HEIGHT, rotationDeg)
         val placed = describe(prepareAndWait(pass, view))
-        val serial = describe(prepareAndWait(checkNotNull(reference.labelPass), view))
+        val serial = describe(checkNotNull(reference.labelPass).prepareNow(view))
         if (placed != serial) {
             Log.w(TAG, "label pass differs at $view: ${placed.size} placed, ${serial.size} serially")
         }
@@ -321,7 +297,7 @@ class SoakTest {
      * lacks with [render].
      */
     private fun fillStore(renderer: MapRenderer, keys: Set<Tile>, render: (TileRequest) -> Unit) {
-        val store = checkNotNull(labelStoreOf(renderer))
+        val store = labelStoreOf(renderer)
         synchronized(store) {
             store.setWorkingSet(keys)
         }
@@ -384,12 +360,9 @@ class SoakTest {
     /**
      * Hashes each drawn tile on its render thread, before the engine sees it, so the test thread
      * compares every render exactly once.
-     *
-     * @param hashing false skips the hash, for modes that are only checked to render
      */
     private class Recording(
         val renderer: MapRenderer,
-        val hashing: Boolean,
     ) : MapRenderer by renderer {
 
         val drawn = ConcurrentLinkedQueue<Drawn>()
@@ -404,16 +377,14 @@ class SoakTest {
                 val result = renderer.render(tile, target, isCancelled)
                 if (result == RenderResult.DRAWN) {
                     drawnCount.incrementAndGet()
-                    if (hashing) {
-                        // the label entry right away, before another render can evict it
-                        val labels = labelEntry(renderer, tile)
-                        drawn += Drawn(
-                            tile = tile,
-                            pixels = pixelHash(checkNotNull((target as TileBitmapTarget).bitmap)),
-                            labels = labels.first,
-                            labelCount = labels.second,
-                        )
-                    }
+                    // the label entry right away, before another render can evict it
+                    val labels = labelEntry(renderer, tile)
+                    drawn += Drawn(
+                        tile = tile,
+                        pixels = pixelHash(checkNotNull((target as TileBitmapTarget).bitmap)),
+                        labels = labels.first,
+                        labelCount = labels.second,
+                    )
                 }
                 return result
             } finally {
@@ -423,7 +394,7 @@ class SoakTest {
     }
 
     /**
-     * A drawn tile's pixel hash, label store hash and label count; no label store gives 0 and 0.
+     * A drawn tile's pixel hash, label store hash and label count.
      */
     private class Drawn(val tile: TileRequest, val pixels: Long, val labels: Long, val labelCount: Int)
 
@@ -470,14 +441,14 @@ class SoakTest {
         const val TIMEOUT_MARGIN_MS = 5 * 60_000L
 
         /**
-         * Half of `soak.minutes` in ms, for one label mode; null without the argument.
+         * `soak.minutes` in ms; null without the argument.
          */
         fun runMs(): Long? {
             val raw = InstrumentationRegistry.getArguments().getString("soak.minutes") ?: return null
             val minutes = requireNotNull(raw.toDoubleOrNull()) {
                 "runMs(), soak.minutes=$raw, not a number"
             }
-            val runMs = (minutes * 60_000 / 2).toLong()
+            val runMs = (minutes * 60_000).toLong()
             require(minutes.isFinite()
                 && runMs in 1..MAX_RUN_MS
             ) {
@@ -487,11 +458,10 @@ class SoakTest {
         }
 
         /**
-         * A hash of `tile`'s label store entry in store order and its label count, 0 and 0 without
-         * a label store.
+         * A hash of `tile`'s label store entry in store order and its label count.
          */
         fun labelEntry(renderer: MapRenderer, tile: TileRequest): Pair<Long, Int> {
-            val store = labelStoreOf(renderer) ?: return Pair(0L, 0)
+            val store = labelStoreOf(renderer)
             // keyed as the renderer keys its jobs
             val mapsforgeTile = Tile(tile.x, tile.y, tile.zoom.toByte(), renderer.key.config.tileSizePx)
             val lines = store.getVisibleItems(mapsforgeTile, mapsforgeTile).map { describe(it) }
@@ -517,7 +487,7 @@ class SoakTest {
             }
         }
 
-        fun labelStoreOf(renderer: MapRenderer): TileBasedLabelStore? {
+        fun labelStoreOf(renderer: MapRenderer): TileBasedLabelStore {
             val inner = (renderer as? Recording)?.renderer ?: renderer
             return (inner as MapsforgeRenderer).labelStore
         }

@@ -8,6 +8,7 @@ import com.asamm.vectormaps.core.MapRenderer
 import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.TileRequest
+import com.asamm.vectormaps.core.label.LabelPass
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +73,14 @@ class TileEngine<I : Any>(
 
     val tileSizePx: Int
         get() = renderer.key.config.tileSizePx
+
+    /**
+     * The renderer's label pass; null when its labels are in the tiles.
+     */
+    val labelPass: LabelPass?
+        get() {
+            return renderer.labelPass
+        }
 
     val stats = RenderStats()
 

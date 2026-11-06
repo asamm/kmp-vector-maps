@@ -13,7 +13,6 @@ import com.asamm.vectormaps.mapsforge.core.graphics.GraphicFactory
 import com.asamm.vectormaps.mapsforge.core.graphics.TileBitmap
 import com.asamm.vectormaps.mapsforge.core.model.Tile
 import com.asamm.vectormaps.mapsforge.map.datastore.MapDataStore
-import com.asamm.vectormaps.mapsforge.map.layer.cache.TileCache
 import com.asamm.vectormaps.mapsforge.map.layer.labels.TileBasedLabelStore
 import com.asamm.vectormaps.mapsforge.map.layer.renderer.DatabaseRenderer
 import com.asamm.vectormaps.mapsforge.map.layer.renderer.RendererJob
@@ -23,9 +22,12 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Renders through Mapsforge's `DatabaseRenderer` into [TileBitmapTarget]s. Never returns
- * [RenderResult.EMPTY]: Mapsforge fills tiles without data with the theme background. [close]
- * waits for running renders, so it must not be called from inside [render].
+ * Renders through Mapsforge's `DatabaseRenderer` into [TileBitmapTarget]s without labels, which go
+ * to [labelStore] for [labelPass] (D39). Never returns [RenderResult.EMPTY]: Mapsforge fills tiles
+ * without data with the theme background. [close] waits for running renders, so it must not be
+ * called from inside [render].
+ *
+ * @param labelStore labels of the rendered tiles, for [labelPass]
  */
 class MapsforgeRenderer internal constructor(
     override val key: RenderKey,
@@ -33,22 +35,14 @@ class MapsforgeRenderer internal constructor(
     private val store: MapDataStore,
     private val themeFuture: RenderThemeFuture,
     internal val displayModel: DisplayModel,
-    private val tileCache: TileCache?,
-    labelStore: TileBasedLabelStore?,
+    val labelStore: TileBasedLabelStore,
 ) : MapRenderer {
 
-    /**
-     * Labels of the rendered tiles for a separate label pass; null for in-tile labels.
-     */
-    val labelStore: TileBasedLabelStore? = labelStore
-
-    override val labelPass: MapsforgeLabelPass? = labelStore?.let {
-        MapsforgeLabelPass(
-            labelStore = it,
-            tileSize = key.config.tileSizePx,
-            graphicFactory = graphicFactory,
-        )
-    }
+    override val labelPass: MapsforgeLabelPass = MapsforgeLabelPass(
+        labelStore = labelStore,
+        tileSize = key.config.tileSizePx,
+        graphicFactory = graphicFactory,
+    )
 
     override val maxParallelism: Int = Runtime.getRuntime().availableProcessors()
 
@@ -64,9 +58,9 @@ class MapsforgeRenderer internal constructor(
     private val renderer = DatabaseRenderer(
         store,
         graphicFactory,
-        tileCache,
+        null,
         labelStore,
-        tileCache != null,
+        false,
         true,
         null,
     )
@@ -109,11 +103,10 @@ class MapsforgeRenderer internal constructor(
         if (!closed.compareAndSet(false, true)) {
             return
         }
-        labelPass?.close()
+        labelPass.close()
         // waits for running renders; later ones fail the closed check
         permits.acquireUninterruptibly(maxParallelism)
         try {
-            tileCache?.destroy()
             themeFuture.decrementRefCount()
             store.close()
         } finally {
