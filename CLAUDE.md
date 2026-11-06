@@ -5,7 +5,7 @@ Asamm-owned vector map renderers for Locus Map behind one driver interface: Maps
 Android is the product; JVM desktop runs benchmarks and tools; no iOS.
 
 **Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, commit-sized
-steps, decisions D1–D38, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
+steps, decisions D1–D39, open questions. Design: [docs/architecture.md](docs/architecture.md). Do
 not relitigate a decision without asking. Update the roadmap status in the same commit as the work.
 
 ## Scope
@@ -35,8 +35,8 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `dev/mapsforge/upstream` | upstream sync helpers: `upstream_diff.py` groups a tag's changes, `verify_upstream.py` runs both goldens against a tag built from source ([docs/upstream.md](docs/upstream.md)) |
 | `dev/garmin-img/golden` | Garmin pixel test of Monaco tiles (label-free) and the label pass through the driver against committed PNGs and dumps (bundled font, every system) and the dump comparison against the legacy Java parser libGarminImg |
 | `dev/fixtures/` | test maps, themes and the golden font, see [dev/fixtures/README.md](dev/fixtures/README.md) |
-| `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines in ROADMAP M2.7 (Mapsforge) and M4.3c (Garmin) |
-| `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines in ROADMAP M2.7b and M4.3c; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
+| `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines M2.7 (Mapsforge) and M4.3c (Garmin) in [docs/performance.md](docs/performance.md) |
+| `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines M2.7b and M4.3c in docs/performance.md; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
 | `core/` | driver interface, registry, styles, render configuration; Apache-2.0, see architecture.md |
 | `render/`, `android/` | `render/skia` from M7.1, `android/` from M8.1, other backends unscheduled; see architecture.md |
 

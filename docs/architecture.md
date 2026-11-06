@@ -1,12 +1,12 @@
 # Architecture
 
 Target design: one driver interface every vector format implements, one render pipeline, an
-Android host API shaped for Locus, one viewer. Draft; `dev/bench/` exists since M2.7, the core
-interfaces since M3.1, the Mapsforge driver since M3.2, `viewer/` since M3.3, the Garmin engine
-and driver since M4, the rest comes later ([ROADMAP](ROADMAP.md)).
+Android host API shaped for Locus, one viewer. Built through M6: core, both drivers, label pass,
+hillshade anchor, feature query, viewers and benchmarks; the backends (`render/`, M7.1) and the
+host API (`android/`, M8) come later ([ROADMAP](ROADMAP.md)).
 
 **Author:** Menion · **Started:** 2026-10-22 · **Revised:** 2026-10-22, after the Locus integration
-analysis; 2026-10-24, driver table aligned with the M3.1 core
+analysis; 2026-10-24, driver table aligned with the M3.1 core; 2026-11-06, as built through M6
 
 ## Platforms and layers
 
