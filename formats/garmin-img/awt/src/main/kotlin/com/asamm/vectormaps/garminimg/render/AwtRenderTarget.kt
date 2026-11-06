@@ -137,12 +137,6 @@ class AwtRenderTarget(
         }
     }
 
-    /** Counters for quick diagnostic of label placement effectiveness. */
-    var curvedPlacements: Int = 0
-        private set
-    var shortPathFallbacks: Int = 0
-        private set
-
     private companion object {
         /**
          * Miter limit for stroked polylines. Java's default of 10 is too
@@ -477,15 +471,14 @@ class AwtRenderTarget(
         if (textWidth <= 0) {
             return
         }
-        if (textWidth > totalLen - 4.0) {
+        // the fit uses measureText's width, which a label pass decided with
+        if (fm.stringWidth(text) > totalLen - 4.0) {
             // Path too short — fall back to a centred horizontal
             // placement at the path midpoint so the label still appears.
             val midIdx = xs.size / 2
             drawText(xs[midIdx], ys[midIdx], text, color, outlineColor, fontSize, TextAnchor.CENTER)
-            shortPathFallbacks++
             return
         }
-        curvedPlacements++
         // Pick the path direction that keeps text readable left-to-right.
         // If the polyline runs net-westwards, reverse the char order
         // (and walk from path-end) so labels never read upside-down.

@@ -60,14 +60,10 @@ class MonacoRenderTest {
         val tightTarget = AwtRenderTarget(widthPx, heightPx)
         ImgRenderer(img, resolverFor(img)).render(tightViewport, tightTarget)
         tightTarget.writePng(File(outDir, "otm-monaco-tight.png"))
-        println(
-            "[render] line-label placement: curved=${tightTarget.curvedPlacements} " +
-                "shortPathFallback=${tightTarget.shortPathFallbacks}",
-        )
 
         // Diagnostic: render the user-supplied Nice CP viewport so we can
         // visually compare against their QMapShack screenshot. Same scale
-        // as the user (~6 km wide), 2x resolution so labels are legible.
+        // as the user (~6 km wide), 2x resolution; label-free, labels go to the label pass (D39).
         val niceVp = Viewport(
             widthPx = 2000,
             heightPx = 600,

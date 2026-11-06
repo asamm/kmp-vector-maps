@@ -11,6 +11,7 @@ import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.TileRequest
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.render.ImgRenderer
+import com.asamm.vectormaps.garminimg.render.MapLabel
 import com.asamm.vectormaps.garminimg.render.RenderTarget
 import com.asamm.vectormaps.garminimg.render.Viewport
 import com.asamm.vectormaps.garminimg.utils.io.ImgRandomAccessReader
@@ -29,8 +30,11 @@ import com.asamm.vectormaps.core.RenderTarget as CoreRenderTarget
  * one tile per core at once: each worker reads the shared parsed maps through its own readers and
  * resolves styles with its own caches. A worker opens a file on the first tile that reads one of
  * its maps, then holds 3–4 handles for it, shared by the file's maps, until [close]: a renderer
- * holds up to about 4 × files rendered × [maxParallelism] handles. Labels stop at the tile edge
- * until M6.1. [close] waits for running renders, so it must not be called from inside [render].
+ * holds up to about 4 × files rendered × [maxParallelism] handles. Tiles carry no labels: each
+ * tile's go to the label store for [labelPass] (D39). [close] waits for running renders, so it must
+ * not be called from inside [render].
+ *
+ * @param labelStore where each rendered tile's labels go, for [labelPass]
  */
 class GarminRenderer internal constructor(
     override val key: RenderKey,
@@ -38,7 +42,13 @@ class GarminRenderer internal constructor(
     private val style: GarminStyle,
     private val canvasFactory: GarminCanvasFactory,
     private val options: GarminOptions,
+    private val labelStore: GarminLabelStore,
 ) : MapRenderer {
+
+    override val labelPass: GarminLabelPass = GarminLabelPass(
+        store = labelStore,
+        tileSize = key.config.tileSizePx,
+    )
 
     override val maxParallelism: Int = Runtime.getRuntime().availableProcessors()
 
@@ -90,13 +100,16 @@ class GarminRenderer internal constructor(
                     antiAliased = options.antiAliasing,
                     renderScale = key.config.deviceScale,
                 )
+                val labels = ArrayList<MapLabel>()
                 worker.renderer.render(
                     viewport = viewport,
                     target = canvas,
                     objectKindFilter = options.objectKinds,
                     level = options.level,
                     textScale = key.config.textScale,
+                    labels = labels::add,
                 )
+                labelStore.store(tile = tile, labels = labels)
                 target.canvas = canvas
                 return RenderResult.DRAWN
             } finally {
@@ -111,6 +124,7 @@ class GarminRenderer internal constructor(
         if (!closed.compareAndSet(false, true)) {
             return
         }
+        labelPass.close()
         // waits for running renders; later ones fail the closed check
         permits.acquireUninterruptibly(maxParallelism)
         try {

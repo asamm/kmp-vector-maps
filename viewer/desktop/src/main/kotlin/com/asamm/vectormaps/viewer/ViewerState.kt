@@ -22,6 +22,10 @@ import com.asamm.vectormaps.core.label.LabelPass
 import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.core.label.PreparedLabels
 import com.asamm.vectormaps.garminimg.driver.GarminDataset
+import com.asamm.vectormaps.garminimg.style.Color as GarminColor
+import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
+import com.asamm.vectormaps.garminimg.driver.GarminRenderer
+import com.asamm.vectormaps.garminimg.driver.GarminLabelPass
 import com.asamm.vectormaps.garminimg.driver.GarminDriver
 import com.asamm.vectormaps.garminimg.driver.GarminOptions
 import com.asamm.vectormaps.garminimg.driver.GarminLevel
@@ -117,7 +121,7 @@ class ViewerState(
         private set
 
     /**
-     * The renderer's label pass; Mapsforge only, Garmin draws labels into its tiles until M6.1d.
+     * The renderer's label pass.
      */
     var labelPass: LabelPass? by mutableStateOf(null)
         private set
@@ -177,8 +181,11 @@ class ViewerState(
     // the pass of the engine createEngine built last, until install shows it
     private var builtLabelPass: LabelPass? = null
 
-    // the label store size of the last Mapsforge renderer built
+    // the label store size of the last renderer built
     private var builtLabelStoreTiles = 0
+
+    // the device scale of the last renderer built, which its Garmin tiles measured labels at
+    private var builtDeviceScale = 1.0f
 
     private val labelsRequested = AtomicBoolean()
 
@@ -395,10 +402,11 @@ class ViewerState(
     }
 
     /**
-     * The placed labels drawn on a transparent screen-sized image; null without a Mapsforge pass.
+     * The placed labels drawn on a transparent screen-sized image; null without a pass or a
+     * placement for this zoom.
      */
     fun labelImage(width: Int, height: Int): ImageBitmap? {
-        val pass = labelPass as? MapsforgeLabelPass ?: return null
+        val pass = labelPass ?: return null
         val vp = viewport ?: return null
         val prepared = pass.prepared
         if (width <= 0
@@ -415,14 +423,37 @@ class ViewerState(
                 return image
             }
         }
-        val bitmap = AwtGraphicFactory.INSTANCE.createBitmap(width, height, true)
+        val image = when (pass) {
+            is MapsforgeLabelPass -> {
+                mapsforgeLabels(pass = pass, view = view, prepared = prepared)
+            }
+            is GarminLabelPass -> {
+                val target = AwtRenderTarget(
+                    widthPx = width,
+                    heightPx = height,
+                    antiAliased = garmin.antiAliasing,
+                    renderScale = builtDeviceScale,
+                )
+                target.beginFrame(GarminColor.Transparent)
+                pass.draw(target = target, view = view, prepared = prepared)
+                target.endFrame()
+                target.image.toComposeImageBitmap()
+            }
+            else -> {
+                return null
+            }
+        }
+        labelImageCache = Pair(key, image)
+        return image
+    }
+
+    private fun mapsforgeLabels(pass: MapsforgeLabelPass, view: LabelViewport, prepared: PreparedLabels): ImageBitmap {
+        val bitmap = AwtGraphicFactory.INSTANCE.createBitmap(view.widthPx, view.heightPx, true)
         val canvas = AwtGraphicFactory.INSTANCE.createCanvas()
         try {
             canvas.setBitmap(bitmap)
             pass.draw(canvas = canvas, view = view, prepared = prepared)
-            val image = AwtGraphicFactory.getBitmap(bitmap).toComposeImageBitmap()
-            labelImageCache = Pair(key, image)
-            return image
+            return AwtGraphicFactory.getBitmap(bitmap).toComposeImageBitmap()
         } finally {
             canvas.destroy()
             bitmap.decrementRefCount()
@@ -462,9 +493,8 @@ class ViewerState(
         if (viewport == null) {
             startView()
         }
-        val store = (labelPass as? MapsforgeLabelPass)?.let { builtLabelStoreTiles }
-        if (store != null
-            && store < labelStoreTiles()
+        if (labelPass != null
+            && builtLabelStoreTiles < labelStoreTiles()
         ) {
             // a larger screen needs a larger label store
             rebuild()
@@ -530,7 +560,7 @@ class ViewerState(
         view["screen"] = "${width}x$height"
         view["tileSize"] = vp.tileSize.toString()
         view["textScale"] = textScale.toString()
-        view["labels"] = if (labelPass != null) "pass" else "tiles"
+        view["labels"] = if (labelPass != null) "pass" else "none"
         view["rotation"] = rotation.toString()
         if (dataset is GarminDataset) {
             view["garmin.antiAliasing"] = garmin.antiAliasing.toString()
@@ -607,10 +637,17 @@ class ViewerState(
             val started = System.nanoTime()
             val selection = StyleSelection(layerId = layerId)
             val config = RenderConfig(tileSizePx = tileSize, textScale = textScale)
+            builtLabelStoreTiles = labelStoreTiles()
+            builtDeviceScale = config.deviceScale
             val renderer = if (dataset is GarminDataset) {
-                dataset.createRenderer(style = style, selection = selection, config = config, options = garmin)
+                dataset.createRenderer(
+                    style = style,
+                    selection = selection,
+                    config = config,
+                    options = garmin,
+                    labelStoreTiles = builtLabelStoreTiles,
+                )
             } else if (dataset is MapsforgeDataset) {
-                builtLabelStoreTiles = labelStoreTiles()
                 dataset.createRenderer(
                     style = style,
                     selection = selection,
@@ -648,7 +685,11 @@ class ViewerState(
     // a separate label pass keeps the labels of its store's tiles only, so no more tiles than that
     private fun engineCapacity(renderer: MapRenderer): Int {
         val byMemory = (CACHE_BYTES / (4L * tileSize * tileSize)).toInt().coerceAtLeast(1)
-        val labelTiles = (renderer as? MapsforgeRenderer)?.labelStore?.capacity ?: return byMemory
+        val labelTiles = when (renderer) {
+            is MapsforgeRenderer -> renderer.labelStore.capacity
+            is GarminRenderer -> renderer.labelPass.storeCapacity
+            else -> return byMemory
+        }
         return minOf(byMemory, labelTiles)
     }
 

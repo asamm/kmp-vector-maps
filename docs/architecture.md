@@ -25,8 +25,8 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
   viewer is Kotlin/JVM too (desktop Compose, Android `View`); KMP stays reserved for a shared
   viewer UI (D22).
 - A format depends on `:core` only. The core is written fresh: the Garmin engine's `RenderTarget`
-  and `LabelLayout` (`formats/garmin-img/engine`, D33) carry LGPL-2.1 headers and are references,
-  not sources.
+  and its former `LabelLayout` (`formats/garmin-img/engine`, D33, retired in M6.1d) carry LGPL-2.1
+  headers and are references, not sources.
 
 ## Driver interface
 
@@ -85,7 +85,7 @@ anchors, each with a per-format default.
 | Anchor | Mapsforge | Garmin IMG | MVT |
 |---|---|---|---|
 | `HILLSHADE` | theme `<hillshading>` (layer + level); else after all features | after polygons | style layer |
-| `LABELS` | label pass | label layout | symbol layers |
+| `LABELS` | label pass | label pass | symbol layers |
 
 - The hillshade hook gets geo bounds and pixel scale and draws with alpha and blend mode; the host
   prefetches DEM data.
@@ -99,11 +99,11 @@ anchors, each with a per-format default.
   unless its style fixes the direction.
 - `LabelPass` (`:core`): `prepare(view)` on a background coroutine, cancelling the run before,
   `prepared`, `onPrepared`, and `prepareNow(view)` on the caller's thread for one-shot images;
-  drawing is the format's (`MapsforgeLabelPass.draw` on a Mapsforge canvas) until the host API
-  wraps it (M8).
+  drawing is the format's (`MapsforgeLabelPass.draw` on a Mapsforge canvas, `GarminLabelPass.draw`
+  on an engine `RenderTarget`) until the host API wraps it (M8).
 - Tiles carry no labels (D39); candidates are placed per screen, rotation-aware and upright, by
   `LabelPlacer` (written fresh, after Locus' grid collision). A preview or print renders its tiles,
-  then draws the pass over them. Garmin draws into its tiles until M6.1d.
+  then draws the pass over them. Every driver has a pass: Mapsforge from M6.1b, Garmin from M6.1d.
 
 ## Golden strategy
 

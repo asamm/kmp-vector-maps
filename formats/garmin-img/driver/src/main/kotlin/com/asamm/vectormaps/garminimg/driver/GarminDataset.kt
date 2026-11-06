@@ -106,7 +106,7 @@ class GarminDataset internal constructor(
     }
 
     /**
-     * Renders with the default [GarminOptions]; labels go into the tiles until M6.1d.
+     * Renders with the default [GarminOptions].
      */
     override fun createRenderer(
         style: MapStyle,
@@ -118,15 +118,20 @@ class GarminDataset internal constructor(
 
     /**
      * Like [createRenderer] with the Garmin [options], which [RenderKey] does not cover: a host
-     * that varies them keys its tile cache itself. Throws when a map file changed since it was
-     * added and for a level no map has.
+     * that varies them keys its tile cache itself; [labelStoreTiles] is at least the tiles a host's
+     * screen covers, or labels of visible tiles drop out of the label store. Throws when a map file
+     * changed since it was added and for a level no map has.
      */
     fun createRenderer(
         style: MapStyle,
         selection: StyleSelection,
         config: RenderConfig,
         options: GarminOptions,
+        labelStoreTiles: Int = LABEL_STORE_SIZE,
     ): GarminRenderer {
+        require(labelStoreTiles > 0) {
+            "createRenderer(), labelStoreTiles $labelStoreTiles"
+        }
         require(style is GarminStyle) {
             "createRenderer(), not a Garmin style: ${style.id}"
         }
@@ -163,6 +168,7 @@ class GarminDataset internal constructor(
             style = style,
             canvasFactory = driver.canvasFactory,
             options = options,
+            labelStore = GarminLabelStore(labelStoreTiles),
         )
     }
 
@@ -249,6 +255,12 @@ class GarminDataset internal constructor(
             parsed = maps
             return maps
         }
+    }
+
+    private companion object {
+
+        // as the Mapsforge driver
+        const val LABEL_STORE_SIZE = 100
     }
 }
 

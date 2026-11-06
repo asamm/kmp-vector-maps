@@ -36,8 +36,8 @@ import kotlin.math.ln
  *
  * # Labels
  *
- * Labels are queued in a [LabelLayout] while the geometry draws, then placed
- * by priority with collision and same-text de-duplication, after all geometry.
+ * Labels are not drawn: each one goes to the caller's `labels` sink as a [MapLabel], for a label
+ * pass that places them apart from the tiles (the core label model).
  *
  * # Thread-safety
  *
@@ -78,6 +78,7 @@ class ImgRenderer(
      * @param level TRE level to draw in the maps that have it; null, and every map without it,
      *   picks the level matching the viewport's resolution.
      * @param textScale factor on label sizes, on top of the target's render scale
+     * @param labels receives every label of the render, in render order
      */
     fun render(
         viewport: Viewport,
@@ -86,6 +87,7 @@ class ImgRenderer(
         objectKindFilter: Int = ObjectKind.ALL,
         level: Int? = null,
         textScale: Float = 1f,
+        labels: (MapLabel) -> Unit = {},
     ) {
         require(target.widthPx == viewport.widthPx) {
             "RenderTarget width ${target.widthPx} != viewport width ${viewport.widthPx}"
@@ -95,7 +97,6 @@ class ImgRenderer(
         }
 
         val projection = Projection(viewport)
-        val labels = LabelLayout()
         target.beginFrame(backgroundColor)
 
         // First pass: bucket every map object by kind. Polygons need to be
@@ -178,35 +179,6 @@ class ImgRenderer(
             drawPoint(point, style, projection, target, labels, textScale)
         }
 
-        // Second pass: emit non-overlapping labels in priority order so the
-        // most important ones survive when text would otherwise pile up.
-        // Labels with an associated polyline path render curve-following so
-        // road names bend with the road; everything else stays straight.
-        labels.drawAccepted { cand ->
-            val px = cand.pathXs
-            val py = cand.pathYs
-            if (px != null && py != null && px.size >= 2) {
-                target.drawTextOnPath(
-                    xs = px,
-                    ys = py,
-                    text = cand.text,
-                    color = cand.color,
-                    outlineColor = cand.outlineColor,
-                    fontSize = cand.fontSize,
-                )
-            } else {
-                target.drawText(
-                    x = cand.x,
-                    y = cand.y,
-                    text = cand.text,
-                    color = cand.color,
-                    outlineColor = cand.outlineColor,
-                    fontSize = cand.fontSize,
-                    anchor = cand.anchor,
-                )
-            }
-        }
-
         target.endFrame()
     }
 
@@ -223,7 +195,7 @@ class ImgRenderer(
         style: Style.PointStyle,
         projection: Projection,
         target: RenderTarget,
-        labels: LabelLayout,
+        labels: (MapLabel) -> Unit,
         textScale: Float,
     ) {
         val x = projection.projectX(point.longitude)
@@ -236,18 +208,21 @@ class ImgRenderer(
         if (style.showLabel && isDisplayableLabel(pointLabel)) {
             val fontSize = DEFAULT_POINT_FONT_SIZE * style.fontScale * textScale
             val height = labelHeight(fontSize, target)
-            labels.submit(
-                x = x,
-                // below the icon, however large the label grows
-                y = y + pointHalfHeight(style, target) + POINT_LABEL_GAP + height / 2f,
-                widthPx = target.measureText(pointLabel!!, fontSize),
-                heightPx = height,
-                priority = style.drawPriority,
-                text = pointLabel,
-                color = style.labelColor,
-                outlineColor = style.labelOutlineColor,
-                fontSize = fontSize,
-                anchor = TextAnchor.CENTER,
+            labels(
+                MapLabel(
+                    kind = MapLabel.Kind.POINT,
+                    x = x,
+                    y = y,
+                    // below the icon, however large the label grows
+                    offsetYPx = pointHalfHeight(style, target) + POINT_LABEL_GAP + height / 2f,
+                    widthPx = target.measureText(pointLabel!!, fontSize),
+                    heightPx = height,
+                    priority = style.drawPriority,
+                    text = pointLabel,
+                    color = style.labelColor,
+                    outlineColor = style.labelOutlineColor,
+                    fontSize = fontSize,
+                ),
             )
         }
     }
@@ -257,7 +232,7 @@ class ImgRenderer(
         style: Style.PolygonStyle,
         projection: Projection,
         target: RenderTarget,
-        labels: LabelLayout,
+        labels: (MapLabel) -> Unit,
         textScale: Float,
     ) {
         if (poly.longitudes.isEmpty()) {
@@ -274,17 +249,20 @@ class ImgRenderer(
         if (style.labelColor != null && isDisplayableLabel(polyLabel)) {
             val (cx, cy) = centroid(xs, ys)
             val fontSize = DEFAULT_AREA_FONT_SIZE * style.fontScale * textScale
-            labels.submit(
-                x = cx,
-                y = cy,
-                widthPx = target.measureText(polyLabel!!, fontSize),
-                heightPx = labelHeight(fontSize, target),
-                priority = style.drawPriority,
-                text = polyLabel,
-                color = style.labelColor,
-                outlineColor = null,
-                fontSize = fontSize,
-                anchor = TextAnchor.CENTER,
+            labels(
+                MapLabel(
+                    kind = MapLabel.Kind.AREA,
+                    x = cx,
+                    y = cy,
+                    offsetYPx = 0f,
+                    widthPx = target.measureText(polyLabel!!, fontSize),
+                    heightPx = labelHeight(fontSize, target),
+                    priority = style.drawPriority,
+                    text = polyLabel,
+                    color = style.labelColor,
+                    outlineColor = null,
+                    fontSize = fontSize,
+                ),
             )
         }
     }
@@ -312,7 +290,7 @@ class ImgRenderer(
         ys: FloatArray,
         style: Style.LineStyle,
         target: RenderTarget,
-        labels: LabelLayout,
+        labels: (MapLabel) -> Unit,
         textScale: Float,
     ) {
         val n = xs.size
@@ -321,19 +299,22 @@ class ImgRenderer(
         if (style.labelColor != null && isDisplayableLabel(polyLabel)) {
             val midIdx = n / 2
             val fontSize = DEFAULT_LINE_FONT_SIZE * style.fontScale * textScale
-            labels.submit(
-                x = xs[midIdx],
-                y = ys[midIdx],
-                widthPx = target.measureText(polyLabel!!, fontSize),
-                heightPx = labelHeight(fontSize, target),
-                priority = style.drawPriority,
-                text = polyLabel,
-                color = style.labelColor,
-                outlineColor = null,
-                fontSize = fontSize,
-                anchor = TextAnchor.CENTER,
-                pathXs = xs,
-                pathYs = ys,
+            labels(
+                MapLabel(
+                    kind = MapLabel.Kind.LINE,
+                    x = xs[midIdx],
+                    y = ys[midIdx],
+                    offsetYPx = 0f,
+                    widthPx = target.measureText(polyLabel!!, fontSize),
+                    heightPx = labelHeight(fontSize, target),
+                    priority = style.drawPriority,
+                    text = polyLabel,
+                    color = style.labelColor,
+                    outlineColor = null,
+                    fontSize = fontSize,
+                    pathXs = xs,
+                    pathYs = ys,
+                ),
             )
         }
     }
@@ -585,7 +566,7 @@ class ImgRenderer(
          * whitespace-only labels. We *do not* filter URL-shaped, hour-
          * shaped, or fragment-shaped strings here — old Locus and
          * GPSMapEdit show every label faithfully and rely on the
-         * collision + same-text dedup pass in [LabelLayout] to keep
+         * collision + same-text dedup of the label pass to keep
          * clutter under control. Re-introduce content filters only if a
          * specific IMG genuinely overwhelms the layout.
          */

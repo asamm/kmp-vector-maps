@@ -143,6 +143,11 @@ class LabelPlacerTest {
         assertEquals(listOf(1L), ids(LabelPlacer.place(listOf(town, near), rotationDeg = 0.0)))
         assertEquals(2, LabelPlacer.place(listOf(town, far), rotationDeg = 0.0).size)
         assertEquals(2, LabelPlacer.place(listOf(town, other), rotationDeg = 0.0).size)
+
+        // without a radius, equal texts only clash by their boxes
+        val street = pathText(id = 3, path = doubleArrayOf(0.0, 0.0, 100.0, 0.0))
+        val sameStreet = pathText(id = 4, path = doubleArrayOf(150.0, 0.0, 250.0, 0.0))
+        assertEquals(2, LabelPlacer.place(listOf(street, sameStreet), rotationDeg = 0.0).size)
     }
 
     @Test
@@ -392,6 +397,7 @@ class LabelPlacerTest {
                 CollisionBox(centerX = 0.0, centerY = 0.0, halfWidth = 5.0, halfHeight = 5.0),
             ),
             text = LabelText(value = text, sizePx = 12.0f, fillArgb = 0xFF000000.toInt()),
+            sameTextRadiusPx = 200.0,
         )
     }
 

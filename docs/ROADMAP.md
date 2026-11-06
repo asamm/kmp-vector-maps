@@ -8,7 +8,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
 **Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34); M6.0, M6.4, M6.1a and M6.1b done (PRs
-#36–#40); M6.1c done (PR #41).** Next action: M6.1d, the Garmin label pass.
+#36–#40); M6.1c and M6.1d done (PRs #41, #42).** Next action: M6.1e, the shared tiled label pass.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -499,7 +499,8 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
 | M6.1a | Core label model (`:core`, Apache-2.0): `LabelCandidate` (stable identity, world position, priority, measured collision geometry, neutral style, kind: point, line symbol, path text) and placement with a spatial grid (written fresh; Locus' `collisionFreeOrderedFast` as reference only), rotation-aware and upright | unit tests: priority order, rotation, ties broken by identity, not by hash (A7) | ✅ PR #39, `06b5aef` |
 | M6.1b | `SEPARATE` label pass: the Mapsforge driver turns its label store into candidates; `prepare(viewport)` off the caller's thread, cancelling the previous run, `draw`, `onPrepared` (architecture.md, host API); desktop viewer draws it with rotation | label goldens of the pass at 0° and a rotation; soak as D31 against the pass | ✅ PR #40 |
 | M6.1c | Labels only through the pass (D39): `LabelMode` and `RenderConfig.labelMode` removed, the Mapsforge driver always renders tiles without labels into its label store (no in-tile path, no `DrawnTiles`); `LabelPass.prepareNow` for one-shot images (previews, prints: tiles first, then the labels over them); the in-tile golden sets render through the vendored engine as engine goldens; viewers draw the pass (Android at 0°); `SoakTest` single-mode | driver, engine (in-tile sets) and pass goldens unchanged; `prepareNow` places on the caller's thread; the pass golden takes the one-shot path | ✅ PR #41 |
-| M6.1d | Garmin on the core label model: a label pass, tiles without labels (D39), its `LabelLayout` retired; labels piling up at level-pick boundaries (M4.1 carry-over) | Garmin goldens updated and confirmed in the PR; label pass goldens of a Monaco screen at 0° and a rotation | ⬜ |
+| M6.1d | Garmin on the core label model: a label pass, tiles without labels (D39), its `LabelLayout` retired; labels piling up at level-pick boundaries (M4.1 carry-over) | Garmin goldens updated and confirmed in the PR; label pass goldens of a Monaco screen at 0° and a rotation | ✅ PR #42 |
+| M6.1e | Shared tiled label pass in `:core`: a `TileLabelStore`, a `TiledLabelPass` doing the tile-range collect and calling the driver's converter, id and screen-transform helpers, the store capacity on the pass for hosts, Garmin's stored paths trimmed to their text stretch; Mapsforge (through an adapter over its vendored store) and Garmin keep only their converter and `draw`. Mapsforge output stays as it is, Garmin may move | Mapsforge driver, engine and pass goldens unchanged; Garmin goldens unchanged or confirmed in the PR | ⬜ |
 | M6.2 | `HILLSHADE` anchor: `RenderThemeHandler` re-captures `<hillshading>` layer, level and `cat` (D30); the renderer calls a host hook with geo bounds and pixel scale at that position, else after all features (D13, D16); Garmin after polygons | no hook: goldens unchanged; a test hook's fill lands between the right layers on both formats | ⬜ |
 | M6.3 | `FeatureQuery` in `:core`, Mapsforge only (D38): tags at a zoom → resolved symbol bitmap (what LoPoints' `PointGeneratorV4Theme` takes from `RenderCallback.renderPointOfInterestSymbol`), plus priority and caption style | the corpus POIs resolve as the `RenderCallback` path does | ⬜ |
 
@@ -569,10 +570,26 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
   themselves, expecting it turned as Mapsforge's `LayerManager` does; M8 settles it with an
   Android golden of the pass. `collect` describes every stored container on each prepare; M7
   measures it before caching per tile.
-- M6.1c as built: `MapRenderer.labelPass` is null only for Garmin until M6.1d. The vendored
+- M6.1c as built: `MapRenderer.labelPass` was null only for Garmin until M6.1d. The vendored
   engine keeps upstream's in-tile code (`TileDependencies`) for the golden sets with labels in the
   tiles, which now render through it directly; their label goldens did not move. The Android
   viewer draws the pass upright, where Android captions need no turned canvas.
+- M6.1d as built: `ImgRenderer.render` hands every label to a sink as a `MapLabel` (positions in
+  the render's pixels, sizes as the target measures them) and draws none; `LabelLayout` is
+  retired. `GarminRenderer` keeps a label store per renderer (`labelStoreTiles`, default 100) and
+  a non-null `GarminLabelPass`: points and areas get an upright box, road names map-turning boxes
+  over the stretch their text covers, centred along the line and a text height to both sides (the
+  targets lift the text to the side that reads upright), anchored at the text's middle, or an
+  upright box where the line is too short; ids round positions to 1/16 px, so a label read by two
+  tiles is one. Core `LabelCandidate.sameTextRadiusPx` replaces the point-only same-text rule:
+  Mapsforge sets 200 px on point texts (goldens unchanged), Garmin on every label, an exact circle
+  where `LabelLayout` used 200 px grid cells. Equal priorities now break ties by id, not render
+  order. The pass draws through an engine `RenderTarget` at turned positions, so Android works at
+  any rotation. Garmin tile goldens refreshed without labels (1.9–4.1 % of their pixels, labels
+  only); pass goldens `otm-monaco-pass-15-r0/r30` (image and dump). Garmin tile benchmarks no longer
+  place or draw labels, so the M4.3c numbers are not like for like. Open point: a road name over a
+  sharp turn (`Quai Rainier 1er`, a U-shaped line) draws its letters around the bend, as the
+  in-tile labels did.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.
