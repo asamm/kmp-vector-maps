@@ -33,7 +33,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `dev/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored label-free corpus tiles render through the driver, those with labels in the tiles through the engine (D39); label-free tiles within `golden/accepted-differences.txt`, tiles with labels against the committed `golden/labels` (D37), the label pass against `golden/labels/pass`; the shared harness in `golden/harness` |
 | `dev/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `formats/mapsforge/android`, Robolectric; plain Mapsforge, not the driver; tiles with labels against `golden/labels/android` |
 | `dev/mapsforge/upstream` | upstream sync helpers: `upstream_diff.py` groups a tag's changes, `verify_upstream.py` runs both goldens against a tag built from source ([docs/upstream.md](docs/upstream.md)) |
-| `dev/garmin-img/golden` | Garmin pixel test of Monaco tiles through the driver against committed PNGs (bundled font, every system) and the dump comparison against the legacy Java parser libGarminImg |
+| `dev/garmin-img/golden` | Garmin pixel test of Monaco tiles (label-free) and the label pass through the driver against committed PNGs and dumps (bundled font, every system) and the dump comparison against the legacy Java parser libGarminImg |
 | `dev/fixtures/` | test maps, themes and the golden font, see [dev/fixtures/README.md](dev/fixtures/README.md) |
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines in ROADMAP M2.7 (Mapsforge) and M4.3c (Garmin) |
 | `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines in ROADMAP M2.7b and M4.3c; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |

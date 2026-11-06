@@ -30,6 +30,10 @@ import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.garminimg.driver.GarminDriver
+import com.asamm.vectormaps.garminimg.style.Color as GarminColor
+import com.asamm.vectormaps.garminimg.driver.GarminRenderer
+import com.asamm.vectormaps.garminimg.driver.GarminLabelPass
+import com.asamm.vectormaps.core.label.PreparedLabels
 import com.asamm.vectormaps.garminimg.driver.GarminTileTarget
 import com.asamm.vectormaps.garminimg.render.AndroidRenderTarget
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
@@ -75,6 +79,15 @@ class MapView(
 
     // the view the label pass was last asked for; UI thread only
     private var preparedFor: LabelViewport? = null
+
+    // the Garmin pass draws into this bitmap, reused while the view keeps its size; UI thread only
+    private var garminTarget: AndroidRenderTarget? = null
+
+    // the placement and view the Garmin bitmap shows; UI thread only
+    private var garminDrawn: Pair<PreparedLabels, LabelViewport>? = null
+
+    // the TYP and text scale of the Garmin tiles, for their labels
+    private val renderScale = config.deviceScale
 
     @Volatile
     private var labelsStale = false
@@ -204,11 +217,15 @@ class MapView(
         }
     }
 
-    // a Mapsforge tile shows its labels while the label store keeps it, so no more tiles than that
+    // a tile shows its labels while the label store keeps it, so no more tiles than that
     private fun keptTiles(renderer: MapRenderer, garmin: Boolean, tileSize: Int): Int {
         // ARGB_8888 Garmin tiles take twice the RGB_565 Mapsforge ones
         val byMemory = (KEPT_BYTES / ((if (garmin) 4L else 2L) * tileSize * tileSize)).toInt().coerceAtLeast(1)
-        val labelTiles = (renderer as? MapsforgeRenderer)?.labelStore?.capacity ?: return byMemory
+        val labelTiles = when (renderer) {
+            is MapsforgeRenderer -> renderer.labelStore.capacity
+            is GarminRenderer -> renderer.labelPass.storeCapacity
+            else -> return byMemory
+        }
         return minOf(byMemory, labelTiles)
     }
 
@@ -259,9 +276,9 @@ class MapView(
         drawPanel(canvas, vp)
     }
 
-    // the Mapsforge label pass over the tiles, upright, as the viewer never turns the map
+    // the label pass over the tiles, upright, as the viewer never turns the map
     private fun drawLabels(canvas: Canvas, vp: Viewport) {
-        val pass = engine.labelPass as? MapsforgeLabelPass ?: return
+        val pass = engine.labelPass ?: return
         if (width <= 0
             || height <= 0
         ) {
@@ -279,7 +296,41 @@ class MapView(
             labelsStale = false
             pass.prepare(view)
         }
-        pass.draw(canvas = AndroidGraphicFactory.createGraphicContext(canvas), view = view)
+        when (pass) {
+            is MapsforgeLabelPass -> {
+                pass.draw(canvas = AndroidGraphicFactory.createGraphicContext(canvas), view = view)
+            }
+            is GarminLabelPass -> {
+                canvas.drawBitmap(garminLabels(pass = pass, view = view) ?: return, 0f, 0f, null)
+            }
+        }
+    }
+
+    // the Garmin pass draws into its own bitmap, redrawn when the placement or view changes
+    private fun garminLabels(pass: GarminLabelPass, view: LabelViewport): Bitmap? {
+        val prepared = pass.prepared ?: return null
+        val reused = garminTarget
+        val target = if (reused != null
+            && reused.bitmap.width == view.widthPx
+            && reused.bitmap.height == view.heightPx
+        ) {
+            reused
+        } else {
+            AndroidRenderTarget(widthPx = view.widthPx, heightPx = view.heightPx, renderScale = renderScale)
+                .also { garminTarget = it }
+        }
+        val drawn = garminDrawn
+        if (target !== reused
+            || drawn == null
+            || drawn.first !== prepared
+            || drawn.second != view
+        ) {
+            target.beginFrame(GarminColor.Transparent)
+            pass.draw(target = target, view = view, prepared = prepared)
+            target.endFrame()
+            garminDrawn = Pair(prepared, view)
+        }
+        return target.bitmap
     }
 
     override fun computeScroll() {

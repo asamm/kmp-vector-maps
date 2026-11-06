@@ -29,11 +29,6 @@ data class PlacedLabel(
  */
 object LabelPlacer {
 
-    /**
-     * Point texts with equal text closer than this, in world pixels, clash (Mapsforge's value).
-     */
-    const val SAME_TEXT_RADIUS_PX = 200.0
-
     internal val PLACEMENT_ORDER = compareByDescending<LabelCandidate> { it.priority }
         .thenByDescending { it.display }
         .thenBy { it.id }
@@ -103,8 +98,7 @@ private fun screenEndX(path: DoubleArray, cos: Double, sin: Double): Double {
 }
 
 /**
- * Kept point texts by their text, so equal ones close together clash (Mapsforge
- * `PointTextContainer`).
+ * Kept texts by their text, so equal ones within their [LabelCandidate.sameTextRadiusPx] clash.
  */
 private class SameTextIndex {
 
@@ -116,7 +110,7 @@ private class SameTextIndex {
         return kept.any { other ->
             val distance = hypot(other.x - candidate.x, other.y - candidate.y)
             other.display == candidate.display
-                && distance < LabelPlacer.SAME_TEXT_RADIUS_PX
+                && distance < maxOf(other.sameTextRadiusPx, candidate.sameTextRadiusPx)
         }
     }
 
@@ -126,7 +120,7 @@ private class SameTextIndex {
     }
 
     private fun textOf(candidate: LabelCandidate): String? {
-        if (candidate.kind != LabelKind.POINT) {
+        if (candidate.sameTextRadiusPx <= 0.0) {
             return null
         }
         return candidate.text?.value

@@ -75,7 +75,7 @@ class TileEngine<I : Any>(
         get() = renderer.key.config.tileSizePx
 
     /**
-     * The renderer's label pass; null when its labels are in the tiles.
+     * The renderer's label pass; null for a renderer without labels.
      */
     val labelPass: LabelPass?
         get() {

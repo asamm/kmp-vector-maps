@@ -10,6 +10,7 @@ import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.StyleMenu
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
+import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.model.ObjectKind
 import com.asamm.vectormaps.garminimg.parser.ImgArchive
@@ -382,10 +383,56 @@ class GarminDriverTest {
     @Test
     fun textScaleEnlargesLabels() {
         driver.open(listOf(otm)).use { dataset ->
-            val normal = pixels(render(dataset, dataset.styles[0], harbour))
-            val large = pixels(render(dataset, dataset.styles[0], harbour, textScale = 2f))
-            assertFalse(normal.contentEquals(large))
+            val normal = labelWidths(dataset, textScale = 1f)
+            val large = labelWidths(dataset, textScale = 2f)
+            // the same labels, matched by id, which ignores their size
+            val both = normal.keys.intersect(large.keys)
+            assertTrue(both.isNotEmpty())
+            for (id in both) {
+                assertTrue(large.getValue(id) > normal.getValue(id) * 1.5, "label $id")
+            }
         }
+    }
+
+    @Test
+    fun tilesCarryNoLabelsThePassPlacesThem() {
+        driver.open(listOf(otm)).use { dataset ->
+            val config = RenderConfig(tileSizePx = 256)
+            dataset.createRenderer(dataset.styles[0], StyleSelection.DEFAULT, config).use { renderer ->
+                // the harbour tile and its neighbours east, south and south-east
+                for ((dx, dy) in listOf(0 to 0, 1 to 0, 0 to 1, 1 to 1)) {
+                    val tile = TileRequest(x = harbour.x + dx, y = harbour.y + dy, zoom = harbour.zoom)
+                    renderer.render(tile, GarminTileTarget(256)) { false }
+                }
+                val view = harbourCorner(rotationDeg = 25.0)
+                val first = renderer.labelPass.prepareNow(view).placed.map { it.candidate.id }
+                val again = renderer.labelPass.prepareNow(view).placed.map { it.candidate.id }
+
+                assertTrue(first.size > 5, "${first.size} labels placed")
+                assertEquals(first, again)
+            }
+        }
+    }
+
+    // the half width of each label the pass places around the harbour, by id
+    private fun labelWidths(dataset: GarminDataset, textScale: Float): Map<Long, Double> {
+        val config = RenderConfig(tileSizePx = 256, textScale = textScale)
+        dataset.createRenderer(dataset.styles[0], StyleSelection.DEFAULT, config).use { renderer ->
+            renderer.render(harbour, GarminTileTarget(256)) { false }
+            val placed = renderer.labelPass.prepareNow(harbourCorner(rotationDeg = 0.0)).placed
+            return placed.associate { it.candidate.id to it.candidate.boxes.sumOf { box -> box.halfWidth } }
+        }
+    }
+
+    private fun harbourCorner(rotationDeg: Double): LabelViewport {
+        return LabelViewport(
+            zoom = harbour.zoom,
+            centerX = (harbour.x + 1) * 256.0,
+            centerY = (harbour.y + 1) * 256.0,
+            widthPx = 400,
+            heightPx = 300,
+            rotationDeg = rotationDeg,
+        )
     }
 
     @Test

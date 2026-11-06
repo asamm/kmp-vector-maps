@@ -167,7 +167,7 @@ class RenderBenchmarkTest {
         printStats("[bench]   ", parseTimes)
 
         println("[bench]")
-        println("[bench] full ImgRenderer.render() (parse + style + project + draw + labels):")
+        println("[bench] full ImgRenderer.render() (parse + style + project + draw; labels measured, not drawn):")
         printStats("[bench]   ", renderTimes)
 
         firstTimingBreakdown?.let { t ->

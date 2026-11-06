@@ -35,8 +35,9 @@ import com.asamm.vectormaps.garminimg.style.Style
  *
  * The renderer:
  * 1. Calls [beginFrame] once at the start.
- * 2. Calls [drawPolygon] / [drawPolyline] / [drawPoint] / [drawText] in
- *    draw order (polygons first, then polylines, then points + labels on top).
+ * 2. Calls [drawPolygon] / [drawPolyline] / [drawPoint] in draw order (polygons first, then
+ *    polylines, then points); a driver's label pass draws the labels through [drawText] and
+ *    [drawTextOnPath].
  * 3. Calls [endFrame] once at the end. The platform impl flushes / commits.
  *
  * Targets must accept zero-length point arrays without crashing — the parser

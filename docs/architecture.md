@@ -25,8 +25,8 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
   viewer is Kotlin/JVM too (desktop Compose, Android `View`); KMP stays reserved for a shared
   viewer UI (D22).
 - A format depends on `:core` only. The core is written fresh: the Garmin engine's `RenderTarget`
-  and `LabelLayout` (`formats/garmin-img/engine`, D33) carry LGPL-2.1 headers and are references,
-  not sources.
+  and its former `LabelLayout` (`formats/garmin-img/engine`, D33, retired in M6.1d) carry LGPL-2.1
+  headers and are references, not sources.
 
 ## Driver interface
 
@@ -103,7 +103,7 @@ anchors, each with a per-format default.
   wraps it (M8).
 - Tiles carry no labels (D39); candidates are placed per screen, rotation-aware and upright, by
   `LabelPlacer` (written fresh, after Locus' grid collision). A preview or print renders its tiles,
-  then draws the pass over them. Garmin draws into its tiles until M6.1d.
+  then draws the pass over them. Every driver has a pass: Mapsforge from M6.1b, Garmin from M6.1d.
 
 ## Golden strategy
 

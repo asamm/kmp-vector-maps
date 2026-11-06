@@ -12,10 +12,13 @@ package com.asamm.vectormaps.core.label
  * @param id stable identity, equal for the same label stored from neighbouring tiles, whose copies
  *  must then carry identical geometry; breaks priority ties, so it must not come from an identity
  *  hash
- * @param x anchor in world pixels; a path text's anchor is its path's first point
+ * @param x anchor in world pixels, which [boxes] and same-text distances count from; for a path
+ *  text the format picks a point, such as its path's first point or the middle of its text
  * @param boxes collision geometry relative to the anchor; empty never clashes
  * @param path [LabelKind.PATH_TEXT] only: the path as x, y pairs in world pixels, copied
  * @param direction [LabelKind.PATH_TEXT] only: which way the text runs along its path
+ * @param sameTextRadiusPx a kept candidate with equal text closer than this, in world pixels, blocks
+ *  this one (the larger of the two radii counts); 0 neither blocks nor is blocked
  * @param source the format's own object behind the candidate, for drawing it; placement ignores it
  */
 class LabelCandidate(
@@ -29,6 +32,7 @@ class LabelCandidate(
     val text: LabelText? = null,
     path: DoubleArray? = null,
     val direction: PathTextDirection = PathTextDirection.UPRIGHT,
+    val sameTextRadiusPx: Double = 0.0,
     val source: Any? = null,
 ) {
 
@@ -39,6 +43,11 @@ class LabelCandidate(
             && y.isFinite()
         ) {
             "LabelCandidate(), id $id, anchor $x, $y"
+        }
+        require(sameTextRadiusPx >= 0.0
+            && sameTextRadiusPx.isFinite()
+        ) {
+            "LabelCandidate(), id $id, same-text radius $sameTextRadiusPx"
         }
         require((kind == LabelKind.PATH_TEXT) == (path != null)) {
             "LabelCandidate(), id $id, kind $kind, path ${path != null}"

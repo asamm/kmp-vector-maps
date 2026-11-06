@@ -18,8 +18,8 @@ interface MapRenderer : Closeable {
     val maxParallelism: Int
 
     /**
-     * Places the labels per screen, apart from the tiles, which carry none (D39); null for a driver
-     * that still draws its labels into the tiles (Garmin until M6.1d). Closed with the renderer.
+     * Places the labels per screen, apart from the tiles, which carry none (D39); null only for a
+     * renderer without labels, such as a test fake. Closed with the renderer.
      */
     val labelPass: LabelPass?
         get() {

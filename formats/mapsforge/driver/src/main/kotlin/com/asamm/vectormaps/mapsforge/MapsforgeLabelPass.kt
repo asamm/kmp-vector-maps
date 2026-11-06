@@ -155,6 +155,8 @@ class MapsforgeLabelPass internal constructor(
                 TextOrientation.LEFT -> PathTextDirection.REVERSE
                 else -> PathTextDirection.UPRIGHT
             },
+            // equal captions close together clash, as Mapsforge's PointTextContainer
+            sameTextRadiusPx = if (shape.kind == LabelShapeKind.POINT) SAME_TEXT_RADIUS_PX else 0.0,
             source = shape.container,
         )
     }
@@ -221,6 +223,9 @@ class MapsforgeLabelPass internal constructor(
     }
 
     private companion object {
+
+        // Mapsforge's value
+        const val SAME_TEXT_RADIUS_PX = 200.0
 
         const val FNV_OFFSET = -0x340d631b7bdddcdbL
 
