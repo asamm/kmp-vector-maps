@@ -13,6 +13,7 @@ import com.asamm.vectormaps.core.label.LabelKind
 import com.asamm.vectormaps.core.label.LabelText
 import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.core.label.PathTextDirection
+import com.asamm.vectormaps.core.label.PreparedLabels
 import com.asamm.vectormaps.mapsforge.core.graphics.Bitmap
 import com.asamm.vectormaps.mapsforge.core.graphics.Canvas
 import com.asamm.vectormaps.mapsforge.core.graphics.Display
@@ -33,7 +34,7 @@ import java.io.ByteArrayOutputStream
 import java.util.WeakHashMap
 
 /**
- * The label pass of a [MapsforgeRenderer] in `SEPARATE` mode: places the labels its tiles stored
+ * The label pass of a [MapsforgeRenderer] (D39): places the labels its tiles stored
  * and draws them through Mapsforge's own containers. A tile's labels show while the label store
  * keeps it ([TileBasedLabelStore.capacity] tiles, least recently used dropped), so the store must
  * hold at least the tiles one screen covers (`MapsforgeDataset.createRenderer`'s
@@ -79,13 +80,14 @@ class MapsforgeLabelPass internal constructor(
     }
 
     /**
-     * Draws the latest placement on a canvas the size of [view], not turned; nothing while the
-     * placement is for another zoom. One thread at a time; AWT canvases only until M8, as Android
-     * captions turn the canvas back themselves.
+     * Draws [prepared], by default the latest placement, on a canvas the size of [view], not
+     * turned; nothing while it is for another zoom. One thread at a time; a turned [view] on AWT
+     * canvases only until M8, as Android captions turn the canvas back themselves.
      */
-    fun draw(canvas: Canvas, view: LabelViewport) {
-        val prepared = prepared ?: return
-        if (prepared.view.zoom != view.zoom) {
+    fun draw(canvas: Canvas, view: LabelViewport, prepared: PreparedLabels? = this.prepared) {
+        if (prepared == null
+            || prepared.view.zoom != view.zoom
+        ) {
             return
         }
         val origin = Point(view.centerX - view.widthPx / 2.0, view.centerY - view.heightPx / 2.0)

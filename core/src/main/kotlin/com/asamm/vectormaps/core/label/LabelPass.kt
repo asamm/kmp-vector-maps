@@ -82,8 +82,8 @@ class PreparedLabels(
 )
 
 /**
- * Places labels per screen, apart from the tiles ([com.asamm.vectormaps.core.LabelMode.SEPARATE]).
- * Drawing is the format's, as it owns the label graphics.
+ * Places labels per screen, apart from the tiles, which carry none (D39). Drawing is the format's,
+ * as it owns the label graphics.
  */
 interface LabelPass : Closeable {
 
@@ -101,6 +101,13 @@ interface LabelPass : Closeable {
      * Places the labels for [view] off the caller's thread, cancelling a run still going.
      */
     fun prepare(view: LabelViewport)
+
+    /**
+     * Places the labels for [view] on the caller's thread and returns them, for a one-shot image
+     * such as a preview: render its tiles first, then draw the result over them. Leaves [prepared]
+     * and a running [prepare] alone, so a screen sharing the renderer is not disturbed.
+     */
+    fun prepareNow(view: LabelViewport): PreparedLabels
 }
 
 /**
@@ -146,6 +153,14 @@ abstract class BackgroundLabelPass : LabelPass {
                 onPrepared?.invoke()
             }
         }
+    }
+
+    final override fun prepareNow(view: LabelViewport): PreparedLabels {
+        val candidates = collect(view = view, isCancelled = { false })
+        return PreparedLabels(
+            view = view,
+            placed = LabelPlacer.place(candidates = candidates, rotationDeg = view.rotationDeg),
+        )
     }
 
     override fun close() {

@@ -37,8 +37,8 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 | `MapDataset` | one or more files: Mapsforge multi-map, Garmin `.img` files with one or many maps each; `addMap` at runtime, then hosts recreate renderers; `styles` it brings itself (embedded TYP, built-in); creates renderers |
 | `MapStyle` | style source and menu: Mapsforge theme, Garmin TYP, MVT style; compiled per renderer |
 | `StyleMenu` | layers, overlays, titles; **keeps Mapsforge ids** for Locus prefs; `StyleSelection` = layer + overlays |
-| `MapRenderer` | per (dataset, style, selection, config); `render(tile, target, isCancelled)`, `labelPass` in `SEPARATE` mode, hooks from M6 |
-| `RenderConfig` | language, device scale, text scale, label mode, tile size |
+| `MapRenderer` | per (dataset, style, selection, config); `render(tile, target, isCancelled)`, `labelPass` (D39), hooks from M6 |
+| `RenderConfig` | language, device scale, text scale, tile size |
 | `RenderKey` | hashable (style, selection, config) for host tile caches |
 | `FeatureQuery` | optional pull API: tags at a zoom → resolved symbol (LoPoints) |
 
@@ -60,7 +60,7 @@ caches, shading and screen drawing stay as they are (D23).
 interface VectorMapRenderer : Closeable {
     fun addMap(spec: MapFileSpec): Boolean
     fun renderTile(request: TileRenderRequest, isCancelled: () -> Boolean): TileRenderResult
-    fun labelPass(): LabelPass?          // null when labels are baked into tiles
+    fun labelPass(): LabelPass          // tiles carry no labels (D39)
 }
 sealed interface TileRenderResult {      // Image: mutable Bitmap, owned by the caller
     class Image(val bitmap: Bitmap, val singleColor: Boolean) : TileRenderResult
@@ -98,12 +98,12 @@ anchors, each with a per-format default.
   clashes with none kept before; boxes stay upright or turn with the map, path text reads upright
   unless its style fixes the direction.
 - `LabelPass` (`:core`): `prepare(view)` on a background coroutine, cancelling the run before,
-  `prepared`, `onPrepared`; drawing is the format's (`MapsforgeLabelPass.draw` on a Mapsforge
-  canvas) until the host API wraps it (M8).
-- `SEPARATE`: tiles carry no labels; candidates are placed per screen, rotation-aware and
-  upright, by `LabelPlacer` (written fresh, after Locus' grid collision).
-- `IN_TILE`: placed over the tile plus a one-tile margin, independent of render order; replaces
-  Mapsforge `TileDependencies` and Garmin's per-render `LabelLayout`.
+  `prepared`, `onPrepared`, and `prepareNow(view)` on the caller's thread for one-shot images;
+  drawing is the format's (`MapsforgeLabelPass.draw` on a Mapsforge canvas) until the host API
+  wraps it (M8).
+- Tiles carry no labels (D39); candidates are placed per screen, rotation-aware and upright, by
+  `LabelPlacer` (written fresh, after Locus' grid collision). A preview or print renders its tiles,
+  then draws the pass over them. Garmin draws into its tiles until M6.1d.
 
 ## Golden strategy
 

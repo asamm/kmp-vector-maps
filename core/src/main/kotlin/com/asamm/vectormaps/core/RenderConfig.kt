@@ -17,7 +17,6 @@ data class RenderConfig(
     val deviceScale: Float = 1.0f,
     val textScale: Float = 1.0f,
     val language: String? = null,
-    val labelMode: LabelMode = LabelMode.IN_TILE,
 ) {
 
     init {
@@ -34,27 +33,11 @@ data class RenderConfig(
     }
 }
 
-enum class LabelMode {
-
-    /**
-     * Labels are drawn into the tiles, placed across tile edges; until M6.1 the result depends on
-     * which neighbour tiles were rendered first.
-     */
-    IN_TILE,
-
-    /**
-     * Tiles carry no labels; the renderer's [MapRenderer.labelPass] places them per screen, and the
-     * format's pass draws them for the host.
-     */
-    SEPARATE,
-}
-
 /**
  * Everything besides the dataset, the tile and driver-specific renderer options (such as
- * `GarminOptions`) that decides a renderer's output: on one dataset,
- * equal keys give equal tiles, for [LabelMode.IN_TILE] only from M6.1. Hosts keep one tile cache
- * per dataset, keyed by it; after [MapDataset.addMap] they clear that cache and recreate their
- * renderers.
+ * `GarminOptions`) that decides a renderer's output: on one dataset, equal keys give equal tiles.
+ * Hosts keep one tile cache per dataset, keyed by it; after [MapDataset.addMap] they clear that
+ * cache and recreate their renderers.
  */
 data class RenderKey(
     val styleId: String,

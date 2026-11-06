@@ -23,14 +23,18 @@ import android.widget.OverScroller
 import com.asamm.vectormaps.core.MapDataset
 import com.asamm.vectormaps.core.MapFormatDriver
 import com.asamm.vectormaps.core.MapFormats
+import com.asamm.vectormaps.core.MapRenderer
 import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.RenderTarget
 import com.asamm.vectormaps.core.StyleSelection
+import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.garminimg.driver.GarminDriver
 import com.asamm.vectormaps.garminimg.driver.GarminTileTarget
 import com.asamm.vectormaps.garminimg.render.AndroidRenderTarget
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
+import com.asamm.vectormaps.mapsforge.MapsforgeLabelPass
+import com.asamm.vectormaps.mapsforge.MapsforgeRenderer
 import com.asamm.vectormaps.mapsforge.TileBitmapTarget
 import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
 import com.asamm.vectormaps.viewer.TileEngine
@@ -68,6 +72,12 @@ class MapView(
         private set
 
     private val density = resources.displayMetrics.density
+
+    // the view the label pass was last asked for; UI thread only
+    private var preparedFor: LabelViewport? = null
+
+    @Volatile
+    private var labelsStale = false
 
     private val missingPaint = Paint().apply {
         color = 0xFFC4C4C4.toInt()
@@ -183,13 +193,23 @@ class MapView(
             renderer = renderer,
             images = images,
             threads = RENDER_THREADS,
-            // ARGB_8888 Garmin tiles take twice the RGB_565 Mapsforge ones
-            capacity = (KEPT_BYTES / ((if (probed.driver is GarminDriver) 4L else 2L) * config.tileSizePx * config.tileSizePx))
-                .toInt()
-                .coerceAtLeast(1),
+            capacity = keptTiles(renderer = renderer, garmin = probed.driver is GarminDriver, tileSize = config.tileSizePx),
         ) {
+            // a new tile stored its labels
+            labelsStale = true
             postInvalidate()
         }
+        renderer.labelPass?.onPrepared = {
+            postInvalidate()
+        }
+    }
+
+    // a Mapsforge tile shows its labels while the label store keeps it, so no more tiles than that
+    private fun keptTiles(renderer: MapRenderer, garmin: Boolean, tileSize: Int): Int {
+        // ARGB_8888 Garmin tiles take twice the RGB_565 Mapsforge ones
+        val byMemory = (KEPT_BYTES / ((if (garmin) 4L else 2L) * tileSize * tileSize)).toInt().coerceAtLeast(1)
+        val labelTiles = (renderer as? MapsforgeRenderer)?.labelStore?.capacity ?: return byMemory
+        return minOf(byMemory, labelTiles)
     }
 
     /**
@@ -235,7 +255,24 @@ class MapView(
                 canvas.drawRect(left + 1f, top + 1f, left + size - 1f, top + size - 1f, missingPaint)
             }
         }
+        drawLabels(canvas, vp)
         drawPanel(canvas, vp)
+    }
+
+    // the Mapsforge label pass over the tiles, upright, as the viewer never turns the map
+    private fun drawLabels(canvas: Canvas, vp: Viewport) {
+        val pass = engine.labelPass as? MapsforgeLabelPass ?: return
+        val view = vp.labelViewport(width, height, rotationDeg = 0.0)
+        // a placement wakes the next frame; asking again only on a new view or new labels keeps
+        // that from looping
+        if (view != preparedFor
+            || labelsStale
+        ) {
+            preparedFor = view
+            labelsStale = false
+            pass.prepare(view)
+        }
+        pass.draw(canvas = AndroidGraphicFactory.createGraphicContext(canvas), view = view)
     }
 
     override fun computeScroll() {

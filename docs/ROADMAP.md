@@ -8,7 +8,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
 **Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34); M6.0, M6.4, M6.1a and M6.1b done (PRs
-#36–#40).** Next action: M6.1c, `IN_TILE` labels independent of render order.
+#36–#40).** Next action: M6.1c, labels only through the pass (D39).
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -498,8 +498,8 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
 | M6.4 | A9: `Line` with `scale="all"` and no `stroke-dasharray` no longer throws; A8: the symbol boundary's top scales by height; both C-rows | A9 test theme renders; A8 unit-tested (`SymbolBoundaryTest`); LoMaps goldens unchanged (see as built); drawing and the reader and `RenderCallback` dumps unchanged on the corpus | ✅ PR #38, `a51e04b` |
 | M6.1a | Core label model (`:core`, Apache-2.0): `LabelCandidate` (stable identity, world position, priority, measured collision geometry, neutral style, kind: point, line symbol, path text) and placement with a spatial grid (written fresh; Locus' `collisionFreeOrderedFast` as reference only), rotation-aware and upright | unit tests: priority order, rotation, ties broken by identity, not by hash (A7) | ✅ PR #39, `06b5aef` |
 | M6.1b | `SEPARATE` label pass: the Mapsforge driver turns its label store into candidates; `prepare(viewport)` off the caller's thread, cancelling the previous run, `draw`, `onPrepared` (architecture.md, host API); desktop viewer draws it with rotation | label goldens of the pass at 0° and a rotation; soak as D31 against the pass | ✅ PR #40 |
-| M6.1c | `IN_TILE` labels placed over the tile plus a one-tile margin, independent of render order, replacing Mapsforge `TileDependencies`; equal `RenderKey` gives equal tiles | the parallel golden renders in shuffled orders, tiles byte-equal | ⬜ |
-| M6.1d | Garmin on the core label model: `SEPARATE` and `IN_TILE`, its `LabelLayout` retired; labels piling up at level-pick boundaries (M4.1 carry-over) | Garmin goldens updated and confirmed in the PR; both label modes render | ⬜ |
+| M6.1c | Labels only through the pass (D39): `LabelMode` and `RenderConfig.labelMode` removed, the Mapsforge driver always renders tiles without labels into its label store (no in-tile path, no `DrawnTiles`); `LabelPass.prepareNow` for one-shot images (previews, prints: tiles first, then the labels over them); the in-tile golden sets render through the vendored engine as engine goldens; viewers draw the pass (Android at 0°); `SoakTest` single-mode | driver, engine (in-tile sets) and pass goldens unchanged; `prepareNow` places on the caller's thread; the pass golden takes the one-shot path | 🔧 |
+| M6.1d | Garmin on the core label model: a label pass, tiles without labels (D39), its `LabelLayout` retired; labels piling up at level-pick boundaries (M4.1 carry-over) | Garmin goldens updated and confirmed in the PR; label pass goldens of a Monaco screen at 0° and a rotation | ⬜ |
 | M6.2 | `HILLSHADE` anchor: `RenderThemeHandler` re-captures `<hillshading>` layer, level and `cat` (D30); the renderer calls a host hook with geo bounds and pixel scale at that position, else after all features (D13, D16); Garmin after polygons | no hook: goldens unchanged; a test hook's fill lands between the right layers on both formats | ⬜ |
 | M6.3 | `FeatureQuery` in `:core`, Mapsforge only (D38): tags at a zoom → resolved symbol bitmap (what LoPoints' `PointGeneratorV4Theme` takes from `RenderCallback.renderPointOfInterestSymbol`), plus priority and caption style | the corpus POIs resolve as the `RenderCallback` path does | ⬜ |
 
@@ -523,7 +523,8 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
   unpinned. Before the font switch the label dumps equalled upstream's (M6.0a); with it, the 90
   label-free tiles still do, so the hook changes text only.
 - M6.0b gaps, accepted: the 4 sets with labels in the tiles and all Android tiles have no dump, so a
-  small label (about 500 px) can drop or move within 0.2 %; M6.1c's goldens add an in-tile dump.
+  small label (about 500 px) can drop or move within 0.2 %; the in-tile sets stay engine goldens
+  without a dump (D39), the pass has its own dumps (M6.1b).
   Symbols are stored with the labels, so symbol drawing is no longer compared with upstream (D37).
   Each refresh adds its changed PNGs to git history in full, up to the 14.5 MB of all tiles; plain
   git until that hurts.
@@ -568,6 +569,10 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
   themselves, expecting it turned as Mapsforge's `LayerManager` does; M8 settles it with an
   Android golden of the pass. `collect` describes every stored container on each prepare; M7
   measures it before caching per tile.
+- M6.1c as built: `MapRenderer.labelPass` is null only for Garmin until M6.1d. The vendored
+  engine keeps upstream's in-tile code (`TileDependencies`) for the golden sets with labels in the
+  tiles, which now render through it directly; their label goldens did not move. The Android
+  viewer draws the pass upright, where Android captions need no turned canvas.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.
@@ -609,7 +614,7 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
 
 ## Decisions
 
-D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27; D32–D33 2026-11-02; D34–D35 2026-11-03; D36–D38 2026-11-04.
+D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27; D32–D33 2026-11-02; D34–D35 2026-11-03; D36–D38 2026-11-04; D39 2026-11-05.
 
 | ID | Decision |
 |---|---|
@@ -651,6 +656,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D36 | Upstream Mapsforge is followed tag by tag: each sync ports the changes to vendored files by hand and proves pixel and dump parity with both goldens against the new tag, built from source when JitPack has no jars; CI's golden reference stays on the last tag with jars while that proof passes. Procedure and log in upstream.md |
 | D37 | Mapsforge goldens from M6: reading (reader and `RenderCallback` dumps) identical to upstream, except a caption placed against a non-square symbol (C9, A8), which the corpus does not hit; drawing without labels close to upstream, a per-tile share of differing pixels, a tile over the limit accepted only through a committed entry with its C-row; labels (text and the symbols stored with them) against committed goldens, as our label model replaces upstream's placement on purpose. A significant change is confirmed by its entry or golden update in the PR. Replaces "goldens move to committed PNGs" (H5) |
 | D38 | `FeatureQuery` is format-neutral in `:core`, implemented by the Mapsforge driver only in M6.3 for LoPoints; Garmin follows when a host needs it |
+| D39 | Labels are drawn only by a label pass over label-free tiles; no driver draws them into tiles. Locus' in-tile uses (text rotation off, the world map at low zooms, `MapDataPreviewGenerator`) move to the pass at M8: previews and prints render their tiles, then `LabelPass.prepareNow` and the format's draw. Tiles stay label-free, so equal `RenderKey` gives equal tiles; a tile is not self-contained (an exported or cached tile shows no labels). Supersedes M6.1c's order-independent `IN_TILE` and the in-tile half of M6.1d; Garmin draws into its tiles until M6.1d |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.

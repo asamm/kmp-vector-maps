@@ -55,7 +55,6 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
-import com.asamm.vectormaps.core.LabelMode
 import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.garminimg.driver.GarminOptions
 import com.asamm.vectormaps.garminimg.driver.GarminStyle
@@ -139,7 +138,6 @@ private fun Controls(state: ViewerState) {
             Picker("Text", state.textScale, listOf(1.0f, 1.5f, 2.0f), { "×$it" }) { state.changeSettings(textScale = it) }
             Picker("Tile", state.tileSize, Session.TILE_SIZES, { "$it px" }) { state.changeSettings(tileSize = it) }
             Picker("Threads", state.threads, listOf(1, 2, 4, 8), { "$it" }) { state.changeSettings(threads = it) }
-            Picker("Labels", state.labelMode, LabelMode.entries, ::labelModeName) { state.changeSettings(labelMode = it) }
             Picker("Rotate", state.rotationDeg, ROTATIONS, { "${it.toInt()}°" }, state::rotate)
             GroupDivider()
             TextButton(onClick = state::home, enabled = hasMap) {
@@ -473,13 +471,6 @@ private class Fling(
 }
 
 private val ROTATIONS = listOf(0.0f, 15.0f, 30.0f, 45.0f, 90.0f, 180.0f, 270.0f)
-
-private fun labelModeName(mode: LabelMode): String {
-    return when (mode) {
-        LabelMode.IN_TILE -> "in tiles"
-        LabelMode.SEPARATE -> "separate"
-    }
-}
 
 /**
  * Other style files of the map's format in the folder of `style`; `.poi.xml` files are LoMaps POI

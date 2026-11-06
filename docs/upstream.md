@@ -206,7 +206,7 @@ API differences of the renderer, tile cache and job queue (M5.4b, K31–K38):
   `layer`, `upperLeft`, `lowerRight`, `isClosedWay`, `centerAbsolute`, `coordinatesAbsolute`,
   `coordinatesRelativeToOrigin`; `ShapeContainer.shapeType`; `StandardRenderer` `startPosition`,
   `startZoomLevel`, `zoomLevelMax`; `DatabaseRenderer.mapDatabase`. `TileCache.getCapacity()`,
-  `getCapacityFirstLevel()` stay functions, which leaves the driver's `DrawnTiles` unchanged;
+  `getCapacityFirstLevel()` stay functions (the driver's former `DrawnTiles` implemented them);
   `StandardRenderer.getRenderCallback()` stays one as the golden harness, also compiled against
   upstream, overrides it.
 - K32 Statics: `RendererUtils` is an object (K10), `GeometryUtils` and `WayDecorator` internal

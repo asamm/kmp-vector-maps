@@ -22,8 +22,9 @@ import java.io.File
 
 /**
  * The golden corpus, independent of a graphics backend: render sets, tiles and the plain Mapsforge
- * render loop, used by the upstream AWT side and both Android sides; the vendored AWT side renders
- * through the driver.
+ * render loop, used by the upstream AWT side, both Android sides and the vendored AWT side for the
+ * sets with labels in the tiles; the vendored AWT side renders the label-free sets through the
+ * driver (D39).
  */
 object Corpus {
 

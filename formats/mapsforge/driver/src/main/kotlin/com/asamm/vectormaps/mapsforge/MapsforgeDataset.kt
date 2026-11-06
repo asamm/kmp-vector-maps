@@ -5,7 +5,6 @@
 package com.asamm.vectormaps.mapsforge
 
 import com.asamm.vectormaps.core.GeoBounds
-import com.asamm.vectormaps.core.LabelMode
 import com.asamm.vectormaps.core.MapDataset
 import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
@@ -86,7 +85,7 @@ class MapsforgeDataset internal constructor(
     }
 
     /**
-     * As [createRenderer], with a `SEPARATE` label store of [labelStoreTiles] tiles: at least the
+     * As [createRenderer], with a label store of [labelStoreTiles] tiles: at least the
      * tiles a host's screen covers, or labels of visible tiles drop out of the store.
      */
     fun createRenderer(
@@ -138,16 +137,13 @@ class MapsforgeDataset internal constructor(
             store.close()
             throw e
         }
-        val isInTile = config.labelMode == LabelMode.IN_TILE
         return MapsforgeRenderer(
             key = RenderKey(styleId = style.id, selection = selection, config = config),
             graphicFactory = driver.graphicFactory,
             store = store,
             themeFuture = themeFuture,
             displayModel = displayModel,
-            // in-tile labels look up already drawn neighbours in the tile cache
-            tileCache = if (isInTile) DrawnTiles(TILE_CACHE_SIZE) else null,
-            labelStore = if (isInTile) null else TileBasedLabelStore(labelStoreTiles),
+            labelStore = TileBasedLabelStore(labelStoreTiles),
         )
     }
 
@@ -174,8 +170,6 @@ class MapsforgeDataset internal constructor(
     }
 
     private companion object {
-
-        const val TILE_CACHE_SIZE = 64
 
         const val LABEL_STORE_SIZE = 100
 

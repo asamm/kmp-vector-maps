@@ -4,7 +4,6 @@
  */
 package com.asamm.vectormaps.garminimg.driver
 
-import com.asamm.vectormaps.core.LabelMode
 import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.RenderResult
@@ -231,9 +230,6 @@ class GarminDriverTest {
             }
             assertFailsWith<IllegalArgumentException> {
                 dataset.createRenderer(foreign, StyleSelection.DEFAULT, config)
-            }
-            assertFailsWith<IllegalArgumentException> {
-                dataset.createRenderer(dataset.styles[0], StyleSelection.DEFAULT, config.copy(labelMode = LabelMode.SEPARATE))
             }
             val otherMapTyp = driver.open(listOf(otm)).styles[0]
             driver.open(listOf(mkgmap)).use { other ->

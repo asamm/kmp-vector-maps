@@ -11,7 +11,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toAwtImage
 import androidx.compose.ui.graphics.toComposeImageBitmap
-import com.asamm.vectormaps.core.LabelMode
 import com.asamm.vectormaps.core.MapDataset
 import com.asamm.vectormaps.core.MapFormatDriver
 import com.asamm.vectormaps.core.MapFormats
@@ -111,9 +110,6 @@ class ViewerState(
     var threads: Int by mutableStateOf(session.threads)
         private set
 
-    var labelMode: LabelMode by mutableStateOf(session.labelMode)
-        private set
-
     /**
      * Clockwise map rotation in degrees.
      */
@@ -121,7 +117,7 @@ class ViewerState(
         private set
 
     /**
-     * The renderer's label pass in [LabelMode.SEPARATE]; Mapsforge only until M6.1d.
+     * The renderer's label pass; Mapsforge only, Garmin draws labels into its tiles until M6.1d.
      */
     var labelPass: LabelPass? by mutableStateOf(null)
         private set
@@ -224,7 +220,6 @@ class ViewerState(
             textScale = textScale,
             tileSize = tileSize,
             threads = threads,
-            labelMode = labelMode,
             place = vp?.let { Session.Place(lat = it.lat, lon = it.lon, zoom = it.zoom) },
         )
     }
@@ -374,7 +369,6 @@ class ViewerState(
         textScale: Float = this.textScale,
         tileSize: Int = this.tileSize,
         threads: Int = this.threads,
-        labelMode: LabelMode = this.labelMode,
     ) {
         val vp = viewport
         if (vp != null
@@ -385,7 +379,6 @@ class ViewerState(
         this.textScale = textScale
         this.tileSize = tileSize
         this.threads = threads
-        this.labelMode = labelMode
         rebuild()
     }
 
@@ -530,8 +523,7 @@ class ViewerState(
         view["screen"] = "${width}x$height"
         view["tileSize"] = vp.tileSize.toString()
         view["textScale"] = textScale.toString()
-        // what the renderer draws: Garmin stays in tiles whatever the picker says
-        view["labelMode"] = (if (labelPass != null) LabelMode.SEPARATE else LabelMode.IN_TILE).name
+        view["labels"] = if (labelPass != null) "pass" else "tiles"
         view["rotation"] = rotation.toString()
         if (dataset is GarminDataset) {
             view["garmin.antiAliasing"] = garmin.antiAliasing.toString()
@@ -607,11 +599,9 @@ class ViewerState(
             val images = imagesFor(dataset.driver)
             val started = System.nanoTime()
             val selection = StyleSelection(layerId = layerId)
-            val config = RenderConfig(tileSizePx = tileSize, textScale = textScale, labelMode = labelMode)
+            val config = RenderConfig(tileSizePx = tileSize, textScale = textScale)
             val renderer = if (dataset is GarminDataset) {
-                // Garmin has no label pass until M6.1d
-                val inTile = config.copy(labelMode = LabelMode.IN_TILE)
-                dataset.createRenderer(style = style, selection = selection, config = inTile, options = garmin)
+                dataset.createRenderer(style = style, selection = selection, config = config, options = garmin)
             } else if (dataset is MapsforgeDataset) {
                 builtLabelStoreTiles = labelStoreTiles()
                 dataset.createRenderer(

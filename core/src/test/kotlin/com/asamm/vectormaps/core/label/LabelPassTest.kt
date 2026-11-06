@@ -9,6 +9,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class LabelPassTest {
@@ -46,6 +47,30 @@ class LabelPassTest {
             assertEquals(2, it.prepared!!.view.zoom)
             assertEquals(listOf(2L), it.prepared!!.placed.map { placed -> placed.candidate.id })
             assertEquals(1, published.get())
+        }
+    }
+
+    @Test
+    fun prepareNowPlacesOnTheCallersThread() {
+        val caller = Thread.currentThread()
+        var collectedOn: Thread? = null
+        val pass = object : BackgroundLabelPass() {
+            override fun collect(
+                view: LabelViewport,
+                isCancelled: () -> Boolean,
+            ): List<LabelCandidate> {
+                collectedOn = Thread.currentThread()
+                return listOf(candidate(id = 7))
+            }
+        }
+
+        pass.use {
+            val prepared = it.prepareNow(view(zoom = 3))
+
+            assertEquals(caller, collectedOn)
+            assertEquals(listOf(7L), prepared.placed.map { placed -> placed.candidate.id })
+            // a one-shot placement leaves the live one alone
+            assertNull(it.prepared)
         }
     }
 

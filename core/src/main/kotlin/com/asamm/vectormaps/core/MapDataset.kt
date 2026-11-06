@@ -39,7 +39,7 @@ interface MapDataset : Closeable {
      * this dataset's driver. May compile the style, which is costly: reuse renderers per
      * [RenderKey]. A renderer may keep the file set it was created with: close and recreate it after
      * [addMap]. Closing the dataset leaves its renderers open. Throws `IllegalArgumentException`
-     * for a configuration the driver does not support, such as a label mode.
+     * for a configuration the driver does not support.
      */
     fun createRenderer(style: MapStyle, selection: StyleSelection, config: RenderConfig): MapRenderer
 }
