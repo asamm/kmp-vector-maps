@@ -79,6 +79,8 @@ class ImgRenderer(
      *   picks the level matching the viewport's resolution.
      * @param textScale factor on label sizes, on top of the target's render scale
      * @param labels receives every label of the render, in render order
+     * @param hillshade called once after the polygons, before the polylines and points, to draw
+     *   the host's hillshading through [RenderTarget.withPlatformCanvas]
      */
     fun render(
         viewport: Viewport,

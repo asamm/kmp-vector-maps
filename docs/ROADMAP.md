@@ -8,7 +8,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md)
 
 **Status: M0–M5 done (M4 Garmin IMG: PRs #27–#34); M6.0, M6.4, M6.1a and M6.1b done (PRs
-#36–#40); M6.1c, M6.1d and M6.1e done (PRs #41–#43).** Next action: M6.2, the `HILLSHADE` anchor.
+#36–#40); M6.1c–e and M6.2 done (PRs #41–#44).** Next action: M6.3, the Mapsforge `FeatureQuery`.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -25,7 +25,7 @@ settles, labels before speed, the Locus-facing API last.
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PRs #3–#5, `028d746` |
 | M4 | Garmin IMG joins | M | ✅ PRs #27–#34, `e3c3aef` |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
-| M6 | Core features: label model, hillshade anchor, feature query | M | 🔧 M6.0, M6.4, M6.1a–e done; M6.2 in review |
+| M6 | Core features: label model, hillshade anchor, feature query | M | 🔧 M6.0, M6.4, M6.1a–e, M6.2 done |
 | M7 | Performance and Skia desktop backend | L | ⬜ needs Q15 |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⬜ |
 | M9 | Locus integration | M | ⬜ needs Q14, Q16 |
@@ -501,7 +501,7 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
 | M6.1c | Labels only through the pass (D39): `LabelMode` and `RenderConfig.labelMode` removed, the Mapsforge driver always renders tiles without labels into its label store (no in-tile path, no `DrawnTiles`); `LabelPass.prepareNow` for one-shot images (previews, prints: tiles first, then the labels over them); the in-tile golden sets render through the vendored engine as engine goldens; viewers draw the pass (Android at 0°); `SoakTest` single-mode | driver, engine (in-tile sets) and pass goldens unchanged; `prepareNow` places on the caller's thread; the pass golden takes the one-shot path | ✅ PR #41 |
 | M6.1d | Garmin on the core label model: a label pass, tiles without labels (D39), its `LabelLayout` retired; labels piling up at level-pick boundaries (M4.1 carry-over) | Garmin goldens updated and confirmed in the PR; label pass goldens of a Monaco screen at 0° and a rotation | ✅ PR #42 |
 | M6.1e | Shared tiled label pass in `:core`: a `TileLabelStore`, a `TiledLabelPass` doing the tile-range collect and calling the driver's converter, id and screen-transform helpers, the store capacity on the pass for hosts, Garmin's stored paths trimmed to their text stretch; Mapsforge (through an adapter over its vendored store) and Garmin keep only their converter and `draw`. Mapsforge output stays as it is, Garmin may move | Mapsforge driver, engine and pass goldens unchanged; Garmin goldens unchanged or confirmed in the PR | ✅ PR #43 |
-| M6.2 | `HILLSHADE` anchor: `RenderThemeHandler` re-captures `<hillshading>` layer, level and `cat` (D30); the renderer calls a host hook with geo bounds and pixel scale at that position, else after all features (D13, D16); Garmin after polygons | no hook: goldens unchanged; a test hook's fill lands between the right layers on both formats | 🔧 |
+| M6.2 | `HILLSHADE` anchor: `RenderThemeHandler` re-captures `<hillshading>` layer, level and `cat` (D30); the renderer calls a host hook with geo bounds and pixel scale at that position, else after all features (D13, D16); Garmin after polygons | no hook: goldens unchanged; a test hook's fill lands between the right layers on both formats | ✅ PR #44 |
 | M6.3 | `FeatureQuery` in `:core`, Mapsforge only (D38): tags at a zoom → resolved symbol bitmap (what LoPoints' `PointGeneratorV4Theme` takes from `RenderCallback.renderPointOfInterestSymbol`), plus priority and caption style | the corpus POIs resolve as the `RenderCallback` path does | ⬜ |
 
 - Order: M6.0, M6.4, M6.1, M6.2, M6.3; the small upstream fixes go before the label model so its
@@ -604,7 +604,8 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
   `MapDataset.createRenderer(..., hooks = RenderHooks.NONE)`, outside `RenderKey`. Mapsforge
   restores upstream's `<hillshading>` path in reduced form (upstream.md C12): the element's layer,
   level and `cat` place a `HILLSHADING` container that calls the hook; a theme without the element
-  gets it after all ways; zoom range, magnitude and color stay the host's. Garmin calls it after
+  gets it after all ways; the element's zoom range holds (default 9..17), magnitude and color are
+  the host's; a throwing hook is logged and the tile stays unshaded. Garmin calls it after
   the polygons. LoMaps has no `<hillshading>`, so it shades over all ways, as Locus shades finished
   tiles today. Without a hook all goldens are unchanged; driver tests check a filling hook lands
   between the theme's rules (Mapsforge) and between polygons and lines (Garmin).
@@ -682,7 +683,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D27 | From M5.2 the device soak runs on the dev AVD `VectorMaps_Soak_API36`; the A54 serves other work |
 | D28 | `DisplayModel` scales are per model from M5.2, the statics only seed new models, so the shared golden harness and Locus still compile; a model created before a static is set keeps the old value (Locus, see M8 must); each pixel-relevant `Parameters` field moves to per-renderer config with its area (M5.4, M5.6; D29); `MAXIMUM_BUFFER_SIZE`, `VALIDATE_COORDINATES` and the view flags stay global, as do `ANDROID_32BIT_COLOR` (the host's tile format until the host-bitmap target, M8.1) and `AndroidParameters.ANDROID_LIBHWUI_FIX` (a per-device workaround) |
 | D29 | The Paint caches (F1–F3) are bounded in M5.6, in Kotlin: a window of 4 zoom levels, and each render job pins its zoom so a drawing tile never sees an unscaled Paint; where the window lives is M5.6's call. `ANTI_ALIASING` per renderer moves to M5.6 too, as on Android it is set on each theme Paint; on AWT the canvas reads it (`AwtCanvas`, set from `CanvasRasterer`), changed in the same step. 2026-10-27, M5.6 fixes: the canvas setting also reaches the Android canvas' bitmap Paint, which upstream kept on; the window lives in `RenderTheme`, which owns the scaled maps; `DatabaseRenderer` holds the zoom of each job, a bare `RenderContext` only marks it used, so a context never destroyed (LoPoints) cannot pin a zoom forever |
-| D30 | M5.4 removes the unused hillshading code before converting the renderer, rather than converting it first; the renderer constructors keep their hills parameter as an ignored `Object`, so the golden harness shared with upstream still compiles; M6.2 re-captures the `<hillshading>` layer, level and `cat` in `RenderThemeHandler`, dropped here |
+| D30 | M5.4 removes the unused hillshading code before converting the renderer, rather than converting it first; the renderer constructors keep their hills parameter as an ignored `Object` (M6.2 types it `HillshadingDrawer?` and draws it, upstream.md C12), so the golden harness shared with upstream still compiles; M6.2 re-captures the `<hillshading>` layer, level and `cat` in `RenderThemeHandler`, dropped here |
 | D31 | The M5 soak compares each `SEPARATE` render's label store entry with a serial render's: kind, text, priority, position, clash box, visibility, standalone symbol size (way-label text through `toString`, as its field is private; the display mode itself is protected in Mapsforge); the soak fails if no render had labels. Not compared: `IN_TILE` labels (render order, M6.1), placement across tiles (the label pass, M6.1), fonts, colours and symbol pixels |
 | D32 | Long term: our own OpenGL renderer in locus-core; this library moves from bitmap to bucket delivery (tessellated geometry, symbols, label data) and keeps its readers, style engines and label model; no VTM fork, VTM is a reference only. M6–M8 interfaces keep decode, style and draw separable so bucket output can join the bitmap one |
 | D33 | Garmin IMG is LGPL-2.1-or-later, as upstream JGarminImgParser (Q13), imported with history into this public repo after an audit (Q12); the kmp-garmin-img headers become LGPL-2.1-or-later. Locus keeps R8 on the Garmin code, a known §6 gap the owner accepts; if raised, the package is excluded from R8 |

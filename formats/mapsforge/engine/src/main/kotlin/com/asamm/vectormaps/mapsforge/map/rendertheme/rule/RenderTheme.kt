@@ -236,22 +236,6 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
         this.hillShadings.add(hillshading)
     }
 
-    /**
-     * True when the theme has a `<hillshading>` element, whether or not its category shows.
-     */
-    @Volatile
-    var declaresHillshading: Boolean = false
-        internal set
-
-    /**
-     * Places [drawer] at each shown `<hillshading>` element's layer and level.
-     */
-    fun matchHillShadings(renderContext: RenderContext, drawer: HillshadingDrawer, paint: Paint) {
-        for (hillShading in hillShadings) {
-            hillShading.render(renderContext = renderContext, drawer = drawer, paint = paint)
-        }
-    }
-
     internal fun complete() {
         this.rulesList.trimToSize()
         this.hillShadings.trimToSize()
@@ -297,6 +281,22 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
     fun traverseRules(visitor: Rule.RuleVisitor) {
         for (rule in this.rulesList) {
             rule.apply(visitor)
+        }
+    }
+
+    /**
+     * True when the theme has a `<hillshading>` element, whether or not its category shows.
+     */
+    @Volatile
+    var declaresHillshading: Boolean = false
+        internal set
+
+    /**
+     * Places [drawer] at each shown `<hillshading>` element's layer and level.
+     */
+    fun matchHillShadings(renderContext: RenderContext, drawer: HillshadingDrawer, paint: Paint) {
+        for (hillShading in hillShadings) {
+            hillShading.render(renderContext = renderContext, drawer = drawer, paint = paint)
         }
     }
 

@@ -60,6 +60,27 @@ class MapsforgeHillshadeTest {
     }
 
     @Test
+    fun elementDrawsOnlyWithinItsZoomRange() {
+        // the harbour tile is at zoom 14
+        val above = counts(theme = "<hillshading zoom-min=\"15\"/>", hooks = RenderHooks(hillshade = green))
+        val within = counts(theme = "<hillshading zoom-min=\"14\" zoom-max=\"14\"/>", hooks = RenderHooks(hillshade = green))
+
+        assertEquals(0, above.green)
+        assertTrue(within.green > 1_000, "$within")
+    }
+
+    @Test
+    fun throwingHookLeavesTheTileUnshaded() {
+        val throwing = HillshadeHook { _, _, _, _ ->
+            throw IllegalStateException("no elevation data")
+        }
+        val plain = counts(theme = "<hillshading/>", hooks = RenderHooks.NONE)
+        val shaded = counts(theme = "<hillshading/>", hooks = RenderHooks(hillshade = throwing))
+
+        assertEquals(plain, shaded)
+    }
+
+    @Test
     fun canvasStateTheHookLeavesStaysWithIt() {
         // draws nothing and leaves a fully transparent composite behind
         val leaking = HillshadeHook { canvas, _, _, _ ->

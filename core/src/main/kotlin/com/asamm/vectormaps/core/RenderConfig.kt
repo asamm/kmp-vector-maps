@@ -34,8 +34,8 @@ data class RenderConfig(
 }
 
 /**
- * Everything besides the dataset, the tile and driver-specific renderer options (such as
- * `GarminOptions`) that decides a renderer's output: on one dataset, equal keys give equal tiles.
+ * Everything besides the dataset, the tile, driver-specific renderer options (such as
+ * `GarminOptions`) and [RenderHooks] that decides a renderer's output: on one dataset, equal keys give equal tiles.
  * Hosts keep one tile cache per dataset, keyed by it; after [MapDataset.addMap] they clear that
  * cache and recreate their renderers.
  */

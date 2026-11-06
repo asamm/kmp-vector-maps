@@ -82,6 +82,22 @@ class GarminHillshadeTest {
         }
     }
 
+    @Test
+    fun throwingHookLeavesTheTileUnshaded() {
+        val throwing = HillshadeHook { _, _, _, _ ->
+            throw IllegalStateException("no elevation data")
+        }
+        val kinds = ObjectKind.POLYGON or ObjectKind.POLYLINE
+        val plain = render(objectKinds = kinds, hooks = RenderHooks.NONE)
+        val shaded = render(objectKinds = kinds, hooks = RenderHooks(hillshade = throwing))
+
+        for (y in 0 until 256) {
+            for (x in 0 until 256) {
+                assertEquals(plain.getRGB(x, y), shaded.getRGB(x, y), "pixel $x, $y")
+            }
+        }
+    }
+
     private fun render(objectKinds: Int, hooks: RenderHooks): BufferedImage {
         driver.open(listOf(otm)).use { dataset ->
             val options = GarminOptions(antiAliasing = false, objectKinds = objectKinds)

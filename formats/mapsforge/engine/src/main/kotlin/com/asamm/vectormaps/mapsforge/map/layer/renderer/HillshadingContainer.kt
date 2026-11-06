@@ -19,7 +19,7 @@ package com.asamm.vectormaps.mapsforge.map.layer.renderer
 /**
  * The host's hillshading at its place among the ways; upstream's shading bitmap is the host's.
  */
-class HillshadingContainer(
+open class HillshadingContainer(
     val drawer: HillshadingDrawer,
 ) : ShapeContainer {
 

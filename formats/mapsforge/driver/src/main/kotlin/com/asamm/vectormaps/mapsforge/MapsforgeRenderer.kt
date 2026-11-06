@@ -22,6 +22,8 @@ import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
 import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.logging.Level
+import java.util.logging.Logger
 
 /**
  * Renders through Mapsforge's `DatabaseRenderer` into [TileBitmapTarget]s without labels, which go
@@ -68,12 +70,14 @@ class MapsforgeRenderer internal constructor(
         true,
         hooks.hillshade?.let { hook ->
             HillshadingDrawer { canvas, tile ->
-                canvas.withPlatformCanvas { platform ->
-                    hook.drawTile(
-                        canvas = platform,
-                        tile = TileRequest(x = tile.tileX, y = tile.tileY, zoom = tile.zoomLevel.toInt()),
-                        tileSizePx = tile.tileSize,
-                    )
+                val request = TileRequest(x = tile.tileX, y = tile.tileY, zoom = tile.zoomLevel.toInt())
+                try {
+                    canvas.withPlatformCanvas { platform ->
+                        hook.drawTile(canvas = platform, tile = request, tileSizePx = tile.tileSize)
+                    }
+                } catch (e: Exception) {
+                    // as upstream with a failed shading tile: the tile stays, unshaded
+                    LOGGER.log(Level.SEVERE, "hillshade($request)", e)
                 }
             }
         },
@@ -126,6 +130,11 @@ class MapsforgeRenderer internal constructor(
         } finally {
             permits.release(maxParallelism)
         }
+    }
+
+    private companion object {
+
+        val LOGGER: Logger = Logger.getLogger(MapsforgeRenderer::class.java.name)
     }
 }
 

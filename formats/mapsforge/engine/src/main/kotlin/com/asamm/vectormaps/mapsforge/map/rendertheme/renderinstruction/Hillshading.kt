@@ -25,17 +25,26 @@ import com.asamm.vectormaps.mapsforge.map.rendertheme.RenderContext
 
 /**
  * Represents hillshading on a painter algorithm layer/level in the parsed rendertheme; the host
- * draws the shading itself, so only the position remains of upstream's instruction.
+ * draws the shading itself, so only the position and zoom range remain of upstream's instruction.
  */
-class Hillshading(
+open class Hillshading(
+    private val minZoom: Byte,
+    private val maxZoom: Byte,
     private val layer: Byte,
     private val level: Int,
 ) {
 
     /**
-     * Places [drawer] at this layer and level of [renderContext]'s ways; [paint] is unused.
+     * Places [drawer] at this layer and level of [renderContext]'s ways, within the zoom range;
+     * [paint] is unused.
      */
     fun render(renderContext: RenderContext, drawer: HillshadingDrawer, paint: Paint) {
+        val zoomLevel = renderContext.rendererJob.tile.zoomLevel
+        if (zoomLevel < minZoom
+            || zoomLevel > maxZoom
+        ) {
+            return
+        }
         val container = HillshadingContainer(drawer = drawer)
         renderContext.setDrawingLayer(layer)
         renderContext.addToCurrentDrawingLayer(level, ShapePaintContainer(container, paint))

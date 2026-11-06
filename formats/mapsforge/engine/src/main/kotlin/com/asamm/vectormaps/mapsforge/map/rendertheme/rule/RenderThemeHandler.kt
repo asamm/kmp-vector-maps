@@ -258,9 +258,11 @@ class RenderThemeHandler private constructor(
                     this.symbols[symbolId] = symbol
                 }
             } else if ("hillshading" == qName) {
-                // the host draws the shading (D13): zoom, magnitude and color are only validated
+                // the host draws the shading (D13): magnitude and color are only validated
                 checkState(qName, Element.RULE)
                 var category: String? = null
+                var minZoom: Byte = 9
+                var maxZoom: Byte = 17
                 var layer: Byte = 5
                 for (i in 0 until pullParser.attributeCount) {
                     val name = pullParser.getAttributeName(i)
@@ -268,12 +270,10 @@ class RenderThemeHandler private constructor(
 
                     if ("cat" == name) {
                         category = value
-                    } else if ("zoom-min" == name
-                        || "zoom-max" == name
-                    ) {
-                        XmlUtils.parseNonNegativeByte(name, value)
-                    } else if ("layer" == name) {
-                        layer = XmlUtils.parseNonNegativeByte(name, value)
+                    } else if ("zoom-min" == name) {
+                        minZoom = XmlUtils.parseNonNegativeByte(name, value)
+                    } else if ("zoom-max" == name) {
+                        maxZoom = XmlUtils.parseNonNegativeByte(name, value)
                     } else if ("magnitude" == name) {
                         val magnitude = XmlUtils.parseNonNegativeInteger(name, value)
                         if (magnitude > 255) {
@@ -281,6 +281,8 @@ class RenderThemeHandler private constructor(
                         }
                     } else if ("color" == name) {
                         XmlUtils.getColor(this.graphicFactory, value)
+                    } else if ("layer" == name) {
+                        layer = XmlUtils.parseNonNegativeByte(name, value)
                     }
                 }
                 val hillShadingLevel = this.level++
@@ -289,7 +291,9 @@ class RenderThemeHandler private constructor(
                     || category == null
                     || this.categories!!.contains(category)
                 ) {
-                    this.renderTheme!!.addHillShadings(Hillshading(layer = layer, level = hillShadingLevel))
+                    this.renderTheme!!.addHillShadings(
+                        Hillshading(minZoom = minZoom, maxZoom = maxZoom, layer = layer, level = hillShadingLevel),
+                    )
                 }
             } else {
                 throw XmlPullParserException("unknown element: $qName")

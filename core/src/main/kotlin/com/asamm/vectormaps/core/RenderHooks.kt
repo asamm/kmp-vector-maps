@@ -32,7 +32,9 @@ fun interface HillshadeHook {
 
     /**
      * Draws on [canvas] (`android.graphics.Canvas` on Android, `java.awt.Graphics2D` on desktop)
-     * in tile pixels, with its own alpha and blending; the canvas state is restored after.
+     * in tile pixels, with its own alpha and blending. Its matrix, clip and layers are restored
+     * after (all of a `Graphics2D`); it must not change an Android canvas' bitmap, density or draw
+     * filter. A throw is logged and leaves the tile unshaded.
      *
      * @param pixelsPerMeter tile pixels per ground metre at the tile's centre
      */
