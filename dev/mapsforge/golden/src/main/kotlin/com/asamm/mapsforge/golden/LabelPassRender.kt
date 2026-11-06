@@ -113,7 +113,7 @@ object LabelPassRender {
     private fun tilesUnder(views: List<LabelViewport>): List<TileRequest> {
         val tiles = LinkedHashSet<TileRequest>()
         for (view in views) {
-            // the tile range MapsforgeLabelPass.collect reads
+            // the tile range TiledLabelPass.collect reads
             val bounds = view.worldBounds()
             val zoom = view.zoom.toByte()
             val minX = MercatorProjection.pixelXToTileX(bounds.minX, zoom, Corpus.TILE_SIZE)

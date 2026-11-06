@@ -127,7 +127,7 @@ class GarminLabelPass internal constructor(
             val x = originX + label.x
             val y = originY + label.y
             return LabelCandidate(
-                id = idOf(label = label, x = x, y = y, path = null),
+                id = idOf(label = label, x = x, y = y),
                 kind = LabelKind.POINT,
                 x = x,
                 y = y,
@@ -146,7 +146,8 @@ class GarminLabelPass internal constructor(
             )
         }
         return LabelCandidate(
-            id = idOf(label = label, x = path[0], y = path[1], path = path),
+            // the stretch's middle, which every tile's trimmed copy shares
+            id = idOf(label = label, x = stretch.x, y = stretch.y),
             kind = LabelKind.PATH_TEXT,
             x = stretch.x,
             y = stretch.y,
@@ -230,17 +231,12 @@ class GarminLabelPass internal constructor(
      * The same label from neighbouring tiles gets the same id, in every run (A7): positions are
      * rounded to 1/16 px, as each tile projects them in its own floats.
      */
-    private fun idOf(label: MapLabel, x: Double, y: Double, path: DoubleArray?): Long {
+    private fun idOf(label: MapLabel, x: Double, y: Double): Long {
         var hash = LabelId.START
         hash = LabelId.mix(hash = hash, value = label.kind.ordinal.toLong())
         hash = LabelId.mix(hash = hash, value = label.priority.toLong())
         hash = LabelId.mix(hash = hash, value = (x * POSITION_STEPS).roundToLong())
         hash = LabelId.mix(hash = hash, value = (y * POSITION_STEPS).roundToLong())
-        if (path != null) {
-            hash = LabelId.mix(hash = hash, value = path.size.toLong())
-            hash = LabelId.mix(hash = hash, value = (path[path.size - 2] * POSITION_STEPS).roundToLong())
-            hash = LabelId.mix(hash = hash, value = (path[path.size - 1] * POSITION_STEPS).roundToLong())
-        }
         return LabelId.mix(hash = hash, text = label.text)
     }
 
@@ -275,13 +271,14 @@ class GarminLabelPass internal constructor(
             val to = length - from
             // a non-finite path stays whole, so the pass still skips it
             if (!length.isFinite()
-                || label.widthPx > length - SHORT_PATH_PX
-                || from <= 0.0
+                || !(from > 0.0)
             ) {
                 return label
             }
-            val keptXs = ArrayList<Float>()
-            val keptYs = ArrayList<Float>()
+            // every vertex at most, and the two cuts
+            val keptXs = FloatArray(xs.size + 2)
+            val keptYs = FloatArray(xs.size + 2)
+            var kept = 0
             for (i in 1 until xs.size) {
                 val segment = along[i] - along[i - 1]
                 if (segment <= 0.0) {
@@ -291,18 +288,21 @@ class GarminLabelPass internal constructor(
                     && from < along[i]
                 ) {
                     val t = ((from - along[i - 1]) / segment).toFloat()
-                    keptXs += xs[i - 1] + (xs[i] - xs[i - 1]) * t
-                    keptYs += ys[i - 1] + (ys[i] - ys[i - 1]) * t
+                    keptXs[kept] = xs[i - 1] + (xs[i] - xs[i - 1]) * t
+                    keptYs[kept] = ys[i - 1] + (ys[i] - ys[i - 1]) * t
+                    kept++
                 }
                 if (to <= along[i]) {
                     val t = ((to - along[i - 1]) / segment).toFloat()
-                    keptXs += xs[i - 1] + (xs[i] - xs[i - 1]) * t
-                    keptYs += ys[i - 1] + (ys[i] - ys[i - 1]) * t
+                    keptXs[kept] = xs[i - 1] + (xs[i] - xs[i - 1]) * t
+                    keptYs[kept] = ys[i - 1] + (ys[i] - ys[i - 1]) * t
+                    kept++
                     break
                 }
-                if (keptXs.isNotEmpty()) {
-                    keptXs += xs[i]
-                    keptYs += ys[i]
+                if (kept > 0) {
+                    keptXs[kept] = xs[i]
+                    keptYs[kept] = ys[i]
+                    kept++
                 }
             }
             return MapLabel(
@@ -317,8 +317,8 @@ class GarminLabelPass internal constructor(
                 color = label.color,
                 outlineColor = label.outlineColor,
                 fontSize = label.fontSize,
-                pathXs = keptXs.toFloatArray(),
-                pathYs = keptYs.toFloatArray(),
+                pathXs = keptXs.copyOf(kept),
+                pathYs = keptYs.copyOf(kept),
             )
         }
 
