@@ -40,7 +40,7 @@ Android is the product (Locus Map); JVM desktop runs benchmarks, the viewer and 
 | `MapRenderer` | per (dataset, style, selection, config); `render(tile, target, isCancelled)`, `labelPass` (D39), `RenderHooks` given at creation (M6.2) |
 | `RenderConfig` | language, device scale, text scale, tile size |
 | `RenderKey` | hashable (style, selection, config) for host tile caches; hooks are not in it |
-| `FeatureQuery` | optional pull API: tags at a zoom → resolved symbol (LoPoints) |
+| `FeatureQuery` | `MapRenderer.featureQuery`, Mapsforge only (D38): a point's tags at a zoom → its symbols (PNG, content id, priority) and captions (`LabelText`, position, offsets), as the renderer's theme draws them (LoPoints) |
 
 - **Threads:** a dataset is thread-safe; a renderer declares `maxParallelism` and bounds itself.
 - **Cancellation** is checked before drawing and, where the format allows, between draw-list

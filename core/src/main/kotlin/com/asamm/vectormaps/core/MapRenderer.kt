@@ -27,6 +27,15 @@ interface MapRenderer : Closeable {
         }
 
     /**
+     * Resolves what this renderer's style draws for a feature (D38); null for a format without
+     * one. Usable while the renderer is open.
+     */
+    val featureQuery: FeatureQuery?
+        get() {
+            return null
+        }
+
+    /**
      * Draws `tile` into `target`, whose size must match the configured tile size and whose type
      * the driver must support (`IllegalArgumentException` otherwise). Checks `isCancelled` before
      * drawing and, where the driver can, between drawing steps; leaves no label state half-filled.

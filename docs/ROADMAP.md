@@ -25,7 +25,7 @@ settles, labels before speed, the Locus-facing API last.
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PRs #3–#5, `028d746` |
 | M4 | Garmin IMG joins | M | ✅ PRs #27–#34, `e3c3aef` |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
-| M6 | Core features: label model, hillshade anchor, feature query | M | 🔧 M6.0, M6.4, M6.1a–e, M6.2 done |
+| M6 | Core features: label model, hillshade anchor, feature query | M | 🔧 M6.0, M6.4, M6.1a–e, M6.2 done; M6.3 in review |
 | M7 | Performance and Skia desktop backend | L | ⬜ needs Q15 |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⬜ |
 | M9 | Locus integration | M | ⬜ needs Q14, Q16 |
@@ -502,7 +502,7 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
 | M6.1d | Garmin on the core label model: a label pass, tiles without labels (D39), its `LabelLayout` retired; labels piling up at level-pick boundaries (M4.1 carry-over) | Garmin goldens updated and confirmed in the PR; label pass goldens of a Monaco screen at 0° and a rotation | ✅ PR #42 |
 | M6.1e | Shared tiled label pass in `:core`: a `TileLabelStore`, a `TiledLabelPass` doing the tile-range collect and calling the driver's converter, id and screen-transform helpers, the store capacity on the pass for hosts, Garmin's stored paths trimmed to their text stretch; Mapsforge (through an adapter over its vendored store) and Garmin keep only their converter and `draw`. Mapsforge output stays as it is, Garmin may move | Mapsforge driver, engine and pass goldens unchanged; Garmin goldens unchanged or confirmed in the PR | ✅ PR #43 |
 | M6.2 | `HILLSHADE` anchor: `RenderThemeHandler` re-captures `<hillshading>` layer, level and `cat` (D30); the renderer calls a host hook with geo bounds and pixel scale at that position, else after all features (D13, D16); Garmin after polygons | no hook: goldens unchanged; a test hook's fill lands between the right layers on both formats | ✅ PR #44 |
-| M6.3 | `FeatureQuery` in `:core`, Mapsforge only (D38): tags at a zoom → resolved symbol bitmap (what LoPoints' `PointGeneratorV4Theme` takes from `RenderCallback.renderPointOfInterestSymbol`), plus priority and caption style | the corpus POIs resolve as the `RenderCallback` path does | ⬜ |
+| M6.3 | `FeatureQuery` in `:core`, Mapsforge only (D38): tags at a zoom → resolved symbol bitmap (what LoPoints' `PointGeneratorV4Theme` takes from `RenderCallback.renderPointOfInterestSymbol`), plus priority and caption style | the corpus POIs resolve as the `RenderCallback` path does | 🔧 |
 
 - Order: M6.0, M6.4, M6.1, M6.2, M6.3; the small upstream fixes go before the label model so its
   golden updates show only its own change; hillshade and the query do not change default output.
@@ -609,6 +609,15 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
   the polygons. LoMaps has no `<hillshading>`, so it shades over all ways, as Locus shades finished
   tiles today. Without a hook all goldens are unchanged; driver tests check a filling hook lands
   between the theme's rules (Mapsforge) and between polygons and lines (Garmin).
+- M6.3 as built: `:core` `FeatureQuery.point(tags, zoom)` → `FeatureStyle` of `FeatureSymbol`s
+  (PNG, its content hash as id, size, priority) and `FeatureCaption`s (`LabelText`, a
+  `CaptionPosition`, offsets, priority); `MapRenderer.featureQuery`, null by default. The Mapsforge
+  renderer's query matches the tags against its compiled theme at that zoom (scaled Paints held, as
+  a render does) with a recording `RenderCallback`, under the renderer's permits, so `close` waits
+  for it and a later call throws; a blank caption is skipped, as the label pass does; font weight
+  is not reported. Symbol PNGs are cached per bitmap, shared with the label pass's symbol ids
+  (unchanged). Every POI of the Monaco map at z14 and z16 resolves through the query as through a
+  render's own tile and position.
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.

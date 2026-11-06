@@ -17,7 +17,6 @@ import com.asamm.vectormaps.core.label.PathTextDirection
 import com.asamm.vectormaps.core.label.PreparedLabels
 import com.asamm.vectormaps.core.label.TileLabelSource
 import com.asamm.vectormaps.core.label.TiledLabelPass
-import com.asamm.vectormaps.mapsforge.core.graphics.Bitmap
 import com.asamm.vectormaps.mapsforge.core.graphics.Canvas
 import com.asamm.vectormaps.mapsforge.core.graphics.Display
 import com.asamm.vectormaps.mapsforge.core.graphics.GraphicFactory
@@ -32,8 +31,6 @@ import com.asamm.vectormaps.mapsforge.map.layer.labels.LabelShape
 import com.asamm.vectormaps.mapsforge.map.layer.labels.LabelShapeKind
 import com.asamm.vectormaps.mapsforge.map.layer.labels.LabelShapes
 import com.asamm.vectormaps.mapsforge.map.layer.labels.TileBasedLabelStore
-import java.io.ByteArrayOutputStream
-import java.util.WeakHashMap
 
 /**
  * The label pass of a [MapsforgeRenderer] (D39): places the labels its tiles stored in the
@@ -44,6 +41,7 @@ class MapsforgeLabelPass internal constructor(
     labelStore: TileBasedLabelStore,
     tileSize: Int,
     graphicFactory: GraphicFactory,
+    private val symbols: SymbolPngs,
 ) : TiledLabelPass<MapElementContainer>(
     source = StoreTiles(store = labelStore, tileSize = tileSize),
     tileSize = tileSize,
@@ -51,9 +49,6 @@ class MapsforgeLabelPass internal constructor(
 
     // draw runs on one thread at a time
     private val matrix = graphicFactory.createMatrix()
-
-    // the theme's symbol bitmaps live as long as the renderer; weak, so a dropped one goes
-    private val symbolHashes = WeakHashMap<Bitmap, Long>()
 
     override fun candidateOf(label: MapElementContainer, tile: TileRequest): LabelCandidate? {
         return LabelShapes.of(label)?.let(::candidateOf)
@@ -166,30 +161,7 @@ class MapsforgeLabelPass internal constructor(
         // two symbols of one size at one anchor differ only by their image
         val symbol = (shape.container as? SymbolContainer)?.symbol
         if (symbol != null) {
-            hash = LabelId.mix(hash = hash, value = contentHash(symbol))
-        }
-        return hash
-    }
-
-    /**
-     * A hash of the bitmap's PNG, the same in every run; computed once per bitmap.
-     */
-    private fun contentHash(bitmap: Bitmap): Long {
-        synchronized(symbolHashes) {
-            symbolHashes[bitmap]?.let {
-                return it
-            }
-        }
-        val png = ByteArrayOutputStream()
-        synchronized(bitmap.mutex) {
-            bitmap.compress(png)
-        }
-        var hash = LabelId.START
-        for (byte in png.toByteArray()) {
-            hash = LabelId.mixByte(hash = hash, byte = byte.toInt())
-        }
-        synchronized(symbolHashes) {
-            symbolHashes[bitmap] = hash
+            hash = LabelId.mix(hash = hash, value = symbols.of(symbol).id)
         }
         return hash
     }
