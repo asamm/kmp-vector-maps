@@ -24,7 +24,7 @@ object AndroidCorpus {
 
     /**
      * Renders the corpus twice and keeps the second pass, which runs once the SVG file-cache writer
-     * threads of the first are done; they draw identity hashes at varying moments (ROADMAP M2.4).
+     * threads of the first are done; they draw identity hashes at varying moments (docs/archive/roadmap-m0-m6.md M2.4).
      */
     fun renderAll(application: Application, fixturesDir: File, outDir: File) {
         outDir.deleteRecursively()

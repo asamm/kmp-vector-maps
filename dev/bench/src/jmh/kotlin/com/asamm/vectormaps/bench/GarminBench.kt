@@ -44,8 +44,8 @@ import kotlin.math.sinh
 import kotlin.math.tan
 
 /**
- * Baseline of the Garmin driver per stage with the map's own TYP and 512 px tiles (ROADMAP
- * M4.3c), set up like [MapsforgeBench] so the two compare.
+ * Baseline of the Garmin driver per stage with the map's own TYP and 512 px tiles
+ * (docs/performance.md M4.3c), set up like [MapsforgeBench] so the two compare.
  */
 @State(Scope.Benchmark)
 @BenchmarkMode(Mode.SampleTime)

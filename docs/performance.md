@@ -15,11 +15,15 @@ same benchmarks on `main` against the tables below.
 |---|---|---|
 | JVM | `./gradlew :dev:bench:jmh` | Ryzen AI 9 HX PRO 375 (24 threads), JDK 17, p50 ms |
 | JVM, Czech map | `-Pbench.mapFile=<path> -Pbench.center=50.0875,14.4214` | `czech_republic.osm.map`, LoMaps of 2026-10-08, local |
-| JVM, Garmin | `-Pbench.includes=GarminBench`, `-Pbench.garmin.mapFile=<path>` | `CzechRep_by_Dave_Luv.img`, local |
+| JVM, Garmin | `-Pbench.includes=GarminBench` | Monaco fixture at the harbour |
+| JVM, Garmin Czech | `-Pbench.garmin.mapFile=<path> -Pbench.garmin.center=50.0875,14.4214` | `CzechRep_by_Dave_Luv.img` at Prague, local |
 | A54 | `./gradlew :dev:bench:android:connectedReleaseAndroidTest` | SM-A546B, Android 16, clocks locked |
 
 - Mapsforge: 512 px tiles, Locus' primary mode (labels to the store), LoMaps day theme, no menu.
-- Garmin: 512 px tiles, the map's own TYP, Monaco at the harbour (43.735, 7.423).
+- Garmin: 512 px tiles, the map's own TYP; without `bench.garmin.center` the map's bounds' centre,
+  which is Monaco's harbour (43.735, 7.423) but mid-country for the Czech map.
+- A54: the same properties as `-Pandroid.testInstrumentationRunnerArguments.<property>`, e.g.
+  `...bench.garmin.center=50.0875,14.4214`.
 - Theme parse varies ~20 % between JVM runs: compare deltas below that with `fork = 3`.
 - A54 setup and the run's arguments: `dev/bench/android/build.gradle.kts`.
 - Since M6.1d Garmin tiles carry no labels: the M4.3c render numbers include label work the tiles
@@ -62,12 +66,13 @@ the JVM: open 2,729 → 198 ms, dataset heap after open 665 → 81 MB.
 
 ## Known costs to measure
 
-From M0–M6, each measured before it is changed (ROADMAP L-rows):
+From M0–M6, each measured before it is changed (ROADMAP P-rows):
 
 | ID | Cost | Seen in |
 |---|---|---|
-| L2 | label pass `collect` describes every stored label on each prepare | M6.1b |
-| L3 | `FeatureQuery.point` builds a full `RenderContext`, ~0.7 MB garbage for LoMaps | M6.3 |
-| L5 | Garmin on the A54: reads ~6× the JVM, an allocation per pattern, dash, label and icon draw | M4.3c |
-| L6 | Garmin: boxed label and coordinate buffers; sub-division trees kept after add | M4.3c |
-| L9 | `PaintCostTest` never run on the A54; F1's native growth mostly unexplained (Q18) | M5.3 |
+| P2 | label pass `collect` describes every stored label on each prepare | M6.1b |
+| P3 | `FeatureQuery.point` builds a full `RenderContext`, ~0.7 MB garbage for LoMaps | M6.3 |
+| P5 | Garmin on the A54: reads ~6× the JVM, an allocation per pattern, dash, label and icon draw | M4.3c |
+| P15 | Garmin label halos draw each text nine times | M4.3c |
+| P6 | Garmin: boxed label and coordinate buffers; sub-division trees kept after add | M4.3c |
+| P9 | `PaintCostTest` never run on the A54; F1's native growth mostly unexplained (Q18) | M5.3 |

@@ -48,15 +48,15 @@ One row per step; the as-built notes, measurements and soak logs are in
 | M3.3 | Shared viewer, desktop and Android, registry-driven tile engine | ✅ PR #5 |
 | M4.1 | Garmin IMG imported with history after an audit, LGPL-2.1-or-later (D33) | ✅ PR #27 |
 | M4.2a–c | Garmin driver, both viewers, golden through the driver in a bundled font | ✅ PRs #28–#30 |
-| M4.3a–c | Parallel renders, multi-map files, benchmarks and fixes | ✅ PRs #31–#33 |
+| M4.3a–c | Parallel renders, multi-map files, benchmarks ([performance.md](performance.md)) | ✅ PRs #31–#33 |
 | M4.4 | Measured label bounds, TYP font sizes, TYP night style, DRAWORDER | ✅ PR #34 |
 | After M4 | Garmin files with damaged maps open with the readable ones (D35) | ✅ PR #35 |
 | M5.0, M5.5a | Device soak, then with the label store check (D25, D31) | ✅ PRs #6, #19 |
-| M5.1–M5.7a | Mapsforge to Kotlin area by area, each with its fixes (C1–C8) | ✅ PRs #7–#18, #20–#24 |
+| M5.1–M5.7a | Mapsforge to Kotlin area by area, each with its fixes (C1–C7) | ✅ PRs #7–#18, #20–#24 |
 | M5.7b | `legacy/` deleted, packages `com.asamm.vectormaps.mapsforge.*`, 3 modules (K64) | ✅ PR #25 |
 | M5 | Umbrella `feature/m5` to `main` | ✅ PR #26 |
 | After M5 | Synced to upstream Mapsforge 0.31.0, nothing to port; sync tooling (D36) | ✅ `644ac63` |
-| M6.0a–b | Mapsforge goldens split: drawing vs upstream, labels against committed goldens (D37) | ✅ PRs #36–#37 |
+| M6.0a–b | Mapsforge goldens split: drawing vs upstream, labels in a bundled font (D37, C8) | ✅ PRs #36–#37 |
 | M6.4 | Upstream fixes A8, A9 (C9) | ✅ PR #38 |
 | M6.1a–e | Core label model, label pass for both formats, labels only through the pass (D39) | ✅ PRs #39–#43 |
 | M6.2 | `HILLSHADE` anchor, host hook on the platform canvas (C12) | ✅ PR #44 |
@@ -64,27 +64,30 @@ One row per step; the as-built notes, measurements and soak logs are in
 
 ### Carried forward
 
-Points M0–M6 recorded but did not settle, each routed to the milestone that takes it.
+The main points M0–M6 recorded but did not settle, each routed to the milestone that takes it;
+the archive has the full notes.
 
 | ID | Point | From | To |
 |---|---|---|---|
-| L1 | The Mapsforge pass `draw` is right on AWT only: Android captions turn the canvas back | M6.1b | M8 |
-| L2 | The label pass describes every stored label on each prepare; measure before caching | M6.1b | M7 |
-| L3 | `FeatureQuery.point` builds a full `RenderContext`, ~0.7 MB garbage for LoMaps | M6.3 | M7.3 |
-| L4 | Garmin tile benchmarks exclude labels since M6.1d; M4.3c is not like for like | M6.1d | M7.0 |
-| L5 | Garmin on the A54: reads ~6× the JVM; an allocation per pattern, dash, label, icon | M4.3c | M7 |
-| L6 | Garmin: boxed label and coordinate buffers; sub-division trees kept after add | M4.3c | M7 |
-| L7 | No test catches a dropped Paint or matching-cache lock (M2.3): add one before M7.2 | M2.3 | M7.2 |
-| L8 | The menu's per-instruction category filter is not covered by the corpus | M2.1 | — |
-| L9 | `PaintCostTest` never ran on the A54; F1's native growth mostly unexplained (Q18) | M5.3 | M7 |
-| L10 | The Android viewer redraws the Garmin label bitmap every pan frame | PR #42 | M8 |
-| L11 | A Garmin road name over a sharp turn draws its letters around the bend | M6.1d | — |
-| L12 | Garmin: an archive's first TYP styles all its maps; maps across the antimeridian rejected | M4.3b | — |
-| L13 | An external `.typ`'s night style is not offered by the viewers | M4.4 | M8 |
-| L14 | The desktop viewer builds renderers on its UI thread | M4.2b | — |
+| P1 | The Mapsforge pass `draw` is right on AWT only: Android captions turn the canvas back | M6.1b | M8 |
+| P2 | The label pass describes every stored label on each prepare; measure before caching | M6.1b | M7 |
+| P3 | `FeatureQuery.point` builds a full `RenderContext`, ~0.7 MB garbage for LoMaps | M6.3 | M7.3 |
+| P4 | Garmin tile benchmarks exclude labels since M6.1d; M4.3c is not like for like | M6.1d | M7.0 |
+| P5 | Garmin on the A54: reads ~6× the JVM; an allocation per pattern, dash, label, icon | M4.3c | M7 |
+| P15 | Garmin label halos draw each text nine times, on both targets | M4.3c | M7 |
+| P6 | Garmin: boxed label and coordinate buffers; sub-division trees kept after add | M4.3c | M7 |
+| P7 | No test catches a dropped Paint or matching-cache lock (M2.3): add one before M7.2 | M2.3 | M7.2 |
+| P8 | The menu's per-instruction category filter is not covered by the corpus | M2.1 | — |
+| P16 | Corpus gaps: explicit way label positions, water tiles, `readLabels`, `readPoiData` | M2.5 | — |
+| P9 | `PaintCostTest` never ran on the A54; F1's native growth mostly unexplained (Q18) | M5.3 | M7 |
+| P10 | The Android viewer redraws the Garmin label bitmap every pan frame | PR #42 | M8 |
+| P11 | A Garmin road name over a sharp turn draws its letters around the bend | M6.1d | — |
+| P12 | Garmin: an archive's first TYP styles all its maps; maps across the antimeridian rejected | M4.3b | — |
+| P13 | An external `.typ`'s night style is not offered by the viewers | M4.4 | M8 |
+| P14 | The desktop viewer builds renderers on its UI thread | M4.2b | — |
 
-- L1: M8 settles it with an Android golden of the pass.
-- L10: the fix is an `AndroidRenderTarget` over an external `Canvas`, an engine API change.
+- P1: M8 settles it with an Android golden of the pass.
+- P10: the fix is an `AndroidRenderTarget` over an external `Canvas`, an engine API change.
 
 ## M7 — Performance
 
@@ -92,18 +95,18 @@ Each change measured against the baselines in [performance.md](performance.md) (
 
 | Step | Content | Verify |
 |---|---|---|
-| M7.0 | Re-run JMH and the A54 benchmarks on `main` (Q20, L4) | new tables beside the baselines |
+| M7.0 | Re-run JMH and the A54 benchmarks on `main` (Q20, P4) | new tables beside the baselines |
 | M7.1 | `render/skia` via Skiko, so desktop numbers track Android | needs Q15, Q5 |
-| M7.2 | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock | a test for L7 first |
+| M7.2 | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock | a test for P7 first |
 | M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring | allocated per render |
 | M7.4 | Theme parse (~80 ms on the A54): compiled themes cached per `RenderKey` | first-render time |
 
-- M7.3: the `RenderContext` lists are also built per `FeatureQuery.point` (L3).
+- M7.3: the `RenderContext` lists are also built per `FeatureQuery.point` (P3).
 - M7.4: SVG rasterising on first render is not measured yet.
 
 ## M8 — Android host API
 
-Also takes L1, L10 and L13 (Carried forward).
+Also takes P1, P10 and P13 (Carried forward).
 
 - M8.1 `android/`: `VectorMapDriver`, `VectorMapRenderer`, `LabelPass`, `ThemeLoader` (D23);
   `TileBitmapTarget` over a host-supplied bitmap.
@@ -238,7 +241,7 @@ changes output against upstream.
 |---|---|---|
 | Q5 | SVG outside Android: pre-rasterise at theme build, or Skia SVG? | M7.1 |
 | Q14 | Does the Mapsforge README waiver cover pre-2018 contributors? (locus-core Q1) | M9 |
-| Q15 | Desktop backend Skia via Skiko (recommended) or AWT only? | M7 |
+| Q15 | Desktop backend Skia via Skiko (recommended) or AWT only? | M7.1 |
 | Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? | M9 |
 | Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed; none recurred through the M6.1b and M6.1c A54 soaks. | M7 |
 | Q18 | F1: the Paints' native heap explains ~15–22 MB of the native +93–170 MB zoom growth (M5.3 fixes); what holds the rest? A phone zoom soak after M5.6 shows how much the cache bound removes. | M7 |
