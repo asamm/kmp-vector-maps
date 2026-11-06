@@ -4,16 +4,19 @@
  */
 package com.asamm.vectormaps.mapsforge
 
-import com.asamm.vectormaps.core.label.BackgroundLabelPass
+import com.asamm.vectormaps.core.TileRequest
 import com.asamm.vectormaps.core.label.BoxAlignment
 import com.asamm.vectormaps.core.label.CollisionBox
 import com.asamm.vectormaps.core.label.LabelCandidate
 import com.asamm.vectormaps.core.label.LabelDisplay
+import com.asamm.vectormaps.core.label.LabelId
 import com.asamm.vectormaps.core.label.LabelKind
 import com.asamm.vectormaps.core.label.LabelText
 import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.core.label.PathTextDirection
 import com.asamm.vectormaps.core.label.PreparedLabels
+import com.asamm.vectormaps.core.label.TileLabelSource
+import com.asamm.vectormaps.core.label.TiledLabelPass
 import com.asamm.vectormaps.mapsforge.core.graphics.Bitmap
 import com.asamm.vectormaps.mapsforge.core.graphics.Canvas
 import com.asamm.vectormaps.mapsforge.core.graphics.Display
@@ -25,7 +28,6 @@ import com.asamm.vectormaps.mapsforge.core.mapelements.SymbolContainer
 import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Rotation
 import com.asamm.vectormaps.mapsforge.core.model.Tile
-import com.asamm.vectormaps.mapsforge.core.util.MercatorProjection
 import com.asamm.vectormaps.mapsforge.map.layer.labels.LabelShape
 import com.asamm.vectormaps.mapsforge.map.layer.labels.LabelShapeKind
 import com.asamm.vectormaps.mapsforge.map.layer.labels.LabelShapes
@@ -34,17 +36,18 @@ import java.io.ByteArrayOutputStream
 import java.util.WeakHashMap
 
 /**
- * The label pass of a [MapsforgeRenderer] (D39): places the labels its tiles stored
- * and draws them through Mapsforge's own containers. A tile's labels show while the label store
- * keeps it ([TileBasedLabelStore.capacity] tiles, least recently used dropped), so the store must
- * hold at least the tiles one screen covers (`MapsforgeDataset.createRenderer`'s
- * `labelStoreTiles`), and a host keeps no more rendered tiles than it holds.
+ * The label pass of a [MapsforgeRenderer] (D39): places the labels its tiles stored in the
+ * vendored label store and draws them through Mapsforge's own containers. The store holds at least
+ * the tiles one screen covers (`MapsforgeDataset.createRenderer`'s `labelStoreTiles`).
  */
 class MapsforgeLabelPass internal constructor(
-    private val labelStore: TileBasedLabelStore,
-    private val tileSize: Int,
+    labelStore: TileBasedLabelStore,
+    tileSize: Int,
     graphicFactory: GraphicFactory,
-) : BackgroundLabelPass() {
+) : TiledLabelPass<MapElementContainer>(
+    source = StoreTiles(store = labelStore, tileSize = tileSize),
+    tileSize = tileSize,
+) {
 
     // draw runs on one thread at a time
     private val matrix = graphicFactory.createMatrix()
@@ -52,31 +55,8 @@ class MapsforgeLabelPass internal constructor(
     // the theme's symbol bitmaps live as long as the renderer; weak, so a dropped one goes
     private val symbolHashes = WeakHashMap<Bitmap, Long>()
 
-    override fun collect(view: LabelViewport, isCancelled: () -> Boolean): List<LabelCandidate> {
-        val bounds = view.worldBounds()
-        val zoom = view.zoom.toByte()
-        val upperLeft = Tile(
-            MercatorProjection.pixelXToTileX(bounds.minX, zoom, tileSize),
-            MercatorProjection.pixelYToTileY(bounds.minY, zoom, tileSize),
-            zoom,
-            tileSize,
-        )
-        val lowerRight = Tile(
-            MercatorProjection.pixelXToTileX(bounds.maxX, zoom, tileSize),
-            MercatorProjection.pixelYToTileY(bounds.maxY, zoom, tileSize),
-            zoom,
-            tileSize,
-        )
-        val items = labelStore.getVisibleItems(upperLeft, lowerRight)
-        val candidates = ArrayList<LabelCandidate>(items.size)
-        for (item in items) {
-            if (isCancelled()) {
-                return emptyList()
-            }
-            val shape = LabelShapes.of(item) ?: continue
-            candidates.add(candidateOf(shape))
-        }
-        return candidates
+    override fun candidateOf(label: MapElementContainer, tile: TileRequest): LabelCandidate? {
+        return LabelShapes.of(label)?.let(::candidateOf)
     }
 
     /**
@@ -166,27 +146,27 @@ class MapsforgeLabelPass internal constructor(
      * neighbouring tiles gets the same id, in every run (A7).
      */
     private fun idOf(shape: LabelShape): Long {
-        var hash = FNV_OFFSET
-        hash = mix(hash = hash, value = shape.kind.ordinal.toLong())
-        hash = mix(hash = hash, value = shape.priority.toLong())
-        hash = mix(hash = hash, value = shape.display.ordinal.toLong())
-        hash = mix(hash = hash, value = shape.x.toRawBits())
-        hash = mix(hash = hash, value = shape.y.toRawBits())
+        var hash = LabelId.START
+        hash = LabelId.mix(hash = hash, value = shape.kind.ordinal.toLong())
+        hash = LabelId.mix(hash = hash, value = shape.priority.toLong())
+        hash = LabelId.mix(hash = hash, value = shape.display.ordinal.toLong())
+        hash = LabelId.mix(hash = hash, value = shape.x.toRawBits())
+        hash = LabelId.mix(hash = hash, value = shape.y.toRawBits())
         // every box, so labels sharing an anchor but placed apart differ
         for (box in shape.boxes) {
-            hash = mix(hash = hash, value = box.centerX.toRawBits())
-            hash = mix(hash = hash, value = box.centerY.toRawBits())
-            hash = mix(hash = hash, value = box.halfWidth.toRawBits())
-            hash = mix(hash = hash, value = box.halfHeight.toRawBits())
-            hash = mix(hash = hash, value = box.angleDeg.toRawBits())
+            hash = LabelId.mix(hash = hash, value = box.centerX.toRawBits())
+            hash = LabelId.mix(hash = hash, value = box.centerY.toRawBits())
+            hash = LabelId.mix(hash = hash, value = box.halfWidth.toRawBits())
+            hash = LabelId.mix(hash = hash, value = box.halfHeight.toRawBits())
+            hash = LabelId.mix(hash = hash, value = box.angleDeg.toRawBits())
         }
-        shape.text?.value?.forEach { char ->
-            hash = mix(hash = hash, value = char.code.toLong())
+        shape.text?.value?.let {
+            hash = LabelId.mix(hash = hash, text = it)
         }
         // two symbols of one size at one anchor differ only by their image
         val symbol = (shape.container as? SymbolContainer)?.symbol
         if (symbol != null) {
-            hash = mix(hash = hash, value = contentHash(symbol))
+            hash = LabelId.mix(hash = hash, value = contentHash(symbol))
         }
         return hash
     }
@@ -204,9 +184,9 @@ class MapsforgeLabelPass internal constructor(
         synchronized(bitmap.mutex) {
             bitmap.compress(png)
         }
-        var hash = FNV_OFFSET
+        var hash = LabelId.START
         for (byte in png.toByteArray()) {
-            hash = (hash xor (byte.toLong() and 0xFF)) * FNV_PRIME
+            hash = LabelId.mixByte(hash = hash, byte = byte.toInt())
         }
         synchronized(symbolHashes) {
             symbolHashes[bitmap] = hash
@@ -214,21 +194,26 @@ class MapsforgeLabelPass internal constructor(
         return hash
     }
 
-    private fun mix(hash: Long, value: Long): Long {
-        var result = hash
-        for (shift in 0 until 64 step 8) {
-            result = (result xor ((value ushr shift) and 0xFF)) * FNV_PRIME
+    // the vendored store, read a tile at a time; its `requiresTile`, unused, then sees one tile
+    private class StoreTiles(
+        private val store: TileBasedLabelStore,
+        private val tileSize: Int,
+    ) : TileLabelSource<MapElementContainer> {
+
+        override val capacity: Int
+            get() {
+                return store.capacity
+            }
+
+        override fun labelsOf(tile: TileRequest): List<MapElementContainer>? {
+            val mapsforgeTile = Tile(tile.x, tile.y, tile.zoom.toByte(), tileSize)
+            return store.getVisibleItems(mapsforgeTile, mapsforgeTile)
         }
-        return result
     }
 
     private companion object {
 
         // Mapsforge's value
         const val SAME_TEXT_RADIUS_PX = 200.0
-
-        const val FNV_OFFSET = -0x340d631b7bdddcdbL
-
-        const val FNV_PRIME = 0x100000001b3L
     }
 }

@@ -9,6 +9,7 @@ import com.asamm.vectormaps.core.MapRenderer
 import com.asamm.vectormaps.core.RenderKey
 import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.TileRequest
+import com.asamm.vectormaps.core.label.TileLabelStore
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.render.ImgRenderer
 import com.asamm.vectormaps.garminimg.render.MapLabel
@@ -42,7 +43,7 @@ class GarminRenderer internal constructor(
     private val style: GarminStyle,
     private val canvasFactory: GarminCanvasFactory,
     private val options: GarminOptions,
-    private val labelStore: GarminLabelStore,
+    private val labelStore: TileLabelStore<MapLabel>,
 ) : MapRenderer {
 
     override val labelPass: GarminLabelPass = GarminLabelPass(
@@ -109,7 +110,7 @@ class GarminRenderer internal constructor(
                     textScale = key.config.textScale,
                     labels = labels::add,
                 )
-                labelStore.store(tile = tile, labels = labels)
+                labelStore.store(tile = tile, labels = labels.map(GarminLabelPass::trimmedToText))
                 target.canvas = canvas
                 return RenderResult.DRAWN
             } finally {

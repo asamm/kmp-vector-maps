@@ -31,14 +31,13 @@ import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.garminimg.driver.GarminDriver
 import com.asamm.vectormaps.garminimg.style.Color as GarminColor
-import com.asamm.vectormaps.garminimg.driver.GarminRenderer
 import com.asamm.vectormaps.garminimg.driver.GarminLabelPass
 import com.asamm.vectormaps.core.label.PreparedLabels
+import com.asamm.vectormaps.core.label.TiledLabelPass
 import com.asamm.vectormaps.garminimg.driver.GarminTileTarget
 import com.asamm.vectormaps.garminimg.render.AndroidRenderTarget
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.MapsforgeLabelPass
-import com.asamm.vectormaps.mapsforge.MapsforgeRenderer
 import com.asamm.vectormaps.mapsforge.TileBitmapTarget
 import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
 import com.asamm.vectormaps.viewer.TileEngine
@@ -221,11 +220,7 @@ class MapView(
     private fun keptTiles(renderer: MapRenderer, garmin: Boolean, tileSize: Int): Int {
         // ARGB_8888 Garmin tiles take twice the RGB_565 Mapsforge ones
         val byMemory = (KEPT_BYTES / ((if (garmin) 4L else 2L) * tileSize * tileSize)).toInt().coerceAtLeast(1)
-        val labelTiles = when (renderer) {
-            is MapsforgeRenderer -> renderer.labelStore.capacity
-            is GarminRenderer -> renderer.labelPass.storeCapacity
-            else -> return byMemory
-        }
+        val labelTiles = (renderer.labelPass as? TiledLabelPass<*>)?.storeCapacity ?: return byMemory
         return minOf(byMemory, labelTiles)
     }
 
