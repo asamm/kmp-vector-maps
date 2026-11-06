@@ -18,5 +18,6 @@ package com.asamm.vectormaps.mapsforge.map.layer.renderer
 
 enum class ShapeType {
     CIRCLE,
+    HILLSHADING,
     POLYLINE,
 }

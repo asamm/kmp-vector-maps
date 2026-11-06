@@ -6,17 +6,19 @@ package com.asamm.vectormaps.garminimg.driver
 
 import com.asamm.vectormaps.core.GeoBounds
 import com.asamm.vectormaps.core.MapRenderer
+import com.asamm.vectormaps.core.RenderHooks
 import com.asamm.vectormaps.core.RenderKey
 import com.asamm.vectormaps.core.RenderResult
+import com.asamm.vectormaps.core.RenderTarget as CoreRenderTarget
 import com.asamm.vectormaps.core.TileRequest
 import com.asamm.vectormaps.core.label.TileLabelStore
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.render.ImgRenderer
 import com.asamm.vectormaps.garminimg.render.MapLabel
 import com.asamm.vectormaps.garminimg.render.RenderTarget
+import com.asamm.vectormaps.garminimg.render.StyleResolver
 import com.asamm.vectormaps.garminimg.render.Viewport
 import com.asamm.vectormaps.garminimg.utils.io.ImgRandomAccessReader
-import com.asamm.vectormaps.garminimg.render.StyleResolver
 import java.util.IdentityHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Semaphore
@@ -24,7 +26,6 @@ import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.PI
 import kotlin.math.atan
 import kotlin.math.sinh
-import com.asamm.vectormaps.core.RenderTarget as CoreRenderTarget
 
 /**
  * Renders all maps of its files through the engine's `ImgRenderer` into [GarminTileTarget]s, up to
@@ -36,6 +37,7 @@ import com.asamm.vectormaps.core.RenderTarget as CoreRenderTarget
  * not be called from inside [render].
  *
  * @param labelStore where each rendered tile's labels go, for [labelPass]
+ * @param hooks host drawing at the format's anchors: hillshading after the polygons
  */
 class GarminRenderer internal constructor(
     override val key: RenderKey,
@@ -44,6 +46,7 @@ class GarminRenderer internal constructor(
     private val canvasFactory: GarminCanvasFactory,
     private val options: GarminOptions,
     private val labelStore: TileLabelStore<MapLabel>,
+    private val hooks: RenderHooks,
 ) : MapRenderer {
 
     override val labelPass: GarminLabelPass = GarminLabelPass(
@@ -109,6 +112,14 @@ class GarminRenderer internal constructor(
                     level = options.level,
                     textScale = key.config.textScale,
                     labels = labels::add,
+                    hillshade = {
+                        val hook = hooks.hillshade
+                        if (hook != null) {
+                            canvas.withPlatformCanvas { platform ->
+                                hook.drawTile(canvas = platform, tile = tile, tileSizePx = tileSize)
+                            }
+                        }
+                    },
                 )
                 labelStore.store(tile = tile, labels = labels.map(GarminLabelPass::trimmedToText))
                 target.canvas = canvas

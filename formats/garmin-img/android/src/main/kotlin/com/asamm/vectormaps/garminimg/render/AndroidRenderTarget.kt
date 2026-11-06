@@ -70,6 +70,15 @@ class AndroidRenderTarget(
 
     private val canvas: Canvas = Canvas(bitmap)
 
+    override fun withPlatformCanvas(block: (Any) -> Unit) {
+        val saved = canvas.save()
+        try {
+            block(canvas)
+        } finally {
+            canvas.restoreToCount(saved)
+        }
+    }
+
     /**
      * Reusable paint — its state (color, stroke, shader, antialias) is
      * mutated per draw call. Reusing one Paint across the whole frame

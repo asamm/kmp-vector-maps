@@ -25,7 +25,7 @@ settles, labels before speed, the Locus-facing API last.
 | M3 | Core v0, Mapsforge driver over the Java, shared viewer | M | ✅ PRs #3–#5, `028d746` |
 | M4 | Garmin IMG joins | M | ✅ PRs #27–#34, `e3c3aef` |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
-| M6 | Core features: label model, hillshade anchor, feature query | M | 🔧 M6.0, M6.4, M6.1a–c done |
+| M6 | Core features: label model, hillshade anchor, feature query | M | 🔧 M6.0, M6.4, M6.1a–e done; M6.2 in review |
 | M7 | Performance and Skia desktop backend | L | ⬜ needs Q15 |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⬜ |
 | M9 | Locus integration | M | ⬜ needs Q14, Q16 |
@@ -501,7 +501,7 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
 | M6.1c | Labels only through the pass (D39): `LabelMode` and `RenderConfig.labelMode` removed, the Mapsforge driver always renders tiles without labels into its label store (no in-tile path, no `DrawnTiles`); `LabelPass.prepareNow` for one-shot images (previews, prints: tiles first, then the labels over them); the in-tile golden sets render through the vendored engine as engine goldens; viewers draw the pass (Android at 0°); `SoakTest` single-mode | driver, engine (in-tile sets) and pass goldens unchanged; `prepareNow` places on the caller's thread; the pass golden takes the one-shot path | ✅ PR #41 |
 | M6.1d | Garmin on the core label model: a label pass, tiles without labels (D39), its `LabelLayout` retired; labels piling up at level-pick boundaries (M4.1 carry-over) | Garmin goldens updated and confirmed in the PR; label pass goldens of a Monaco screen at 0° and a rotation | ✅ PR #42 |
 | M6.1e | Shared tiled label pass in `:core`: a `TileLabelStore`, a `TiledLabelPass` doing the tile-range collect and calling the driver's converter, id and screen-transform helpers, the store capacity on the pass for hosts, Garmin's stored paths trimmed to their text stretch; Mapsforge (through an adapter over its vendored store) and Garmin keep only their converter and `draw`. Mapsforge output stays as it is, Garmin may move | Mapsforge driver, engine and pass goldens unchanged; Garmin goldens unchanged or confirmed in the PR | ✅ PR #43 |
-| M6.2 | `HILLSHADE` anchor: `RenderThemeHandler` re-captures `<hillshading>` layer, level and `cat` (D30); the renderer calls a host hook with geo bounds and pixel scale at that position, else after all features (D13, D16); Garmin after polygons | no hook: goldens unchanged; a test hook's fill lands between the right layers on both formats | ⬜ |
+| M6.2 | `HILLSHADE` anchor: `RenderThemeHandler` re-captures `<hillshading>` layer, level and `cat` (D30); the renderer calls a host hook with geo bounds and pixel scale at that position, else after all features (D13, D16); Garmin after polygons | no hook: goldens unchanged; a test hook's fill lands between the right layers on both formats | 🔧 |
 | M6.3 | `FeatureQuery` in `:core`, Mapsforge only (D38): tags at a zoom → resolved symbol bitmap (what LoPoints' `PointGeneratorV4Theme` takes from `RenderCallback.renderPointOfInterestSymbol`), plus priority and caption style | the corpus POIs resolve as the `RenderCallback` path does | ⬜ |
 
 - Order: M6.0, M6.4, M6.1, M6.2, M6.3; the small upstream fixes go before the label model so its
@@ -599,6 +599,15 @@ every Mapsforge output change gets its upstream.md C-row in the same PR.
   margins keep theirs); a road name's id hashes its stretch's middle, not the cut path, so
   equal-priority ties fall differently, and a curved road name reads by its stretch's ends: pass
   dumps and images refreshed. Viewers size their tile caches from the pass.
+- M6.2 as built: `:core` `RenderHooks(hillshade)` and `HillshadeHook.draw(canvas, tile, bounds,
+  pixelsPerMeter)`, the canvas the platform's (`android.graphics.Canvas`, `java.awt.Graphics2D`);
+  `MapDataset.createRenderer(..., hooks = RenderHooks.NONE)`, outside `RenderKey`. Mapsforge
+  restores upstream's `<hillshading>` path in reduced form (upstream.md C12): the element's layer,
+  level and `cat` place a `HILLSHADING` container that calls the hook; a theme without the element
+  gets it after all ways; zoom range, magnitude and color stay the host's. Garmin calls it after
+  the polygons. LoMaps has no `<hillshading>`, so it shades over all ways, as Locus shades finished
+  tiles today. Without a hook all goldens are unchanged; driver tests check a filling hook lands
+  between the theme's rules (Mapsforge) and between polygons and lines (Garmin).
 
 **M7 — Performance** (D21). Each change measured against the M2.7 baseline.
 - M7.1 `render/skia` via Skiko (Q15), so desktop numbers track Android.

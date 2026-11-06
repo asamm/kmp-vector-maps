@@ -69,6 +69,15 @@ class AwtRenderTarget(
         }
     }
 
+    override fun withPlatformCanvas(block: (Any) -> Unit) {
+        val isolated = g.create() as Graphics2D
+        try {
+            block(isolated)
+        } finally {
+            isolated.dispose()
+        }
+    }
+
     override fun beginFrame(backgroundColor: GarminColor) {
         if (backgroundColor.alpha == 0) {
             // Transparent fill: SrcOver compositing with alpha=0 is a no-op,

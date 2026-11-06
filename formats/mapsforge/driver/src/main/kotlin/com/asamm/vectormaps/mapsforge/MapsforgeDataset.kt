@@ -8,6 +8,7 @@ import com.asamm.vectormaps.core.GeoBounds
 import com.asamm.vectormaps.core.MapDataset
 import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
+import com.asamm.vectormaps.core.RenderHooks
 import com.asamm.vectormaps.core.RenderKey
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.mapsforge.map.datastore.MapDataStore
@@ -75,12 +76,14 @@ class MapsforgeDataset internal constructor(
         style: MapStyle,
         selection: StyleSelection,
         config: RenderConfig,
+        hooks: RenderHooks,
     ): MapsforgeRenderer {
         return createRenderer(
             style = style,
             selection = selection,
             config = config,
             labelStoreTiles = LABEL_STORE_SIZE,
+            hooks = hooks,
         )
     }
 
@@ -93,6 +96,7 @@ class MapsforgeDataset internal constructor(
         selection: StyleSelection,
         config: RenderConfig,
         labelStoreTiles: Int,
+        hooks: RenderHooks = RenderHooks.NONE,
     ): MapsforgeRenderer {
         require(labelStoreTiles > 0) {
             "createRenderer(), labelStoreTiles $labelStoreTiles"
@@ -144,6 +148,7 @@ class MapsforgeDataset internal constructor(
             themeFuture = themeFuture,
             displayModel = displayModel,
             labelStore = TileBasedLabelStore(labelStoreTiles),
+            hooks = hooks,
         )
     }
 

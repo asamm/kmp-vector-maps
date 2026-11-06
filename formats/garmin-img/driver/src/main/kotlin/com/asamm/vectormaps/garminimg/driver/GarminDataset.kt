@@ -8,6 +8,7 @@ import com.asamm.vectormaps.core.GeoBounds
 import com.asamm.vectormaps.core.MapDataset
 import com.asamm.vectormaps.core.MapStyle
 import com.asamm.vectormaps.core.RenderConfig
+import com.asamm.vectormaps.core.RenderHooks
 import com.asamm.vectormaps.core.RenderKey
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.label.TileLabelStore
@@ -113,8 +114,15 @@ class GarminDataset internal constructor(
         style: MapStyle,
         selection: StyleSelection,
         config: RenderConfig,
+        hooks: RenderHooks,
     ): GarminRenderer {
-        return createRenderer(style = style, selection = selection, config = config, options = GarminOptions())
+        return createRenderer(
+            style = style,
+            selection = selection,
+            config = config,
+            options = GarminOptions(),
+            hooks = hooks,
+        )
     }
 
     /**
@@ -129,6 +137,7 @@ class GarminDataset internal constructor(
         config: RenderConfig,
         options: GarminOptions,
         labelStoreTiles: Int = LABEL_STORE_SIZE,
+        hooks: RenderHooks = RenderHooks.NONE,
     ): GarminRenderer {
         require(labelStoreTiles > 0) {
             "createRenderer(), labelStoreTiles $labelStoreTiles"
@@ -170,6 +179,7 @@ class GarminDataset internal constructor(
             canvasFactory = driver.canvasFactory,
             options = options,
             labelStore = TileLabelStore(labelStoreTiles),
+            hooks = hooks,
         )
     }
 

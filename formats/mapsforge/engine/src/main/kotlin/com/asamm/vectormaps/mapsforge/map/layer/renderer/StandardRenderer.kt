@@ -45,15 +45,21 @@ import java.util.Collections
  * labels to draw.
  *
  * @param mapDataStore the store the map data is read from
- * @param hillsRenderConfig ignored, hillshading is not supported; kept for the upstream arity,
- * callers pass null
+ * @param hillsRenderConfig the host's hillshading, drawn where the theme places it; null for none
  */
 open class StandardRenderer @JvmOverloads constructor(
     mapDataStore: MapDataStore?,
     graphicFactory: GraphicFactory,
     renderLabels: Boolean,
-    @Suppress("UNUSED_PARAMETER") hillsRenderConfig: Any? = null,
+    hillsRenderConfig: HillshadingDrawer? = null,
 ) {
+
+    @JvmField
+    protected val hillsRenderConfig: HillshadingDrawer? = hillsRenderConfig
+
+    // the hillshading containers' Paint, never drawn with
+    @JvmField
+    protected val hillshadingPaint: Paint? = hillsRenderConfig?.let { graphicFactory.createPaint() }
 
     @JvmField
     protected val renderCallback: MyRenderCallback = MyRenderCallback()

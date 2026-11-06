@@ -22,6 +22,13 @@ interface Canvas : GraphicContext {
 
     val dimension: Dimension
 
+    /**
+     * Runs [block] on the platform canvas drawn on (`android.graphics.Canvas` or
+     * `java.awt.Graphics2D`) with its state restored after, for host drawing such as hillshading;
+     * only while a bitmap is set.
+     */
+    fun withPlatformCanvas(block: (Any) -> Unit)
+
     val height: Int
 
     val width: Int

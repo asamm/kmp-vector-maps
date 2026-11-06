@@ -41,5 +41,10 @@ interface MapDataset : Closeable {
      * [addMap]. Closing the dataset leaves its renderers open. Throws `IllegalArgumentException`
      * for a configuration the driver does not support.
      */
-    fun createRenderer(style: MapStyle, selection: StyleSelection, config: RenderConfig): MapRenderer
+    fun createRenderer(
+        style: MapStyle,
+        selection: StyleSelection,
+        config: RenderConfig,
+        hooks: RenderHooks = RenderHooks.NONE,
+    ): MapRenderer
 }

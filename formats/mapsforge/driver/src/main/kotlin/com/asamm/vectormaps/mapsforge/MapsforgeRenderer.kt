@@ -5,6 +5,7 @@
 package com.asamm.vectormaps.mapsforge
 
 import com.asamm.vectormaps.core.MapRenderer
+import com.asamm.vectormaps.core.RenderHooks
 import com.asamm.vectormaps.core.RenderKey
 import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.RenderTarget
@@ -15,6 +16,7 @@ import com.asamm.vectormaps.mapsforge.core.model.Tile
 import com.asamm.vectormaps.mapsforge.map.datastore.MapDataStore
 import com.asamm.vectormaps.mapsforge.map.layer.labels.TileBasedLabelStore
 import com.asamm.vectormaps.mapsforge.map.layer.renderer.DatabaseRenderer
+import com.asamm.vectormaps.mapsforge.map.layer.renderer.HillshadingDrawer
 import com.asamm.vectormaps.mapsforge.map.layer.renderer.RendererJob
 import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
 import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
@@ -28,6 +30,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * called from inside [render].
  *
  * @param labelStore labels of the rendered tiles, for [labelPass]
+ * @param hooks host drawing at the format's anchors, such as hillshading
  */
 class MapsforgeRenderer internal constructor(
     override val key: RenderKey,
@@ -36,6 +39,7 @@ class MapsforgeRenderer internal constructor(
     private val themeFuture: RenderThemeFuture,
     internal val displayModel: DisplayModel,
     val labelStore: TileBasedLabelStore,
+    hooks: RenderHooks,
 ) : MapRenderer {
 
     override val labelPass: MapsforgeLabelPass = MapsforgeLabelPass(
@@ -62,7 +66,17 @@ class MapsforgeRenderer internal constructor(
         labelStore,
         false,
         true,
-        null,
+        hooks.hillshade?.let { hook ->
+            HillshadingDrawer { canvas, tile ->
+                canvas.withPlatformCanvas { platform ->
+                    hook.drawTile(
+                        canvas = platform,
+                        tile = TileRequest(x = tile.tileX, y = tile.tileY, zoom = tile.zoomLevel.toInt()),
+                        tileSizePx = tile.tileSize,
+                    )
+                }
+            }
+        },
     )
 
     override fun render(tile: TileRequest, target: RenderTarget, isCancelled: () -> Boolean): RenderResult {

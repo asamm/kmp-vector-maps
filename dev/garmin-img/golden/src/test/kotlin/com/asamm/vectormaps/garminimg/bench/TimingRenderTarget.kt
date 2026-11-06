@@ -25,6 +25,7 @@ class TimingRenderTarget(private val delegate: RenderTarget) : RenderTarget {
     override val widthPx: Int get() = delegate.widthPx
     override val heightPx: Int get() = delegate.heightPx
     override val renderScale: Float get() = delegate.renderScale
+    override fun withPlatformCanvas(block: (Any) -> Unit) = delegate.withPlatformCanvas(block)
 
     var beginEndNanos: Long = 0L; private set
     var polygonCount: Int = 0; private set

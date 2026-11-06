@@ -55,6 +55,16 @@ internal open class AndroidCanvas(canvas: android.graphics.Canvas) : Canvas {
 
     constructor() : this(android.graphics.Canvas())
 
+    final override fun withPlatformCanvas(block: (Any) -> Unit) {
+        val platform = canvas!!
+        val saved = platform.save()
+        try {
+            block(platform)
+        } finally {
+            platform.restoreToCount(saved)
+        }
+    }
+
     final override val dimension: Dimension
         get() {
             return Dimension(width, height)

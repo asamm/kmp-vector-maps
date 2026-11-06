@@ -88,6 +88,7 @@ class ImgRenderer(
         level: Int? = null,
         textScale: Float = 1f,
         labels: (MapLabel) -> Unit = {},
+        hillshade: () -> Unit = {},
     ) {
         require(target.widthPx == viewport.widthPx) {
             "RenderTarget width ${target.widthPx} != viewport width ${viewport.widthPx}"
@@ -158,6 +159,8 @@ class ImgRenderer(
         for ((poly, style) in polygons) {
             drawPolygon(poly, style, projection, target, labels, textScale)
         }
+        // the host's hillshading over the areas, under the lines and points
+        hillshade()
 
         // Two-pass polyline rendering: every border first, then every
         // centre stroke. Single-pass would let A's border draw over B's

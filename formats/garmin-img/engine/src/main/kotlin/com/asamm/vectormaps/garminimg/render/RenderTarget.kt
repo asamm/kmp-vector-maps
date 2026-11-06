@@ -65,6 +65,12 @@ interface RenderTarget {
         get() = 1.0f
 
     /**
+     * Runs [block] on the platform canvas drawn on (`android.graphics.Canvas` or
+     * `java.awt.Graphics2D`) with its state restored after, for host drawing such as hillshading.
+     */
+    fun withPlatformCanvas(block: (Any) -> Unit)
+
+    /**
      * Called once at the start of a render pass. Implementations clear /
      * fill the canvas with [backgroundColor] (transparent by default).
      */

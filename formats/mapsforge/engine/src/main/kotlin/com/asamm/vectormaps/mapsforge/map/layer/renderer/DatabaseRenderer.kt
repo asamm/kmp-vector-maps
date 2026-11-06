@@ -42,8 +42,7 @@ import java.util.logging.Logger
  * - do not render or cache labels: `renderLabels == false && labelStore == null`
  *
  * @param tileCache where tiles are cached, needed if labels are drawn directly onto tiles
- * @param hillsRenderConfig ignored, hillshading is not supported; kept for the upstream arity,
- * callers pass null
+ * @param hillsRenderConfig the host's hillshading, drawn where the theme places it; null for none
  */
 open class DatabaseRenderer(
     mapDataStore: MapDataStore?,
@@ -52,7 +51,7 @@ open class DatabaseRenderer(
     labelStore: LabelStore?,
     renderLabels: Boolean,
     cacheLabels: Boolean,
-    hillsRenderConfig: Any?,
+    hillsRenderConfig: HillshadingDrawer?,
 ) : StandardRenderer(mapDataStore, graphicFactory, renderLabels || cacheLabels, hillsRenderConfig) {
 
     @JvmField
@@ -112,7 +111,20 @@ open class DatabaseRenderer(
                         renderContext.canvasRasterer.fill(renderContext.renderTheme.mapBackground)
                     }
 
+                    val hills = hillsRenderConfig
+                    val hillsPaint = hillshadingPaint
+                    if (hills != null
+                        && hillsPaint != null
+                    ) {
+                        renderContext.renderTheme.matchHillShadings(renderContext, hills, hillsPaint)
+                    }
                     renderContext.drawWays()
+                    // a theme without `<hillshading>` gets it over all ways (D16)
+                    if (hills != null
+                        && !renderContext.renderTheme.declaresHillshading
+                    ) {
+                        renderContext.canvasRasterer.drawHillshading(hills)
+                    }
                 }
 
                 if (drawLabels) {

@@ -297,6 +297,15 @@ internal open class AwtCanvas : Canvas {
         fillColor(java.awt.Color(color, true))
     }
 
+    final override fun withPlatformCanvas(block: (Any) -> Unit) {
+        val isolated = graphics.create() as Graphics2D
+        try {
+            block(isolated)
+        } finally {
+            isolated.dispose()
+        }
+    }
+
     final override val dimension: Dimension
         get() {
             return Dimension(width, height)
