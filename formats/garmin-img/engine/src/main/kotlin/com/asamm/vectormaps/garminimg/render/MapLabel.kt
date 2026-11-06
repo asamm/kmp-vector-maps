@@ -33,7 +33,7 @@ class MapLabel(
     pathYs: FloatArray? = null,
 ) {
 
-    // copied: a caller reusing its arrays must not move a queued label
+    // copied: a caller reusing its arrays must not move a stored label
     val pathXs: FloatArray? = pathXs?.copyOf()
 
     val pathYs: FloatArray? = pathYs?.copyOf()

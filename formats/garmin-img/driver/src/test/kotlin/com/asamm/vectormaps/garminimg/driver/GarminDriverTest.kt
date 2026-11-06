@@ -320,7 +320,7 @@ class GarminDriverTest {
      */
     @Test
     fun adjacentTilesMeetWithoutSeams() {
-        // geometry only, no labels or icons, which stop at tile edges
+        // geometry only, no icons, which stop at tile edges
         val options = GarminOptions(antiAliasing = false, objectKinds = ObjectKind.POLYGON or ObjectKind.POLYLINE)
         driver.open(listOf(otm)).use { dataset ->
             val style = dataset.styles[0]

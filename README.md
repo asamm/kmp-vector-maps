@@ -41,8 +41,8 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 - **`dev/mapsforge/upstream/`** — upstream sync helpers, Python 3 and `gh`, run by hand; see
   [docs/upstream.md](docs/upstream.md).
 - **`:dev:garmin-img:golden`** — Garmin Monaco tiles (label-free) and the label pass through the
-  driver against committed PNGs and dumps, and the dump comparison against the legacy Java parser. `./gradlew :dev:garmin-img:golden:test`;
-  the benchmark with `-Pbench.garmin=true`.
+  driver against committed PNGs and dumps, and the dump comparison against the legacy Java
+  parser. `./gradlew :dev:garmin-img:golden:test`; the benchmark with `-Pbench.garmin=true`.
 - **`:dev:bench`** — JMH benchmarks per render stage. `./gradlew :dev:bench:jmh`, another map with
   `-Pbench.mapFile=<path>`, for Garmin `-Pbench.garmin.mapFile=<path>`; one renderer with
   `-Pbench.includes=GarminBench`.

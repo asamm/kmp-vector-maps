@@ -180,8 +180,6 @@ class RenderBenchmarkTest {
             println("[bench]   drawPolylineStroke (${"%5d".format(t.polylineStrokeCount)}):    " + ms(t.polylineStrokeNanos))
             println("[bench]   drawPoint (${"%5d".format(t.pointCount)}):             " + ms(t.pointNanos))
             println("[bench]   drawBitmap (${"%5d".format(t.bitmapCount)}):            " + ms(t.bitmapNanos))
-            println("[bench]   drawText (${"%5d".format(t.textCount)}):              " + ms(t.textNanos))
-            println("[bench]   drawTextOnPath (${"%5d".format(t.textOnPathCount)}):        " + ms(t.textOnPathNanos))
             println("[bench]   ─ sum (draw only):            " + ms(t.drawNanos))
         }
     }

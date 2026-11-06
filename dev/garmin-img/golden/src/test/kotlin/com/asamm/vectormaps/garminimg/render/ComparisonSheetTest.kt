@@ -34,7 +34,8 @@ import kotlin.test.Test
  * - all three layer-toggle modes (areas-only, lines-only, points-only),
  *
  * each annotated with the picked level and viewport bbox so they can be
- * lined up against external references.
+ * lined up against external references. The sheets carry no labels: those go to the label pass
+ * (D39).
  */
 // a sheet to look at, no assertion: runs with the benchmark, `-Pbench.garmin=true`
 @EnabledIfSystemProperty(named = "bench.garmin", matches = "true")

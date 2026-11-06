@@ -118,8 +118,14 @@ class DriverGoldenTest {
             failures += "$name.txt: differs, candidate ${saveDumpCandidate(dump, name)}"
         }
         val golden = GoldenPngDiff.loadFromClasspath("golden/$name.png")
+        val image = target.image
         if (golden == null) {
-            failures += "$name: no golden, candidate ${GoldenPngDiff.saveCandidate(target.image, name)}"
+            failures += "$name: no golden, candidate ${GoldenPngDiff.saveCandidate(image, name)}"
+        } else if (image.width != golden.width
+            || image.height != golden.height
+        ) {
+            val candidate = GoldenPngDiff.saveCandidate(image, name)
+            failures += "$name: ${image.width}x${image.height}, golden ${golden.width}x${golden.height}, candidate $candidate"
         } else {
             val diff = GoldenPngDiff.compare(target.image, golden, perChannelTolerance = 8)
             if (diff.differingPixelFraction > MAX_DIFFERING) {

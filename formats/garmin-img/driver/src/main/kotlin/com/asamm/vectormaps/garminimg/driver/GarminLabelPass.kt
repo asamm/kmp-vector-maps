@@ -79,6 +79,10 @@ class GarminLabelPass internal constructor(
                 }
                 val labels = store.labelsOf(TileRequest(x = x, y = y, zoom = view.zoom)) ?: continue
                 for (label in labels) {
+                    // a corrupt map's degenerate geometry, which the core rejects
+                    if (!isFinite(label)) {
+                        continue
+                    }
                     candidates += candidateOf(
                         label = label,
                         originX = x.toDouble() * tileSize,
@@ -92,7 +96,8 @@ class GarminLabelPass internal constructor(
 
     /**
      * Draws [prepared], by default the latest placement, on [target] the size of [view]; nothing
-     * while it is for another zoom. Text stays upright; road names follow their turned lines.
+     * while it is for another zoom. [target] needs the tiles' render scale (the config's device
+     * scale) and font, which measured the labels. Text stays upright; road names follow their lines.
      */
     fun draw(target: RenderTarget, view: LabelViewport, prepared: PreparedLabels? = this.prepared) {
         if (prepared == null
@@ -131,6 +136,17 @@ class GarminLabelPass internal constructor(
                 fontSize = label.fontSize,
             )
         }
+    }
+
+    private fun isFinite(label: MapLabel): Boolean {
+        return label.x.isFinite()
+            && label.y.isFinite()
+            && label.offsetYPx.isFinite()
+            && label.widthPx.isFinite()
+            && label.heightPx.isFinite()
+            && label.fontSize.isFinite()
+            && label.pathXs?.all { it.isFinite() } != false
+            && label.pathYs?.all { it.isFinite() } != false
     }
 
     private fun tileOf(value: Double, maxTile: Int): Int {
