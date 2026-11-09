@@ -15,10 +15,12 @@ import com.asamm.vectormaps.mapsforge.map.reader.MapFile
 import com.asamm.vectormaps.mapsforge.map.rendertheme.ExternalRenderTheme
 import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import org.junit.jupiter.api.io.TempDir
+import java.awt.image.BufferedImage
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.assertTrue
 import kotlin.test.fail
@@ -47,11 +49,31 @@ class SharedPaintRenderTest {
                 val diffPixels = pixels.indices.count { pixels[it] != expected[it] }
                 if (diffPixels > 0) {
                     mismatches += "round $round, $tile: $diffPixels px"
+                    writeDiff(name = "r${round}_z${tile.zoomLevel}_${tile.tileX}_${tile.tileY}", expected = expected, actual = pixels)
                 }
             }
         }
         if (mismatches.isNotEmpty()) {
-            fail("${mismatches.size} tiles differ from the serial render\n" + mismatches.joinToString("\n"))
+            fail("${mismatches.size} tiles differ from the serial render, diffs in $diffDir\n" + mismatches.joinToString("\n"))
+        }
+    }
+
+    /**
+     * Writes the serial and the parallel render of one tile, plus a diff with differing pixels red.
+     */
+    private fun writeDiff(name: String, expected: IntArray, actual: IntArray) {
+        diffDir.mkdirs()
+        val diff = IntArray(expected.size) { i ->
+            if (expected[i] == actual[i]) {
+                (expected[i] and 0x00FFFFFF) or 0x40000000
+            } else {
+                0xFFFF0000.toInt()
+            }
+        }
+        for ((suffix, pixels) in listOf("serial" to expected, "parallel" to actual, "diff" to diff)) {
+            val image = BufferedImage(Corpus.TILE_SIZE, Corpus.TILE_SIZE, BufferedImage.TYPE_INT_ARGB)
+            image.setRGB(0, 0, Corpus.TILE_SIZE, Corpus.TILE_SIZE, pixels, 0, Corpus.TILE_SIZE)
+            ImageIO.write(image, "png", File(diffDir, "${name}_$suffix.png"))
         }
     }
 
@@ -107,6 +129,7 @@ class SharedPaintRenderTest {
             return futures.mapValues { (_, future) -> future.get(TIMEOUT_SECONDS, TimeUnit.SECONDS) }
         } finally {
             executor.shutdownNow()
+            executor.awaitTermination(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             themeFuture.decrementRefCount()
             mapDataStore.close()
         }
@@ -120,6 +143,10 @@ class SharedPaintRenderTest {
 
         // Monaco harbour at z16, dense in buildings
         const val ZOOM: Byte = 16
+
+        val diffDir: File by lazy {
+            File(TestDirs.diff, "shared-paint")
+        }
 
         val tiles: List<Tile> by lazy {
             val cx = MercatorProjection.longitudeToTileX(Corpus.HARBOUR_LON, ZOOM)

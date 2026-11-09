@@ -16,6 +16,7 @@ import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Rectangle
 import com.asamm.vectormaps.mapsforge.core.model.Tag
 import com.asamm.vectormaps.mapsforge.core.model.Tile
+import com.asamm.vectormaps.mapsforge.core.util.LRUCache
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import com.asamm.vectormaps.mapsforge.map.datastore.MultiMapDataStore
 import com.asamm.vectormaps.mapsforge.map.datastore.PointOfInterest
@@ -149,14 +150,14 @@ class ThemeCachesTest {
             pool.shutdownNow()
             pool.awaitTermination(TIMEOUT_SECONDS, TimeUnit.SECONDS)
         }
-        assertIntact(cache = themeFuture.get().privateField("wayMatchingCache") as Map<*, *>)
+        assertIntact(cache = themeFuture.get().privateField("wayMatchingCache") as LRUCache<*, *>)
     }
 
     /**
      * A map written by two threads without its lock loses the link between its size, its entry
      * order and its hash table, which a lost update alone never shows.
      */
-    private fun assertIntact(cache: Map<*, *>) {
+    private fun assertIntact(cache: LRUCache<*, *>) {
         var linked = 0
         val entries = cache.entries.iterator()
         while (entries.hasNext()
@@ -167,7 +168,7 @@ class ThemeCachesTest {
             linked++
         }
         assertEquals(cache.size, linked, "matching cache size against its linked entries")
-        assertTrue(cache.size <= MATCHING_CACHE_SIZE, "matching cache over its size: ${cache.size}")
+        assertTrue(cache.size <= cache.capacity, "matching cache over its capacity: ${cache.size}")
     }
 
     private fun Any.privateField(name: String): Any? {
@@ -347,9 +348,6 @@ class ThemeCachesTest {
 
         // 8 × 25,000 new keys pass the theme's 8,192-entry matching cache many times over
         const val WAYS_PER_THREAD = 25_000
-
-        // the theme's MATCHING_CACHE_SIZE
-        const val MATCHING_CACHE_SIZE = 8_192
 
         const val TIMEOUT_SECONDS = 60L
     }

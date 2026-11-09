@@ -98,7 +98,7 @@ Each change measured against the baselines in [performance.md](performance.md) (
 |---|---|---|
 | M7.0 | Re-run JMH and the A54 benchmarks on `main` (Q20, P4) | new tables beside the baselines ✅ 2026-11-09 |
 | M7.1 | `render/skia` via Skiko, so desktop numbers track Android | needs Q15, Q5 |
-| M7.2a | Tests that fail without the matching-cache or the Paint lock (P7) | each fails with its lock removed: 6/6 and 5/5 runs 🔧 |
+| M7.2a | Tests that fail without the matching-cache or the Paint lock (P7) | each fails with its lock removed: 6/6 and 8/8 runs ✅ PR #47 |
 | M7.2b | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock | M7.2a's tests stay green; blocks against M7.0 |
 | M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring | allocated per render |
 | M7.4 | Theme parse (~80 ms on the A54): compiled themes cached per `RenderKey` | first-render time |
