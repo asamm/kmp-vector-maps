@@ -9,8 +9,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 **Benchmarks:** [performance.md](performance.md)
 
 **Status: M0–M6 done (PRs #1–#45, the last merged as `41f6968` on 2026-11-06); M7.0 done on
-2026-11-09: no regression ([performance.md](performance.md)).** Next action: M7.2b, the lock
-contention fix, now that M7.2a's tests guard the locks (P7); M7.1 waits on Q15.
+2026-11-09: no regression ([performance.md](performance.md)).** Next action: M7.3, allocations,
+after M7.2b's lock changes; M7.1 waits on Q15.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -99,7 +99,7 @@ Each change measured against the baselines in [performance.md](performance.md) (
 | M7.0 | Re-run JMH and the A54 benchmarks on `main` (Q20, P4) | new tables beside the baselines ✅ 2026-11-09 |
 | M7.1 | `render/skia` via Skiko, so desktop numbers track Android | needs Q15, Q5 |
 | M7.2a | Tests that fail without the matching-cache or the Paint lock (P7) | each fails with its lock removed: 6/6 and 8/8 runs ✅ PR #47 |
-| M7.2b | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock | M7.2a's tests stay green; blocks against M7.0 |
+| M7.2b | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock, `PathText` (C14) | M7.2a's tests stay green; blocks against M7.0: 8 threads −27 to −32 % JVM, −15 to −29 % A54 🔧 |
 | M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring | allocated per render |
 | M7.4 | Theme parse (~80 ms on the A54): compiled themes cached per `RenderKey` | first-render time |
 
@@ -107,6 +107,9 @@ Each change measured against the baselines in [performance.md](performance.md) (
   cache and checks its size, entry order and hash table agree; `SharedPaintRenderTest`
   pattern-fills every closed way and renders a 4×4 block on 8 threads against a serial render.
   The POI matching cache has the same lock and is not tested separately.
+- M7.2b: a JFR profile of the 8-thread Czech block found the three locks; the Paint lock stays for
+  pattern Paints only. Unlocked text measuring exposed a shared `Rect` in `AndroidPaint`, caught
+  by the A54 soak, not by a JVM test (performance.md).
 - M7.3: the `RenderContext` lists are also built per `FeatureQuery.point` (P3).
 - M7.4: SVG rasterising on first render is not measured yet.
 

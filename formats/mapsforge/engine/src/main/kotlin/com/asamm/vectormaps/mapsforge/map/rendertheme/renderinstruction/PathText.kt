@@ -199,33 +199,40 @@ open class PathText @Throws(XmlPullParserException::class) constructor(
             return
         }
 
-        synchronized(mySync) {
-            var caption = this.textKey!!.getValue(way.tags)
-            if (caption == null) {
-                return
-            }
-            val themeCallback = displayModel.themeCallback
-            if (themeCallback != null) {
-                caption = themeCallback.getText(way, caption)
-            }
-
-            val dyScale: Float = this.dyScaled[renderContext.rendererJob.tile.zoomLevel] ?: this.dy
-
-            renderCallback.renderWayText(
-                renderContext,
-                this.display,
-                this.priority,
-                transformText(caption, textTransform),
-                dyScale,
-                getFillPaint(renderContext.rendererJob.tile.zoomLevel),
-                getStrokePaint(renderContext.rendererJob.tile.zoomLevel),
-                this.repeat,
-                this.repeatGap,
-                this.repeatStart,
-                this.textOrientation,
-                way,
-            )
+        var caption = this.textKey!!.getValue(way.tags)
+        if (caption == null) {
+            return
         }
+        val themeCallback = displayModel.themeCallback
+        if (themeCallback != null) {
+            caption = themeCallback.getText(way, caption)
+        }
+
+        // the per-zoom maps under the lock, the text laid out without it (C14)
+        val zoomLevel = renderContext.rendererJob.tile.zoomLevel
+        val dyScale: Float
+        val fillPaint: Paint
+        val strokePaint: Paint
+        synchronized(mySync) {
+            dyScale = this.dyScaled[zoomLevel] ?: this.dy
+            fillPaint = getFillPaint(zoomLevel)
+            strokePaint = getStrokePaint(zoomLevel)
+        }
+
+        renderCallback.renderWayText(
+            renderContext,
+            this.display,
+            this.priority,
+            transformText(caption, textTransform),
+            dyScale,
+            fillPaint,
+            strokePaint,
+            this.repeat,
+            this.repeatGap,
+            this.repeatStart,
+            this.textOrientation,
+            way,
+        )
     }
 
     final override fun scaleStrokeWidth(scaleFactor: Float, zoomLevel: Byte) {
