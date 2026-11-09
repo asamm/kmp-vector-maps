@@ -49,4 +49,18 @@ class ReadBufferTest {
             assertNull(buffer.readUTF8EncodedString(Int.MAX_VALUE - 4))
         }
     }
+
+    @Test
+    fun smallerReadIsBoundedByItsOwnLength() {
+        val file = File(temp, "data.bin").apply { writeBytes(ByteArray(64) { 'a'.code.toByte() }) }
+        RandomAccessFile(file, "r").use { raf ->
+            val buffer = ReadBuffer(raf.channel)
+            assertTrue(buffer.readFromFile(offset = 0, length = 64))
+            assertTrue(buffer.readFromFile(offset = 0, length = 16))
+            assertEquals(16, buffer.bufferSize)
+            // the reused array still holds 64 bytes; a string past the 16 read is invalid
+            buffer.bufferPosition = 8
+            assertNull(buffer.readUTF8EncodedString(16))
+        }
+    }
 }

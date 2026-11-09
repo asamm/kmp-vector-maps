@@ -47,13 +47,13 @@ open class RenderContext @Throws(InterruptedException::class, ExecutionException
     val canvasRasterer: CanvasRasterer
 
     // Data generated for the rendering process
-    private var drawingLayer: List<MutableList<ShapePaintContainer>>? = null
+    private var drawingLayer = 0
 
     @JvmField
     protected val labels: MutableList<MapElementContainer>
 
-    @JvmField
-    protected val ways: List<List<MutableList<ShapePaintContainer>>>
+    // per layer the lists of its levels, each created on first use (C15)
+    private val ways = arrayOfNulls<Array<MutableList<ShapePaintContainer>?>>(LAYERS.toInt())
 
     init {
         this.rendererJob = rendererJob
@@ -61,7 +61,6 @@ open class RenderContext @Throws(InterruptedException::class, ExecutionException
         this.canvasRasterer = CanvasRasterer(this@RenderContext, graphicFactory)
         this.renderTheme = rendererJob.renderThemeFuture!!.get()
         this.renderTheme.scaleTextSize(rendererJob.textScale, rendererJob.tile.zoomLevel)
-        this.ways = createWayLists()
         setScaleStrokeWidth(this.rendererJob.tile.zoomLevel)
         // after scaling, so a zoom evicted meanwhile re-enters the window with its Paints
         this.renderTheme.useZoom(rendererJob.tile.zoomLevel, 0)
@@ -78,25 +77,33 @@ open class RenderContext @Throws(InterruptedException::class, ExecutionException
         } else if (index >= LAYERS) {
             index = (LAYERS - 1).toByte()
         }
-        this.drawingLayer = this.ways[index.toInt()]
+        this.drawingLayer = index.toInt()
     }
 
     fun addToCurrentDrawingLayer(level: Int, element: ShapePaintContainer) {
-        this.drawingLayer!![level].add(element)
+        addToDrawingLayer(this.drawingLayer, level, element)
     }
 
     fun addToDrawingLayer(layer: Int, level: Int, element: ShapePaintContainer) {
-        this.ways[layer][level].add(element)
+        var levels = this.ways[layer]
+        if (levels == null) {
+            levels = arrayOfNulls(this.renderTheme.levels)
+            this.ways[layer] = levels
+        }
+        var wayList = levels[level]
+        if (wayList == null) {
+            wayList = ArrayList()
+            levels[level] = wayList
+        }
+        wayList.add(element)
     }
 
     fun drawWays() {
-        val levelsPerLayer = this.ways[0].size
-
         for (layer in 0 until this.ways.size) {
-            val shapePaintContainers = this.ways[layer]
+            val shapePaintContainers = this.ways[layer] ?: continue
 
-            for (level in 0 until levelsPerLayer) {
-                val wayList = shapePaintContainers[level]
+            for (level in 0 until shapePaintContainers.size) {
+                val wayList = shapePaintContainers[level] ?: continue
 
                 for (index in wayList.size - 1 downTo 0) {
                     canvasRasterer.drawShapePaintContainer(wayList[index])
@@ -124,20 +131,6 @@ open class RenderContext @Throws(InterruptedException::class, ExecutionException
      */
     fun otherTile(tile: Tile): RendererJob {
         return this.rendererJob.otherTile(tile)
-    }
-
-    private fun createWayLists(): List<List<MutableList<ShapePaintContainer>>> {
-        val result: MutableList<List<MutableList<ShapePaintContainer>>> = ArrayList(LAYERS.toInt())
-        val levels = this.renderTheme.levels
-
-        repeat(LAYERS.toInt()) {
-            val innerWayList: MutableList<MutableList<ShapePaintContainer>> = ArrayList(levels)
-            repeat(levels) {
-                innerWayList.add(ArrayList(0))
-            }
-            result.add(innerWayList)
-        }
-        return result
     }
 
     /**

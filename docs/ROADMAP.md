@@ -10,7 +10,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 
 **Status: M0–M6 done (PRs #1–#45, the last merged as `41f6968` on 2026-11-06); M7.0 done on
 2026-11-09: no regression ([performance.md](performance.md)); M7.2 done (PRs #47, #48); M7.1 ⏸,
-the desktop stays AWT (Q15).** Next action: M7.3, allocations.
+the desktop stays AWT (Q15).** Next action: M7.4, theme parse, after M7.3's allocation changes.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -100,8 +100,9 @@ Each change measured against the baselines in [performance.md](performance.md) (
 | M7.1 | `render/skia` via Skiko, so desktop numbers track Android | ⏸ the desktop stays AWT (Q15, Q5) |
 | M7.2a | Tests that fail without the matching-cache or the Paint lock (P7) | each fails with its lock removed: 6/6 and 8/8 runs ✅ PR #47 |
 | M7.2b | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock, `PathText` (C14) | M7.2a's tests stay green; blocks against M7.0: 8 threads −27 to −32 % JVM, −15 to −29 % A54 ✅ PR #48 |
-| M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring | allocated per render |
+| M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring (C15) | allocated per render, JVM: −14 to −32 % (z12 −15 to −17 %); A54 not run 🔧 |
 | M7.4 | Theme parse (~80 ms on the A54): compiled themes cached per `RenderKey` | first-render time |
+| M7.5 | Way geometry in `DoubleArray`s from the reader to the path: no `LatLong` or `Point` per node | allocated per render; render time, idle desktop and A54 |
 
 - M7.2a: `ThemeCachesTest` drives 8 × 25,000 new tag lists through the 8,192-entry way matching
   cache and checks its size, entry order and hash table agree; `SharedPaintRenderTest`
@@ -111,8 +112,15 @@ Each change measured against the baselines in [performance.md](performance.md) (
   pattern Paints only. Unlocked text measuring exposed a shared `Rect` in `AndroidPaint`, caught
   by the A54 soak, not by a JVM test (performance.md). `Caption` keeps its lock over caption lookup
   and text layout (still among the blocked sites in the after profile); not narrowed yet.
-- M7.3: the `RenderContext` lists are also built per `FeatureQuery.point` (P3).
+- M7.3: the lazy `RenderContext` lists also take P3's ~0.7 MB per `FeatureQuery.point`. Left: the
+  way nodes (M7.5) and the host's tile bitmap ([performance.md](performance.md)).
 - M7.4: SVG rasterising on first render is not measured yet.
+- M7.5: today a way node is a `LatLong`, an absolute and a tile-relative `Point` (~84 B on ART,
+  ~25–35 % of a render's allocation, M7.3); packed: two doubles per node in the `Way`, two in the
+  projected ring, the tile-relative coordinates computed while the path is built. `Way.latLongs`
+  stays as a view for the golden dumps; label parts (`LineString`, `WayTextContainer`) keep
+  `Point`s, built only for a label that fits. Same arithmetic, so dumps and pixels must stay
+  identical.
 
 ## M8 — Android host API
 

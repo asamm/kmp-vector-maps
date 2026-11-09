@@ -38,11 +38,15 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
 
     private var bufferWrapper: ByteBuffer? = null
 
-    private val tagIds = ArrayList<Int>()
+    // the bytes of the last read; the reused array may be longer (C15)
+    private var bufferLength = 0
+
+    // unboxed, grown to the largest tag count read (C15)
+    private var tagIds = IntArray(INITIAL_TAG_IDS)
 
     internal val bufferSize: Int
         get() {
-            return data().size
+            return bufferLength
         }
 
     fun readByte(): Byte {
@@ -63,6 +67,7 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
             return false
         }
         bufferPosition = 0
+        bufferLength = length
         val wrapper = checkNotNull(bufferWrapper)
         wrapper.clear()
         return inputChannel.read(wrapper) == length
@@ -78,6 +83,7 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
             return false
         }
         bufferPosition = 0
+        bufferLength = length
         val wrapper = checkNotNull(bufferWrapper)
         wrapper.clear()
         wrapper.limit(length)
@@ -131,12 +137,14 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
      * buffer; null on an invalid ID.
      */
     internal fun readTags(tagsArray: Array<Tag>, numberOfTags: Byte): MutableList<Tag>? {
-        tagIds.clear()
-
         val maxTag = tagsArray.size
 
         // as the Java byte loop: a negative count wraps to 1..255
-        repeat(numberOfTags.toInt() and 0xff) {
+        val count = numberOfTags.toInt() and 0xff
+        if (tagIds.size < count) {
+            tagIds = IntArray(count)
+        }
+        for (i in 0 until count) {
             val tagId = readUnsignedInt()
             if (tagId < 0
                 || tagId >= maxTag
@@ -144,12 +152,12 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
                 LOGGER.warning("invalid tag ID: $tagId")
                 return null
             }
-            tagIds.add(tagId)
+            tagIds[i] = tagId
         }
 
-        val tags = ArrayList<Tag>()
-        for (tagId in tagIds) {
-            var tag = tagsArray[tagId]
+        val tags = ArrayList<Tag>(count)
+        for (i in 0 until count) {
+            var tag = tagsArray[tagIds[i]]
             // as upstream: header tags always have a key and a value
             val tagValue = tag.value!!
             // Decode variable values of tags
@@ -209,7 +217,7 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
         val data = data()
         // a subtraction, so a length near Int.MAX_VALUE cannot wrap past the check
         if (stringLength > 0
-            && stringLength <= data.size - bufferPosition
+            && stringLength <= bufferLength - bufferPosition
         ) {
             bufferPosition += stringLength
             return String(data, bufferPosition - stringLength, stringLength, Charsets.UTF_8)
@@ -255,6 +263,8 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
     }
 
     private companion object {
+
+        const val INITIAL_TAG_IDS = 32
 
         val LOGGER: Logger = Logger.getLogger(ReadBuffer::class.java.name)
     }

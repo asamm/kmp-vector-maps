@@ -194,10 +194,16 @@ internal object WayDecorator {
             path.segments.add(segment)
         }
 
-        val textWidth = if (stroke == null) fill.getTextWidth(text) else stroke.getTextWidth(text)
-        val textHeight = if (stroke == null) fill.getTextHeight(text) else stroke.getTextHeight(text)
-
         val pathLength = path.length()
+        // no text fits a way shorter than its start, so it is measured only when it may (C15)
+        if (pathLength <= repeatStart) {
+            return
+        }
+
+        val measurePaint = stroke ?: fill
+        val textWidth = measurePaint.getTextWidth(text)
+        // measured with the first label that fits
+        var textHeight = -1
 
         var pos = repeatStart
         while ((pos + textWidth).toDouble() < pathLength) {
@@ -212,6 +218,9 @@ internal object WayDecorator {
                 }
             }
             if (!tooSharp) {
+                if (textHeight < 0) {
+                    textHeight = measurePaint.getTextHeight(text)
+                }
                 // check to prevent inverted way names now happens when drawing, because with
                 // rotation we do not know the screen positions in advance any more.
                 renderContext.addLabel(

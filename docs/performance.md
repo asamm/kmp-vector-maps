@@ -8,7 +8,8 @@ Benchmark baselines and how M7 measures against them; M7's steps and status are 
 
 **Status:** M7.0 measured `main` after M6 (2026-11-08): no regression against the baselines, the
 JVM's Mapsforge renders up to 27 % faster. M7.2b's lock changes speed up the parallel block by up
-to 32 % on the JVM and 29 % on the A54. **Next action:** M7.3, allocations; M7.1 ⏸ (Q15).
+to 32 % on the JVM and 29 % on the A54; M7.3 allocates 14–32 % less per render. **Next action:**
+M7.4, theme parse; M7.1 ⏸ (Q15).
 
 ## How to measure
 
@@ -100,6 +101,22 @@ three in the top. Mapsforge 4×4 block p50 ms, before → after:
   into one shared `Rect`, which `PathText`'s lock had kept to one thread. With a `Rect` per call
   two soaks passed, as the code before M7.2b does. No JVM test covers it; the soak is the guard.
 
+## M7.3 — allocations, 2026-11-09
+
+Allocated per operation (JMH `-prof gc`, JDK 17), before → after C15. Allocation does not depend on
+load, the times in the same runs were not taken idle and are not compared.
+
+| Benchmark | Monaco | Czech map at Prague |
+|---|---|---|
+| read tile z12 / z15 / z17, MB | 5.33 / 0.34 / 0.25 → 4.63 / 0.31 / 0.23 | 18.0 / 2.44 / 2.42 → 14.5 / 2.29 / 2.21 |
+| render tile z12 / z15 / z17, MB | 12.4 / 2.72 / 2.16 → 10.3 / 2.03 / 1.47 | 31.1 / 7.61 / 4.97 → 26.4 / 6.54 / 4.06 |
+
+- A JFR allocation profile of the Czech renders (z12, z15) before: `RenderContext`'s empty level
+  lists 9 % at z15 (~0.7 MB per render, P3), a `ReadBuffer` per block, boxed tag IDs and a
+  regrown tag list per element, and both text measures of every named way.
+- Left, the largest: a `LatLong` per way node in the reader and a `Point` per node in the renderer
+  (~25–35 %), and the 512 px tile bitmap (1 MB, the host's).
+
 ## Baselines
 
 **M2.7 — Mapsforge, JVM, 2026-10-23** (Java code before M5)
@@ -142,7 +159,6 @@ From M0–M6, each measured before it is changed (ROADMAP P-rows):
 | ID | Cost | Seen in |
 |---|---|---|
 | P2 | label pass `collect` describes every stored label on each prepare | M6.1b |
-| P3 | `FeatureQuery.point` builds a full `RenderContext`, ~0.7 MB garbage for LoMaps | M6.3 |
 | P5 | Garmin on the A54: reads ~6× the JVM, an allocation per pattern, dash, label and icon draw | M4.3c |
 | P15 | Garmin label halos draw each text nine times | M4.3c |
 | P6 | Garmin: boxed label and coordinate buffers; sub-division trees kept after add | M4.3c |

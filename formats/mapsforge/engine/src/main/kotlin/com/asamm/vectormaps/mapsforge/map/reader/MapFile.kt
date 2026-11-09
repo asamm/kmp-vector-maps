@@ -302,6 +302,8 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
         selector: Selector,
     ): MapReadResult? {
         val mapFileReadResult = MapReadResult()
+        // one buffer for all blocks, grown to the largest (C15)
+        val readBuffer = ReadBuffer(inputChannel)
 
         // read and process all blocks from top to bottom and from left to right
         for (row in queryParameters.fromBlockY..queryParameters.toBlockY) {
@@ -356,7 +358,6 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
                 }
 
                 // read the current block into the buffer
-                val readBuffer = ReadBuffer(inputChannel)
                 if (!readBuffer.readFromFile(subFileParameter.startAddress + currentBlockPointer, currentBlockSize)) {
                     // skip the current block
                     LOGGER.warning("reading current block has failed: $currentBlockSize")
@@ -384,7 +385,12 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
                         readBuffer = readBuffer,
                     )
                     if (poiWayBundle != null) {
-                        mapFileReadResult.add(poiWayBundle)
+                        // a read past the block's end decoded an earlier block's bytes (C15)
+                        if (readBuffer.bufferPosition > readBuffer.bufferSize) {
+                            LOGGER.warning("invalid buffer position: " + readBuffer.bufferPosition)
+                        } else {
+                            mapFileReadResult.add(poiWayBundle)
+                        }
                     }
                 } catch (e: ArrayIndexOutOfBoundsException) {
                     LOGGER.log(Level.SEVERE, e.toString(), e)
