@@ -59,7 +59,7 @@ class MapsforgeDriver(
 
     /**
      * Reads the theme up to its style menu, or up to its first image when it has none, so no
-     * symbol is built at the wrong scale; rules are compiled per renderer.
+     * symbol is built at the wrong scale; the first renderer compiles the rules (D40).
      */
     override fun loadStyle(file: File): MapsforgeStyle {
         val lastModified = file.lastModified()

@@ -58,8 +58,9 @@ class MapsforgeRenderer internal constructor(
     private val permits = Semaphore(maxParallelism)
 
     init {
-        // with several render threads, a bitmap-shader Paint is locked while shifted and drawn (C14)
-        displayModel.numberOfThreads = maxParallelism
+        // a bitmap-shader Paint is locked while shifted and drawn (C14), also on one CPU, as renderers
+        // of one style share its Paints (D40)
+        displayModel.numberOfThreads = maxOf(maxParallelism, 2)
     }
 
     private val closed = AtomicBoolean(false)

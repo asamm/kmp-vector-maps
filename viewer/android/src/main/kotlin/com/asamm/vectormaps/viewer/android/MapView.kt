@@ -64,6 +64,9 @@ class MapView(
 
     private val dataset: MapDataset
 
+    // a style read from a file, closed with the view; the map's own styles belong to the dataset
+    private val loadedStyle: MapStyle?
+
     private val engine: TileEngine<TileImage>
 
     private val setupMs: Long
@@ -190,7 +193,13 @@ class MapView(
             }
         }
         val loaded = ownStyleFile?.let(probed.driver::loadStyle)
-        dataset = probed.driver.open(listOf(mapFile))
+        loadedStyle = loaded
+        dataset = try {
+            probed.driver.open(listOf(mapFile))
+        } catch (e: Exception) {
+            loaded?.close()
+            throw e
+        }
         val renderer = try {
             val style: MapStyle = loaded ?: checkNotNull(dataset.styles.firstOrNull()) {
                 "MapView(), $styleFile does not style $mapFile, which brings no style"
@@ -198,6 +207,7 @@ class MapView(
             dataset.createRenderer(style = style, selection = StyleSelection.DEFAULT, config = config)
         } catch (e: Exception) {
             dataset.close()
+            loaded?.close()
             throw e
         }
         setupMs = System.currentTimeMillis() - started
@@ -234,6 +244,7 @@ class MapView(
         invalidate()
         engine.closeLater {
             dataset.close()
+            loadedStyle?.close()
         }
     }
 

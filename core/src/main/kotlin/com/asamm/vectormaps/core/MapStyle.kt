@@ -4,11 +4,13 @@
  */
 package com.asamm.vectormaps.core
 
+import java.io.Closeable
+
 /**
- * A style source of one format with its menu: Mapsforge theme, Garmin TYP, MVT style. Immutable
- * and shared; each renderer compiles it for its own selection and configuration.
+ * A style source of one format with its menu: Mapsforge theme, Garmin TYP, MVT style. Shared by
+ * renderers, which may share one compiled form of it while their selection and configuration match.
  */
-interface MapStyle {
+interface MapStyle : Closeable {
 
     /**
      * Identifies the style source and its version, such as path and modification time; two
@@ -20,6 +22,14 @@ interface MapStyle {
      * Layers a user can choose from; null when the style has no usable menu.
      */
     val menu: StyleMenu?
+
+    /**
+     * Releases what the style keeps for its renderers, such as a compiled theme, once they are
+     * closed too; the host creates no renderer from a closed style and closes a style it replaces.
+     */
+    override fun close() {
+        // nothing kept by default
+    }
 }
 
 /**

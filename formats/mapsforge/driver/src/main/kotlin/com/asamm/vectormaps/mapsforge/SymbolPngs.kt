@@ -12,8 +12,8 @@ import java.util.WeakHashMap
 /**
  * The content hash of each theme symbol bitmap's PNG, the same in every run, and the PNG itself
  * for a [FeatureQuery][com.asamm.vectormaps.core.FeatureQuery], each cached per bitmap; the PNG
- * only once a query asks. The theme's bitmaps live as long as the renderer; weak keys let a
- * dropped one go.
+ * only once a query asks. The theme's bitmaps live as long as the theme its renderers share;
+ * weak keys let a dropped one go.
  */
 internal class SymbolPngs {
 

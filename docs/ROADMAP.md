@@ -9,8 +9,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 **Benchmarks:** [performance.md](performance.md)
 
 **Status: M0–M6 done (PRs #1–#45, the last merged as `41f6968` on 2026-11-06); M7.0 done on
-2026-11-09: no regression ([performance.md](performance.md)); M7.2 done (PRs #47, #48); M7.1 ⏸,
-the desktop stays AWT (Q15).** Next action: M7.4, theme parse, after M7.3's allocation changes.
+2026-11-09: no regression ([performance.md](performance.md)); M7.2, M7.3 done (PRs #47–#49); M7.1 ⏸,
+the desktop stays AWT (Q15).** Next action: M7.5, way geometry, after M7.4's shared theme.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -100,8 +100,8 @@ Each change measured against the baselines in [performance.md](performance.md) (
 | M7.1 | `render/skia` via Skiko, so desktop numbers track Android | ⏸ the desktop stays AWT (Q15, Q5) |
 | M7.2a | Tests that fail without the matching-cache or the Paint lock (P7) | each fails with its lock removed: 6/6 and 8/8 runs ✅ PR #47 |
 | M7.2b | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock, `PathText` (C14) | M7.2a's tests stay green; blocks against M7.0: 8 threads −27 to −32 % JVM, −15 to −29 % A54 ✅ PR #48 |
-| M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring (C15) | allocated per render, JVM: −14 to −32 % (z12 −15 to −17 %); A54 not run 🔧 |
-| M7.4 | Theme parse (~80 ms on the A54): compiled themes cached per `RenderKey` | first-render time |
+| M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring (C15) | allocated per render, JVM: −14 to −32 % (z12 −15 to −17 %); A54 not run ✅ PR #49 |
+| M7.4 | Theme parse (~80 ms on the A54): one compiled theme per style, shared by its renderers (D40) | a second renderer does not parse (`MapsforgeDriverTest`) 🔧 |
 | M7.5 | Way geometry in `DoubleArray`s from the reader to the path: no `LatLong` or `Point` per node | allocated per render; render time, idle desktop and A54 |
 
 - M7.2a: `ThemeCachesTest` drives 8 × 25,000 new tag lists through the 8,192-entry way matching
@@ -114,7 +114,10 @@ Each change measured against the baselines in [performance.md](performance.md) (
   and text layout (still among the blocked sites in the after profile); not narrowed yet.
 - M7.3: the lazy `RenderContext` lists also take P3's ~0.7 MB per `FeatureQuery.point`. Left: the
   way nodes (M7.5) and the host's tile bitmap ([performance.md](performance.md)).
-- M7.4: SVG rasterising on first render is not measured yet.
+- M7.4: Locus parses one theme for the app (`PrefMapVectorV4Theme`), again only on the user's
+  request; the driver parsed one per renderer. The parse itself is ~45 % XML tokenising (JFR), no
+  easy win in the engine; a parse costs the same, so its benchmark is unchanged by design. SVG
+  rasterising on first render is not measured yet.
 - M7.5: today a way node is a `LatLong`, an absolute and a tile-relative `Point` (~84 B on ART,
   ~25–35 % of a render's allocation, M7.3); packed: two doubles per node in the `Way`, two in the
   projected ring, the tile-relative coordinates computed while the path is built. `Way.latLongs`
@@ -164,7 +167,7 @@ locus-core side.
 
 ## Decisions
 
-D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27; D32–D33 2026-11-02; D34–D35 2026-11-03; D36–D38 2026-11-04; D39 2026-11-05.
+D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31 2026-10-27; D32–D33 2026-11-02; D34–D35 2026-11-03; D36–D38 2026-11-04; D39 2026-11-05; D40 2026-11-09.
 
 | ID | Decision |
 |---|---|
@@ -207,6 +210,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D37 | Mapsforge goldens from M6: reading (reader and `RenderCallback` dumps) identical to upstream, except a caption placed against a non-square symbol (C9, A8), which the corpus does not hit; drawing without labels close to upstream, a per-tile share of differing pixels, a tile over the limit accepted only through a committed entry with its C-row; labels (text and the symbols stored with them) against committed goldens, as our label model replaces upstream's placement on purpose. A significant change is confirmed by its entry or golden update in the PR. Replaces "goldens move to committed PNGs" (H5) |
 | D38 | `FeatureQuery` is format-neutral in `:core`, implemented by the Mapsforge driver only in M6.3 for LoPoints; Garmin follows when a host needs it |
 | D39 | Labels are drawn only by a label pass over label-free tiles; no driver draws them into tiles. Locus' in-tile uses (text rotation off, the world map at low zooms, `MapDataPreviewGenerator`) move to the pass at M8: previews and prints render their tiles, then `LabelPass.prepareNow` and the format's draw. Tiles stay label-free, so equal `RenderKey` gives equal tiles; a tile is not self-contained (an exported or cached tile shows no labels). Supersedes M6.1c's order-independent `IN_TILE`, the in-tile half of M6.1d and the two soak modes of D25 and D31 (the soak is single-mode); Garmin draws into its tiles until M6.1d |
+| D40 | A Mapsforge style keeps one compiled theme, for the settings of its latest renderer, shared by every renderer with those settings, as Locus keeps one active theme; it is kept until the style is closed or the settings change, and a replaced theme lives until its last renderer closes; no other theme is cached. `MapStyle.close()` releases it, and the host closes a style it replaces (M7.4) |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.

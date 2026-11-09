@@ -8,8 +8,9 @@ Benchmark baselines and how M7 measures against them; M7's steps and status are 
 
 **Status:** M7.0 measured `main` after M6 (2026-11-08): no regression against the baselines, the
 JVM's Mapsforge renders up to 27 % faster. M7.2b's lock changes speed up the parallel block by up
-to 32 % on the JVM and 29 % on the A54; M7.3 allocates 14–32 % less per render. **Next action:**
-M7.4, theme parse; M7.1 ⏸ (Q15).
+to 32 % on the JVM and 29 % on the A54; M7.3 allocates 14–32 % less per render; since M7.4 a
+renderer with the style's current settings reuses its theme. **Next action:** M7.5, way geometry;
+M7.1 ⏸ (Q15).
 
 ## How to measure
 

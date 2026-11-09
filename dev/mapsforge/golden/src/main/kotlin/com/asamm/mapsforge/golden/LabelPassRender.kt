@@ -59,7 +59,8 @@ object LabelPassRender {
             textScale = SET.textScale,
         )
         driver.open(listOf(Corpus.mapFile(fixturesDir))).use { dataset ->
-            dataset.createRenderer(style, StyleSelection(layerId = SET.menuLayer), config).use { renderer ->
+            // the renderer keeps the theme once the style is closed (D40)
+            dataset.createRenderer(style, StyleSelection(layerId = SET.menuLayer), config).also { style.close() }.use { renderer ->
                 val pass = renderer.labelPass as MapsforgeLabelPass
                 for ((zoom, offset) in SCREENS) {
                     val views = ROTATIONS.map { rotation ->

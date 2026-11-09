@@ -36,6 +36,7 @@ object SetRenderer {
             // the theme menu and map probe ran above, outside the slots, as upstream's
             // mirrorDriverSetup does for these sets
             driver.open(listOf(Corpus.mapFile(fixturesDir))).close()
+            style.close()
             return Corpus.renderSet(set = set, fixturesDir = fixturesDir, graphicFactory = graphicFactory, onTile = onTile)
         }
         val config = RenderConfig(
@@ -51,7 +52,8 @@ object SetRenderer {
             val isCancelled = { false }
             isCancelled()
             IdentityHashes.align("${set.name} theme")
-            dataset.createRenderer(style, StyleSelection(layerId = set.menuLayer), config).use { renderer ->
+            // the renderer keeps the theme once the style is closed (D40)
+            dataset.createRenderer(style, StyleSelection(layerId = set.menuLayer), config).also { style.close() }.use { renderer ->
                 for (tile in Corpus.tiles) {
                     IdentityHashes.align("${set.name} z${tile.zoomLevel}_${tile.tileX}_${tile.tileY}")
                     val target = TileBitmapTarget(Corpus.TILE_SIZE)

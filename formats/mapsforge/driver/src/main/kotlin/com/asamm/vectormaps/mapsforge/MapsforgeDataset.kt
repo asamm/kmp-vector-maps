@@ -14,9 +14,6 @@ import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.mapsforge.map.datastore.MapDataStore
 import com.asamm.vectormaps.mapsforge.map.datastore.MultiMapDataStore
 import com.asamm.vectormaps.mapsforge.map.layer.labels.TileBasedLabelStore
-import com.asamm.vectormaps.mapsforge.map.model.DisplayModel
-import com.asamm.vectormaps.mapsforge.map.rendertheme.ExternalRenderTheme
-import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import java.io.File
 
 /**
@@ -68,9 +65,10 @@ class MapsforgeDataset internal constructor(
     }
 
     /**
-     * Opens the readers and compiles the theme; the device scale goes into the renderer's own
-     * `DisplayModel`, whatever the Mapsforge statics hold. Throws when the theme file changed since
-     * [MapsforgeDriver.loadStyle]: load the style again.
+     * Opens the readers and shares the style's compiled theme, compiling it when the style has none
+     * for these settings; the device scale goes into the theme's own `DisplayModel`, whatever the
+     * Mapsforge statics hold. Throws when the theme file changed since [MapsforgeDriver.loadStyle]
+     * or the style is closed: load the style again.
      */
     override fun createRenderer(
         style: MapStyle,
@@ -107,49 +105,32 @@ class MapsforgeDataset internal constructor(
         check(style.file.lastModified() == style.lastModified) {
             "createRenderer(), ${style.file} changed since loadStyle"
         }
-        // same order as a plain Mapsforge setup, which the golden test compares against
-        val displayModel = DisplayModel()
-        // new models copy the Mapsforge statics; AndroidGraphicFactory sets the device scale
-        displayModel.deviceScale = 1.0f
-        displayModel.lineScaleFactor = 1.0f
-        displayModel.symbolScaleFactor = 1.0f
-        displayModel.textScaleFactor = 1.0f
-        // closed ways at every zoom, the upstream default, whatever the Mapsforge statics hold
-        displayModel.polygonZoomMin = -1
-        displayModel.antiAliasing = true
-        displayModel.userScaleFactor = config.deviceScale
-        displayModel.setFixedTileSize(config.tileSizePx)
-        // larger text wraps later, as in Locus
-        displayModel.setMaxTextWidthFactor(MAX_TEXT_WIDTH_FACTOR * config.textScale)
         val store = openStore(language = config.language)
-        val themeFuture = try {
-            RenderThemeFuture(
-                driver.graphicFactory,
-                ExternalRenderTheme(style.file, style.menuCallback(selection)),
-                displayModel,
+        val theme = try {
+            style.acquireTheme(
+                graphicFactory = driver.graphicFactory,
+                selection = selection,
+                config = config,
             )
         } catch (e: Exception) {
             store.close()
             throw e
         }
         try {
-            themeFuture.run()
-            // the renderer only logs a parse failure; fail here with the real cause
-            themeFuture.get()
+            return MapsforgeRenderer(
+                key = RenderKey(styleId = style.id, selection = selection, config = config),
+                graphicFactory = driver.graphicFactory,
+                store = store,
+                themeFuture = theme.themeFuture,
+                displayModel = theme.displayModel,
+                labelStore = TileBasedLabelStore(labelStoreTiles),
+                hooks = hooks,
+            )
         } catch (e: Exception) {
-            themeFuture.decrementRefCount()
+            theme.themeFuture.decrementRefCount()
             store.close()
             throw e
         }
-        return MapsforgeRenderer(
-            key = RenderKey(styleId = style.id, selection = selection, config = config),
-            graphicFactory = driver.graphicFactory,
-            store = store,
-            themeFuture = themeFuture,
-            displayModel = displayModel,
-            labelStore = TileBasedLabelStore(labelStoreTiles),
-            hooks = hooks,
-        )
     }
 
     override fun close() {
@@ -177,8 +158,5 @@ class MapsforgeDataset internal constructor(
     private companion object {
 
         const val LABEL_STORE_SIZE = 100
-
-        // Mapsforge's default
-        const val MAX_TEXT_WIDTH_FACTOR = 0.7f
     }
 }
