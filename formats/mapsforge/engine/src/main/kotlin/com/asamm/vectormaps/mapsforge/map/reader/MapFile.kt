@@ -385,7 +385,12 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
                         readBuffer = readBuffer,
                     )
                     if (poiWayBundle != null) {
-                        mapFileReadResult.add(poiWayBundle)
+                        // a read past the block's end decoded an earlier block's bytes (C15)
+                        if (readBuffer.bufferPosition > readBuffer.bufferSize) {
+                            LOGGER.warning("invalid buffer position: " + readBuffer.bufferPosition)
+                        } else {
+                            mapFileReadResult.add(poiWayBundle)
+                        }
                     }
                 } catch (e: ArrayIndexOutOfBoundsException) {
                     LOGGER.log(Level.SEVERE, e.toString(), e)

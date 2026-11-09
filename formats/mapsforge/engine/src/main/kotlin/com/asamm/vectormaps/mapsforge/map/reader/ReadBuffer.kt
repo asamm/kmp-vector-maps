@@ -119,8 +119,7 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
 
         // check if the continuation bit is set
         while (data[bufferPosition].toInt() and 0x80 != 0) {
-            variableByteDecode =
-                variableByteDecode or ((data[bufferPosition++].toInt() and 0x7f) shl variableByteShift)
+            variableByteDecode = variableByteDecode or ((data[bufferPosition++].toInt() and 0x7f) shl variableByteShift)
             variableByteShift += 7
         }
 
@@ -147,7 +146,9 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
         }
         for (i in 0 until count) {
             val tagId = readUnsignedInt()
-            if (tagId !in 0..<maxTag) {
+            if (tagId < 0
+                || tagId >= maxTag
+            ) {
                 LOGGER.warning("invalid tag ID: $tagId")
                 return null
             }
@@ -171,7 +172,6 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
                     } else {
                         readInt().toString()
                     }
-
                     'f' -> value = readFloat().toString()
                     'h' -> value = readShort().toString()
                     's' -> value = readUTF8EncodedString()
@@ -195,8 +195,7 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
 
         // check if the continuation bit is set
         while (data[bufferPosition].toInt() and 0x80 != 0) {
-            variableByteDecode =
-                variableByteDecode or ((data[bufferPosition++].toInt() and 0x7f) shl variableByteShift)
+            variableByteDecode = variableByteDecode or ((data[bufferPosition++].toInt() and 0x7f) shl variableByteShift)
             variableByteShift += 7
         }
 
