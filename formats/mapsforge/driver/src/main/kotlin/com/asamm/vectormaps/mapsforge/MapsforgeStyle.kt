@@ -82,7 +82,8 @@ class MapsforgeStyle internal constructor(
     }
 
     private fun parseTheme(graphicFactory: GraphicFactory, key: ThemeKey): ActiveTheme {
-        // same order as a plain Mapsforge setup, which the golden test compares against
+        // within the theme setup, the order of a plain Mapsforge setup, which the golden test compares
+        // against
         val displayModel = DisplayModel()
         // new models copy the Mapsforge statics; AndroidGraphicFactory sets the device scale
         displayModel.deviceScale = 1.0f

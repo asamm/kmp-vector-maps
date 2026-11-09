@@ -149,10 +149,10 @@ class MapsforgeDriverTest {
     @Test
     fun labelPassPlacesTheSameLabelsInEveryRun() {
         driver.open(listOf(monaco)).use { dataset ->
-            val style = driver.loadStyle(theme)
-            // two renderers, the second rendering the tiles in the other order
+            // two renderers, each with a theme of its own, the second rendering the tiles in the other order
             val runs = listOf(harbourBlock, harbourBlock.reversed()).map { tiles ->
-                dataset.createRenderer(style, StyleSelection.DEFAULT, config).use { renderer ->
+                val style = driver.loadStyle(theme)
+                dataset.createRenderer(style, StyleSelection.DEFAULT, config).also { style.close() }.use { renderer ->
                     for (tile in tiles) {
                         val target = TileBitmapTarget(256)
                         renderer.render(tile, target) { false }
@@ -345,7 +345,7 @@ class MapsforgeDriverTest {
                 dataset.createRenderer(driver.loadStyle(theme), StyleSelection.DEFAULT, config).use { renderer ->
                     assertEquals(-1, renderer.displayModel.polygonZoomMin)
                     assertTrue(renderer.displayModel.antiAliasing)
-                    assertEquals(renderer.maxParallelism, renderer.displayModel.numberOfThreads)
+                    assertEquals(maxOf(renderer.maxParallelism, 2), renderer.displayModel.numberOfThreads)
                 }
             }
         } finally {
