@@ -212,7 +212,7 @@ open class MapsforgeBench {
         fun centerTile(store: MapFile, zoom: Byte): Tile {
             val center = System.getProperty("bench.center").orEmpty()
                 .takeIf { it.isNotBlank() }
-                ?.split(",")
+                ?.split(Regex("[,:]"))
                 ?.let { LatLong(it[0].trim().toDouble(), it[1].trim().toDouble()) }
                 ?: store.startPosition()
             check(store.boundingBox().contains(center)) {

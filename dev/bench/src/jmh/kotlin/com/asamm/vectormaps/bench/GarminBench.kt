@@ -247,7 +247,7 @@ open class GarminBench {
             val bounds = dataset.bounds
             val (lat, lon) = System.getProperty("bench.garmin.center").orEmpty()
                 .takeIf { it.isNotBlank() }
-                ?.split(",")
+                ?.split(Regex("[,:]"))
                 ?.let { it[0].trim().toDouble() to it[1].trim().toDouble() }
                 ?: ((bounds.minLat + bounds.maxLat) / 2 to (bounds.minLon + bounds.maxLon) / 2)
             check(lat in bounds.minLat..bounds.maxLat

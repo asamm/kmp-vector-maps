@@ -8,8 +8,9 @@ driver interface, with desktop JVM for benchmarks and tools.
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md) ·
 **Benchmarks:** [performance.md](performance.md)
 
-**Status: M0–M6 done (PRs #1–#45, the last merged as `41f6968` on 2026-11-06).** Next action: M7.0,
-re-run the benchmarks on `main` against the baselines (Q20); M7.1 waits on Q15.
+**Status: M0–M6 done (PRs #1–#45, the last merged as `41f6968` on 2026-11-06); M7.0 done on
+2026-11-09: no regression ([performance.md](performance.md)).** Next action: M7.2, a test for P7
+first; M7.1 waits on Q15.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -95,7 +96,7 @@ Each change measured against the baselines in [performance.md](performance.md) (
 
 | Step | Content | Verify |
 |---|---|---|
-| M7.0 | Re-run JMH and the A54 benchmarks on `main` (Q20, P4) | new tables beside the baselines |
+| M7.0 | Re-run JMH and the A54 benchmarks on `main` (Q20, P4) | new tables beside the baselines ✅ 2026-11-09 |
 | M7.1 | `render/skia` via Skiko, so desktop numbers track Android | needs Q15, Q5 |
 | M7.2 | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock | a test for P7 first |
 | M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring | allocated per render |
@@ -246,4 +247,4 @@ changes output against upstream.
 | Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed; none recurred through the M6.1b and M6.1c A54 soaks. | M7 |
 | Q18 | F1: the Paints' native heap explains ~15–22 MB of the native +93–170 MB zoom growth (M5.3 fixes); what holds the rest? A phone zoom soak after M5.6 shows how much the cache bound removes. | M7 |
 | Q19 | C7's matching-cache keys hold copied tag lists (house numbers, `ele`, `ref`); upstream keyed on an `Integer`. How much heap do both caches retain on the corpus, against C7's Paint saving? | M7 |
-| Q20 | No speed run after M5 and M6: JMH and the A54 `androidx.benchmark` against the baselines ([performance.md](performance.md)), so M7's deltas exclude the conversion, the C4, C6, C7 fixes and the label pass. | M7.0 |
+| Q20 | No speed run after M5 and M6: JMH and the A54 `androidx.benchmark` against the baselines ([performance.md](performance.md)), so M7's deltas exclude the conversion, the C4, C6, C7 fixes and the label pass. | — (answered by M7.0: no regression, performance.md) |

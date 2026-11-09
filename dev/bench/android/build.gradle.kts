@@ -2,7 +2,8 @@
  * Android microbenchmarks of the renderers, run on a device as instrumented tests:
  * `./gradlew :dev:bench:android:connectedReleaseAndroidTest`. Another map on the device:
  * `-Pandroid.testInstrumentationRunnerArguments.bench.mapFile=<device path>`, a centre:
- * `...bench.center=<lat>,<lon>`; for Garmin `...bench.garmin.mapFile` and `...bench.garmin.center`
+ * `...bench.center=<lat>:<lon>` (Gradle cuts the argument at a comma); for Garmin
+ * `...bench.garmin.mapFile` and `...bench.garmin.center`
  * (`GarminBenchmarks`); one class: `...class=<fully qualified name>`; a map in shared storage needs
  * `adb shell appops set com.asamm.vectormaps.bench.android.test MANAGE_EXTERNAL_STORAGE allow`.
  * Results in build/outputs/connected_android_test_additional_output. The M5 soak, skipped

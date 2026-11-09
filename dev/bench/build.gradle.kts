@@ -1,9 +1,9 @@
 /*
  * JMH benchmarks of the renderers on the JVM. `./gradlew :dev:bench:jmh`; results in
  * build/results/jmh/results.json. Another map: `-Pbench.mapFile=<path>`, another centre than the
- * map's start position: `-Pbench.center=<lat>,<lon>`; for Garmin `-Pbench.garmin.mapFile` and
- * `-Pbench.garmin.center` (default: the bounds' centre). One renderer only:
- * `-Pbench.includes=GarminBench`. Not published.
+ * map's start position: `-Pbench.center=<lat>,<lon>` (or `<lat>:<lon>`, as on the A54); for Garmin
+ * `-Pbench.garmin.mapFile` and `-Pbench.garmin.center` (default: the fixture's harbour, with another
+ * map its bounds' centre). One renderer only: `-Pbench.includes=GarminBench`. Not published.
  */
 plugins {
     alias(libs.plugins.kotlinJvm)
@@ -26,7 +26,9 @@ val mapFile = providers.gradleProperty("bench.mapFile")
 val center = providers.gradleProperty("bench.center").orElse("")
 val garminMapFile = providers.gradleProperty("bench.garmin.mapFile")
     .orElse(File(fixturesDir, "maps/otm-monaco/otm-monaco.img").absolutePath)
-val garminCenter = providers.gradleProperty("bench.garmin.center").orElse("")
+// the fixture's harbour; its bounds' centre is a nearly empty tile
+val garminCenter = providers.gradleProperty("bench.garmin.center")
+    .orElse(providers.gradleProperty("bench.garmin.mapFile").map { "" }.orElse("43.735,7.423"))
 val benchIncludes = providers.gradleProperty("bench.includes")
 
 jmh {

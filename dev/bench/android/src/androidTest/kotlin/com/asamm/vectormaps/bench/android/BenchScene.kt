@@ -62,6 +62,9 @@ class BenchScene : AutoCloseable {
 
         const val TILE_SIZE = 512
 
+        // `:` as well: Gradle cuts an instrumentation argument at a comma, the shell at a `;`
+        val CENTER_SEPARATOR = Regex("[,:]")
+
         private val fixtures: File by lazy {
             prepare()
         }
@@ -98,7 +101,7 @@ class BenchScene : AutoCloseable {
          */
         fun centerTile(store: MapFile, zoom: Byte): Tile {
             val center = argument("bench.center")
-                ?.split(",")
+                ?.split(CENTER_SEPARATOR)
                 ?.let { LatLong(it[0].trim().toDouble(), it[1].trim().toDouble()) }
                 ?: store.startPosition()
             check(store.boundingBox().contains(center)) {

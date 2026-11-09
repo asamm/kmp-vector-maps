@@ -238,6 +238,9 @@ class GarminScene : AutoCloseable {
             }
         }
 
+        // the fixture's bounds' centre is a nearly empty tile
+        private val FIXTURE_HARBOUR = 43.735 to 7.423
+
         /**
          * The `bench.garmin.mapFile` argument, else the bundled OpenTopoMap Monaco map.
          */
@@ -252,14 +255,15 @@ class GarminScene : AutoCloseable {
         }
 
         /**
-         * The tile at the `bench.garmin.center` argument if given, else at the centre of the map's
-         * bounds.
+         * The tile at the `bench.garmin.center` argument if given, else at the fixture's harbour, as
+         * the JVM benchmarks, or at the centre of a given map's bounds.
          */
         fun centerTile(dataset: GarminDataset, zoom: Int): TileRequest {
             val bounds = dataset.bounds
             val (lat, lon) = BenchScene.argument("bench.garmin.center")
-                ?.split(",")
+                ?.split(BenchScene.CENTER_SEPARATOR)
                 ?.let { it[0].trim().toDouble() to it[1].trim().toDouble() }
+                ?: FIXTURE_HARBOUR.takeIf { BenchScene.argument("bench.garmin.mapFile") == null }
                 ?: ((bounds.minLat + bounds.maxLat) / 2 to (bounds.minLon + bounds.maxLon) / 2)
             check(lat in bounds.minLat..bounds.maxLat
                 && lon in bounds.minLon..bounds.maxLon

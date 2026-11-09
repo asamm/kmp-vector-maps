@@ -6,8 +6,9 @@ Benchmark baselines and how M7 measures against them; M7's steps and status are 
 **Author:** Menion · **Started:** 2026-11-06, split from the roadmap · **Baselines:** M2.7, M2.7b
 (Mapsforge, Java), M4.3c (Garmin)
 
-**Status:** no measurement since M5 and M6 changed the code (Q20). **Next action:** M7.0, the
-same benchmarks on `main` against the tables below.
+**Status:** M7.0 measured `main` after M6 (2026-11-08): no regression against the baselines, the
+JVM's Mapsforge renders up to 27 % faster. **Next action:** M7.2, a test for P7
+first; M7.1 waits on Q15.
 
 ## How to measure
 
@@ -18,16 +19,62 @@ same benchmarks on `main` against the tables below.
 | JVM, Garmin | `-Pbench.includes=GarminBench` | Monaco fixture at the harbour |
 | JVM, Garmin Czech | `-Pbench.garmin.mapFile=<path> -Pbench.garmin.center=50.0875,14.4214` | `CzechRep_by_Dave_Luv.img` at Prague, local |
 | A54 | `./gradlew :dev:bench:android:connectedReleaseAndroidTest` | SM-A546B, Android 16, clocks locked |
+| A54, map in shared storage | install, `appops set … MANAGE_EXTERNAL_STORAGE allow`, `cmd package compile -m speed -f …`, `am instrument -w -e bench.mapFile …` | the connected run reinstalls the test package and drops the grant |
 
 - Mapsforge: 512 px tiles, Locus' primary mode (labels to the store), LoMaps day theme, no menu.
-- Garmin: 512 px tiles, the map's own TYP; without `bench.garmin.center` the map's bounds' centre,
-  which is Monaco's harbour (43.735, 7.423) but mid-country for the Czech map.
+- Garmin: 512 px tiles, the map's own TYP; without `bench.garmin.center` the fixture's harbour
+  (43.735, 7.423), on the JVM and the A54, as its bounds' centre is a nearly empty tile; another map
+  its bounds' centre, mid-country for the Czech map.
 - A54: the same properties as `-Pandroid.testInstrumentationRunnerArguments.<property>`, e.g.
-  `...bench.garmin.center=50.0875,14.4214`.
-- Theme parse varies ~20 % between JVM runs: compare deltas below that with `fork = 3`.
+  `...bench.garmin.center=50.0875:14.4214`: a centre takes `:` on the A54, as Gradle cuts the
+  argument at a comma; the JVM takes both.
+- Theme parse varies ~20 % between runs, on the A54 too: compare deltas below that with `fork = 3`.
+- The Mapsforge 4×4 block varies up to 2× between single-fork JVM runs: take it with `-f 3` from
+  the jar (`java -jar dev/bench/build/libs/bench-jmh.jar MapsforgeBench.ParallelBlock -f 3 …`).
+- A54: nothing else may hold UiAutomation (the mobile-mcp `DeviceServer`), or the benchmark runner
+  dies at its third test; Gradle reports success for a run whose instrumentation never started.
 - A54 setup and the run's arguments: `dev/bench/android/build.gradle.kts`.
 - Since M6.1d Garmin tiles carry no labels: the M4.3c render numbers include label work the tiles
   no longer do.
+
+## M7.0 — `main` after M6, 2026-11-08
+
+Same setup as the baselines; p50 ms, the baseline in brackets; Garmin Monaco at the harbour. JVM
+Mapsforge blocks with `-f 3`. A54 Czech the second of two runs, which agree within 5 % except Garmin
+render z12 (11 %) and theme parse (18 %); A54 Monaco one run, as the baselines.
+
+**JVM**
+
+| Benchmark | Mapsforge Monaco | Mapsforge Czech | Garmin Monaco | Garmin Czech |
+|---|---|---|---|---|
+| theme parse | 57 (63) | 59 (52) | | |
+| open | | | 2.9 (2.6) | 14 (34) |
+| read z12 / z15 / z17 | 2.6 / 0.07 / 0.06 (3.2 / 0.11 / 0.09) | 8.6 / 1.0 / 1.0 (8.4 / 1.1 / 1.1) | 1.8 / 2.3 / 3.4 (1.4 / 2.3 / 3.0) | 6.2 / 6.4 / 7.8 (6.2 / 6.4 / 7.8) |
+| render z12 / z15 / z17 | 51 / 22 / 9.1 (64 / 30 / 12) | 100 / 75 / 21 (105 / 85 / 25) | 17 / 12 / 8.2 (18 / 11 / 5.8) | 38 / 15 / 15 (48 / 21 / 22) |
+| 4×4 block, 1 / 2 / 4 / 8 threads | 298 / 183 / 106 / 83 (364 / 188 / 115 / 90) | 509 / 334 / 197 / 141 (595 / 318 / 194 / 135) | 280 / 178 / 99 / 58 (302 / 166 / 88 / 53) | 286 / 177 / 101 / 60 (409 / 205 / 106 / 69) |
+| allocated per render at z12 | 12.6 MB (12.7) | 31.1 MB (31.5) | | 6.1 MB (6.3) |
+
+**A54**
+
+| Benchmark | Mapsforge Monaco | Mapsforge Czech | Garmin Monaco | Garmin Czech |
+|---|---|---|---|---|
+| theme parse | 98 (83) | 99 (80) | | |
+| open | | | 3.7 (3.7) | 50 (50) |
+| read z12 / z15 / z17 | 11.4 / 0.65 / 0.53 (11.3 / 0.64 / 0.52) | 38 / 5.1 / 5.1 (38 / 5.2 / 5.7) | 7.9 / 9.6 / 11 (7.4 / 9.1 / 11) | 45 / 39 / 46 (45 / 39 / 45) |
+| render z12 / z15 / z17 | 126 / 39 / 15 (126 / 39 / 15) | 271 / 134 / 37 (259 / 131 / 36) | 32 / 27 / 19 (29 / 27 / 20) | 112 / 61 / 62 (106 / 62 / 65) |
+| 4×4 block, 1 / 2 / 4 / 8 threads | 429 / 250 / 168 / 170 (433 / 260 / 171 / 168) | 897 / 511 / 320 / 309 (881 / 502 / 324 / 305) | 553 / 302 / 179 / 191 (560 / 309 / 180 / 191) | 1112 / 609 / 349 / 314 (1123 / 617 / 358 / 313) |
+
+- No regression from M5 and M6 on the A54 (Q20): every number is within the run-to-run spread above,
+  Garmin Monaco render z12 (+11 %, one run) at its edge. On the JVM, Mapsforge renders 5–27 % faster
+  (z12–z17) and its single-thread block 14–18 %.
+- One JVM outlier: Garmin Monaco renders z17 in 8.2 ms against M4.3c's 5.8, and its block is 7–13 %
+  slower from 2 threads; the A54 shows neither, and M4.3c's JVM numbers carry ±20 %.
+- Theme parse on the A54 is 83–99 ms across runs and maps; the 80–83 baselines are the low end.
+- Garmin renders no labels since M6.1d (P4), yet the A54 times stay level: label work was a small
+  share of a Garmin tile on the device. The JVM's Czech Garmin gain is mostly JDK 17 against the
+  baseline's JDK 24 on a busy desktop (±20 %).
+- Same desktop and device as the baselines; the JVM baselines ran on JDK 24 (Garmin) and 17
+  (Mapsforge).
 
 ## Baselines
 
