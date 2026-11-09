@@ -23,7 +23,9 @@ import kotlin.test.assertFails
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class MapsforgeDriverTest {
@@ -250,6 +252,44 @@ class MapsforgeDriverTest {
 
             assertFailsWith<IllegalStateException> {
                 renderer.render(harbour, TileBitmapTarget(256)) { false }
+            }
+        }
+    }
+
+    @Test
+    fun renderersOfOneStyleShareItsTheme() {
+        val style = driver.loadStyle(theme)
+        driver.open(listOf(monaco)).use { dataset ->
+            val first = dataset.createRenderer(style, StyleSelection.DEFAULT, config)
+            val second = dataset.createRenderer(style, StyleSelection.DEFAULT, config.copy(language = "de"))
+            val other = dataset.createRenderer(style, StyleSelection(layerId = "car"), config)
+            try {
+                // the label language only affects the readers
+                assertSame(first.themeFuture, second.themeFuture)
+                assertSame(first.displayModel, second.displayModel)
+                assertNotSame(first.themeFuture, other.themeFuture)
+            } finally {
+                other.close()
+                second.close()
+                first.close()
+                style.close()
+            }
+        }
+    }
+
+    @Test
+    fun rendererOutlivesItsClosedStyle() {
+        val style = driver.loadStyle(theme)
+        driver.open(listOf(monaco)).use { dataset ->
+            dataset.createRenderer(style, StyleSelection.DEFAULT, config).use { renderer ->
+                style.close()
+
+                val target = TileBitmapTarget(256)
+                assertEquals(RenderResult.DRAWN, renderer.render(harbour, target) { false })
+                target.bitmap?.decrementRefCount()
+                assertFailsWith<IllegalStateException> {
+                    dataset.createRenderer(style, StyleSelection.DEFAULT, config)
+                }
             }
         }
     }

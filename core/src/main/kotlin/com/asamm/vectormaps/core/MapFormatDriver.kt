@@ -40,7 +40,8 @@ interface MapFormatDriver {
 
     /**
      * Reads a style file of this format and its menu; compiling it for a selection and
-     * configuration may wait for [MapDataset.createRenderer]. Reusable across datasets.
+     * configuration may wait for [MapDataset.createRenderer]. Reusable across datasets; the caller
+     * closes it, unlike a dataset's own [MapDataset.styles].
      */
     fun loadStyle(file: File): MapStyle
 }

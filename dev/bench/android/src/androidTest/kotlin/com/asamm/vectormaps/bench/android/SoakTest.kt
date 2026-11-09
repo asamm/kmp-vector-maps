@@ -76,8 +76,10 @@ class SoakTest {
         val driver = MapsforgeDriver(AndroidGraphicFactory.INSTANCE)
         val dataset = driver.open(listOf(mapFile))
         val style = driver.loadStyle(themeFile)
+        // a style of its own, so the reference does not share the compiled theme it checks (D40)
+        val referenceStyle = driver.loadStyle(themeFile)
         val config = RenderConfig(tileSizePx = BenchScene.TILE_SIZE)
-        val reference = dataset.createRenderer(style = style, selection = StyleSelection.DEFAULT, config = config)
+        val reference = dataset.createRenderer(style = referenceStyle, selection = StyleSelection.DEFAULT, config = config)
         try {
             val recording = Recording(
                 renderer = dataset.createRenderer(style = style, selection = StyleSelection.DEFAULT, config = config),
@@ -111,6 +113,8 @@ class SoakTest {
         } finally {
             reference.close()
             dataset.close()
+            referenceStyle.close()
+            style.close()
         }
     }
 

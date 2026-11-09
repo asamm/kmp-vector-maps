@@ -101,6 +101,9 @@ class ViewerState(
     var style: MapStyle? by mutableStateOf(null)
         private set
 
+    // the style last read from a file, closed when another replaces it
+    private var loadedStyle: MapStyle? = null
+
     var layerId: String? by mutableStateOf(session.layerId)
         private set
 
@@ -257,6 +260,7 @@ class ViewerState(
             return
         }
         dropEngine()
+        replaceLoadedStyle(null)
         dataset?.close()
         dataset = opened
         val sameMap = mapFile?.absolutePath == file.absolutePath
@@ -329,6 +333,7 @@ class ViewerState(
         val dataset = dataset ?: return false
         val layer = layerId?.takeIf { style.menu?.layer(it) != null }
         val built = createEngine(dataset = dataset, style = style, layerId = layer) ?: return false
+        replaceLoadedStyle(null)
         styleFile = null
         this.style = style
         layerId = layer
@@ -363,7 +368,12 @@ class ViewerState(
         }
         val layer = layerId?.takeIf { loaded.menu?.layer(it) != null }
         // the rules compile only in createRenderer, so nothing is committed before it succeeded
-        val built = createEngine(dataset = dataset, style = loaded, layerId = layer) ?: return false
+        val built = createEngine(dataset = dataset, style = loaded, layerId = layer)
+        if (built == null) {
+            loaded.close()
+            return false
+        }
+        replaceLoadedStyle(loaded)
         styleFile = file
         style = loaded
         layerId = layer
@@ -602,8 +612,15 @@ class ViewerState(
     override fun close() {
         engine?.close()
         engine = null
+        replaceLoadedStyle(null)
         dataset?.close()
         dataset = null
+    }
+
+    // the replaced style's theme lives on until the renderers still using it close
+    private fun replaceLoadedStyle(style: MapStyle?) {
+        loadedStyle?.close()
+        loadedStyle = style
     }
 
     // reads a style file again, so an edit on disk applies; a changed map file needs Reload
