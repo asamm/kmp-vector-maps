@@ -9,8 +9,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 **Benchmarks:** [performance.md](performance.md)
 
 **Status: M0–M6 done (PRs #1–#45, the last merged as `41f6968` on 2026-11-06); M7.0 done on
-2026-11-09: no regression ([performance.md](performance.md)).** Next action: M7.3, allocations,
-after M7.2b's lock changes; M7.1 waits on Q15.
+2026-11-09: no regression ([performance.md](performance.md)); M7.2 done (PRs #47, #48); M7.1 ⏸,
+the desktop stays AWT (Q15).** Next action: M7.3, allocations.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -28,7 +28,7 @@ settles, labels before speed, the Locus-facing API last.
 | M4 | Garmin IMG joins | M | ✅ PRs #27–#34, `e3c3aef` |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
 | M6 | Core features: label model, hillshade anchor, feature query | M | ✅ PRs #36–#45, `41f6968` |
-| M7 | Performance and Skia desktop backend | L | 🔧 M7.1 needs Q15 |
+| M7 | Performance and Skia desktop backend | L | 🔧 M7.1 ⏸ (Q15) |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⬜ |
 | M9 | Locus integration | M | ⬜ needs Q14, Q16 |
 | M10 | Mapbox Vector Tiles | L | ⏸ |
@@ -97,9 +97,9 @@ Each change measured against the baselines in [performance.md](performance.md) (
 | Step | Content | Verify |
 |---|---|---|
 | M7.0 | Re-run JMH and the A54 benchmarks on `main` (Q20, P4) | new tables beside the baselines ✅ 2026-11-09 |
-| M7.1 | `render/skia` via Skiko, so desktop numbers track Android | needs Q15, Q5 |
+| M7.1 | `render/skia` via Skiko, so desktop numbers track Android | ⏸ the desktop stays AWT (Q15, Q5) |
 | M7.2a | Tests that fail without the matching-cache or the Paint lock (P7) | each fails with its lock removed: 6/6 and 8/8 runs ✅ PR #47 |
-| M7.2b | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock, `PathText` (C14) | M7.2a's tests stay green; blocks against M7.0: 8 threads −27 to −32 % JVM, −15 to −29 % A54 🔧 |
+| M7.2b | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock, `PathText` (C14) | M7.2a's tests stay green; blocks against M7.0: 8 threads −27 to −32 % JVM, −15 to −29 % A54 ✅ PR #48 |
 | M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring | allocated per render |
 | M7.4 | Theme parse (~80 ms on the A54): compiled themes cached per `RenderKey` | first-render time |
 
@@ -117,6 +117,10 @@ Each change measured against the baselines in [performance.md](performance.md) (
 ## M8 — Android host API
 
 Also takes P1, P10 and P13 (Carried forward).
+
+- M8.0, once M7 is done: logging through [kmp-logger](https://github.com/asamm/kmp-logger), as
+  locus-core, from JitPack (public): the engine's `java.util.logging`, the Android graphics'
+  `android.util.Log` and the drivers' calls; Locus registers its own backend; an upstream.md row.
 
 - M8.1 `android/`: `VectorMapDriver`, `VectorMapRenderer`, `LabelPass`, `ThemeLoader` (D23);
   `TileBitmapTarget` over a host-supplied bitmap.
@@ -249,9 +253,9 @@ changes output against upstream.
 
 | ID | Question | Blocks |
 |---|---|---|
-| Q5 | SVG outside Android: pre-rasterise at theme build, or Skia SVG? | M7.1 |
+| Q5 | SVG outside Android: pre-rasterise at theme build, or Skia SVG? | — (answered 2026-11-09: AndroidSVG 1.4 on Android, as locus-core; svg-salamander on the AWT desktop) |
 | Q14 | Does the Mapsforge README waiver cover pre-2018 contributors? (locus-core Q1) | M9 |
-| Q15 | Desktop backend Skia via Skiko (recommended) or AWT only? | M7.1 |
+| Q15 | Desktop backend Skia via Skiko (recommended) or AWT only? | — (answered 2026-11-09: AWT only for now; the desktop serves tests and benchmarks, not production; M7.1 ⏸) |
 | Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? | M9 |
 | Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed; none recurred through the M6.1b and M6.1c A54 soaks. | M7 |
 | Q18 | F1: the Paints' native heap explains ~15–22 MB of the native +93–170 MB zoom growth (M5.3 fixes); what holds the rest? A phone zoom soak after M5.6 shows how much the cache bound removes. | M7 |

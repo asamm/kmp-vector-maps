@@ -2,7 +2,7 @@
 
 Target design: one driver interface every vector format implements, one render pipeline, an
 Android host API shaped for Locus, one viewer. Built through M6: core, both drivers, label pass,
-hillshade anchor, feature query, viewers and benchmarks; the backends (`render/`, M7.1) and the
+hillshade anchor, feature query, viewers and benchmarks; the backends (`render/`, M7.1 ⏸) and the
 host API (`android/`, M8) come later ([ROADMAP](ROADMAP.md)).
 
 **Author:** Menion · **Started:** 2026-10-22 · **Revised:** 2026-10-22, after the Locus integration

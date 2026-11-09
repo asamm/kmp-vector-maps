@@ -38,7 +38,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines M2.7 (Mapsforge) and M4.3c (Garmin) in [docs/performance.md](docs/performance.md) |
 | `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines M2.7b and M4.3c in docs/performance.md; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
 | `core/` | driver interface, registry, styles, render configuration; Apache-2.0, see architecture.md |
-| `render/`, `android/` | `render/skia` from M7.1, `android/` from M8.1, other backends unscheduled; see architecture.md |
+| `render/`, `android/` | `render/skia` parked (M7.1, Q15), `android/` from M8.1, other backends unscheduled; see architecture.md |
 
 - `dev/` holds development helpers (benchmarks, golden tests, test data); nothing in it ships;
   `formats/` holds only shipped code.
