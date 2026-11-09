@@ -9,8 +9,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 **Benchmarks:** [performance.md](performance.md)
 
 **Status: M0–M6 done (PRs #1–#45, the last merged as `41f6968` on 2026-11-06); M7.0 done on
-2026-11-09: no regression ([performance.md](performance.md)).** Next action: M7.2, a test for P7
-first; M7.1 waits on Q15.
+2026-11-09: no regression ([performance.md](performance.md)).** Next action: M7.2b, the lock
+contention fix, now that M7.2a's tests guard the locks (P7); M7.1 waits on Q15.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -77,7 +77,7 @@ the archive has the full notes.
 | P5 | Garmin on the A54: reads ~6× the JVM; an allocation per pattern, dash, label, icon | M4.3c | M7 |
 | P15 | Garmin label halos draw each text nine times, on both targets | M4.3c | M7 |
 | P6 | Garmin: boxed label and coordinate buffers; sub-division trees kept after add | M4.3c | M7 |
-| P7 | No test catches a dropped Paint or matching-cache lock (M2.3): add one before M7.2 | M2.3 | M7.2 |
+| P7 | No test catches a dropped Paint or matching-cache lock (M2.3): add one before M7.2b | M2.3 | M7.2a |
 | P8 | The menu's per-instruction category filter is not covered by the corpus | M2.1 | — |
 | P16 | Corpus gaps: explicit way label positions, water tiles, `readLabels`, `readPoiData` | M2.5 | — |
 | P9 | `PaintCostTest` never ran on the A54; F1's native growth mostly unexplained (Q18) | M5.3 | M7 |
@@ -98,10 +98,15 @@ Each change measured against the baselines in [performance.md](performance.md) (
 |---|---|---|
 | M7.0 | Re-run JMH and the A54 benchmarks on `main` (Q20, P4) | new tables beside the baselines ✅ 2026-11-09 |
 | M7.1 | `render/skia` via Skiko, so desktop numbers track Android | needs Q15, Q5 |
-| M7.2 | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock | a test for P7 first |
+| M7.2a | Tests that fail without the matching-cache or the Paint lock (P7) | each fails with its lock removed: 6/6 and 8/8 runs ✅ PR #47 |
+| M7.2b | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock | M7.2a's tests stay green; blocks against M7.0 |
 | M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring | allocated per render |
 | M7.4 | Theme parse (~80 ms on the A54): compiled themes cached per `RenderKey` | first-render time |
 
+- M7.2a: `ThemeCachesTest` drives 8 × 25,000 new tag lists through the 8,192-entry way matching
+  cache and checks its size, entry order and hash table agree; `SharedPaintRenderTest`
+  pattern-fills every closed way and renders a 4×4 block on 8 threads against a serial render.
+  The POI matching cache has the same lock and is not tested separately.
 - M7.3: the `RenderContext` lists are also built per `FeatureQuery.point` (P3).
 - M7.4: SVG rasterising on first render is not measured yet.
 

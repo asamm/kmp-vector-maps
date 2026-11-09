@@ -7,8 +7,8 @@ Benchmark baselines and how M7 measures against them; M7's steps and status are 
 (Mapsforge, Java), M4.3c (Garmin)
 
 **Status:** M7.0 measured `main` after M6 (2026-11-08): no regression against the baselines, the
-JVM's Mapsforge renders up to 27 % faster. **Next action:** M7.2, a test for P7
-first; M7.1 waits on Q15.
+JVM's Mapsforge renders up to 27 % faster. **Next action:** M7.2b, the lock
+contention fix, now that M7.2a's tests guard the locks (P7); M7.1 waits on Q15.
 
 ## How to measure
 

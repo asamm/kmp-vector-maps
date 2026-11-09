@@ -16,6 +16,7 @@ import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Rectangle
 import com.asamm.vectormaps.mapsforge.core.model.Tag
 import com.asamm.vectormaps.mapsforge.core.model.Tile
+import com.asamm.vectormaps.mapsforge.core.util.LRUCache
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
 import com.asamm.vectormaps.mapsforge.map.datastore.MultiMapDataStore
 import com.asamm.vectormaps.mapsforge.map.datastore.PointOfInterest
@@ -27,16 +28,21 @@ import com.asamm.vectormaps.mapsforge.map.rendertheme.RenderCallback
 import com.asamm.vectormaps.mapsforge.map.rendertheme.RenderContext
 import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.io.path.createTempFile
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 /**
- * The theme's matching caches compare tags in full, and its scaled Paints are kept for a window of
- * zoom levels plus the ones a job holds (D29); a `scale="all"` line without dashes scales (A9, C9).
+ * The theme's matching caches compare tags in full and stay intact under concurrent misses (P7), and
+ * its scaled Paints are kept for a window of zoom levels plus the ones a job holds (D29); a
+ * `scale="all"` line without dashes scales (A9, C9).
  */
 class ThemeCachesTest {
 
@@ -117,6 +123,60 @@ class ThemeCachesTest {
         assertNotEquals(1f, strokeWidth(context, key = "railway", value = "rail"))
     }
 
+    @Test
+    fun matchingCacheSurvivesConcurrentMisses() {
+        val context = context(zoom = 14)
+        val pool = Executors.newFixedThreadPool(THREADS)
+        try {
+            val start = CountDownLatch(1)
+            val counts = (0 until THREADS).map { thread ->
+                pool.submit<Int> {
+                    val recorder = Recorder()
+                    start.await()
+                    for (i in 0 until WAYS_PER_THREAD) {
+                        // a new key, evicting once all threads together pass the cache size
+                        matchWay(context, recorder, listOf(Tag("highway", "track"), Tag("ref", "$thread-$i")))
+                        // a key every thread reads
+                        matchWay(context, recorder, listOf(Tag("highway", "track")))
+                    }
+                    recorder.ways
+                }
+            }
+            start.countDown()
+            for (count in counts) {
+                assertEquals(2 * WAYS_PER_THREAD, count.get(TIMEOUT_SECONDS, TimeUnit.SECONDS))
+            }
+        } finally {
+            pool.shutdownNow()
+            pool.awaitTermination(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        }
+        assertIntact(cache = themeFuture.get().privateField("wayMatchingCache") as LRUCache<*, *>)
+    }
+
+    /**
+     * A map written by two threads without its lock loses the link between its size, its entry
+     * order and its hash table, which a lost update alone never shows.
+     */
+    private fun assertIntact(cache: LRUCache<*, *>) {
+        var linked = 0
+        val entries = cache.entries.iterator()
+        while (entries.hasNext()
+            && linked <= cache.size
+        ) {
+            val key = entries.next().key
+            assertTrue(cache.containsKey(key), "matching cache entry $linked not found by its key")
+            linked++
+        }
+        assertEquals(cache.size, linked, "matching cache size against its linked entries")
+        assertTrue(cache.size <= cache.capacity, "matching cache over its capacity: ${cache.size}")
+    }
+
+    private fun Any.privateField(name: String): Any? {
+        val field = javaClass.getDeclaredField(name)
+        field.isAccessible = true
+        return field.get(this)
+    }
+
     private fun context(zoom: Int): RenderContext {
         val tile = Tile(0, 0, zoom.toByte(), 256)
         val store = MultiMapDataStore(MultiMapDataStore.DataPolicy.RETURN_ALL)
@@ -135,15 +195,14 @@ class ThemeCachesTest {
     }
 
     private fun strokeWidth(context: RenderContext, key: String = "highway", value: String = "track"): Float {
-        val tile = context.rendererJob.tile
-        val way = PolylineContainer(
-            arrayOf(Point(0.0, 0.0), Point(10.0, 10.0)),
-            tile,
-            tile,
-            listOf(Tag(key, value)),
-        )
-        themeFuture.get().matchLinearWay(recorder, context, way)
+        matchWay(context, recorder, listOf(Tag(key, value)))
         return recorder.lastStroke!!.strokeWidth
+    }
+
+    private fun matchWay(context: RenderContext, recorder: Recorder, tags: List<Tag>) {
+        val tile = context.rendererJob.tile
+        val way = PolylineContainer(arrayOf(Point(0.0, 0.0), Point(10.0, 10.0)), tile, tile, tags)
+        themeFuture.get().matchLinearWay(recorder, context, way)
     }
 
     private fun parse(rules: String): RenderThemeFuture {
@@ -165,11 +224,13 @@ class ThemeCachesTest {
     }
 
     /**
-     * Counts circles and keeps the last line and caption fill Paints; ignores everything else.
+     * Counts circles and lines and keeps the last line and caption fill Paints; ignores everything
+     * else.
      */
     private class Recorder : RenderCallback {
 
         var circles = 0
+        var ways = 0
         var lastCaption: Paint? = null
         var lastStroke: Paint? = null
 
@@ -246,6 +307,7 @@ class ThemeCachesTest {
             way: PolylineContainer,
         ) {
             lastStroke = stroke
+            ways++
         }
 
         override fun renderWaySymbol(
@@ -278,5 +340,15 @@ class ThemeCachesTest {
             way: PolylineContainer,
         ) {
         }
+    }
+
+    private companion object {
+
+        const val THREADS = 8
+
+        // 8 × 25,000 new keys pass the theme's 8,192-entry matching cache many times over
+        const val WAYS_PER_THREAD = 25_000
+
+        const val TIMEOUT_SECONDS = 60L
     }
 }
