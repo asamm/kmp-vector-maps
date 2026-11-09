@@ -28,7 +28,7 @@ settles, labels before speed, the Locus-facing API last.
 | M4 | Garmin IMG joins | M | ✅ PRs #27–#34, `e3c3aef` |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
 | M6 | Core features: label model, hillshade anchor, feature query | M | ✅ PRs #36–#45, `41f6968` |
-| M7 | Performance and Skia desktop backend | L | ⬜ M7.1 needs Q15 |
+| M7 | Performance and Skia desktop backend | L | 🔧 M7.1 needs Q15 |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⬜ |
 | M9 | Locus integration | M | ⬜ needs Q14, Q16 |
 | M10 | Mapbox Vector Tiles | L | ⏸ |
@@ -109,7 +109,8 @@ Each change measured against the baselines in [performance.md](performance.md) (
   The POI matching cache has the same lock and is not tested separately.
 - M7.2b: a JFR profile of the 8-thread Czech block found the three locks; the Paint lock stays for
   pattern Paints only. Unlocked text measuring exposed a shared `Rect` in `AndroidPaint`, caught
-  by the A54 soak, not by a JVM test (performance.md).
+  by the A54 soak, not by a JVM test (performance.md). `Caption` keeps its lock over caption lookup
+  and text layout (still among the blocked sites in the after profile); not narrowed yet.
 - M7.3: the `RenderContext` lists are also built per `FeatureQuery.point` (P3).
 - M7.4: SVG rasterising on first render is not measured yet.
 

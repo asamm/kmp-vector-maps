@@ -58,7 +58,7 @@ class MapsforgeRenderer internal constructor(
     private val permits = Semaphore(maxParallelism)
 
     init {
-        // shared theme Paints are locked while drawing when more than one thread renders
+        // with several render threads, a bitmap-shader Paint is locked while shifted and drawn (C14)
         displayModel.numberOfThreads = maxParallelism
     }
 
