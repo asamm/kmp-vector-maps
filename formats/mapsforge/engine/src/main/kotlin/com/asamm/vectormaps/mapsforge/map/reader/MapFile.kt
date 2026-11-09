@@ -302,6 +302,8 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
         selector: Selector,
     ): MapReadResult? {
         val mapFileReadResult = MapReadResult()
+        // one buffer for all blocks, grown to the largest (C15)
+        val readBuffer = ReadBuffer(inputChannel)
 
         // read and process all blocks from top to bottom and from left to right
         for (row in queryParameters.fromBlockY..queryParameters.toBlockY) {
@@ -356,7 +358,6 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
                 }
 
                 // read the current block into the buffer
-                val readBuffer = ReadBuffer(inputChannel)
                 if (!readBuffer.readFromFile(subFileParameter.startAddress + currentBlockPointer, currentBlockSize)) {
                     // skip the current block
                     LOGGER.warning("reading current block has failed: $currentBlockSize")
