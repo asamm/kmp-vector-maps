@@ -158,9 +158,12 @@ open class CanvasRasterer(
 
     private fun drawPath(shapePaintContainer: ShapePaintContainer) {
         if (!path.isEmpty) {
-            if (renderContext.rendererJob.displayModel.numberOfThreads > 1) {
+            if (renderContext.rendererJob.displayModel.numberOfThreads > 1
+                && shapePaintContainer.paint.hasBitmapShader
+            ) {
                 // Make sure setting the shader shift and actual drawing is synchronized,
-                // since the paint object is shared between multiple threads.
+                // since the paint object is shared between multiple threads; a Paint without a
+                // shader is only read here (C14)
                 synchronized(shapePaintContainer.paint) {
                     shapePaintContainer.paint.setBitmapShaderShift(renderContext.rendererJob.tile.origin)
                     canvas.drawPath(path, shapePaintContainer.paint)
@@ -180,9 +183,12 @@ open class CanvasRasterer(
         coordinates: Array<Array<Point>>,
         dy: Float,
     ) {
-        if (renderContext.rendererJob.displayModel.numberOfThreads > 1) {
+        if (renderContext.rendererJob.displayModel.numberOfThreads > 1
+            && shapePaintContainer.paint.hasBitmapShader
+        ) {
             // Make sure setting the shader shift and actual drawing is synchronized,
-            // since the paint object is shared between multiple threads.
+            // since the paint object is shared between multiple threads; a Paint without a
+            // shader is only read here (C14)
             synchronized(shapePaintContainer.paint) {
                 shapePaintContainer.paint.setBitmapShaderShift(renderContext.rendererJob.tile.origin)
                 canvas.drawLines(coordinates, dy, shapePaintContainer.paint)

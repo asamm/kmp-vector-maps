@@ -51,6 +51,8 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
     private val renderInstructions: ArrayList<RenderInstruction> = ArrayList(4)
     private val subRules: ArrayList<Rule> = ArrayList(4)
 
+    // guards the lists while the theme is built and destroyed; once built they only are read, so
+    // matching, scaling and eviction run without it (C14)
     private val mySync = Any()
 
     internal fun addRenderingInstruction(renderInstruction: RenderInstruction) {
@@ -81,13 +83,11 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
     }
 
     internal fun evictZoom(zoomLevel: Byte) {
-        synchronized(mySync) {
-            for (i in 0 until this.renderInstructions.size) {
-                this.renderInstructions[i].evictZoom(zoomLevel)
-            }
-            for (i in 0 until this.subRules.size) {
-                this.subRules[i].evictZoom(zoomLevel)
-            }
+        for (i in 0 until this.renderInstructions.size) {
+            this.renderInstructions[i].evictZoom(zoomLevel)
+        }
+        for (i in 0 until this.subRules.size) {
+            this.subRules[i].evictZoom(zoomLevel)
         }
     }
 
@@ -101,15 +101,13 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
         matchingList: MutableList<RenderInstruction>,
         pointOfInterest: PointOfInterest,
     ) {
-        synchronized(mySync) {
-            if (matchesNode(pointOfInterest.tags, renderContext.rendererJob.tile.zoomLevel)) {
-                for (i in 0 until this.renderInstructions.size) {
-                    this.renderInstructions[i].renderNode(renderCallback, renderContext, pointOfInterest)
-                    matchingList.add(this.renderInstructions[i])
-                }
-                for (i in 0 until this.subRules.size) {
-                    this.subRules[i].matchNode(renderCallback, renderContext, matchingList, pointOfInterest)
-                }
+        if (matchesNode(pointOfInterest.tags, renderContext.rendererJob.tile.zoomLevel)) {
+            for (i in 0 until this.renderInstructions.size) {
+                this.renderInstructions[i].renderNode(renderCallback, renderContext, pointOfInterest)
+                matchingList.add(this.renderInstructions[i])
+            }
+            for (i in 0 until this.subRules.size) {
+                this.subRules[i].matchNode(renderCallback, renderContext, matchingList, pointOfInterest)
             }
         }
     }
@@ -122,15 +120,13 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
         matchingList: MutableList<RenderInstruction>,
         renderContext: RenderContext,
     ) {
-        synchronized(mySync) {
-            if (matchesWay(way.tags, tile.zoomLevel, closed)) {
-                for (i in 0 until this.renderInstructions.size) {
-                    this.renderInstructions[i].renderWay(renderCallback, renderContext, way)
-                    matchingList.add(this.renderInstructions[i])
-                }
-                for (i in 0 until this.subRules.size) {
-                    this.subRules[i].matchWay(renderCallback, way, tile, closed, matchingList, renderContext)
-                }
+        if (matchesWay(way.tags, tile.zoomLevel, closed)) {
+            for (i in 0 until this.renderInstructions.size) {
+                this.renderInstructions[i].renderWay(renderCallback, renderContext, way)
+                matchingList.add(this.renderInstructions[i])
+            }
+            for (i in 0 until this.subRules.size) {
+                this.subRules[i].matchWay(renderCallback, way, tile, closed, matchingList, renderContext)
             }
         }
     }
@@ -149,24 +145,20 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
     }
 
     internal fun scaleStrokeWidth(scaleFactor: Float, zoomLevel: Byte) {
-        synchronized(mySync) {
-            for (i in 0 until this.renderInstructions.size) {
-                this.renderInstructions[i].scaleStrokeWidth(scaleFactor, zoomLevel)
-            }
-            for (i in 0 until this.subRules.size) {
-                this.subRules[i].scaleStrokeWidth(scaleFactor, zoomLevel)
-            }
+        for (i in 0 until this.renderInstructions.size) {
+            this.renderInstructions[i].scaleStrokeWidth(scaleFactor, zoomLevel)
+        }
+        for (i in 0 until this.subRules.size) {
+            this.subRules[i].scaleStrokeWidth(scaleFactor, zoomLevel)
         }
     }
 
     internal fun scaleTextSize(scaleFactor: Float, zoomLevel: Byte) {
-        synchronized(mySync) {
-            for (i in 0 until this.renderInstructions.size) {
-                this.renderInstructions[i].scaleTextSize(scaleFactor, zoomLevel)
-            }
-            for (i in 0 until this.subRules.size) {
-                this.subRules[i].scaleTextSize(scaleFactor, zoomLevel)
-            }
+        for (i in 0 until this.renderInstructions.size) {
+            this.renderInstructions[i].scaleTextSize(scaleFactor, zoomLevel)
+        }
+        for (i in 0 until this.subRules.size) {
+            this.subRules[i].scaleTextSize(scaleFactor, zoomLevel)
         }
     }
 

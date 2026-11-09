@@ -28,6 +28,11 @@ interface Paint {
      */
     var color: Int
 
+    /**
+     * True while a bitmap shader is set, whose shift [setBitmapShaderShift] changes per tile.
+     */
+    val hasBitmapShader: Boolean
+
     val isComplexStyle: Boolean
 
     val isTransparent: Boolean

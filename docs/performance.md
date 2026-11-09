@@ -7,8 +7,8 @@ Benchmark baselines and how M7 measures against them; M7's steps and status are 
 (Mapsforge, Java), M4.3c (Garmin)
 
 **Status:** M7.0 measured `main` after M6 (2026-11-08): no regression against the baselines, the
-JVM's Mapsforge renders up to 27 % faster. **Next action:** M7.2b, the lock
-contention fix, now that M7.2a's tests guard the locks (P7); M7.1 waits on Q15.
+JVM's Mapsforge renders up to 27 % faster. M7.2b's lock changes speed up the parallel block by up
+to 32 % on the JVM and 29 % on the A54. **Next action:** M7.3, allocations; M7.1 waits on Q15.
 
 ## How to measure
 
@@ -29,8 +29,10 @@ contention fix, now that M7.2a's tests guard the locks (P7); M7.1 waits on Q15.
   `...bench.garmin.center=50.0875:14.4214`: a centre takes `:` on the A54, as Gradle cuts the
   argument at a comma; the JVM takes both.
 - Theme parse varies ~20 % between runs, on the A54 too: compare deltas below that with `fork = 3`.
-- The Mapsforge 4×4 block varies up to 2× between single-fork JVM runs: take it with `-f 3` from
-  the jar (`java -jar dev/bench/build/libs/bench-jmh.jar MapsforgeBench.ParallelBlock -f 3 …`).
+- The Mapsforge 4×4 block varies up to 2× on a busy desktop: take it on an idle one, from the jar
+  on JDK 17 (`jdk-17/bin/java -jar dev/bench/build/libs/bench-jmh.jar MapsforgeBench.ParallelBlock
+  -jvm jdk-17/bin/java …`; the PATH's `java` may be newer), a before and an after build
+  interleaved, median of 3 rounds.
 - A54: nothing else may hold UiAutomation (the mobile-mcp `DeviceServer`), or the benchmark runner
   dies at its third test; Gradle reports success for a run whose instrumentation never started.
 - A54 setup and the run's arguments: `dev/bench/android/build.gradle.kts`.
@@ -40,8 +42,10 @@ contention fix, now that M7.2a's tests guard the locks (P7); M7.1 waits on Q15.
 ## M7.0 — `main` after M6, 2026-11-08
 
 Same setup as the baselines; p50 ms, the baseline in brackets; Garmin Monaco at the harbour. JVM
-Mapsforge blocks with `-f 3`. A54 Czech the second of two runs, which agree within 5 % except Garmin
-render z12 (11 %) and theme parse (18 %); A54 Monaco one run, as the baselines.
+Mapsforge blocks on JDK 17 on an idle desktop, median of 3 runs (taken with M7.2b's comparison on
+2026-11-09; the first `-f 3` run here was JDK 24). A54 Czech the second of two runs, which agree
+within 5 % except Garmin render z12 (11 %) and theme parse (18 %); A54 Monaco one run, as the
+baselines.
 
 **JVM**
 
@@ -51,7 +55,7 @@ render z12 (11 %) and theme parse (18 %); A54 Monaco one run, as the baselines.
 | open | | | 2.9 (2.6) | 14 (34) |
 | read z12 / z15 / z17 | 2.6 / 0.07 / 0.06 (3.2 / 0.11 / 0.09) | 8.6 / 1.0 / 1.0 (8.4 / 1.1 / 1.1) | 1.8 / 2.3 / 3.4 (1.4 / 2.3 / 3.0) | 6.2 / 6.4 / 7.8 (6.2 / 6.4 / 7.8) |
 | render z12 / z15 / z17 | 51 / 22 / 9.1 (64 / 30 / 12) | 100 / 75 / 21 (105 / 85 / 25) | 17 / 12 / 8.2 (18 / 11 / 5.8) | 38 / 15 / 15 (48 / 21 / 22) |
-| 4×4 block, 1 / 2 / 4 / 8 threads | 298 / 183 / 106 / 83 (364 / 188 / 115 / 90) | 509 / 334 / 197 / 141 (595 / 318 / 194 / 135) | 280 / 178 / 99 / 58 (302 / 166 / 88 / 53) | 286 / 177 / 101 / 60 (409 / 205 / 106 / 69) |
+| 4×4 block, 1 / 2 / 4 / 8 threads | 222 / 149 / 94 / 78 (364 / 188 / 115 / 90) | 433 / 284 / 175 / 137 (595 / 318 / 194 / 135) | 280 / 178 / 99 / 58 (302 / 166 / 88 / 53) | 286 / 177 / 101 / 60 (409 / 205 / 106 / 69) |
 | allocated per render at z12 | 12.6 MB (12.7) | 31.1 MB (31.5) | | 6.1 MB (6.3) |
 
 **A54**
@@ -66,7 +70,7 @@ render z12 (11 %) and theme parse (18 %); A54 Monaco one run, as the baselines.
 
 - No regression from M5 and M6 on the A54 (Q20): every number is within the run-to-run spread above,
   Garmin Monaco render z12 (+11 %, one run) at its edge. On the JVM, Mapsforge renders 5–27 % faster
-  (z12–z17) and its single-thread block 14–18 %.
+  (z12–z17) and its single-thread block 27–39 %, though the baselines were not taken idle.
 - One JVM outlier: Garmin Monaco renders z17 in 8.2 ms against M4.3c's 5.8, and its block is 7–13 %
   slower from 2 threads; the A54 shows neither, and M4.3c's JVM numbers carry ±20 %.
 - Theme parse on the A54 is 83–99 ms across runs and maps; the 80–83 baselines are the low end.
@@ -75,6 +79,26 @@ render z12 (11 %) and theme parse (18 %); A54 Monaco one run, as the baselines.
   baseline's JDK 24 on a busy desktop (±20 %).
 - Same desktop and device as the baselines; the JVM baselines ran on JDK 24 (Garmin) and 17
   (Mapsforge).
+
+## M7.2b — lock contention, 2026-11-09
+
+The 8-thread Czech block spent 18.8 s blocked on monitors in a ~10 s JFR recording: the per-draw
+Paint lock 67 %, the `Rule` subtree lock 19 %, `PathText`'s lock 10 %. After C14: 2.3 s, none of the
+three in the top. Mapsforge 4×4 block p50 ms, before → after:
+
+| Threads | JVM Monaco | JVM Czech | A54 Monaco | A54 Czech |
+|---|---|---|---|---|
+| 1 | 222 → 234 | 433 → 440 | 430 → 430 | 897 → 895 |
+| 2 | 149 → 137 | 284 → 270 | 253 → 231 | 506 → 486 |
+| 4 | 94 → 84 | 175 → 155 | 165 → 132 | 323 → 274 |
+| 8 | 78 → 53 | 137 → 100 | 171 → 122 | 309 → 262 |
+
+- JVM: JDK 17, idle desktop, median of 3 interleaved before/after runs; the 8-thread gain held in
+  every run (26–33 %). A54: one run each. Single tiles, theme parse and Garmin are not touched:
+  level within run-to-run spread (A54 Garmin Monaco render, one run, +11–14 %).
+- The A54 soak (`SoakTest`, 5 min) first differed in 2 tiles' labels: `AndroidPaint` measured text
+  into one shared `Rect`, which `PathText`'s lock had kept to one thread. With a `Rect` per call
+  two soaks passed, as the code before M7.2b does. No JVM test covers it; the soak is the guard.
 
 ## Baselines
 

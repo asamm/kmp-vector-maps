@@ -49,9 +49,6 @@ internal open class AndroidPaint : Paint {
     private var shaderWidth = 0
     private var shaderHeight = 0
 
-    // Avoid creating unnecessary objects
-    private val rect = Rect()
-
     constructor() {
         paint = android.graphics.Paint()
         paint.isAntiAlias = Parameters.ANTI_ALIASING
@@ -79,6 +76,11 @@ internal open class AndroidPaint : Paint {
                 || paint.pathEffect != null
         }
 
+    final override val hasBitmapShader: Boolean
+        get() {
+            return paint.shader != null
+        }
+
     final override val isTransparent: Boolean
         get() {
             return paint.shader == null
@@ -94,6 +96,8 @@ internal open class AndroidPaint : Paint {
         }
 
     final override fun getTextBounds(text: String): Rectangle {
+        // one Rect per call: since C14 threads measure with the same Paint
+        val rect = Rect()
         paint.getTextBounds(text, 0, text.length, rect)
         return Rectangle(
             rect.left.toDouble(),
@@ -104,6 +108,7 @@ internal open class AndroidPaint : Paint {
     }
 
     final override fun getTextHeight(text: String): Int {
+        val rect = Rect()
         paint.getTextBounds(text, 0, text.length, rect)
         return rect.height()
     }

@@ -142,6 +142,11 @@ open class AwtPaint : Paint {
         return fontMetrics.stringWidth(text)
     }
 
+    final override val hasBitmapShader: Boolean
+        get() {
+            return this.texturePaint != null
+        }
+
     final override val isTransparent: Boolean
         get() {
             return this.texturePaint == null
