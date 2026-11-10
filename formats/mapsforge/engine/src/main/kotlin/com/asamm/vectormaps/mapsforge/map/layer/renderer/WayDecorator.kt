@@ -37,7 +37,8 @@ internal object WayDecorator {
     private const val MAX_LABEL_CORNER_ANGLE = 45.0
 
     /**
-     * Adds symbols along the first ring of `coordinates`, repeated if `repeatSymbol`.
+     * Adds symbols along the first ring of `coordinates`, absolute x, y pairs, repeated if
+     * `repeatSymbol`.
      */
     fun renderSymbol(
         symbolBitmap: Bitmap,
@@ -49,12 +50,12 @@ internal object WayDecorator {
         repeatGap: Float,
         repeatStart: Float,
         symbolOrientation: SymbolOrientation,
-        coordinates: Array<Array<Point>>,
+        coordinates: Array<DoubleArray>,
         renderContext: RenderContext,
     ) {
         var skipPixels = repeatStart.toInt()
 
-        val c: Array<Point>
+        val c: DoubleArray
         if (dy == 0f) {
             c = coordinates[0]
         } else {
@@ -62,14 +63,14 @@ internal object WayDecorator {
         }
 
         // get the first way point coordinates
-        var previousX = c[0].x
-        var previousY = c[0].y
+        var previousX = c[0]
+        var previousY = c[1]
 
         // draw the symbolContainer on each way segment
-        for (i in 1 until c.size) {
+        for (i in 2 until c.size step 2) {
             // get the current way point coordinates
-            val currentX = c[i].x
-            val currentY = c[i].y
+            val currentX = c[i]
+            val currentY = c[i + 1]
 
             // compute rotation along the segment
             var theta = 0.0f
@@ -148,9 +149,9 @@ internal object WayDecorator {
     }
 
     /**
-     * Finds the parts of a way along which `text` fits and adds a WayTextContainer for each to the
-     * labels of `renderContext`; `upperLeft`, `lowerRight` and `repeat` are unused: the text repeats
-     * every `repeatGap` regardless of `repeat`.
+     * Finds the parts of a way, absolute x, y pairs, along which `text` fits and adds a
+     * WayTextContainer for each to the labels of `renderContext`; `upperLeft`, `lowerRight` and
+     * `repeat` are unused: the text repeats every `repeatGap` regardless of `repeat`.
      *
      * @param dy if not 0, a line parallel to the coordinates is computed first
      * @param stroke stroke paint for the text, null to measure with `fill`
@@ -170,31 +171,29 @@ internal object WayDecorator {
         repeatGap: Float,
         repeatStart: Float,
         textOrientation: TextOrientation,
-        coordinates: Array<Array<Point>>,
+        coordinates: Array<DoubleArray>,
         renderContext: RenderContext,
     ) {
         if (coordinates.isEmpty()) {
             return
         }
 
-        val c: Array<Point>
+        val c: DoubleArray
         if (dy == 0f) {
             c = coordinates[0]
         } else {
             c = RendererUtils.parallelPath(coordinates[0], dy.toDouble())
         }
 
-        if (c.size < 2) {
+        if (c.size < 4) {
             return
         }
 
-        val path = LineString()
-        for (i in 1 until c.size) {
-            val segment = LineSegment(c[i - 1], c[i])
-            path.segments.add(segment)
+        // as LineString.length, summed in the same order
+        var pathLength = 0.0
+        for (i in 2 until c.size step 2) {
+            pathLength += Math.hypot(c[i - 2] - c[i], c[i - 1] - c[i + 1])
         }
-
-        val pathLength = path.length()
         // no text fits a way shorter than its start, so it is measured only when it may (C15)
         if (pathLength <= repeatStart) {
             return
@@ -204,6 +203,20 @@ internal object WayDecorator {
         val textWidth = measurePaint.getTextWidth(text)
         // measured with the first label that fits
         var textHeight = -1
+
+        // no label fits when the loop's first test fails
+        if (!((repeatStart + textWidth).toDouble() < pathLength)) {
+            return
+        }
+
+        // the label parts take Points; built only for a way the text fits on once (C16)
+        val path = LineString()
+        var previous = Point(c[0], c[1])
+        for (i in 2 until c.size step 2) {
+            val current = Point(c[i], c[i + 1])
+            path.segments.add(LineSegment(previous, current))
+            previous = current
+        }
 
         var pos = repeatStart
         while ((pos + textWidth).toDouble() < pathLength) {

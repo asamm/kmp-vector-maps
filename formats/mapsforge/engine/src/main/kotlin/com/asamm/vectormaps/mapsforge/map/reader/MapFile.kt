@@ -133,7 +133,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
     }
 
     private fun decodeWayNodesDoubleDelta(
-        waySegment: Array<LatLong?>,
+        waySegment: DoubleArray,
         tileLatitude: Double,
         tileLongitude: Double,
         readBuffer: ReadBuffer,
@@ -145,12 +145,12 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
         var wayNodeLongitude = tileLongitude + LatLongUtils.microdegreesToDegrees(readBuffer.readSignedInt())
 
         // store the first way node
-        waySegment[0] = LatLong(wayNodeLatitude, wayNodeLongitude)
+        waySegment.setNode(0, wayNodeLatitude, wayNodeLongitude)
 
         var previousSingleDeltaLatitude = 0.0
         var previousSingleDeltaLongitude = 0.0
 
-        for (wayNodesIndex in 1 until waySegment.size) {
+        for (wayNodesIndex in 1 until waySegment.size / 2) {
             // get the way node latitude double-delta offset (VBE-S)
             val doubleDeltaLatitude = LatLongUtils.microdegreesToDegrees(readBuffer.readSignedInt())
 
@@ -163,7 +163,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
             wayNodeLatitude = wayNodeLatitude + singleDeltaLatitude
             wayNodeLongitude = clampLongitude(wayNodeLongitude + singleDeltaLongitude)
 
-            waySegment[wayNodesIndex] = LatLong(wayNodeLatitude, wayNodeLongitude)
+            waySegment.setNode(wayNodesIndex, wayNodeLatitude, wayNodeLongitude)
 
             previousSingleDeltaLatitude = singleDeltaLatitude
             previousSingleDeltaLongitude = singleDeltaLongitude
@@ -171,7 +171,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
     }
 
     private fun decodeWayNodesSingleDelta(
-        waySegment: Array<LatLong?>,
+        waySegment: DoubleArray,
         tileLatitude: Double,
         tileLongitude: Double,
         readBuffer: ReadBuffer,
@@ -183,9 +183,9 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
         var wayNodeLongitude = tileLongitude + LatLongUtils.microdegreesToDegrees(readBuffer.readSignedInt())
 
         // store the first way node
-        waySegment[0] = LatLong(wayNodeLatitude, wayNodeLongitude)
+        waySegment.setNode(0, wayNodeLatitude, wayNodeLongitude)
 
-        for (wayNodesIndex in 1 until waySegment.size) {
+        for (wayNodesIndex in 1 until waySegment.size / 2) {
             // get the way node latitude offset (VBE-S)
             wayNodeLatitude = wayNodeLatitude + LatLongUtils.microdegreesToDegrees(readBuffer.readSignedInt())
 
@@ -194,7 +194,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
                 wayNodeLongitude + LatLongUtils.microdegreesToDegrees(readBuffer.readSignedInt()),
             )
 
-            waySegment[wayNodesIndex] = LatLong(wayNodeLatitude, wayNodeLongitude)
+            waySegment.setNode(wayNodesIndex, wayNodeLatitude, wayNodeLongitude)
         }
     }
 
@@ -485,7 +485,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
         tileLongitude: Double,
         doubleDeltaEncoding: Boolean,
         readBuffer: ReadBuffer,
-    ): Array<Array<LatLong>>? {
+    ): Array<DoubleArray>? {
         // get and check the number of way coordinate blocks (VBE-U)
         val numberOfWayCoordinateBlocks = readBuffer.readUnsignedInt()
         if (numberOfWayCoordinateBlocks < 1
@@ -496,7 +496,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
         }
 
         // create the array which will store the different way coordinate blocks
-        val wayCoordinates = arrayOfNulls<Array<LatLong?>>(numberOfWayCoordinateBlocks)
+        val wayCoordinates = arrayOfNulls<DoubleArray>(numberOfWayCoordinateBlocks)
 
         // read the way coordinate blocks
         for (coordinateBlock in 0 until numberOfWayCoordinateBlocks) {
@@ -511,7 +511,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
             }
 
             // create the array which will store the current way segment
-            val waySegment = arrayOfNulls<LatLong>(numberOfWayNodes)
+            val waySegment = DoubleArray(2 * numberOfWayNodes)
 
             if (doubleDeltaEncoding) {
                 decodeWayNodesDoubleDelta(waySegment, tileLatitude, tileLongitude, readBuffer)
@@ -524,7 +524,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
 
         // every block and node is set above
         @Suppress("UNCHECKED_CAST")
-        return wayCoordinates as Array<Array<LatLong>>
+        return wayCoordinates as Array<DoubleArray>
     }
 
     private fun processWays(
@@ -647,10 +647,10 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
                 ) {
                     var labelLatLong: LatLong? = null
                     if (labelPosition != null) {
-                        val first = wayNodes[0][0]
+                        val first = wayNodes[0]
                         labelLatLong = LatLong(
-                            first.latitude + LatLongUtils.microdegreesToDegrees(labelPosition[1]),
-                            first.longitude + LatLongUtils.microdegreesToDegrees(labelPosition[0]),
+                            first[0] + LatLongUtils.microdegreesToDegrees(labelPosition[1]),
+                            first[1] + LatLongUtils.microdegreesToDegrees(labelPosition[0]),
                         )
                     }
                     ways.add(Way(layer, tags, wayNodes, labelLatLong))
@@ -974,6 +974,18 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
         }
 
     }
+}
+
+/**
+ * Stores node `index` as a latitude, longitude pair, validated as a [LatLong] would be.
+ */
+private fun DoubleArray.setNode(index: Int, latitude: Double, longitude: Double) {
+    if (Parameters.VALIDATE_COORDINATES) {
+        LatLongUtils.validateLatitude(latitude)
+        LatLongUtils.validateLongitude(longitude)
+    }
+    this[2 * index] = latitude
+    this[2 * index + 1] = longitude
 }
 
 // decoding near the date line can land slightly outside [-180, 180]; top level, so the per-node

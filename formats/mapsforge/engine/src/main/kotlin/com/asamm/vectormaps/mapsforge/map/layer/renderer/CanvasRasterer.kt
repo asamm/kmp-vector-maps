@@ -137,22 +137,23 @@ open class CanvasRasterer(
 
     private fun drawPath(
         shapePaintContainer: ShapePaintContainer,
-        coordinates: Array<Array<Point>>,
+        coordinates: Array<DoubleArray>,
+        origin: Point,
         dy: Float,
     ) {
         if (shapePaintContainer.curveStyle == Curve.CUBIC) {
             // When cubic, paths must be used.
-            makeCubicPath(coordinates, dy, path)
+            makeCubicPath(coordinates, origin, dy, path)
             drawPath(shapePaintContainer)
         } else if (shapePaintContainer.paint.isComplexStyle) {
             // When complex (e.g. filled) style, paths must be used.
-            makeLinesPath(coordinates, dy, path)
+            makeLinesPath(coordinates, origin, dy, path)
             drawPath(shapePaintContainer)
         } else {
             // When neither cubic nor complex style, use lines (esp. on Android):
             //   * To prevent libhwui.so "null pointer dereference" SIGSEGV crashes.
             //   * For performance.
-            drawLines(shapePaintContainer, coordinates, dy)
+            drawLines(shapePaintContainer, coordinates, origin, dy)
         }
     }
 
@@ -180,7 +181,8 @@ open class CanvasRasterer(
 
     private fun drawLines(
         shapePaintContainer: ShapePaintContainer,
-        coordinates: Array<Array<Point>>,
+        coordinates: Array<DoubleArray>,
+        origin: Point,
         dy: Float,
     ) {
         if (renderContext.rendererJob.displayModel.numberOfThreads > 1
@@ -191,10 +193,10 @@ open class CanvasRasterer(
             // shader is only read here (C14)
             synchronized(shapePaintContainer.paint) {
                 shapePaintContainer.paint.setBitmapShaderShift(renderContext.rendererJob.tile.origin)
-                canvas.drawLines(coordinates, dy, shapePaintContainer.paint)
+                canvas.drawLines(coordinates, origin, dy, shapePaintContainer.paint)
             }
         } else {
-            canvas.drawLines(coordinates, dy, shapePaintContainer.paint)
+            canvas.drawLines(coordinates, origin, dy, shapePaintContainer.paint)
         }
 
         if (DEBUG_COUNTS) {
@@ -218,7 +220,8 @@ open class CanvasRasterer(
                 val polylineContainer = shapeContainer as PolylineContainer
                 drawPath(
                     shapePaintContainer,
-                    polylineContainer.coordinatesRelativeToOrigin,
+                    polylineContainer.coordinatesAbsolute,
+                    polylineContainer.upperLeft.origin,
                     shapePaintContainer.dy,
                 )
             }
@@ -230,27 +233,35 @@ open class CanvasRasterer(
         // counts paths vs. lines usage for performance diagnostics
         private const val DEBUG_COUNTS = false
 
-        fun makeCubicPath(coordinates: Array<Array<Point>>, dy: Float, path: Path) {
+        fun makeCubicPath(coordinates: Array<DoubleArray>, origin: Point, dy: Float, path: Path) {
             path.clear()
 
-            for (innerList in coordinates) {
-                val points = if (dy == 0f) {
-                    innerList
+            for (ring in coordinates) {
+                // relative to the tile while the path is built; a parallel line from a relative copy
+                val points: DoubleArray
+                val originX: Double
+                val originY: Double
+                if (dy == 0f) {
+                    points = ring
+                    originX = origin.x
+                    originY = origin.y
                 } else {
-                    RendererUtils.parallelPath(innerList, dy.toDouble())
+                    points = RendererUtils.parallelPath(RendererUtils.relativeTo(ring, origin), dy.toDouble())
+                    originX = 0.0
+                    originY = 0.0
                 }
-                if (points.size >= 2) {
-                    val p1 = floatArrayOf(points[0].x.toFloat(), points[0].y.toFloat())
+                if (points.size >= 4) {
+                    val p1 = floatArrayOf((points[0] - originX).toFloat(), (points[1] - originY).toFloat())
                     val p2 = floatArrayOf(0.0f, 0.0f)
                     val p3 = floatArrayOf(0.0f, 0.0f)
 
                     // add first point
                     path.moveTo(p1[0], p1[1])
 
-                    for (i in 1 until points.size) {
+                    for (i in 2 until points.size step 2) {
                         // get ending coordinates
-                        p3[0] = points[i].x.toFloat()
-                        p3[1] = points[i].y.toFloat()
+                        p3[0] = (points[i] - originX).toFloat()
+                        p3[1] = (points[i + 1] - originY).toFloat()
                         p2[0] = 0.5f * (p1[0] + p3[0])
                         p2[1] = 0.5f * (p1[1] + p3[1])
 
@@ -268,20 +279,28 @@ open class CanvasRasterer(
             }
         }
 
-        fun makeLinesPath(coordinates: Array<Array<Point>>, dy: Float, path: Path) {
+        fun makeLinesPath(coordinates: Array<DoubleArray>, origin: Point, dy: Float, path: Path) {
             path.clear()
 
-            for (innerList in coordinates) {
-                val points = if (dy == 0f) {
-                    innerList
+            for (ring in coordinates) {
+                // relative to the tile while the path is built; a parallel line from a relative copy
+                val points: DoubleArray
+                val originX: Double
+                val originY: Double
+                if (dy == 0f) {
+                    points = ring
+                    originX = origin.x
+                    originY = origin.y
                 } else {
-                    RendererUtils.parallelPath(innerList, dy.toDouble())
+                    points = RendererUtils.parallelPath(RendererUtils.relativeTo(ring, origin), dy.toDouble())
+                    originX = 0.0
+                    originY = 0.0
                 }
-                if (points.size >= 2) {
-                    path.moveTo(points[0].x.toFloat(), points[0].y.toFloat())
+                if (points.size >= 4) {
+                    path.moveTo((points[0] - originX).toFloat(), (points[1] - originY).toFloat())
 
-                    for (i in 1 until points.size) {
-                        path.lineTo(points[i].x.toFloat(), points[i].y.toFloat())
+                    for (i in 2 until points.size step 2) {
+                        path.lineTo((points[i] - originX).toFloat(), (points[i + 1] - originY).toFloat())
                     }
                 }
             }

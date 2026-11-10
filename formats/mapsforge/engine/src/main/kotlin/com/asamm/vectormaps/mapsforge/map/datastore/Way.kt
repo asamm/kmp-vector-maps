@@ -18,6 +18,7 @@
 package com.asamm.vectormaps.mapsforge.map.datastore
 
 import com.asamm.vectormaps.mapsforge.core.model.LatLong
+import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Tag
 import java.util.Arrays
 import java.util.Objects
@@ -27,14 +28,28 @@ import java.util.Objects
  * nodes, null last.
  *
  * @param layer the layer plus 5, so it is not negative
+ * @param coordinates the nodes of each ring as latitude, longitude pairs
  * @param labelPosition the position of the area label, null when there is none
  */
 open class Way(
     @JvmField val layer: Byte,
     @JvmField val tags: List<Tag>,
-    @JvmField val latLongs: Array<Array<LatLong>>,
+    @JvmField val coordinates: Array<DoubleArray>,
     @JvmField val labelPosition: LatLong?,
 ) : Comparable<Way?> {
+
+    /**
+     * The nodes as new [LatLong]s on every call; the renderer reads [coordinates].
+     */
+    val latLongs: Array<Array<LatLong>>
+        get() {
+            return Array(coordinates.size) { i ->
+                val ring = coordinates[i]
+                Array(ring.size / 2) { j ->
+                    LatLong(ring[2 * j], ring[2 * j + 1])
+                }
+            }
+        }
 
     override fun compareTo(other: Way?): Int {
         if (this === other) {
@@ -49,7 +64,7 @@ open class Way(
             return retVal
         }
 
-        retVal = Integer.compare(latLongs.size, other.latLongs.size)
+        retVal = Integer.compare(coordinates.size, other.coordinates.size)
         if (retVal != 0) {
             return retVal
         }
@@ -79,13 +94,16 @@ open class Way(
             }
         }
 
-        for (i in latLongs.indices) {
-            retVal = Integer.compare(latLongs[i].size, other.latLongs[i].size)
+        for (i in coordinates.indices) {
+            val ring = coordinates[i]
+            val otherRing = other.coordinates[i]
+            retVal = Integer.compare(ring.size, otherRing.size)
             if (retVal != 0) {
                 return retVal
             }
-            for (j in latLongs[i].indices) {
-                retVal = latLongs[i][j].compareTo(other.latLongs[i][j])
+            // as LatLong.compareTo: longitude, then latitude
+            for (j in 0 until ring.size step 2) {
+                retVal = Point.compareCoord(ring[j + 1], ring[j], otherRing[j + 1], otherRing[j])
                 if (retVal != 0) {
                     return retVal
                 }
@@ -104,11 +122,11 @@ open class Way(
         }
         return layer == other.layer
             && Objects.equals(labelPosition, other.labelPosition)
-            && Objects.deepEquals(latLongs, other.latLongs)
+            && Objects.deepEquals(coordinates, other.coordinates)
             && Objects.equals(tags, other.tags)
     }
 
     override fun hashCode(): Int {
-        return Objects.hash(labelPosition, Arrays.deepHashCode(latLongs), layer, tags)
+        return Objects.hash(labelPosition, Arrays.deepHashCode(coordinates), layer, tags)
     }
 }
