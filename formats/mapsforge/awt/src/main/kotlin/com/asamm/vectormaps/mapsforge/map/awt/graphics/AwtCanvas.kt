@@ -224,7 +224,7 @@ internal open class AwtCanvas : Canvas {
             setColorAndStroke(awtPaint)
         }
 
-        val textStroke = TextStroke(text, awtPaint.font, this.graphics.fontRenderContext, false, false)
+        val textStroke = TextStroke(text, awtPaint.font, this.graphics.fontRenderContext, stretchToFit = false, repeat = false)
         val style = awtPaint.style
         when (style) {
             Style.FILL -> {
@@ -415,7 +415,7 @@ internal open class AwtCanvas : Canvas {
                 Rectangle2D.Double(left.toDouble(), top.toDouble(), width.toDouble(), height.toDouble()),
             ),
         )
-        this.graphics.setClip(clip)
+        this.graphics.clip = clip
     }
 
     final override fun translate(dx: Float, dy: Float) {

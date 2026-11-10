@@ -38,12 +38,11 @@ open class Circle @Throws(XmlPullParserException::class) constructor(
     displayModel: DisplayModel,
     elementName: String,
     pullParser: XmlPullParser,
-    level: Int,
+    private val level: Int,
 ) : RenderInstruction(graphicFactory, displayModel) {
 
     private val fill: Paint
     private val fills: MutableMap<Byte, Paint>
-    private val level: Int
     private var radius: Float = 0f
     private var renderRadius: Float = 0f
     private val renderRadiusScaled: MutableMap<Byte, Float>
@@ -55,8 +54,6 @@ open class Circle @Throws(XmlPullParserException::class) constructor(
     private val mySync = Any()
 
     init {
-        this.level = level
-
         this.fill = createPaint()
         this.fill.setColor(Color.TRANSPARENT)
         this.fill.setStyle(Style.FILL)

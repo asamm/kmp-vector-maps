@@ -38,11 +38,7 @@ open class AwtBitmap : BaseBitmap, Bitmap {
 
     @Throws(IOException::class)
     constructor(inputStream: InputStream) {
-        val image: BufferedImage? = ImageIO.read(inputStream)
-        if (image == null) {
-            throw IOException("ImageIO failed to read inputStream")
-        }
-        this.bufferedImage = image
+        this.bufferedImage = ImageIO.read(inputStream) ?: throw IOException("ImageIO failed to read inputStream")
     }
 
     constructor(width: Int, height: Int) : this(width, height, true)

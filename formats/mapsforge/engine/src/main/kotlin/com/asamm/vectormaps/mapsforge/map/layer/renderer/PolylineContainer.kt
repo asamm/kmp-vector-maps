@@ -70,8 +70,8 @@ open class PolylineContainer : ShapeContainer {
         this.layer = 0
         // as Point.equals
         val last = coordinates.size - 2
-        this.isClosedWay = java.lang.Double.compare(coordinates[0], coordinates[last]) == 0
-            && java.lang.Double.compare(coordinates[1], coordinates[last + 1]) == 0
+        this.isClosedWay = coordinates[0].compareTo(coordinates[last]) == 0
+            && coordinates[1].compareTo(coordinates[last + 1]) == 0
     }
 
     /**
@@ -81,10 +81,10 @@ open class PolylineContainer : ShapeContainer {
     val centerAbsolute: Point
         get() {
             if (center == null) {
-                if (isClosedWay) {
-                    center = GeometryUtils.calculateCenterOfBoundingBox(coordinatesAbsolute[0])
+                center = if (isClosedWay) {
+                    GeometryUtils.calculateCenterOfBoundingBox(coordinatesAbsolute[0])
                 } else {
-                    center = GeometryUtils.calculateCenterPoint(coordinatesAbsolute[0])
+                    GeometryUtils.calculateCenterPoint(coordinatesAbsolute[0])
                 }
             }
             return center!!
@@ -100,7 +100,7 @@ open class PolylineContainer : ShapeContainer {
                 coordinatesAbsoluteValue = Array(way.coordinates.size) { i ->
                     val latLongs = way.coordinates[i]
                     val ring = DoubleArray(latLongs.size)
-                    for (j in 0 until latLongs.size step 2) {
+                    for (j in latLongs.indices step 2) {
                         ring[j] = MercatorProjection.longitudeToPixelX(latLongs[j + 1], mapSize)
                         ring[j + 1] = MercatorProjection.latitudeToPixelY(latLongs[j], mapSize)
                     }

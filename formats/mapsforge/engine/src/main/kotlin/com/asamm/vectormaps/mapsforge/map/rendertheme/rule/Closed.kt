@@ -21,14 +21,12 @@ internal enum class Closed {
     companion object {
 
         fun fromString(value: String?): Closed {
-            if ("any" == value) {
-                return ANY
-            } else if ("no" == value) {
-                return NO
-            } else if ("yes" == value) {
-                return YES
+            return when (value) {
+                "any" -> ANY
+                "no" -> NO
+                "yes" -> YES
+                else -> throw IllegalArgumentException("Invalid value for Closed: $value")
             }
-            throw IllegalArgumentException("Invalid value for Closed: $value")
         }
     }
 }

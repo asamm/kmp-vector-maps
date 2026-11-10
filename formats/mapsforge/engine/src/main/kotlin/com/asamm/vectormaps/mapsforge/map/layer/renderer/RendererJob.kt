@@ -30,22 +30,16 @@ import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
 open class RendererJob(
     tile: Tile?,
     mapFile: MapDataStore?,
-    renderThemeFuture: RenderThemeFuture?,
-    displayModel: DisplayModel,
-    textScale: Float,
+    val renderThemeFuture: RenderThemeFuture?,
+    val displayModel: DisplayModel,
+    val textScale: Float,
     isTransparent: Boolean,
     labelsOnly: Boolean,
 ) : Job(tile, isTransparent) {
 
-    val displayModel: DisplayModel
-
-    var labelsOnly: Boolean
+    var labelsOnly: Boolean = labelsOnly
 
     val mapDataStore: MapDataStore
-
-    val renderThemeFuture: RenderThemeFuture?
-
-    val textScale: Float
 
     private val hashCodeValue: Int
 
@@ -58,11 +52,7 @@ open class RendererJob(
             throw IllegalArgumentException("invalid textScale: $textScale")
         }
 
-        this.labelsOnly = labelsOnly
-        this.displayModel = displayModel
         this.mapDataStore = mapFile
-        this.renderThemeFuture = renderThemeFuture
-        this.textScale = textScale
 
         this.hashCodeValue = calculateHashCode()
     }

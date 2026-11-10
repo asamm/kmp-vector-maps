@@ -146,9 +146,7 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
         }
         for (i in 0 until count) {
             val tagId = readUnsignedInt()
-            if (tagId < 0
-                || tagId >= maxTag
-            ) {
+            if (tagId !in 0 until maxTag) {
                 LOGGER.warning("invalid tag ID: $tagId")
                 return null
             }

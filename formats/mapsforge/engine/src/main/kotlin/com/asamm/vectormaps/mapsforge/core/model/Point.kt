@@ -18,6 +18,7 @@ package com.asamm.vectormaps.mapsforge.core.model
 
 import java.io.Serializable
 import java.util.Objects
+import kotlin.math.hypot
 
 /**
  * An immutable pair of double coordinates.
@@ -38,8 +39,8 @@ open class Point(
         if (other !is Point) {
             return false
         }
-        return java.lang.Double.compare(x, other.x) == 0
-            && java.lang.Double.compare(y, other.y) == 0
+        return x.compareTo(other.x) == 0
+            && y.compareTo(other.y) == 0
     }
 
     override fun hashCode(): Int {
@@ -50,7 +51,7 @@ open class Point(
      * The Euclidean distance to `point`.
      */
     fun distance(point: Point): Double {
-        return Math.hypot(x - point.x, y - point.y)
+        return hypot(x - point.x, y - point.y)
     }
 
     /**

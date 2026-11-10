@@ -47,9 +47,7 @@ open class InMemoryTileCache(capacity: Int) : TileCache {
     @Synchronized
     final override fun get(key: Job): TileBitmap? {
         val bitmap = lruCache[key]
-        if (bitmap != null) {
-            bitmap.incrementRefCount()
-        }
+        bitmap?.incrementRefCount()
         return bitmap
     }
 
@@ -63,10 +61,7 @@ open class InMemoryTileCache(capacity: Int) : TileCache {
 
     @Synchronized
     final override fun put(key: Job, bitmap: TileBitmap) {
-        val old = lruCache[key]
-        if (old != null) {
-            old.decrementRefCount()
-        }
+        lruCache[key]?.decrementRefCount()
 
         if (lruCache.put(key, bitmap) != null) {
             LOGGER.warning("overwriting cached entry: $key")
@@ -101,10 +96,7 @@ internal class BitmapLRUCache(capacity: Int) : WorkingSetCache<Job, TileBitmap>(
 
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Job, TileBitmap>?): Boolean {
         if (size > capacity) {
-            val bitmap: TileBitmap? = eldest!!.value
-            if (bitmap != null) {
-                bitmap.decrementRefCount()
-            }
+            eldest!!.value?.decrementRefCount()
             return true
         }
         return false

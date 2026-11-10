@@ -39,8 +39,8 @@ import java.util.Locale
  * A RenderInstruction is a basic graphical primitive to draw a map.
  */
 abstract class RenderInstruction protected constructor(
-    graphicFactory: GraphicFactory,
-    displayModel: DisplayModel,
+    val graphicFactory: GraphicFactory,
+    val displayModel: DisplayModel,
 ) {
 
     internal enum class Scale {
@@ -52,20 +52,11 @@ abstract class RenderInstruction protected constructor(
     var category: String? = null
         protected set
 
-    val displayModel: DisplayModel
-
-    val graphicFactory: GraphicFactory
-
     protected var height: Float = 0f
 
     protected var percent: Int = 100
 
     protected var width: Float = 0f
-
-    init {
-        this.displayModel = displayModel
-        this.graphicFactory = graphicFactory
-    }
 
     protected fun computeBoundary(width: Int, height: Int, position: Position): Rectangle {
         // Center by default
@@ -117,9 +108,7 @@ abstract class RenderInstruction protected constructor(
         src: String?,
         resourceProvider: XmlThemeResourceProvider?,
     ): Bitmap? {
-        if (null == src
-            || src.isEmpty()
-        ) {
+        if (src.isNullOrEmpty()) {
             return null
         }
 
@@ -200,17 +189,14 @@ abstract class RenderInstruction protected constructor(
      * Transform text before render based on the selected text transformation.
      */
     protected fun transformText(text: String, transformation: TextTransform): String {
-        if (text.length == 0) {
+        if (text.isEmpty()) {
             return text
         }
-        if (transformation == TextTransform.UPPERCASE) {
-            return text.uppercase(Locale.ROOT)
-        } else if (transformation == TextTransform.LOWERCASE) {
-            return text.lowercase(Locale.ROOT)
-        } else if (transformation == TextTransform.CAPITALIZE) {
-            return text.substring(0, 1).uppercase(Locale.ROOT) + text.substring(1)
-        } else {
-            return text
+        return when (transformation) {
+            TextTransform.UPPERCASE -> text.uppercase(Locale.ROOT)
+            TextTransform.LOWERCASE -> text.lowercase(Locale.ROOT)
+            TextTransform.CAPITALIZE -> text.substring(0, 1).uppercase(Locale.ROOT) + text.substring(1)
+            else -> text
         }
     }
 

@@ -43,16 +43,13 @@ open class Area @Throws(IOException::class, XmlPullParserException::class) const
     displayModel: DisplayModel,
     elementName: String,
     pullParser: XmlPullParser,
-    level: Int,
-    relativePathPrefix: String?,
-    resourceProvider: XmlThemeResourceProvider?,
+    private val level: Int,
+    private val relativePathPrefix: String?,
+    private val resourceProvider: XmlThemeResourceProvider?,
 ) : RenderInstruction(graphicFactory, displayModel) {
 
     private var bitmapInvalid: Boolean = false
     private val fill: Paint
-    private val level: Int
-    private val relativePathPrefix: String?
-    private val resourceProvider: XmlThemeResourceProvider?
     private var scale: Scale = Scale.STROKE
     private var shaderBitmap: Bitmap? = null
     private var src: String? = null
@@ -63,10 +60,6 @@ open class Area @Throws(IOException::class, XmlPullParserException::class) const
     private val mySync = Any()
 
     init {
-        this.level = level
-        this.relativePathPrefix = relativePathPrefix
-        this.resourceProvider = resourceProvider
-
         this.fill = createPaint()
         this.fill.setColor(Color.TRANSPARENT)
         this.fill.setStyle(Style.FILL)

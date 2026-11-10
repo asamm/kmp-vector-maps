@@ -123,16 +123,15 @@ open class Caption @Throws(XmlPullParserException::class) constructor(
 
     private fun computeVerticalOffset(zoomLevel: Byte): Float {
         val boundary = this.boundary!!
-        var verticalOffset: Float = this.dyScaled[zoomLevel] ?: this.dy
+        val verticalOffset: Float = this.dyScaled[zoomLevel] ?: this.dy
 
-        if (this.position.isOnUpperSide) {
-            verticalOffset = (verticalOffset + (boundary.top - this.gap)).toFloat()
+        return if (this.position.isOnUpperSide) {
+            (verticalOffset + (boundary.top - this.gap)).toFloat()
         } else if (this.position.isOnLowerSide) {
-            verticalOffset = (verticalOffset + (boundary.bottom + this.gap)).toFloat()
+            (verticalOffset + (boundary.bottom + this.gap)).toFloat()
         } else {
-            verticalOffset = (verticalOffset + (boundary.top + boundary.bottom) / 2).toFloat()
+            (verticalOffset + (boundary.top + boundary.bottom) / 2).toFloat()
         }
-        return verticalOffset
     }
 
     final override fun evictZoom(zoomLevel: Byte) {
@@ -192,11 +191,7 @@ open class Caption @Throws(XmlPullParserException::class) constructor(
                 this.textTransform = TextTransform.fromString(value)
             } else if (TEXT_WRAP_WIDTH == name) {
                 val maxWidth = (XmlUtils.parseNonNegativeInteger(name, value) * displayModel.scaleFactor).toInt()
-                if (maxWidth == 0) {
-                    maxTextWidth = Int.MAX_VALUE
-                } else {
-                    maxTextWidth = maxWidth
-                }
+                maxTextWidth = if (maxWidth == 0) Int.MAX_VALUE else maxWidth
             } else {
                 XmlUtils.logUnknownAttribute(elementName, name, value, i)
             }
@@ -234,10 +229,7 @@ open class Caption @Throws(XmlPullParserException::class) constructor(
         }
 
         synchronized(mySync) {
-            var caption = this.textKey!!.getValue(poi.tags)
-            if (caption == null) {
-                return
-            }
+            var caption = this.textKey!!.getValue(poi.tags) ?: return
             val themeCallback = displayModel.themeCallback
             if (themeCallback != null) {
                 caption = themeCallback.getText(poi, caption)
@@ -278,10 +270,7 @@ open class Caption @Throws(XmlPullParserException::class) constructor(
         }
 
         synchronized(mySync) {
-            var caption = this.textKey!!.getValue(way.tags)
-            if (caption == null) {
-                return
-            }
+            var caption = this.textKey!!.getValue(way.tags) ?: return
             val themeCallback = displayModel.themeCallback
             if (themeCallback != null) {
                 caption = themeCallback.getText(way, caption)

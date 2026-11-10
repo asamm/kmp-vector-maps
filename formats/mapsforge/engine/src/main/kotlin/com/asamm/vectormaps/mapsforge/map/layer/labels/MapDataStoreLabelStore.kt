@@ -60,8 +60,8 @@ open class MapDataStoreLabelStore(
                 this.renderThemeFuture,
                 this.displayModel,
                 this.textScale,
-                true,
-                true,
+                isTransparent = true,
+                labelsOnly = true,
             )
             val renderContext = RenderContext(rendererJob, standardRenderer.graphicFactory)
 

@@ -18,12 +18,14 @@
 package com.asamm.vectormaps.mapsforge.map.layer.renderer
 
 import com.asamm.vectormaps.mapsforge.core.model.Point
+import kotlin.math.cos
+import kotlin.math.sqrt
 
 object RendererUtils {
 
     private const val ANGLE_LIMIT = 170.0
 
-    private val ANGLE_LIMIT_COS = Math.cos(Math.toRadians(ANGLE_LIMIT))
+    private val ANGLE_LIMIT_COS = cos(Math.toRadians(ANGLE_LIMIT))
 
     /**
      * A polyline at distance `dy` parallel to `p`, x, y pairs; `p` itself if a corner turns sharper
@@ -40,7 +42,7 @@ object RendererUtils {
         for (k in 0 until n) {
             val c = p[2 * k + 2] - p[2 * k]
             val s = p[2 * k + 3] - p[2 * k + 1]
-            val l = Math.sqrt(c * c + s * s)
+            val l = sqrt(c * c + s * s)
             if (l == 0.0) {
                 ux[k] = 0.0
                 uy[k] = 0.0
@@ -81,7 +83,7 @@ object RendererUtils {
      */
     fun relativeTo(ring: DoubleArray, origin: Point): DoubleArray {
         val relative = DoubleArray(ring.size)
-        for (i in 0 until ring.size step 2) {
+        for (i in ring.indices step 2) {
             relative[i] = ring[i] - origin.x
             relative[i + 1] = ring[i + 1] - origin.y
         }

@@ -91,7 +91,7 @@ open class AndroidTileBitmap : AndroidBitmap, TileBitmap {
             } else {
                 AndroidGraphicFactory.INSTANCE.nonTransparentBitmapConfig
             }
-            this.bitmap = AndroidBitmap.createAndroidBitmap(tileSize, tileSize, config)
+            this.bitmap = createAndroidBitmap(tileSize, tileSize, config)
         }
         if (AndroidGraphicFactory.DEBUG_BITMAPS) {
             tileInstances!!.incrementAndGet()
@@ -102,7 +102,7 @@ open class AndroidTileBitmap : AndroidBitmap, TileBitmap {
         super.destroy()
         if (AndroidGraphicFactory.DEBUG_BITMAPS) {
             val i = tileInstances!!.decrementAndGet()
-            LOGGER.info("TILEBITMAP COUNT " + Integer.toString(i))
+            LOGGER.info("TILEBITMAP COUNT " + i.toString())
         }
     }
 
@@ -181,10 +181,7 @@ open class AndroidTileBitmap : AndroidBitmap, TileBitmap {
             val hash = composeHash(tileSize, isTransparent)
 
             return synchronized(reusableTileBitmaps) {
-                val subSet = reusableTileBitmaps[hash]
-                if (subSet == null) {
-                    return null
-                }
+                val subSet = reusableTileBitmaps[hash] ?: return null
                 var bitmap: Bitmap? = null
                 val iterator = subSet.iterator()
                 var candidate: Bitmap?

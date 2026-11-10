@@ -18,13 +18,6 @@ package com.asamm.vectormaps.mapsforge.core.util
 
 object Utils {
 
-    /**
-     * Null-safe equals.
-     */
-    fun equals(o1: Any?, o2: Any?): Boolean {
-        return o1 === o2 || (o1 != null && o1 == o2)
-    }
-
     fun hashTagParameter(keyValue: String): Int {
         return keyValue.hashCode()
     }

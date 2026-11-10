@@ -30,45 +30,21 @@ import com.asamm.vectormaps.mapsforge.core.model.Rotation
  */
 abstract class PointTextContainer protected constructor(
     point: Point,
-    horizontalOffset: Double,
-    verticalOffset: Double,
+    val horizontalOffset: Double,
+    val verticalOffset: Double,
     display: Display,
     priority: Int,
-    text: String,
-    paintFront: Paint,
-    paintBack: Paint?,
-    symbolContainer: SymbolContainer?,
-    position: Position,
-    maxTextWidth: Int,
+    val text: String,
+    val paintFront: Paint,
+    val paintBack: Paint?,
+    val symbolContainer: SymbolContainer?,
+    val position: Position,
+    val maxTextWidth: Int,
 ) : MapElementContainer(point, display, priority) {
-
-    val horizontalOffset: Double
 
     final override val isNotVisible: Boolean
 
-    val maxTextWidth: Int
-
-    val paintBack: Paint?
-
-    val paintFront: Paint
-
-    val position: Position
-
-    val symbolContainer: SymbolContainer?
-
-    val text: String
-
-    val verticalOffset: Double
-
     init {
-        this.maxTextWidth = maxTextWidth
-        this.text = text
-        this.symbolContainer = symbolContainer
-        this.paintFront = paintFront
-        this.paintBack = paintBack
-        this.position = position
-        this.horizontalOffset = horizontalOffset
-        this.verticalOffset = verticalOffset
         this.isNotVisible = super.isNotVisible
             || (this.paintFront.isTransparent
                 && (this.paintBack == null || this.paintBack.isTransparent))
@@ -102,15 +78,8 @@ abstract class PointTextContainer protected constructor(
             return false
         }
 
-        val ptc: PointTextContainer = other
-
-        if (this.text == ptc.text
-            && this.xy.distance(ptc.xy) < 200
-        ) {
-            return true
-        }
-
-        return false
+        return this.text == other.text
+            && this.xy.distance(other.xy) < 200
     }
 
     override fun equals(other: Any?): Boolean {

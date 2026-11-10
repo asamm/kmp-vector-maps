@@ -150,16 +150,12 @@ open class DatabaseRenderer(
         } catch (e: Exception) {
             LOGGER.warning(e.toString())
         } finally {
-            if (renderContext != null) {
-                renderContext.destroy()
-            }
+            renderContext?.destroy()
             heldTheme?.releaseZoom(rendererJob!!.tile.zoomLevel)
             if (!rendererJob!!.labelsOnly
                 && output != null
             ) {
-                if (tileCache != null) {
-                    tileCache.put(rendererJob, output)
-                }
+                tileCache?.put(rendererJob, output)
                 removeTileInProgress(rendererJob.tile)
             }
         }

@@ -19,6 +19,8 @@ package com.asamm.vectormaps.mapsforge.core.model
 
 import com.asamm.vectormaps.mapsforge.core.util.MercatorProjection
 import java.io.Serializable
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * A tile of the Mercator grid at a zoom level and tile size; out of range numbers throw
@@ -87,16 +89,16 @@ open class Tile(
                 synchronized(mySync) {
                     myBoundingBox = cachedBoundingBox
                     if (myBoundingBox == null) {
-                        val minLatitude = Math.max(
+                        val minLatitude = max(
                             MercatorProjection.LATITUDE_MIN,
                             MercatorProjection.tileYToLatitude((tileY + 1).toLong(), zoomLevel),
                         )
-                        val minLongitude = Math.max(-180.0, MercatorProjection.tileXToLongitude(tileX.toLong(), zoomLevel))
-                        val maxLatitude = Math.min(
+                        val minLongitude = max(-180.0, MercatorProjection.tileXToLongitude(tileX.toLong(), zoomLevel))
+                        val maxLatitude = min(
                             MercatorProjection.LATITUDE_MAX,
                             MercatorProjection.tileYToLatitude(tileY.toLong(), zoomLevel),
                         )
-                        var maxLongitude = Math.min(180.0, MercatorProjection.tileXToLongitude((tileX + 1).toLong(), zoomLevel))
+                        var maxLongitude = min(180.0, MercatorProjection.tileXToLongitude((tileX + 1).toLong(), zoomLevel))
                         if (maxLongitude == -180.0) {
                             // dateline crossing: the right tile starts at -180, an invalid box
                             maxLongitude = 180.0

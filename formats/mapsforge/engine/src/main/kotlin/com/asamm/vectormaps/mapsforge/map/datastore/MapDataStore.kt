@@ -29,7 +29,7 @@ import java.util.Locale
  *
  * @param language the preferred language for localized names, null for the default
  */
-abstract class MapDataStore constructor(language: String? = null) {
+abstract class MapDataStore(language: String? = null) {
 
     protected var preferredLanguage: String? = language
 

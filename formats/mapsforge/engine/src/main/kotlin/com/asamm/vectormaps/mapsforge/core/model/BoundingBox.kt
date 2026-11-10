@@ -21,6 +21,9 @@ import com.asamm.vectormaps.mapsforge.core.util.LatLongUtils
 import com.asamm.vectormaps.mapsforge.core.util.MercatorProjection
 import com.asamm.vectormaps.mapsforge.core.util.Parameters
 import java.io.Serializable
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
 /**
  * An immutable geographic box in degrees; `extendCoordinates`, `extendDegrees`, `extendMargin` and
@@ -72,10 +75,10 @@ open class BoundingBox : Serializable {
             val latitude = latLong.latitude
             val longitude = latLong.longitude
 
-            minLatitude = Math.min(minLatitude, latitude)
-            minLongitude = Math.min(minLongitude, longitude)
-            maxLatitude = Math.max(maxLatitude, latitude)
-            maxLongitude = Math.max(maxLongitude, longitude)
+            minLatitude = min(minLatitude, latitude)
+            minLongitude = min(minLongitude, longitude)
+            maxLatitude = max(maxLatitude, latitude)
+            maxLongitude = max(maxLongitude, longitude)
         }
 
         this.minLatitude = minLatitude
@@ -113,10 +116,10 @@ open class BoundingBox : Serializable {
      */
     fun extendBoundingBox(boundingBox: BoundingBox): BoundingBox {
         return BoundingBox(
-            Math.min(minLatitude, boundingBox.minLatitude),
-            Math.min(minLongitude, boundingBox.minLongitude),
-            Math.max(maxLatitude, boundingBox.maxLatitude),
-            Math.max(maxLongitude, boundingBox.maxLongitude),
+            min(minLatitude, boundingBox.minLatitude),
+            min(minLongitude, boundingBox.minLongitude),
+            max(maxLatitude, boundingBox.maxLatitude),
+            max(maxLongitude, boundingBox.maxLongitude),
         )
     }
 
@@ -133,13 +136,13 @@ open class BoundingBox : Serializable {
         val verticalExpansion = LatLongUtils.latitudeDistance(meters)
         val horizontalExpansion = LatLongUtils.longitudeDistance(
             meters,
-            Math.max(Math.abs(minLatitude), Math.abs(maxLatitude)),
+            max(abs(minLatitude), abs(maxLatitude)),
         )
 
-        val minLat = Math.max(MercatorProjection.LATITUDE_MIN, minLatitude - verticalExpansion)
-        val minLon = Math.max(-180.0, minLongitude - horizontalExpansion)
-        val maxLat = Math.min(MercatorProjection.LATITUDE_MAX, maxLatitude + verticalExpansion)
-        val maxLon = Math.min(180.0, maxLongitude + horizontalExpansion)
+        val minLat = max(MercatorProjection.LATITUDE_MIN, minLatitude - verticalExpansion)
+        val minLon = max(-180.0, minLongitude - horizontalExpansion)
+        val maxLat = min(MercatorProjection.LATITUDE_MAX, maxLatitude + verticalExpansion)
+        val maxLon = min(180.0, maxLongitude + horizontalExpansion)
 
         return BoundingBox(minLat, minLon, maxLat, maxLon)
     }
@@ -196,7 +199,7 @@ open class BoundingBox : Serializable {
         }
 
         for (outer in latLongs) {
-            for (i in 0 until outer.size step 2) {
+            for (i in outer.indices step 2) {
                 if (contains(outer[i], outer[i + 1])) {
                     // if any of the points is inside the bbox return early
                     return true
@@ -211,11 +214,11 @@ open class BoundingBox : Serializable {
         var tmpMaxLon = latLongs[0][1]
 
         for (outer in latLongs) {
-            for (i in 0 until outer.size step 2) {
-                tmpMinLat = Math.min(tmpMinLat, outer[i])
-                tmpMaxLat = Math.max(tmpMaxLat, outer[i])
-                tmpMinLon = Math.min(tmpMinLon, outer[i + 1])
-                tmpMaxLon = Math.max(tmpMaxLon, outer[i + 1])
+            for (i in outer.indices step 2) {
+                tmpMinLat = min(tmpMinLat, outer[i])
+                tmpMaxLat = max(tmpMaxLat, outer[i])
+                tmpMinLon = min(tmpMinLon, outer[i + 1])
+                tmpMaxLon = max(tmpMaxLon, outer[i + 1])
             }
         }
 

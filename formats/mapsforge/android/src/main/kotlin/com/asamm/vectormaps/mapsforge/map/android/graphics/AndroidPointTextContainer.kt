@@ -79,11 +79,7 @@ open class AndroidPointTextContainer internal constructor(
     protected val debugClashBoundsPaint: android.graphics.Paint?
 
     init {
-        val measurePaint: Paint = if (paintBack != null) {
-            paintBack
-        } else {
-            paintFront
-        }
+        val measurePaint: Paint = paintBack ?: paintFront
 
         this.textBounds = measurePaint.getTextBounds(text)
         this.fontPadding = AndroidPaint.getFontPadding(Math.round(this.textBounds.height).toInt())
@@ -200,7 +196,7 @@ open class AndroidPointTextContainer internal constructor(
             )
         }
 
-        if (PointTextContainer.DEBUG_CLASH_BOUNDS) {
+        if (DEBUG_CLASH_BOUNDS) {
             val debugPaint = AndroidGraphicFactory.getPaint(
                 AndroidGraphicFactory.INSTANCE.createPaint(measurePaint),
             )
@@ -260,7 +256,7 @@ open class AndroidPointTextContainer internal constructor(
                 androidCanvas.rotate(-rotation!!.degrees, rotation.px, rotation.py)
             }
 
-            if (PointTextContainer.DEBUG_CLASH_BOUNDS) {
+            if (DEBUG_CLASH_BOUNDS) {
                 drawClashBounds(origin.x, origin.y, rotation, androidCanvas)
             }
 
@@ -270,9 +266,7 @@ open class AndroidPointTextContainer internal constructor(
 
             androidCanvas.translate(x.toFloat(), y.toFloat())
 
-            if (this.backLayout != null) {
-                this.backLayout.draw(androidCanvas)
-            }
+            this.backLayout?.draw(androidCanvas)
             this.frontLayout!!.draw(androidCanvas)
 
             androidCanvas.restore()
@@ -282,7 +276,7 @@ open class AndroidPointTextContainer internal constructor(
                 androidCanvas.rotate(-rotation!!.degrees, rotation.px, rotation.py)
             }
 
-            if (PointTextContainer.DEBUG_CLASH_BOUNDS) {
+            if (DEBUG_CLASH_BOUNDS) {
                 drawClashBounds(origin.x, origin.y, rotation, androidCanvas)
             }
 
@@ -322,7 +316,7 @@ open class AndroidPointTextContainer internal constructor(
         androidCanvas: android.graphics.Canvas,
     ) {
         val transformed: Rectangle? =
-            PointTextContainer.getClashRectangleTransformed(this, originX, originY, rotation)
+            getClashRectangleTransformed(this, originX, originY, rotation)
 
         if (transformed != null) {
             androidCanvas.drawRect(

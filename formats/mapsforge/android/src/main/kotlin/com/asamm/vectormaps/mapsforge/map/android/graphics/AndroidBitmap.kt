@@ -109,11 +109,7 @@ open class AndroidBitmap protected constructor() : BaseBitmap(), Bitmap {
         val info: String
         val myBitmap = bitmap
         if (myBitmap != null) {
-            if (myBitmap.hasAlpha()) {
-                info = " has alpha"
-            } else {
-                info = " no alpha"
-            }
+            info = if (myBitmap.hasAlpha()) " has alpha" else " no alpha"
         } else {
             info = " is recycled"
         }
@@ -165,7 +161,7 @@ open class AndroidBitmap protected constructor() : BaseBitmap(), Bitmap {
     ): android.graphics.Bitmap? {
         var result: android.graphics.Bitmap? = null
 
-        if (!REUSABLE_BITMAPS.isEmpty()) {
+        if (REUSABLE_BITMAPS.isNotEmpty()) {
             synchronized(REUSABLE_BITMAPS) {
                 val iterator = REUSABLE_BITMAPS.iterator()
                 var candidate: android.graphics.Bitmap?

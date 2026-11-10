@@ -16,6 +16,9 @@
  */
 package com.asamm.vectormaps.mapsforge.core.model
 
+import kotlin.math.max
+import kotlin.math.min
+
 /**
  * A polyline as a list of segments.
  */
@@ -39,6 +42,10 @@ open class LineString {
             }
         }
         return true
+    }
+
+    override fun hashCode(): Int {
+        return segments.hashCode()
     }
 
     /**
@@ -110,10 +117,10 @@ open class LineString {
             var maxY = -minY
 
             for (segment in segments) {
-                minX = Math.min(minX, Math.min(segment.start.x, segment.end.x))
-                minY = Math.min(minY, Math.min(segment.start.y, segment.end.y))
-                maxX = Math.max(maxX, Math.max(segment.start.x, segment.end.x))
-                maxY = Math.max(maxY, Math.max(segment.start.y, segment.end.y))
+                minX = min(minX, min(segment.start.x, segment.end.x))
+                minY = min(minY, min(segment.start.y, segment.end.y))
+                maxX = max(maxX, max(segment.start.x, segment.end.x))
+                maxY = max(maxY, max(segment.start.y, segment.end.y))
             }
             return Rectangle(minX, minY, maxX, maxY)
         }

@@ -64,9 +64,7 @@ object XmlUtils {
         height: Int,
         percent: Int,
     ): Bitmap? {
-        if (src == null
-            || src.isEmpty()
-        ) {
+        if (src.isNullOrEmpty()) {
             // no image source defined
             return null
         }

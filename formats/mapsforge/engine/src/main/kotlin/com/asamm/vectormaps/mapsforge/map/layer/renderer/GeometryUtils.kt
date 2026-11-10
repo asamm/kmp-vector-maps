@@ -28,7 +28,7 @@ internal object GeometryUtils {
         var pointYMin = coordinates[1]
         var pointYMax = coordinates[1]
 
-        for (i in 0 until coordinates.size step 2) {
+        for (i in coordinates.indices step 2) {
             val x = coordinates[i]
             val y = coordinates[i + 1]
             if (x < pointXMin) {

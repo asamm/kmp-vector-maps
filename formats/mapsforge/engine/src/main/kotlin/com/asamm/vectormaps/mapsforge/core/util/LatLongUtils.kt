@@ -21,6 +21,9 @@ package com.asamm.vectormaps.mapsforge.core.util
 
 import com.asamm.vectormaps.mapsforge.core.model.LatLong
 import java.util.StringTokenizer
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.hypot
 
 /**
  * Geographic helpers on WGS84 coordinates.
@@ -91,7 +94,7 @@ object LatLongUtils {
      * The Euclidean distance in degrees.
      */
     fun distance(latLong1: LatLong, latLong2: LatLong): Double {
-        return Math.hypot(latLong1.longitude - latLong2.longitude, latLong1.latitude - latLong2.latitude)
+        return hypot(latLong1.longitude - latLong2.longitude, latLong1.latitude - latLong2.latitude)
     }
 
     /**
@@ -108,21 +111,21 @@ object LatLongUtils {
     fun isClosedWay(latLongs: DoubleArray): Boolean {
         val last = latLongs.size - 2
         // as LatLong.distance
-        return Math.hypot(latLongs[1] - latLongs[last + 1], latLongs[0] - latLongs[last]) < 0.000000001
+        return hypot(latLongs[1] - latLongs[last + 1], latLongs[0] - latLongs[last]) < 0.000000001
     }
 
     /**
      * `meters` in degrees of latitude, on the WGS84 sphere.
      */
     fun latitudeDistance(meters: Int): Double {
-        return (meters * 360) / (2 * Math.PI * EQUATORIAL_RADIUS)
+        return (meters * 360) / (2 * PI * EQUATORIAL_RADIUS)
     }
 
     /**
      * `meters` in degrees of longitude at `latitude`, on the WGS84 sphere.
      */
     fun longitudeDistance(meters: Int, latitude: Double): Double {
-        return (meters * 360) / (2 * Math.PI * EQUATORIAL_RADIUS * Math.cos(Math.toRadians(latitude)))
+        return (meters * 360) / (2 * PI * EQUATORIAL_RADIUS * cos(Math.toRadians(latitude)))
     }
 
     fun microdegreesToDegrees(coordinate: Int): Double {

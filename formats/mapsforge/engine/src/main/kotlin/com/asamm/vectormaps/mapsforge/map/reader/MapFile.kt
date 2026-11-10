@@ -160,7 +160,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
             val singleDeltaLatitude = doubleDeltaLatitude + previousSingleDeltaLatitude
             val singleDeltaLongitude = doubleDeltaLongitude + previousSingleDeltaLongitude
 
-            wayNodeLatitude = wayNodeLatitude + singleDeltaLatitude
+            wayNodeLatitude += singleDeltaLatitude
             wayNodeLongitude = clampLongitude(wayNodeLongitude + singleDeltaLongitude)
 
             waySegment.setNode(wayNodesIndex, wayNodeLatitude, wayNodeLongitude)
@@ -187,7 +187,7 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
 
         for (wayNodesIndex in 1 until waySegment.size / 2) {
             // get the way node latitude offset (VBE-S)
-            wayNodeLatitude = wayNodeLatitude + LatLongUtils.microdegreesToDegrees(readBuffer.readSignedInt())
+            wayNodeLatitude += LatLongUtils.microdegreesToDegrees(readBuffer.readSignedInt())
 
             // get the way node longitude offset (VBE-S)
             wayNodeLongitude = clampLongitude(

@@ -21,6 +21,14 @@ package com.asamm.vectormaps.mapsforge.core.util
 import com.asamm.vectormaps.mapsforge.core.model.LatLong
 import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Tile
+import kotlin.math.PI
+import kotlin.math.atan
+import kotlin.math.exp
+import kotlin.math.ln
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.sin
 
 /**
  * Converts between WGS84 coordinates, pixels and tiles of the spherical Mercator projection, by
@@ -81,10 +89,10 @@ object MercatorProjection {
      * The pixel Y of `latitude`, clipped to the map.
      */
     fun latitudeToPixelY(latitude: Double, mapSize: Long): Double {
-        val sinLatitude = Math.sin(Math.toRadians(latitude))
+        val sinLatitude = sin(Math.toRadians(latitude))
         // upstream: the formula needs the clipping to stay on the map
-        val pixelY = (0.5 - Math.log((1 + sinLatitude) / (1 - sinLatitude)) / (4 * Math.PI)) * mapSize
-        return Math.min(Math.max(0.0, pixelY), mapSize.toDouble())
+        val pixelY = (0.5 - ln((1 + sinLatitude) / (1 - sinLatitude)) / (4 * PI)) * mapSize
+        return min(max(0.0, pixelY), mapSize.toDouble())
     }
 
     fun latitudeToTileY(latitude: Double, zoomLevel: Byte): Int {
@@ -117,7 +125,7 @@ object MercatorProjection {
     }
 
     fun pixelXToTileX(pixelX: Double, zoomLevel: Byte, tileSize: Int): Int {
-        return Math.min(Math.max(pixelX / tileSize, 0.0), Math.pow(2.0, zoomLevel.toDouble()) - 1).toInt()
+        return min(max(pixelX / tileSize, 0.0), 2.0.pow(zoomLevel.toDouble()) - 1).toInt()
     }
 
     /**
@@ -130,11 +138,11 @@ object MercatorProjection {
             throw IllegalArgumentException("invalid pixelY coordinate $mapSize: $pixelY")
         }
         val y = 0.5 - (pixelY / mapSize)
-        return 90 - 360 * Math.atan(Math.exp(-y * (2 * Math.PI))) / Math.PI
+        return 90 - 360 * atan(exp(-y * (2 * PI))) / PI
     }
 
     fun pixelYToTileY(pixelY: Double, zoomLevel: Byte, tileSize: Int): Int {
-        return Math.min(Math.max(pixelY / tileSize, 0.0), Math.pow(2.0, zoomLevel.toDouble()) - 1).toInt()
+        return min(max(pixelY / tileSize, 0.0), 2.0.pow(zoomLevel.toDouble()) - 1).toInt()
     }
 
     fun tileToPixel(tileNumber: Long, tileSize: Int): Long {

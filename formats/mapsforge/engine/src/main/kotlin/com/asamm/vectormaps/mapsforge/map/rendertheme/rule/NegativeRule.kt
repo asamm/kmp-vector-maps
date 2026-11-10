@@ -54,7 +54,7 @@ internal open class NegativeRule(
         }
 
         // check tags
-        for (i in 0 until tags.size) {
+        for (i in tags.indices) {
             if (attributeMatcher.matches(tags[i])) {
                 return !exclusive
             }

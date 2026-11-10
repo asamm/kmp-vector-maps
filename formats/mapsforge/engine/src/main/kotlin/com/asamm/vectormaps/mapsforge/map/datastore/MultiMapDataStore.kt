@@ -22,13 +22,14 @@ import com.asamm.vectormaps.mapsforge.core.model.LatLong
 import com.asamm.vectormaps.mapsforge.core.model.Tile
 import java.util.Collections
 import java.util.Comparator
+import kotlin.math.max
 
 /**
  * Reads several map stores as one, highest priority first; [DataPolicy] decides whether the first
  * covering store answers or all of them, with or without deduplication. A store with a negative
  * priority only fills tiles no other store fully covers.
  */
-open class MultiMapDataStore constructor(
+open class MultiMapDataStore(
     private val dataPolicy: DataPolicy = DataPolicy.DEDUPLICATE,
 ) : MapDataStore() {
 
@@ -72,12 +73,7 @@ open class MultiMapDataStore constructor(
         if (useStartPosition) {
             startPosition = mapDataStore.startPosition()
         }
-        val current = boundingBox
-        boundingBox = if (null == current) {
-            mapDataStore.boundingBox()
-        } else {
-            current.extendBoundingBox(mapDataStore.boundingBox()!!)
-        }
+        boundingBox = boundingBox?.extendBoundingBox(mapDataStore.boundingBox()!!) ?: mapDataStore.boundingBox()
         // reverse order of priority
         Collections.sort(mapDatabases, Comparator { mds1, mds2 -> -Integer.compare(mds1.getPriority(), mds2.getPriority()) })
     }
@@ -109,7 +105,7 @@ open class MultiMapDataStore constructor(
                 var result = 0L
                 for (mdb in mapDatabases) {
                     if (mdb.supportsTile(tile)) {
-                        result = Math.max(result, mdb.getDataTimestamp(tile))
+                        result = max(result, mdb.getDataTimestamp(tile))
                     }
                 }
                 return result

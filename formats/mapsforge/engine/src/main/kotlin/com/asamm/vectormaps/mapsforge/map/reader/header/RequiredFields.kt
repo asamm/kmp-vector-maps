@@ -66,9 +66,7 @@ internal object RequiredFields {
     fun readFileVersion(readBuffer: ReadBuffer, mapFileInfoBuilder: MapFileInfoBuilder) {
         // get and check the file version (4 bytes)
         val fileVersion = readBuffer.readInt()
-        if (fileVersion < SUPPORTED_FILE_VERSION_MIN
-            || fileVersion > SUPPORTED_FILE_VERSION_MAX
-        ) {
+        if (fileVersion !in SUPPORTED_FILE_VERSION_MIN..SUPPORTED_FILE_VERSION_MAX) {
             throw MapFileException("unsupported file version: $fileVersion")
         }
         mapFileInfoBuilder.fileVersion = fileVersion
@@ -116,9 +114,7 @@ internal object RequiredFields {
     fun readRemainingHeader(readBuffer: ReadBuffer) {
         // get and check the size of the remaining file header (4 bytes)
         val remainingHeaderSize = readBuffer.readInt()
-        if (remainingHeaderSize < HEADER_SIZE_MIN
-            || remainingHeaderSize > HEADER_SIZE_MAX
-        ) {
+        if (remainingHeaderSize !in HEADER_SIZE_MIN..HEADER_SIZE_MAX) {
             throw MapFileException("invalid remaining header size: $remainingHeaderSize")
         }
 

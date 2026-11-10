@@ -17,6 +17,8 @@
 package com.asamm.vectormaps.mapsforge.core.model
 
 import java.io.Serializable
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * A rotation by an angle around a pivot point.
@@ -101,8 +103,8 @@ open class Rotation(
         if (noRotation(this)) {
             return Point(x, y)
         }
-        val cosTheta = Math.cos(radians)
-        val sinTheta = Math.sin(radians)
+        val cosTheta = cos(radians)
+        val sinTheta = sin(radians)
         val rotatedX = (x - px) * cosTheta - (y - py) * sinTheta + px
         val rotatedY = (x - px) * sinTheta + (y - py) * cosTheta + py
         return Point(rotatedX, rotatedY)

@@ -21,6 +21,7 @@ import com.asamm.vectormaps.mapsforge.core.util.Parameters
 import com.asamm.vectormaps.mapsforge.map.model.common.Observable
 import com.asamm.vectormaps.mapsforge.map.rendertheme.ThemeCallback
 import java.util.Collections
+import kotlin.math.max
 
 /**
  * Display settings: tile size from the device and user scale factors, background color, label
@@ -293,7 +294,7 @@ open class DisplayModel : Observable() {
         if (fixedTileSize == 0) {
             val temp = DEFAULT_TILE_SIZE * deviceScaleValue * userScaleFactorValue
             // clamps to the nearest multiple of the tileSizeMultiple, and never to 0
-            tileSizeValue = Math.max(
+            tileSizeValue = max(
                 tileSizeMultipleValue,
                 Math.round(temp / tileSizeMultipleValue) * tileSizeMultipleValue,
             )
@@ -312,7 +313,7 @@ open class DisplayModel : Observable() {
 
         private const val DEFAULT_MAX_TEXT_WIDTH_FACTOR = 0.7f
 
-        private val DEFAULT_MAX_TEXT_WIDTH = (DEFAULT_TILE_SIZE * DEFAULT_MAX_TEXT_WIDTH_FACTOR).toInt()
+        private const val DEFAULT_MAX_TEXT_WIDTH = (DEFAULT_TILE_SIZE * DEFAULT_MAX_TEXT_WIDTH_FACTOR).toInt()
 
         /**
          * The line scale new models start with.

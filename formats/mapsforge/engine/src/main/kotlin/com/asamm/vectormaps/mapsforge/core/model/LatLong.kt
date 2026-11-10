@@ -64,8 +64,8 @@ open class LatLong : Comparable<LatLong> {
         if (other !is LatLong) {
             return false
         }
-        return java.lang.Double.compare(latitude, other.latitude) == 0
-            && java.lang.Double.compare(longitude, other.longitude) == 0
+        return latitude.compareTo(other.latitude) == 0
+            && longitude.compareTo(other.longitude) == 0
     }
 
     override fun hashCode(): Int {

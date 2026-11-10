@@ -60,9 +60,7 @@ internal class OptionalFields private constructor(flags: Byte) {
         if (hasStartZoomLevel) {
             // get and check the start zoom level (1 byte)
             val mapStartZoomLevel = readBuffer.readByte()
-            if (mapStartZoomLevel < 0
-                || mapStartZoomLevel > START_ZOOM_LEVEL_MAX
-            ) {
+            if (mapStartZoomLevel !in 0..START_ZOOM_LEVEL_MAX) {
                 throw MapFileException("invalid map start zoom level: $mapStartZoomLevel")
             }
             startZoomLevel = mapStartZoomLevel

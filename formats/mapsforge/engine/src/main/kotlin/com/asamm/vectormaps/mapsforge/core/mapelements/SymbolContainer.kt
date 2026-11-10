@@ -36,18 +36,16 @@ open class SymbolContainer(
     priority: Int,
     boundary: Rectangle?,
     symbol: Bitmap,
-    theta: Float,
+    val theta: Float,
     alignCanvas: Boolean,
 ) : MapElementContainer(point, display, priority) {
 
     private val boundary: Rectangle
 
     // if it has a fixed angle to canvas.
-    val alignCanvas: Boolean
+    val alignCanvas: Boolean = alignCanvas
 
-    var symbol: Bitmap
-
-    val theta: Float
+    var symbol: Bitmap = symbol
 
     constructor(
         point: Point,
@@ -59,9 +57,6 @@ open class SymbolContainer(
     ) : this(point, display, priority, boundary, symbol, 0f, alignCanvas)
 
     init {
-        this.symbol = symbol
-        this.theta = theta
-        this.alignCanvas = alignCanvas
         if (boundary != null) {
             this.boundary = boundary
         } else {

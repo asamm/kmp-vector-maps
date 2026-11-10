@@ -80,7 +80,7 @@ open class Tag(
             return 1
         }
 
-        return retVal
+        return 0
     }
 
     // as upstream: two null keys compare equal whatever the values

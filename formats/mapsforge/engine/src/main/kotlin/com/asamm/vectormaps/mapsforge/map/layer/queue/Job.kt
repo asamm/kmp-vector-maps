@@ -23,9 +23,7 @@ import java.io.File
 /**
  * A unit of tile work, equal by tile and alpha; a null tile throws [IllegalArgumentException].
  */
-open class Job(tile: Tile?, hasAlpha: Boolean) {
-
-    val hasAlpha: Boolean
+open class Job(tile: Tile?, val hasAlpha: Boolean) {
 
     val tile: Tile
 
@@ -41,7 +39,6 @@ open class Job(tile: Tile?, hasAlpha: Boolean) {
         }
 
         this.tile = tile
-        this.hasAlpha = hasAlpha
         this.key = composeKey(this.tile.zoomLevel, this.tile.tileX.toLong(), this.tile.tileY.toLong())
     }
 

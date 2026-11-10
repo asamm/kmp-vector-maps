@@ -23,6 +23,7 @@ import java.awt.Dimension
 import java.awt.image.BufferedImage
 import java.io.IOException
 import java.io.InputStream
+import kotlin.math.sqrt
 
 open class AwtSvgBitmap @Throws(IOException::class) constructor(
     inputStream: InputStream,
@@ -55,7 +56,7 @@ open class AwtSvgBitmap @Throws(IOException::class) constructor(
                 val diagram = SVGCache.getSVGUniverse().getDiagram(uri)
 
                 val scale = scaleFactor /
-                    Math.sqrt(((diagram.height * diagram.width) / defaultSize).toDouble())
+                    sqrt(((diagram.height * diagram.width) / defaultSize).toDouble())
 
                 val bmpSize = GraphicUtils.imageSize(
                     diagram.width,
@@ -96,7 +97,7 @@ open class AwtSvgBitmap @Throws(IOException::class) constructor(
             synchronized(SVGCache.getSVGUniverse()) {
                 return getResourceBitmap(
                     inputStream,
-                    Integer.toString(hash),
+                    hash.toString(),
                     scaleFactor,
                     DEFAULT_SIZE,
                     width,

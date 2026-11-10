@@ -17,6 +17,8 @@
 package com.asamm.vectormaps.mapsforge.core.model
 
 import java.io.Serializable
+import kotlin.math.abs
+import kotlin.math.sign
 
 /**
  * An immutable rectangle; left above right or top below bottom throws
@@ -174,15 +176,15 @@ open class Rectangle : Serializable {
         if (output.width > horizontal
             || output.height > vertical
         ) {
-            val newLeft = if (Math.abs(output.left) > horizontal) Math.signum(output.left) * horizontal else output.left
-            val newTop = if (Math.abs(output.top) > vertical) Math.signum(output.top) * vertical else output.top
-            val newRight = if (Math.abs(output.right) > horizontal) {
-                Math.signum(output.right) * horizontal
+            val newLeft = if (abs(output.left) > horizontal) sign(output.left) * horizontal else output.left
+            val newTop = if (abs(output.top) > vertical) sign(output.top) * vertical else output.top
+            val newRight = if (abs(output.right) > horizontal) {
+                sign(output.right) * horizontal
             } else {
                 output.right
             }
-            val newBottom = if (Math.abs(output.bottom) > vertical) {
-                Math.signum(output.bottom) * vertical
+            val newBottom = if (abs(output.bottom) > vertical) {
+                sign(output.bottom) * vertical
             } else {
                 output.bottom
             }

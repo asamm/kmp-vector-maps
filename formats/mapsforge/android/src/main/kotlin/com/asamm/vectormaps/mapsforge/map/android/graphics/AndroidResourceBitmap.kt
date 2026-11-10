@@ -93,7 +93,7 @@ open class AndroidResourceBitmap protected constructor(
             return synchronized(RESOURCE_BITMAPS) {
                 val data = RESOURCE_BITMAPS[hash]
                 if (data != null) {
-                    val updated = Pair<Bitmap, Int>(data.first, data.second + 1)
+                    val updated = Pair(data.first, data.second + 1)
                     RESOURCE_BITMAPS[hash] = updated
                     data.first
                 } else {
@@ -123,7 +123,7 @@ open class AndroidResourceBitmap protected constructor(
                             true,
                         )
                     }
-                    val updated = Pair<Bitmap, Int>(bitmap, 1)
+                    val updated = Pair(bitmap, 1)
                     RESOURCE_BITMAPS[hash] = updated
                     if (AndroidGraphicFactory.DEBUG_BITMAPS) {
                         LOGGER.info("RESOURCE BITMAP CREATE $hash")
@@ -150,7 +150,7 @@ open class AndroidResourceBitmap protected constructor(
                 val data = RESOURCE_BITMAPS[hash]
                 if (data != null) {
                     if (data.second > 1) {
-                        val updated = Pair<Bitmap, Int>(data.first, data.second - 1)
+                        val updated = Pair(data.first, data.second - 1)
                         RESOURCE_BITMAPS[hash] = updated
                         return false
                     }

@@ -24,7 +24,7 @@ internal class TextKey private constructor(key: Int) {
     private val keyCode: Int = key
 
     fun getValue(tags: List<Tag>): String? {
-        for (i in 0 until tags.size) {
+        for (i in tags.indices) {
             if (this.keyCode == tags[i].keyCode) {
                 return tags[i].value
             }

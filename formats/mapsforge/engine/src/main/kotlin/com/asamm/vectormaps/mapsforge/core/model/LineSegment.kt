@@ -16,6 +16,9 @@
  */
 package com.asamm.vectormaps.mapsforge.core.model
 
+import kotlin.math.atan2
+import kotlin.math.sqrt
+
 /**
  * A directed line segment between two points.
  */
@@ -28,8 +31,8 @@ class LineSegment(
      * The angle to `other` in degrees, -180 to 180.
      */
     fun angleTo(other: LineSegment): Double {
-        val angle1 = Math.atan2(start.y - end.y, start.x - end.x)
-        val angle2 = Math.atan2(other.start.y - other.end.y, other.start.x - other.end.x)
+        val angle1 = atan2(start.y - end.y, start.x - end.x)
+        val angle2 = atan2(other.start.y - other.end.y, other.start.x - other.end.x)
         var angle = Math.toDegrees(angle1 - angle2)
         if (angle <= -180) {
             angle += 360
@@ -76,7 +79,7 @@ class LineSegment(
             }
         }
         val slope = (end.y - start.y) / (end.x - start.x)
-        var dx = Math.sqrt((distance * distance) / (1 + (slope * slope)))
+        var dx = sqrt((distance * distance) / (1 + (slope * slope)))
         if (end.x < start.x) {
             dx *= -1
         }

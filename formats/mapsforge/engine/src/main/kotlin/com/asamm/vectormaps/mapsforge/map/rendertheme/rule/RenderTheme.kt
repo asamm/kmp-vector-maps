@@ -165,7 +165,7 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
 
         // cache miss
         val matchingList: MutableList<RenderInstruction> = ArrayList()
-        for (i in 0 until rulesList.size) {
+        for (i in rulesList.indices) {
             rulesList[i].matchNode(renderCallback, renderContext, matchingList, poi)
         }
         val matchingListA = matchingList.toTypedArray()
@@ -187,7 +187,7 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
             if (!strokeScales.containsKey(zoomLevel)
                 || scaleFactor != strokeScales[zoomLevel]!!
             ) {
-                for (i in 0 until this.rulesList.size) {
+                for (i in this.rulesList.indices) {
                     val rule = this.rulesList[i]
                     if (rule.zoomMin <= zoomLevel
                         && rule.zoomMax >= zoomLevel
@@ -212,7 +212,7 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
             if (!textScales.containsKey(zoomLevel)
                 || scaleFactor != textScales[zoomLevel]!!
             ) {
-                for (i in 0 until this.rulesList.size) {
+                for (i in this.rulesList.indices) {
                     val rule = this.rulesList[i]
                     if (rule.zoomMin <= zoomLevel
                         && rule.zoomMax >= zoomLevel
@@ -239,7 +239,7 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
     internal fun complete() {
         this.rulesList.trimToSize()
         this.hillShadings.trimToSize()
-        for (i in 0 until this.rulesList.size) {
+        for (i in this.rulesList.indices) {
             this.rulesList[i].onComplete()
         }
     }
@@ -265,7 +265,7 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
 
         // cache miss
         val matchingList: MutableList<RenderInstruction> = ArrayList()
-        for (i in 0 until rulesList.size) {
+        for (i in rulesList.indices) {
             rulesList[i].matchWay(renderCallback, way, way.upperLeft, closed, matchingList, renderContext)
         }
         val matchingListA = matchingList.toTypedArray()
@@ -331,7 +331,7 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
             synchronized(this.textScales) {
                 this.strokeScales.remove(zoomLevel)
                 this.textScales.remove(zoomLevel)
-                for (i in 0 until this.rulesList.size) {
+                for (i in this.rulesList.indices) {
                     val rule = this.rulesList[i]
                     if (rule.zoomMin <= zoomLevel
                         && rule.zoomMax >= zoomLevel
@@ -363,7 +363,7 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
         fun copy(): MatchingCacheKey? {
             val copied = ArrayList<Tag>(this.tags.size)
             var chars = 0
-            for (i in 0 until this.tags.size) {
+            for (i in this.tags.indices) {
                 val tag = this.tags[i]
                 if (keyCodeName != tag.keyCode) {
                     chars += (tag.key?.length ?: 0) + (tag.value?.length ?: 0)
@@ -440,7 +440,7 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
         private fun computeHash(): Int {
             var result = 1
             result = 31 * result + this.closed.hashCode()
-            for (i in 0 until this.tags.size) {
+            for (i in this.tags.indices) {
                 val tag = this.tags[i]
                 if (keyCodeName != tag.keyCode) {
                     result = 31 * result + tag.hashCode()

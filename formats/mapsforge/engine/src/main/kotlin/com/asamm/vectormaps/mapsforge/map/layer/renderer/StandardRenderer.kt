@@ -47,7 +47,7 @@ import java.util.Collections
  * @param mapDataStore the store the map data is read from
  * @param hillsRenderConfig the host's hillshading, drawn where the theme places it; null for none
  */
-open class StandardRenderer constructor(
+open class StandardRenderer(
     mapDataStore: MapDataStore?,
     graphicFactory: GraphicFactory,
     renderLabels: Boolean,
@@ -83,12 +83,7 @@ open class StandardRenderer constructor(
      */
     val startZoomLevel: Byte?
         get() {
-            if (mapDataStore != null
-                && null != mapDataStore.startZoomLevel()
-            ) {
-                return mapDataStore.startZoomLevel()
-            }
-            return DEFAULT_START_ZOOM_LEVEL
+            return mapDataStore?.startZoomLevel() ?: DEFAULT_START_ZOOM_LEVEL
         }
 
     val zoomLevelMax: Byte
@@ -131,7 +126,7 @@ open class StandardRenderer constructor(
             val displayModel = renderContext.rendererJob.displayModel
             if (renderContext.rendererJob.tile.zoomLevel >= displayModel.polygonZoomMin) {
                 renderContext.renderTheme.matchClosedWay(getRenderCallback(), renderContext, way)
-            } else if (!displayModel.polygonExceptions.isEmpty()) {
+            } else if (displayModel.polygonExceptions.isNotEmpty()) {
                 for (tag in displayModel.polygonExceptions) {
                     if (way.tags.contains(tag)) {
                         renderContext.renderTheme.matchClosedWay(getRenderCallback(), renderContext, way)

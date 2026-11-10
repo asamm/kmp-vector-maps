@@ -36,6 +36,7 @@ import java.awt.TexturePaint
 import java.awt.font.TextAttribute
 import java.awt.image.BufferedImage
 import java.text.AttributedCharacterIterator
+import kotlin.math.max
 
 open class AwtPaint : Paint {
 
@@ -299,7 +300,7 @@ open class AwtPaint : Paint {
          * [Paint.FONT_PADDING_FACTOR] times `fontHeight`, at least 1.
          */
         fun getFontPadding(fontHeight: Int): Int {
-            return Math.max(1.0, Paint.FONT_PADDING_FACTOR * fontHeight).toInt()
+            return max(1.0, Paint.FONT_PADDING_FACTOR * fontHeight).toInt()
         }
     }
 }

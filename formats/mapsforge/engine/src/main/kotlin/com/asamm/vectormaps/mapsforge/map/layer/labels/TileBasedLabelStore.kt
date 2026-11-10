@@ -39,7 +39,7 @@ open class TileBasedLabelStore(
      */
     @Synchronized
     fun storeMapItems(tile: Tile, mapItems: MutableList<MapElementContainer>) {
-        this.put(tile, LayerUtil.collisionFreeOrdered(mapItems, Rotation.NULL_ROTATION, false))
+        this[tile] = LayerUtil.collisionFreeOrdered(mapItems, Rotation.NULL_ROTATION, false)
     }
 
     @Synchronized
@@ -66,10 +66,7 @@ open class TileBasedLabelStore(
     override fun removeEldestEntry(
         eldest: MutableMap.MutableEntry<Tile, List<MapElementContainer>>?,
     ): Boolean {
-        if (size > this.capacity) {
-            return true
-        }
-        return false
+        return size > this.capacity
     }
 
     private companion object {

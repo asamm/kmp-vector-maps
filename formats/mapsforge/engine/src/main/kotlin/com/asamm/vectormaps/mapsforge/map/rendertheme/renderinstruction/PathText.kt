@@ -199,10 +199,7 @@ open class PathText @Throws(XmlPullParserException::class) constructor(
             return
         }
 
-        var caption = this.textKey!!.getValue(way.tags)
-        if (caption == null) {
-            return
-        }
+        var caption = this.textKey!!.getValue(way.tags) ?: return
         val themeCallback = displayModel.themeCallback
         if (themeCallback != null) {
             caption = themeCallback.getText(way, caption)

@@ -39,7 +39,7 @@ internal open class PositiveRule(
     }
 
     private fun matchesAnyTag(tags: List<Tag>): Boolean {
-        for (i in 0 until tags.size) {
+        for (i in tags.indices) {
             val tag = tags[i]
             if (keyMatcher.matches(tag)
                 && valueMatcher.matches(tag)
