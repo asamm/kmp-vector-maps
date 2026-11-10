@@ -10,7 +10,7 @@ Benchmark baselines and how M7 measures against them; M7's steps and status are 
 JVM's Mapsforge renders up to 27 % faster. M7.2b's lock changes speed up the parallel block by up to
 32 % on the JVM and 29 % on the A54; M7.3 allocates 14–32 % less per render; since M7.4 a renderer
 with the style's current settings reuses its theme; M7.5 allocates up to 32 % less per render at the
-same render time. **Next action:** M7.5 in review; M7.1 ⏸ (Q15).
+same render time, except JVM Monaco z12 (−23 %). **Next action:** M7.5 in review; M7.1 ⏸ (Q15).
 
 ## How to measure
 

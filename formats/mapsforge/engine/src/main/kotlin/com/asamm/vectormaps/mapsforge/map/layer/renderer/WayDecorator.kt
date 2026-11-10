@@ -199,7 +199,17 @@ internal object WayDecorator {
             return
         }
 
-        // the label parts take Points; built only for a way the text may fit (C16)
+        val measurePaint = stroke ?: fill
+        val textWidth = measurePaint.getTextWidth(text)
+        // measured with the first label that fits
+        var textHeight = -1
+
+        // no label fits when the loop's first test fails
+        if (!((repeatStart + textWidth).toDouble() < pathLength)) {
+            return
+        }
+
+        // the label parts take Points; built only for a way the text fits on once (C16)
         val path = LineString()
         var previous = Point(c[0], c[1])
         for (i in 2 until c.size step 2) {
@@ -207,11 +217,6 @@ internal object WayDecorator {
             path.segments.add(LineSegment(previous, current))
             previous = current
         }
-
-        val measurePaint = stroke ?: fill
-        val textWidth = measurePaint.getTextWidth(text)
-        // measured with the first label that fits
-        var textHeight = -1
 
         var pos = repeatStart
         while ((pos + textWidth).toDouble() < pathLength) {
