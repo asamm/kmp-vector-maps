@@ -7,10 +7,10 @@ Benchmark baselines and how M7 measures against them; M7's steps and status are 
 (Mapsforge, Java), M4.3c (Garmin)
 
 **Status:** M7.0 measured `main` after M6 (2026-11-08): no regression against the baselines, the
-JVM's Mapsforge renders up to 27 % faster. M7.2b's lock changes speed up the parallel block by up
-to 32 % on the JVM and 29 % on the A54; M7.3 allocates 14–32 % less per render; since M7.4 a
-renderer with the style's current settings reuses its theme. **Next action:** M7.5, way geometry;
-M7.1 ⏸ (Q15).
+JVM's Mapsforge renders up to 27 % faster. M7.2b's lock changes speed up the parallel block by up to
+32 % on the JVM and 29 % on the A54; M7.3 allocates 14–32 % less per render; since M7.4 a renderer
+with the style's current settings reuses its theme; M7.5 allocates up to 32 % less per render at the
+same render time. **Next action:** M7.5 in review; M7.1 ⏸ (Q15).
 
 ## How to measure
 
@@ -117,6 +117,27 @@ load, the times in the same runs were not taken idle and are not compared.
   regrown tag list per element, and both text measures of every named way.
 - Left, the largest: a `LatLong` per way node in the reader and a `Point` per node in the renderer
   (~25–35 %), and the 512 px tile bitmap (1 MB, the host's).
+
+## M7.5 — way geometry, 2026-11-10
+
+Way nodes as `DoubleArray`s (C16), `main` → M7.5. JVM: allocated per operation (JMH `-prof gc`,
+JDK 17); time, idle desktop, the median of 3 interleaved rounds of sample medians. A54: objects
+allocated and median time, one run each, clocks locked.
+
+| Benchmark | Monaco | Czech map at Prague |
+|---|---|---|
+| JVM read tile z12 / z15 / z17, MB | 4.63 / 0.31 / 0.23 → 3.34 / 0.23 / 0.17 | 14.5 / 2.29 / 2.21 → 11.3 / 1.94 / 2.09 |
+| JVM render tile z12 / z15 / z17, MB | 10.5 / 2.03 / 1.47 → 7.09 / 1.71 / 1.36 | 26.2 / 6.53 / 4.06 → 18.4 / 5.12 / 3.79 |
+| JVM render tile z12 / z15 / z17, ms | 40.7 / 15.3 / 5.51 → 31.3 / 14.6 / 5.75 | 103 / 81.3 / 22.9 → 104 / 85.5 / 23.4 |
+| JVM read tile z12 / z15 / z17, ms | 1.47 / 0.05 / 0.04 → 1.34 / 0.05 / 0.04 | 7.33 / 1.04 / 1.01 → 7.41 / 0.98 / 1.05 |
+| A54 render tile z12 / z15 / z17, objects | 239k / 21.9k / 8.98k → 112k / 15.0k / 6.37k | 645k / 119k / 64.5k → 410k / 95.6k / 58.4k |
+| A54 render tile z12 / z15 / z17, ms | 120 / 37.4 / 13.9 → 124 / 38.5 / 14.1 | 253 / 129 / 33.7 → 256 / 132 / 34.1 |
+| A54 read tile z12 / z15 / z17, ms | 9.62 / 0.58 / 0.45 → 8.53 / 0.57 / 0.47 | 29.3 / 4.32 / 4.52 → 27.1 / 4.36 / 4.59 |
+
+- A54 render time is level (within one run's spread): ART's short-lived objects are cheap to
+  allocate; the gain is less collector work, most under parallel renders.
+- JVM time is level too, except Monaco z12 render (−23 %): every other change is within ±5 %, below
+  the rounds' spread (up to 2× for single rounds at z12 and z17).
 
 ## Baselines
 

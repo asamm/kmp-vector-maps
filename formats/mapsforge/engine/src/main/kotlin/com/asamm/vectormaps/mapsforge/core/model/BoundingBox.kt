@@ -263,9 +263,10 @@ open class BoundingBox : Serializable {
     }
 
     /**
-     * True if any point is inside, else if the points' bounding box intersects this one.
+     * True if any point is inside, else if the points' bounding box intersects this one; the points
+     * of each ring as latitude, longitude pairs.
      */
-    fun intersectsArea(latLongs: Array<Array<LatLong>>): Boolean {
+    fun intersectsArea(latLongs: Array<DoubleArray>): Boolean {
         if (latLongs.isEmpty()
             || latLongs[0].isEmpty()
         ) {
@@ -273,8 +274,8 @@ open class BoundingBox : Serializable {
         }
 
         for (outer in latLongs) {
-            for (latLong in outer) {
-                if (contains(latLong)) {
+            for (i in 0 until outer.size step 2) {
+                if (contains(outer[i], outer[i + 1])) {
                     // if any of the points is inside the bbox return early
                     return true
                 }
@@ -282,17 +283,17 @@ open class BoundingBox : Serializable {
         }
 
         // no fast solution, so accumulate boundary points
-        var tmpMinLat = latLongs[0][0].latitude
-        var tmpMinLon = latLongs[0][0].longitude
-        var tmpMaxLat = latLongs[0][0].latitude
-        var tmpMaxLon = latLongs[0][0].longitude
+        var tmpMinLat = latLongs[0][0]
+        var tmpMinLon = latLongs[0][1]
+        var tmpMaxLat = latLongs[0][0]
+        var tmpMaxLon = latLongs[0][1]
 
         for (outer in latLongs) {
-            for (latLong in outer) {
-                tmpMinLat = Math.min(tmpMinLat, latLong.latitude)
-                tmpMaxLat = Math.max(tmpMaxLat, latLong.latitude)
-                tmpMinLon = Math.min(tmpMinLon, latLong.longitude)
-                tmpMaxLon = Math.max(tmpMaxLon, latLong.longitude)
+            for (i in 0 until outer.size step 2) {
+                tmpMinLat = Math.min(tmpMinLat, outer[i])
+                tmpMaxLat = Math.max(tmpMaxLat, outer[i])
+                tmpMinLon = Math.min(tmpMinLon, outer[i + 1])
+                tmpMaxLon = Math.max(tmpMaxLon, outer[i + 1])
             }
         }
 

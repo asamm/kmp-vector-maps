@@ -26,50 +26,67 @@ object RendererUtils {
     private val ANGLE_LIMIT_COS = Math.cos(Math.toRadians(ANGLE_LIMIT))
 
     /**
-     * A polyline at distance `dy` parallel to `p`; `p` itself if a corner turns sharper than the
-     * angle limit. See
+     * A polyline at distance `dy` parallel to `p`, x, y pairs; `p` itself if a corner turns sharper
+     * than the angle limit. See
      * http://objectmix.com/graphics/132987-draw-parallel-polyline-algorithm-needed.html
      */
     @JvmStatic
-    fun parallelPath(p: Array<Point>, dy: Double): Array<Point> {
-        val n = p.size - 1
-        val u = arrayOfNulls<Point>(n)
-        val h = arrayOfNulls<Point>(p.size)
+    fun parallelPath(p: DoubleArray, dy: Double): DoubleArray {
+        val n = p.size / 2 - 1
+        val ux = DoubleArray(n)
+        val uy = DoubleArray(n)
+        val h = DoubleArray(p.size)
 
         // Generate an array u[] of unity vectors of each direction
         for (k in 0 until n) {
-            val c = p[k + 1].x - p[k].x
-            val s = p[k + 1].y - p[k].y
+            val c = p[2 * k + 2] - p[2 * k]
+            val s = p[2 * k + 3] - p[2 * k + 1]
             val l = Math.sqrt(c * c + s * s)
             if (l == 0.0) {
-                u[k] = Point(0.0, 0.0)
+                ux[k] = 0.0
+                uy[k] = 0.0
             } else {
-                u[k] = Point(c / l, s / l)
+                ux[k] = c / l
+                uy[k] = s / l
             }
 
             // Detect angles above the allowed limit - return original path in this case
             if (k == 0) {
                 continue
             }
-            if (u[k]!!.x * u[k - 1]!!.x + u[k]!!.y * u[k - 1]!!.y < ANGLE_LIMIT_COS) {
+            if (ux[k] * ux[k - 1] + uy[k] * uy[k - 1] < ANGLE_LIMIT_COS) {
                 return p
             }
         }
 
         // For the start point calculate the normal
-        h[0] = Point(p[0].x - dy * u[0]!!.y, p[0].y + dy * u[0]!!.x)
+        h[0] = p[0] - dy * uy[0]
+        h[1] = p[1] + dy * ux[0]
 
         // For 1 to N-1 calculate the intersection of the offset lines
         for (k in 1 until n) {
-            val l = dy / (1 + u[k]!!.x * u[k - 1]!!.x + u[k]!!.y * u[k - 1]!!.y)
-            h[k] = Point(p[k].x - l * (u[k]!!.y + u[k - 1]!!.y), p[k].y + l * (u[k]!!.x + u[k - 1]!!.x))
+            val l = dy / (1 + ux[k] * ux[k - 1] + uy[k] * uy[k - 1])
+            h[2 * k] = p[2 * k] - l * (uy[k] + uy[k - 1])
+            h[2 * k + 1] = p[2 * k + 1] + l * (ux[k] + ux[k - 1])
         }
 
         // For the end point use the normal
-        h[n] = Point(p[n].x - dy * u[n - 1]!!.y, p[n].y + dy * u[n - 1]!!.x)
+        h[2 * n] = p[2 * n] - dy * uy[n - 1]
+        h[2 * n + 1] = p[2 * n + 1] + dy * ux[n - 1]
 
-        // every element is set above
-        @Suppress("UNCHECKED_CAST")
-        return h as Array<Point>
+        return h
+    }
+
+    /**
+     * The x, y pairs of `ring` relative to `origin`, the tile's, as a new array.
+     */
+    @JvmStatic
+    fun relativeTo(ring: DoubleArray, origin: Point): DoubleArray {
+        val relative = DoubleArray(ring.size)
+        for (i in 0 until ring.size step 2) {
+            relative[i] = ring[i] - origin.x
+            relative[i + 1] = ring[i + 1] - origin.y
+        }
+        return relative
     }
 }

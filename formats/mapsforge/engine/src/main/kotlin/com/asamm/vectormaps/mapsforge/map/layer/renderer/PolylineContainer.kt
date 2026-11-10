@@ -25,16 +25,14 @@ import com.asamm.vectormaps.mapsforge.core.util.MercatorProjection
 import com.asamm.vectormaps.mapsforge.map.datastore.Way
 
 /**
- * The way data read from a map file. Absolute and tile-relative pixel coordinates are computed on
- * first use, as many ways are never drawn; the way is released once they are.
+ * The way data read from a map file. Absolute pixel coordinates are computed on first use, as many
+ * ways are never drawn, as x, y pairs per ring; the way is released once they are.
  */
 open class PolylineContainer : ShapeContainer {
 
     private var center: Point? = null
 
-    private var coordinatesAbsoluteValue: Array<Array<Point>>? = null
-
-    private var coordinatesRelativeToTile: Array<Array<Point>>? = null
+    private var coordinatesAbsoluteValue: Array<DoubleArray>? = null
 
     val tags: List<Tag>
 
@@ -54,20 +52,26 @@ open class PolylineContainer : ShapeContainer {
         this.lowerRight = lowerRight
         this.layer = way.layer
         this.way = way
-        this.isClosedWay = LatLongUtils.isClosedWay(way.latLongs[0])
+        this.isClosedWay = LatLongUtils.isClosedWay(way.coordinates[0])
         val labelPosition = way.labelPosition
         if (labelPosition != null) {
             this.center = MercatorProjection.getPixelAbsolute(labelPosition, this.upperLeft.mapSize)
         }
     }
 
-    constructor(coordinates: Array<Point>, upperLeft: Tile, lowerRight: Tile, tags: List<Tag>) {
+    /**
+     * A way of one ring, `coordinates` as absolute x, y pixel pairs.
+     */
+    constructor(coordinates: DoubleArray, upperLeft: Tile, lowerRight: Tile, tags: List<Tag>) {
         this.coordinatesAbsoluteValue = arrayOf(coordinates.copyOf())
         this.tags = tags
         this.upperLeft = upperLeft
         this.lowerRight = lowerRight
         this.layer = 0
-        this.isClosedWay = coordinates[0] == coordinates[coordinates.size - 1]
+        // as Point.equals
+        val last = coordinates.size - 2
+        this.isClosedWay = java.lang.Double.compare(coordinates[0], coordinates[last]) == 0
+            && java.lang.Double.compare(coordinates[1], coordinates[last + 1]) == 0
     }
 
     /**
@@ -86,34 +90,25 @@ open class PolylineContainer : ShapeContainer {
             return center!!
         }
 
-    val coordinatesAbsolute: Array<Array<Point>>
+    val coordinatesAbsolute: Array<DoubleArray>
         get() {
             // deferred evaluation as some PolyLineContainers will never be drawn. However,
             // to save memory, after computing the absolute coordinates, the way is released.
             if (coordinatesAbsoluteValue == null) {
                 val way = this.way!!
-                coordinatesAbsoluteValue = Array(way.latLongs.size) { i ->
-                    Array(way.latLongs[i].size) { j ->
-                        MercatorProjection.getPixelAbsolute(way.latLongs[i][j], upperLeft.mapSize)
+                val mapSize = upperLeft.mapSize
+                coordinatesAbsoluteValue = Array(way.coordinates.size) { i ->
+                    val latLongs = way.coordinates[i]
+                    val ring = DoubleArray(latLongs.size)
+                    for (j in 0 until latLongs.size step 2) {
+                        ring[j] = MercatorProjection.longitudeToPixelX(latLongs[j + 1], mapSize)
+                        ring[j + 1] = MercatorProjection.latitudeToPixelY(latLongs[j], mapSize)
                     }
+                    ring
                 }
                 this.way = null
             }
             return coordinatesAbsoluteValue!!
-        }
-
-    val coordinatesRelativeToOrigin: Array<Array<Point>>
-        get() {
-            if (coordinatesRelativeToTile == null) {
-                val tileOrigin = upperLeft.origin
-                val absolute = coordinatesAbsolute
-                coordinatesRelativeToTile = Array(absolute.size) { i ->
-                    Array(absolute[i].size) { j ->
-                        absolute[i][j].offset(-tileOrigin.x, -tileOrigin.y)
-                    }
-                }
-            }
-            return coordinatesRelativeToTile!!
         }
 
     final override val shapeType: ShapeType

@@ -167,11 +167,13 @@ object LatLongUtils {
     }
 
     /**
-     * True if the first and last points coincide.
+     * True if the first and last points of `latLongs`, latitude, longitude pairs, coincide.
      */
     @JvmStatic
-    fun isClosedWay(latLongs: Array<LatLong>): Boolean {
-        return latLongs[0].distance(latLongs[latLongs.size - 1]) < 0.000000001
+    fun isClosedWay(latLongs: DoubleArray): Boolean {
+        val last = latLongs.size - 2
+        // as LatLong.distance
+        return Math.hypot(latLongs[1] - latLongs[last + 1], latLongs[0] - latLongs[last]) < 0.000000001
     }
 
     /**

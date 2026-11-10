@@ -20,25 +20,27 @@ import com.asamm.vectormaps.mapsforge.core.model.Point
 internal object GeometryUtils {
 
     /**
-     * The center of the minimum bounding rectangle of `coordinates`.
+     * The center of the minimum bounding rectangle of `coordinates`, x, y pairs.
      */
-    fun calculateCenterOfBoundingBox(coordinates: Array<Point>): Point {
-        var pointXMin = coordinates[0].x
-        var pointXMax = coordinates[0].x
-        var pointYMin = coordinates[0].y
-        var pointYMax = coordinates[0].y
+    fun calculateCenterOfBoundingBox(coordinates: DoubleArray): Point {
+        var pointXMin = coordinates[0]
+        var pointXMax = coordinates[0]
+        var pointYMin = coordinates[1]
+        var pointYMax = coordinates[1]
 
-        for (immutablePoint in coordinates) {
-            if (immutablePoint.x < pointXMin) {
-                pointXMin = immutablePoint.x
-            } else if (immutablePoint.x > pointXMax) {
-                pointXMax = immutablePoint.x
+        for (i in 0 until coordinates.size step 2) {
+            val x = coordinates[i]
+            val y = coordinates[i + 1]
+            if (x < pointXMin) {
+                pointXMin = x
+            } else if (x > pointXMax) {
+                pointXMax = x
             }
 
-            if (immutablePoint.y < pointYMin) {
-                pointYMin = immutablePoint.y
-            } else if (immutablePoint.y > pointYMax) {
-                pointYMax = immutablePoint.y
+            if (y < pointYMin) {
+                pointYMin = y
+            } else if (y > pointYMax) {
+                pointYMax = y
             }
         }
 
@@ -46,9 +48,10 @@ internal object GeometryUtils {
     }
 
     /**
-     * The middle element of `coordinates`.
+     * The middle point of `coordinates`, x, y pairs.
      */
-    fun calculateCenterPoint(coordinates: Array<Point>): Point {
-        return coordinates[coordinates.size / 2]
+    fun calculateCenterPoint(coordinates: DoubleArray): Point {
+        val middle = 2 * (coordinates.size / 4)
+        return Point(coordinates[middle], coordinates[middle + 1])
     }
 }

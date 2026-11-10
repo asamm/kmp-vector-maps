@@ -117,11 +117,10 @@ open class StandardRenderer @JvmOverloads constructor(
 
     protected open fun renderWaterBackground(renderContext: RenderContext) {
         renderContext.setDrawingLayer(0)
-        val coordinates = getTilePixelCoordinates(renderContext.rendererJob.tile.tileSize)
-        val tileOrigin = renderContext.rendererJob.tile.origin
-        for (i in coordinates.indices) {
-            coordinates[i] = coordinates[i].offset(tileOrigin.x, tileOrigin.y)
-        }
+        val coordinates = getTilePixelCoordinates(
+            renderContext.rendererJob.tile.tileSize,
+            renderContext.rendererJob.tile.origin,
+        )
         val way = PolylineContainer(
             coordinates,
             renderContext.rendererJob.tile,
@@ -414,15 +413,15 @@ open class StandardRenderer @JvmOverloads constructor(
 
         protected const val ZOOM_MAX: Byte = 22
 
-        // the tile's corners, closed: the last point is the first
-        private fun getTilePixelCoordinates(tileSize: Int): Array<Point> {
-            val first = Point(0.0, 0.0)
-            return arrayOf(
-                first,
-                Point(tileSize.toDouble(), 0.0),
-                Point(tileSize.toDouble(), tileSize.toDouble()),
-                Point(0.0, tileSize.toDouble()),
-                first,
+        // the tile's corners as absolute x, y pairs, closed: the last point is the first
+        private fun getTilePixelCoordinates(tileSize: Int, origin: Point): DoubleArray {
+            val size = tileSize.toDouble()
+            return doubleArrayOf(
+                origin.x, origin.y,
+                size + origin.x, origin.y,
+                size + origin.x, size + origin.y,
+                origin.x, size + origin.y,
+                origin.x, origin.y,
             )
         }
     }

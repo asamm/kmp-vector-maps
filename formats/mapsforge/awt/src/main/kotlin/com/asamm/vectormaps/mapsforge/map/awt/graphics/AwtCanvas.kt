@@ -206,7 +206,7 @@ internal open class AwtCanvas : Canvas {
         }
     }
 
-    final override fun drawLines(coordinates: Array<Array<Point>>, dy: Float, paint: Paint) {
+    final override fun drawLines(coordinates: Array<DoubleArray>, origin: Point, dy: Float, paint: Paint) {
         // Not used
     }
 

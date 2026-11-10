@@ -12,7 +12,6 @@ import com.asamm.vectormaps.mapsforge.core.graphics.Position
 import com.asamm.vectormaps.mapsforge.core.graphics.SymbolOrientation
 import com.asamm.vectormaps.mapsforge.core.graphics.TextOrientation
 import com.asamm.vectormaps.mapsforge.core.model.LatLong
-import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Rectangle
 import com.asamm.vectormaps.mapsforge.core.model.Tag
 import com.asamm.vectormaps.mapsforge.core.model.Tile
@@ -201,7 +200,7 @@ class ThemeCachesTest {
 
     private fun matchWay(context: RenderContext, recorder: Recorder, tags: List<Tag>) {
         val tile = context.rendererJob.tile
-        val way = PolylineContainer(arrayOf(Point(0.0, 0.0), Point(10.0, 10.0)), tile, tile, tags)
+        val way = PolylineContainer(doubleArrayOf(0.0, 0.0, 10.0, 10.0), tile, tile, tags)
         themeFuture.get().matchLinearWay(recorder, context, way)
     }
 

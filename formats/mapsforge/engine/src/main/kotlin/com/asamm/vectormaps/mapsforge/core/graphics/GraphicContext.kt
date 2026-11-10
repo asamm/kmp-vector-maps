@@ -67,7 +67,11 @@ interface GraphicContext {
 
     fun drawLine(x1: Int, y1: Int, x2: Int, y2: Int, paint: Paint)
 
-    fun drawLines(coordinates: Array<Array<Point>>, dy: Float, paint: Paint)
+    /**
+     * Draws each ring of `coordinates`, absolute x, y pairs, relative to `origin`, parallel at
+     * distance `dy` unless it is 0.
+     */
+    fun drawLines(coordinates: Array<DoubleArray>, origin: Point, dy: Float, paint: Paint)
 
     fun drawPath(path: Path, paint: Paint)
 

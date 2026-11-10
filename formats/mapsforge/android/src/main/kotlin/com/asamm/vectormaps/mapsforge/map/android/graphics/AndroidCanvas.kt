@@ -230,40 +230,48 @@ internal open class AndroidCanvas(canvas: android.graphics.Canvas) : Canvas {
         )
     }
 
-    final override fun drawLines(coordinates: Array<Array<Point>>, dy: Float, paint: Paint) {
+    final override fun drawLines(coordinates: Array<DoubleArray>, origin: Point, dy: Float, paint: Paint) {
         if (paint.isTransparent) {
             return
         }
 
         var pointsCount = 0
-        for (points in coordinates) {
-            if (points.size >= 2) {
-                pointsCount += 4 * (points.size - 1)
+        for (ring in coordinates) {
+            if (ring.size >= 4) {
+                pointsCount += 4 * (ring.size / 2 - 1)
             }
         }
         val lines = FloatArray(pointsCount)
 
         var ptr = 0
 
-        for (innerList in coordinates) {
-            val points = if (dy == 0f) {
-                innerList
+        for (ring in coordinates) {
+            // relative to the tile while the lines are built; a parallel line from a relative copy
+            val points: DoubleArray
+            val originX: Double
+            val originY: Double
+            if (dy == 0f) {
+                points = ring
+                originX = origin.x
+                originY = origin.y
             } else {
-                RendererUtils.parallelPath(innerList, dy.toDouble())
+                points = RendererUtils.parallelPath(RendererUtils.relativeTo(ring, origin), dy.toDouble())
+                originX = 0.0
+                originY = 0.0
             }
-            if (points.size >= 2) {
-                lines[ptr] = points[0].x.toFloat()
-                lines[ptr + 1] = points[0].y.toFloat()
-                lines[ptr + 2] = points[1].x.toFloat()
-                lines[ptr + 3] = points[1].y.toFloat()
+            if (points.size >= 4) {
+                lines[ptr] = (points[0] - originX).toFloat()
+                lines[ptr + 1] = (points[1] - originY).toFloat()
+                lines[ptr + 2] = (points[2] - originX).toFloat()
+                lines[ptr + 3] = (points[3] - originY).toFloat()
 
                 ptr += 4
 
-                for (i in 1 until points.size - 1) {
+                for (i in 4 until points.size step 2) {
                     lines[ptr] = lines[ptr - 2]
                     lines[ptr + 1] = lines[ptr - 1]
-                    lines[ptr + 2] = points[i + 1].x.toFloat()
-                    lines[ptr + 3] = points[i + 1].y.toFloat()
+                    lines[ptr + 2] = (points[i] - originX).toFloat()
+                    lines[ptr + 3] = (points[i + 1] - originY).toFloat()
 
                     ptr += 4
                 }
