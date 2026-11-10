@@ -156,14 +156,14 @@ object LatLongUtils {
             throw IllegalArgumentException("invalid number of coordinate values: $coordinatesString")
         }
 
-        return DoubleArray(numberOfCoordinates) { java.lang.Double.parseDouble(tokens[it]) }
+        return DoubleArray(numberOfCoordinates) { tokens[it].toDouble() }
     }
 
     /**
      * `latitude` unchanged; throws [IllegalArgumentException] when it is NaN or out of range.
      */
     fun validateLatitude(latitude: Double): Double {
-        if (java.lang.Double.isNaN(latitude)
+        if (latitude.isNaN()
             || latitude < LATITUDE_MIN
             || latitude > LATITUDE_MAX
         ) {
@@ -176,7 +176,7 @@ object LatLongUtils {
      * `longitude` unchanged; throws [IllegalArgumentException] when it is NaN or out of range.
      */
     fun validateLongitude(longitude: Double): Double {
-        if (java.lang.Double.isNaN(longitude)
+        if (longitude.isNaN()
             || longitude < LONGITUDE_MIN
             || longitude > LONGITUDE_MAX
         ) {
@@ -184,5 +184,4 @@ object LatLongUtils {
         }
         return longitude
     }
-
 }

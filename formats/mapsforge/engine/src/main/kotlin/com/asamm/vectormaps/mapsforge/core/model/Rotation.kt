@@ -78,19 +78,19 @@ open class Rotation(
         if (noRotation(other)) {
             return noRotation(this)
         }
-        return java.lang.Float.floatToIntBits(px) == java.lang.Float.floatToIntBits(other.px)
-            && java.lang.Float.floatToIntBits(py) == java.lang.Float.floatToIntBits(other.py)
-            && java.lang.Double.doubleToLongBits(radians) == java.lang.Double.doubleToLongBits(other.radians)
+        return px.toBits() == other.px.toBits()
+            && py.toBits() == other.py.toBits()
+            && radians.toBits() == other.radians.toBits()
     }
 
     override fun hashCode(): Int {
         val prime = 31
         var result = 1
-        var temp: Long = java.lang.Float.floatToIntBits(px).toLong()
+        var temp: Long = px.toBits().toLong()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Float.floatToIntBits(py).toLong()
+        temp = py.toBits().toLong()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(radians)
+        temp = radians.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
         return result
     }

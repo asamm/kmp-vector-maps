@@ -53,6 +53,8 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
     @Volatile
     private var cacheFolder: File? = null
 
+    private var svgCacheDir: File? = null
+
     init {
         if (context != null) {
             // the density is an approximate scale factor for the device
@@ -165,8 +167,34 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
     /**
      * Android method accessible only via Context.
      */
+    fun deleteFile(name: String): Boolean {
+        val dir = svgCacheDir
+        if (dir != null) {
+            return File(dir, name).delete()
+        }
+        return getCacheFile(name).delete()
+    }
+
+    /**
+     * Android method accessible only via Context.
+     */
+    fun fileList(): Array<String>? {
+        val dir = svgCacheDir
+        if (dir != null) {
+            return dir.list()
+        }
+        return getCacheFile("").list()
+    }
+
+    /**
+     * Android method accessible only via Context.
+     */
     @Throws(FileNotFoundException::class)
     fun openFileInput(name: String): FileInputStream {
+        val dir = svgCacheDir
+        if (dir != null) {
+            return FileInputStream(File(dir, name))
+        }
         return FileInputStream(getCacheFile(name))
     }
 
@@ -175,6 +203,10 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
      */
     @Throws(FileNotFoundException::class)
     fun openFileOutput(name: String, mode: Int): FileOutputStream {
+        val dir = svgCacheDir
+        if (dir != null) {
+            return FileOutputStream(File(dir, name), mode == Context.MODE_APPEND)
+        }
         return FileOutputStream(getCacheFile(name), mode == Context.MODE_APPEND)
     }
 
@@ -199,6 +231,14 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
         hash: Int,
     ): ResourceBitmap {
         return AndroidSvgBitmap(inputStream, hash, scaleFactor, width, height, percent)
+    }
+
+    /**
+     * Stores rendered SVG symbols in `svgCacheDir` instead of `cacheDir/mapsforge`; null for the
+     * default.
+     */
+    fun setSvgCacheDir(svgCacheDir: File?) {
+        this.svgCacheDir = svgCacheDir
     }
 
     fun getCacheFile(filename: String): File {
@@ -285,5 +325,19 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
             return (path as AndroidPath).path
         }
 
+        /**
+         * Deletes the rendered SVG symbols stored on disk.
+         */
+        fun clearResourceFileCache() {
+            AndroidSvgBitmapStore.clear()
+        }
+
+        /**
+         * Recycles the theme symbol bitmaps kept in memory; a render running meanwhile decodes them
+         * again.
+         */
+        fun clearResourceMemoryCache() {
+            AndroidResourceBitmap.clearResourceBitmaps()
+        }
     }
 }

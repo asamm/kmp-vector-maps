@@ -36,5 +36,4 @@ open class AwtTileBitmap : AwtBitmap, TileBitmap {
     constructor(tileSize: Int, hasAlpha: Boolean) : super(tileSize, tileSize, hasAlpha)
 
     constructor(bufferedImage: BufferedImage) : super(bufferedImage)
-
 }

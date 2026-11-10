@@ -123,7 +123,7 @@ open class PathText @Throws(XmlPullParserException::class) constructor(
             } else if (DISPLAY == name) {
                 this.display = Display.fromString(value)
             } else if (DY == name) {
-                this.dy = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.dy = value.toFloat() * displayModel.scaleFactor
             } else if (FILL == name) {
                 this.fill.color = XmlUtils.getColor(graphicFactory, value, displayModel.themeCallback, this)
             } else if (FONT_FAMILY == name) {
@@ -135,9 +135,9 @@ open class PathText @Throws(XmlPullParserException::class) constructor(
             } else if (REPEAT == name) {
                 this.repeat = java.lang.Boolean.parseBoolean(value)
             } else if (REPEAT_GAP == name) {
-                this.repeatGap = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.repeatGap = value.toFloat() * displayModel.scaleFactor
             } else if (REPEAT_START == name) {
-                this.repeatStart = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.repeatStart = value.toFloat() * displayModel.scaleFactor
             } else if (PRIORITY == name) {
                 this.priority = Integer.parseInt(value)
             } else if (ROTATE == name) {

@@ -20,8 +20,6 @@ package com.asamm.vectormaps.mapsforge.map.datastore
 import com.asamm.vectormaps.mapsforge.core.model.BoundingBox
 import com.asamm.vectormaps.mapsforge.core.model.LatLong
 import com.asamm.vectormaps.mapsforge.core.model.Tile
-import java.util.Collections
-import java.util.Comparator
 import kotlin.math.max
 
 /**
@@ -75,7 +73,7 @@ open class MultiMapDataStore(
         }
         boundingBox = boundingBox?.extendBoundingBox(mapDataStore.boundingBox()!!) ?: mapDataStore.boundingBox()
         // reverse order of priority
-        Collections.sort(mapDatabases, Comparator { mds1, mds2 -> -Integer.compare(mds1.getPriority(), mds2.getPriority()) })
+        mapDatabases.sortByDescending { it.getPriority() }
     }
 
     override fun boundingBox(): BoundingBox? {

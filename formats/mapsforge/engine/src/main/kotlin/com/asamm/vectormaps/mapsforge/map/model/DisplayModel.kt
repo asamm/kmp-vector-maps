@@ -58,14 +58,14 @@ open class DisplayModel : Observable() {
         return backgroundColorValue == other.backgroundColorValue
             && fixedTileSize == other.fixedTileSize
             && maxTextWidthValue == other.maxTextWidthValue
-            && java.lang.Float.floatToIntBits(maxTextWidthFactor) == java.lang.Float.floatToIntBits(other.maxTextWidthFactor)
+            && maxTextWidthFactor.toBits() == other.maxTextWidthFactor.toBits()
             && tileSizeValue == other.tileSizeValue
             && tileSizeMultipleValue == other.tileSizeMultipleValue
-            && java.lang.Float.floatToIntBits(userScaleFactorValue) == java.lang.Float.floatToIntBits(other.userScaleFactorValue)
-            && java.lang.Float.floatToIntBits(deviceScaleValue) == java.lang.Float.floatToIntBits(other.deviceScaleValue)
-            && java.lang.Float.floatToIntBits(lineScaleValue) == java.lang.Float.floatToIntBits(other.lineScaleValue)
-            && java.lang.Float.floatToIntBits(symbolScaleValue) == java.lang.Float.floatToIntBits(other.symbolScaleValue)
-            && java.lang.Float.floatToIntBits(textScaleValue) == java.lang.Float.floatToIntBits(other.textScaleValue)
+            && userScaleFactorValue.toBits() == other.userScaleFactorValue.toBits()
+            && deviceScaleValue.toBits() == other.deviceScaleValue.toBits()
+            && lineScaleValue.toBits() == other.lineScaleValue.toBits()
+            && symbolScaleValue.toBits() == other.symbolScaleValue.toBits()
+            && textScaleValue.toBits() == other.textScaleValue.toBits()
             && polygonZoomMin == other.polygonZoomMin
             && polygonExceptions == other.polygonExceptions
             && antiAliasing == other.antiAliasing
@@ -255,14 +255,14 @@ open class DisplayModel : Observable() {
         result = prime * result + backgroundColorValue
         result = prime * result + fixedTileSize
         result = prime * result + maxTextWidthValue
-        result = prime * result + java.lang.Float.floatToIntBits(maxTextWidthFactor)
+        result = prime * result + maxTextWidthFactor.toBits()
         result = prime * result + tileSizeValue
         result = prime * result + tileSizeMultipleValue
-        result = prime * result + java.lang.Float.floatToIntBits(userScaleFactorValue)
-        result = prime * result + java.lang.Float.floatToIntBits(deviceScaleValue)
-        result = prime * result + java.lang.Float.floatToIntBits(lineScaleValue)
-        result = prime * result + java.lang.Float.floatToIntBits(symbolScaleValue)
-        result = prime * result + java.lang.Float.floatToIntBits(textScaleValue)
+        result = prime * result + userScaleFactorValue.toBits()
+        result = prime * result + deviceScaleValue.toBits()
+        result = prime * result + lineScaleValue.toBits()
+        result = prime * result + symbolScaleValue.toBits()
+        result = prime * result + textScaleValue.toBits()
         result = prime * result + polygonZoomMin
         result = prime * result + polygonExceptions.hashCode()
         result = prime * result + antiAliasing.hashCode()

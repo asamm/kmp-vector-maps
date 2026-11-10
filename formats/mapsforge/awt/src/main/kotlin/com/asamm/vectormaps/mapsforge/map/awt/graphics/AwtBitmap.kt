@@ -96,5 +96,4 @@ open class AwtBitmap : BaseBitmap, Bitmap {
             this.bufferedImage = resizedImage
         }
     }
-
 }

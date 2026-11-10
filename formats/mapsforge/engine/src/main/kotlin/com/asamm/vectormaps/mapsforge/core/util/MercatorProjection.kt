@@ -32,7 +32,7 @@ import kotlin.math.sin
 
 /**
  * Converts between WGS84 coordinates, pixels and tiles of the spherical Mercator projection, by
- * zoom level (with a tile size) or by a fractional scale factor.
+ * zoom level (with a tile size) or map size.
  */
 object MercatorProjection {
 
@@ -156,5 +156,4 @@ object MercatorProjection {
     fun tileYToLatitude(tileY: Long, zoomLevel: Byte): Double {
         return pixelYToLatitude((tileY * DUMMY_TILE_SIZE).toDouble(), getMapSize(zoomLevel, DUMMY_TILE_SIZE))
     }
-
 }

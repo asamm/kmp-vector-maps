@@ -36,7 +36,8 @@ import com.asamm.vectormaps.mapsforge.core.model.Rotation
  */
 open class WayTextContainer(
     private val graphicFactory: GraphicFactory,
-    lineString: LineString,
+    // internal: the label pass reads the line, text, paints, text height and orientation (C10)
+    internal val lineString: LineString,
     display: Display,
     priority: Int,
     internal val text: String,
@@ -47,9 +48,6 @@ open class WayTextContainer(
 ) : MapElementContainer(lineString.segments[0].start, display, priority) {
 
     private val boundary: Rectangle
-
-    // internal: the label pass reads the line, text, paints, text height and orientation (C10)
-    internal val lineString: LineString = lineString
 
     init {
         // a way text container should always run left to right, but I leave this in because it

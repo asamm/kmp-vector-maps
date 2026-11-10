@@ -74,10 +74,10 @@ open class Rectangle : Serializable {
         if (other !is Rectangle) {
             return false
         }
-        return java.lang.Double.doubleToLongBits(left) == java.lang.Double.doubleToLongBits(other.left)
-            && java.lang.Double.doubleToLongBits(top) == java.lang.Double.doubleToLongBits(other.top)
-            && java.lang.Double.doubleToLongBits(right) == java.lang.Double.doubleToLongBits(other.right)
-            && java.lang.Double.doubleToLongBits(bottom) == java.lang.Double.doubleToLongBits(other.bottom)
+        return left.toBits() == other.left.toBits()
+            && top.toBits() == other.top.toBits()
+            && right.toBits() == other.right.toBits()
+            && bottom.toBits() == other.bottom.toBits()
     }
 
     val center: Point
@@ -108,13 +108,13 @@ open class Rectangle : Serializable {
     override fun hashCode(): Int {
         val prime = 31
         var result = 1
-        var temp = java.lang.Double.doubleToLongBits(left)
+        var temp = left.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(top)
+        temp = top.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(right)
+        temp = right.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(bottom)
+        temp = bottom.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
         return result
     }

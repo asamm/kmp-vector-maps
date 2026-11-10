@@ -106,7 +106,7 @@ open class Line @Throws(IOException::class, XmlPullParserException::class) const
             } else if (CURVE == name) {
                 curve = Curve.fromString(value)
             } else if (DY == name) {
-                this.dy = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.dy = value.toFloat() * displayModel.scaleFactor
             } else if (SCALE == name) {
                 this.scale = scaleFromValue(value)
             } else if (STROKE == name) {

@@ -214,8 +214,8 @@ class RenderThemeHandler private constructor(
                 val currentLayer = this.currentLayer!!
                 val language = getStringAttribute("lang")
                 val value = getStringAttribute("value")
-                // without a value getTitle falls back to the default language anyway; a title
-                // without a language is dropped (upstream kept it under a null key)
+                // a name without a value adds no title; one without a language is dropped
+                // (upstream kept it under a null key)
                 if (language != null
                     && value != null
                 ) {

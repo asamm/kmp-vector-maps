@@ -167,7 +167,7 @@ open class Caption @Throws(XmlPullParserException::class) constructor(
             } else if (DISPLAY == name) {
                 this.display = Display.fromString(value)
             } else if (DY == name) {
-                this.dy = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.dy = value.toFloat() * displayModel.scaleFactor
             } else if (FILL == name) {
                 this.fill.color = XmlUtils.getColor(graphicFactory, value, displayModel.themeCallback, this)
             } else if (FONT_FAMILY == name) {

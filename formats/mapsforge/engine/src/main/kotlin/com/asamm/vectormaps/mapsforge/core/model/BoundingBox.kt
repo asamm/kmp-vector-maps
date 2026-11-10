@@ -26,8 +26,8 @@ import kotlin.math.max
 import kotlin.math.min
 
 /**
- * An immutable geographic box in degrees; `extendCoordinates`, `extendDegrees`, `extendMargin` and
- * `extendMeters` clip to the Mercator latitude range and to ±180, `extendBoundingBox` does not.
+ * An immutable geographic box in degrees; `extendMeters` clips to the Mercator latitude range and
+ * to ±180, `extendBoundingBox` does not.
  */
 open class BoundingBox : Serializable {
 
@@ -105,10 +105,10 @@ open class BoundingBox : Serializable {
         if (other !is BoundingBox) {
             return false
         }
-        return java.lang.Double.doubleToLongBits(maxLatitude) == java.lang.Double.doubleToLongBits(other.maxLatitude)
-            && java.lang.Double.doubleToLongBits(maxLongitude) == java.lang.Double.doubleToLongBits(other.maxLongitude)
-            && java.lang.Double.doubleToLongBits(minLatitude) == java.lang.Double.doubleToLongBits(other.minLatitude)
-            && java.lang.Double.doubleToLongBits(minLongitude) == java.lang.Double.doubleToLongBits(other.minLongitude)
+        return maxLatitude.toBits() == other.maxLatitude.toBits()
+            && maxLongitude.toBits() == other.maxLongitude.toBits()
+            && minLatitude.toBits() == other.minLatitude.toBits()
+            && minLongitude.toBits() == other.minLongitude.toBits()
     }
 
     /**
@@ -166,13 +166,13 @@ open class BoundingBox : Serializable {
     override fun hashCode(): Int {
         val prime = 31
         var result = 1
-        var temp = java.lang.Double.doubleToLongBits(maxLatitude)
+        var temp = maxLatitude.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(maxLongitude)
+        temp = maxLongitude.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(minLatitude)
+        temp = minLatitude.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(minLongitude)
+        temp = minLongitude.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
         return result
     }

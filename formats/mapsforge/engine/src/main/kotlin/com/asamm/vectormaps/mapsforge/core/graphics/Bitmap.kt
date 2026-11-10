@@ -40,5 +40,4 @@ interface Bitmap {
     fun incrementRefCount()
 
     fun scaleTo(width: Int, height: Int)
-
 }

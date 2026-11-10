@@ -81,6 +81,24 @@ open class AndroidResourceBitmap protected constructor(
         // a dictionary for faster retrieval and are not deleted or recycled until
         // clearResourceBitmaps is called
 
+        fun clearResourceBitmaps() {
+            if (!AndroidGraphicFactory.KEEP_RESOURCE_BITMAPS) {
+                return
+            }
+            synchronized(RESOURCE_BITMAPS) {
+                for (p in RESOURCE_BITMAPS.values) {
+                    p.first.recycle()
+                    if (AndroidGraphicFactory.DEBUG_BITMAPS) {
+                        rInstances!!.decrementAndGet()
+                    }
+                }
+                if (AndroidGraphicFactory.DEBUG_BITMAPS) {
+                    rBitmaps!!.clear()
+                }
+                RESOURCE_BITMAPS.clear()
+            }
+        }
+
         @Throws(IOException::class)
         private fun getResourceBitmap(
             inputStream: InputStream,

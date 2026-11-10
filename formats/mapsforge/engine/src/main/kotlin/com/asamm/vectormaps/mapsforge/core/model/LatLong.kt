@@ -44,9 +44,9 @@ open class LatLong : Comparable<LatLong> {
     constructor(wellKnownText: String) {
         val m = WKT_POINT_PATTERN.matcher(wellKnownText)
         m.matches()
-        val longitude = java.lang.Double.parseDouble(m.group(1))
+        val longitude = m.group(1).toDouble()
         this.longitude = if (Parameters.VALIDATE_COORDINATES) LatLongUtils.validateLongitude(longitude) else longitude
-        val latitude = java.lang.Double.parseDouble(m.group(2))
+        val latitude = m.group(2).toDouble()
         this.latitude = if (Parameters.VALIDATE_COORDINATES) LatLongUtils.validateLatitude(latitude) else latitude
     }
 
@@ -97,8 +97,8 @@ open class LatLong : Comparable<LatLong> {
             if (split.size != 2) {
                 throw IllegalArgumentException("cannot read coordinate, not a valid format")
             }
-            val latitude = java.lang.Double.parseDouble(split[0])
-            val longitude = java.lang.Double.parseDouble(split[1])
+            val latitude = split[0].toDouble()
+            val longitude = split[1].toDouble()
             return LatLong(latitude, longitude)
         }
     }

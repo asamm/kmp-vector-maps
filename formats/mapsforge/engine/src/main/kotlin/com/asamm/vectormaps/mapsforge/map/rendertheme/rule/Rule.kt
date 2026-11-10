@@ -27,20 +27,6 @@ import com.asamm.vectormaps.mapsforge.map.rendertheme.renderinstruction.RenderIn
 
 abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
 
-    /**
-     * Walks the sub-rules of a rule depth first, under the lock of the rule it was created on.
-     */
-    open inner class RuleVisitor {
-
-        open fun apply(r: Rule) {
-            synchronized(mySync) {
-                for (subRule in r.subRules) {
-                    this.apply(subRule)
-                }
-            }
-        }
-    }
-
     internal var cat: String? = ruleBuilder.cat
     internal val closedMatcher: ClosedMatcher = ruleBuilder.closedMatcher
     internal val elementMatcher: ElementMatcher = ruleBuilder.elementMatcher
@@ -65,10 +51,6 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
         synchronized(mySync) {
             this.subRules.add(rule)
         }
-    }
-
-    internal fun apply(v: RuleVisitor) {
-        v.apply(this)
     }
 
     internal fun destroy() {

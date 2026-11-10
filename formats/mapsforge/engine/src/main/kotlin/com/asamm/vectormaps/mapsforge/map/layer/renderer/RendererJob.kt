@@ -34,10 +34,8 @@ open class RendererJob(
     val displayModel: DisplayModel,
     val textScale: Float,
     isTransparent: Boolean,
-    labelsOnly: Boolean,
+    val labelsOnly: Boolean,
 ) : Job(tile, isTransparent) {
-
-    var labelsOnly: Boolean = labelsOnly
 
     val mapDataStore: MapDataStore
 
@@ -47,7 +45,7 @@ open class RendererJob(
         if (mapFile == null) {
             throw IllegalArgumentException("mapFile must not be null")
         } else if (textScale <= 0f
-            || java.lang.Float.isNaN(textScale)
+            || textScale.isNaN()
         ) {
             throw IllegalArgumentException("invalid textScale: $textScale")
         }
@@ -67,8 +65,8 @@ open class RendererJob(
         }
         if (mapDataStore != other.mapDataStore) {
             return false
-        } else if (java.lang.Float.floatToIntBits(textScale)
-            != java.lang.Float.floatToIntBits(other.textScale)
+        } else if (textScale.toBits()
+            != other.textScale.toBits()
         ) {
             return false
         } else if (renderThemeFuture == null
@@ -110,7 +108,7 @@ open class RendererJob(
         val prime = 31
         var result = super.hashCode()
         result = prime * result + mapDataStore.hashCode()
-        result = prime * result + java.lang.Float.floatToIntBits(textScale)
+        result = prime * result + textScale.toBits()
         if (renderThemeFuture != null) {
             result = prime * result + renderThemeFuture.hashCode()
         }

@@ -44,6 +44,17 @@ object AndroidSvgBitmapStore {
 
     private const val SVG_SUFFIX = ".png"
 
+    fun clear() {
+        val files = AndroidGraphicFactory.INSTANCE.fileList() ?: return
+        for (file in files) {
+            if (file.startsWith(SVG_PREFIX)
+                && file.endsWith(SVG_SUFFIX)
+            ) {
+                AndroidGraphicFactory.INSTANCE.deleteFile(file)
+            }
+        }
+    }
+
     private fun createFileName(hash: Int): String {
         val sb = StringBuilder().append(SVG_PREFIX).append(hash).append(SVG_SUFFIX)
         return sb.toString()

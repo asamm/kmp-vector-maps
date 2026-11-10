@@ -21,7 +21,6 @@ import com.asamm.vectormaps.mapsforge.core.mapelements.MapElementContainer
 import com.asamm.vectormaps.mapsforge.core.model.Rectangle
 import com.asamm.vectormaps.mapsforge.core.model.Rotation
 import com.asamm.vectormaps.mapsforge.core.model.Tile
-import java.util.Collections
 import java.util.LinkedList
 
 object LayerUtil {
@@ -52,7 +51,7 @@ object LayerUtil {
         val output = LinkedList<MapElementContainer>()
 
         // sort items by priority (highest first)
-        Collections.sort(input, Collections.reverseOrder())
+        input.sortDescending()
 
         // in order of display and priority, see if an item can be drawn, i.e. none of the items
         // in the currentItemsToDraw list clashes with it.
@@ -94,7 +93,7 @@ object LayerUtil {
     ): MutableList<MapElementContainer> {
         val output = LinkedList<MapElementContainer>()
 
-        Collections.sort(input, Collections.reverseOrder())
+        input.sortDescending()
 
         val inputProcessed = omitContestingMultiTiledItems(input, tile, rotation)
 

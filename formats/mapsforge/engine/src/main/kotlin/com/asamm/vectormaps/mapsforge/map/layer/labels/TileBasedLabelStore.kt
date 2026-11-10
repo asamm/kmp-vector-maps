@@ -28,8 +28,6 @@ open class TileBasedLabelStore(
     capacity: Int,
 ) : WorkingSetCache<Tile, List<MapElementContainer>>(capacity), LabelStore {
 
-    private var lastVisibleTileSet: Set<Tile> = HashSet()
-
     fun destroy() {
         this.clear()
     }
@@ -52,10 +50,8 @@ open class TileBasedLabelStore(
 
     @Synchronized
     private fun getVisibleItems(tiles: Set<Tile>): MutableList<MapElementContainer> {
-        lastVisibleTileSet = tiles
-
         val visibleItems: MutableList<MapElementContainer> = ArrayList()
-        for (tile in lastVisibleTileSet) {
+        for (tile in tiles) {
             if (containsKey(tile)) {
                 visibleItems.addAll(get(tile)!!)
             }

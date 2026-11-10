@@ -23,5 +23,4 @@ interface TileBitmap : Bitmap {
      * creation time, which implementations store until it is set.
      */
     var timestamp: Long
-
 }

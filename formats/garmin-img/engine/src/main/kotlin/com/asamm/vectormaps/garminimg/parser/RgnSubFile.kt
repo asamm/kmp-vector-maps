@@ -917,11 +917,6 @@ object RgnSubFile {
     }
 
     /**
-     * Resolves a label offset to its decoded text via [LblSubFile.readLabel].
-     * Returns null when `labelOffset` is 0 (sentinel for "no label") or when
-     * the LBL handles are missing.
-     */
-    /**
      * Mirrors the legacy parser's `RgnSubFile.translateLabel` for point
      * records: a few `(type, subType)` combinations are known to carry
      * an elevation / numeric value with a leading 0x1F (Unit Separator)
@@ -1013,6 +1008,11 @@ object RgnSubFile {
         return result
     }
 
+    /**
+     * Resolves a label offset to its decoded text via [LblSubFile.readLabel].
+     * Returns null when [labelOffset] is 0 (sentinel for "no label") or when
+     * the LBL handles are missing.
+     */
     private fun resolveLabel(
         labelOffset: Long,
         lblReader: ImgRandomAccessReader?,

@@ -107,15 +107,15 @@ open class LineSymbol @Throws(IOException::class, XmlPullParserException::class)
             } else if (DISPLAY == name) {
                 this.display = Display.fromString(value)
             } else if (DY == name) {
-                this.dy = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.dy = value.toFloat() * displayModel.scaleFactor
             } else if (PRIORITY == name) {
                 this.priority = Integer.parseInt(value)
             } else if (REPEAT == name) {
                 this.repeat = java.lang.Boolean.parseBoolean(value)
             } else if (REPEAT_GAP == name) {
-                this.repeatGap = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.repeatGap = value.toFloat() * displayModel.scaleFactor
             } else if (REPEAT_START == name) {
-                this.repeatStart = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.repeatStart = value.toFloat() * displayModel.scaleFactor
             } else if (ROTATE == name) {
                 if (!java.lang.Boolean.parseBoolean(value)) {
                     this.symbolOrientation = SymbolOrientation.UP

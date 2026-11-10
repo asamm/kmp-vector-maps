@@ -54,7 +54,7 @@ class ReadBuffer internal constructor(private val inputChannel: FileChannel) {
     }
 
     fun readFloat(): Float {
-        return java.lang.Float.intBitsToFloat(readInt())
+        return Float.fromBits(readInt())
     }
 
     /**
