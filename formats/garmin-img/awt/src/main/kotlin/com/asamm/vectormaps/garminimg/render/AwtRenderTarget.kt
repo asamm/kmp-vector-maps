@@ -229,7 +229,7 @@ class AwtRenderTarget(
 
     /**
      * Renders a polyline as a textured stroke: each segment is filled
-     * with the [pattern] tile rotated to follow the segment angle. The
+     * with the `pattern` tile rotated to follow the segment angle. The
      * tile is anchored at the segment's start so the texture progresses
      * continuously along the line; height equals the pattern's height
      * (Garmin's natural pixel-stroke width for that line type).
@@ -417,7 +417,6 @@ class AwtRenderTarget(
         color: GarminColor,
         outlineColor: GarminColor?,
         fontSize: Float,
-        anchor: TextAnchor,
     ) {
         if (text.isEmpty()) {
             return
@@ -426,10 +425,8 @@ class AwtRenderTarget(
         val fm = g.fontMetrics
         val w = fm.stringWidth(text)
         val ascent = fm.ascent
-        val (drawX, drawY) = when (anchor) {
-            TextAnchor.CENTER -> Pair(x - w / 2f, y + ascent / 2f - fm.descent / 2f)
-            TextAnchor.BASELINE_START -> Pair(x, y)
-        }
+        val drawX = x - w / 2f
+        val drawY = y + ascent / 2f - fm.descent / 2f
         if (outlineColor != null) {
             g.color = outlineColor.toAwt()
             // 8-direction outline pass for cheap text halo.
@@ -463,8 +460,6 @@ class AwtRenderTarget(
         }
         g.font = fontFor(fontSize)
         val fm = g.fontMetrics
-        val ascent = fm.ascent
-        val descent = fm.descent
         // Cumulative segment lengths so we can locate any d-along-path
         // in O(log n) (or O(n) with linear scan, fine for typical road
         // polylines of <50 vertices).
@@ -472,7 +467,7 @@ class AwtRenderTarget(
         for (i in 1 until xs.size) {
             val dx = (xs[i] - xs[i - 1]).toDouble()
             val dy = (ys[i] - ys[i - 1]).toDouble()
-            cum[i] = cum[i - 1] + kotlin.math.hypot(dx, dy)
+            cum[i] = cum[i - 1] + hypot(dx, dy)
         }
         val totalLen = cum[xs.size - 1]
         val widths = IntArray(text.length) { fm.charWidth(text[it]) }
@@ -485,7 +480,7 @@ class AwtRenderTarget(
             // Path too short — fall back to a centred horizontal
             // placement at the path midpoint so the label still appears.
             val midIdx = xs.size / 2
-            drawText(xs[midIdx], ys[midIdx], text, color, outlineColor, fontSize, TextAnchor.CENTER)
+            drawText(xs[midIdx], ys[midIdx], text, color, outlineColor, fontSize)
             return
         }
         // Pick the path direction that keeps text readable left-to-right.

@@ -349,8 +349,6 @@ object RgnSubFile {
         attachExtendedSegment(
             result,
             slot = SEG_EXT_POLYGON,
-            requiredKind = ObjectKind.EXTENDED_POLYGON,
-            objectTypes = subDivision.objectTypes,
             ini = subDivision.extendedPolygonOffset,
             fin = subDivision.extendedPolygonEnd,
             sectionBase = header.extendedPolygons?.offset,
@@ -358,8 +356,6 @@ object RgnSubFile {
         attachExtendedSegment(
             result,
             slot = SEG_EXT_POLYLINE,
-            requiredKind = ObjectKind.EXTENDED_POLYLINE,
-            objectTypes = subDivision.objectTypes,
             ini = subDivision.extendedPolylineOffset,
             fin = subDivision.extendedPolylineEnd,
             sectionBase = header.extendedPolylines?.offset,
@@ -367,8 +363,6 @@ object RgnSubFile {
         attachExtendedSegment(
             result,
             slot = SEG_EXT_POINT,
-            requiredKind = ObjectKind.EXTENDED_POINT,
-            objectTypes = subDivision.objectTypes,
             ini = subDivision.extendedPoiOffset,
             fin = subDivision.extendedPoiEnd,
             sectionBase = header.extendedPois?.offset,
@@ -388,8 +382,6 @@ object RgnSubFile {
     private fun attachExtendedSegment(
         result: Array<Segment?>,
         slot: Int,
-        @Suppress("UNUSED_PARAMETER") requiredKind: Int,
-        @Suppress("UNUSED_PARAMETER") objectTypes: Int,
         ini: Long,
         fin: Long,
         sectionBase: Long?,
@@ -663,9 +655,7 @@ object RgnSubFile {
             longitudeDelta = longitudeDelta,
             latitudeDelta = latitudeDelta,
             bitsPerCoord = bitsPerCoord,
-            extraBit = extraBit,
             fixedExtraBitLong = if (extraBit) 1 else 0,
-            fixedExtraBitLat = 0,
             readPolyExtraSignBit = false,
         )
 
@@ -756,9 +746,7 @@ object RgnSubFile {
             longitudeDelta = longitudeDelta,
             latitudeDelta = latitudeDelta,
             bitsPerCoord = bitsPerCoord,
-            extraBit = false,
             fixedExtraBitLong = 0,
-            fixedExtraBitLat = 0,
             readPolyExtraSignBit = true,
         )
 
@@ -783,10 +771,9 @@ object RgnSubFile {
      * Garmin coordinates (lon, lat) of every point.
      *
      * Mirrors the Java predecessor's `parsePoly` / `parseExtPoly` inner loop
-     * so a faithful by-byte port comes out the same. The two parameters
-     * `fixedExtraBitLong`/`fixedExtraBitLat` distinguish plain-types polys
-     * (where extraBit comes from the record's info byte) from extended-types
-     * polys (where extraBit is read from the bit stream's first bits).
+     * so a faithful by-byte port comes out the same. `fixedExtraBitLong` serves plain-types
+     * polys (where the extra bit comes from the record's info byte), `readPolyExtraSignBit`
+     * extended-types polys (where it is read from the bit stream's first bits).
      */
     private fun decodePolyCoordinates(
         reader: ImgRandomAccessReader,
@@ -796,9 +783,7 @@ object RgnSubFile {
         longitudeDelta: Int,
         latitudeDelta: Int,
         bitsPerCoord: Int,
-        @Suppress("UNUSED_PARAMETER") extraBit: Boolean,
         fixedExtraBitLong: Int,
-        fixedExtraBitLat: Int,
         readPolyExtraSignBit: Boolean,
     ): Pair<IntArray, IntArray> {
         // Cap per-record bit-stream length so a corrupt poly record
@@ -814,7 +799,8 @@ object RgnSubFile {
         val longSign = readSign(bsr)
         val latSign = readSign(bsr)
         val longExtraBit = if (readPolyExtraSignBit) bsr.readNextBits(1) else fixedExtraBitLong
-        val latExtraBit = fixedExtraBitLat
+        // the latitude's extra bit is always 0
+        val latExtraBit = 0
 
         val longBits = convertCoordinateLength(bitStreamInfo and 0xF, longSign, longExtraBit)
         val latBits = convertCoordinateLength(bitStreamInfo ushr 4, latSign, latExtraBit)
@@ -932,7 +918,7 @@ object RgnSubFile {
 
     /**
      * Resolves a label offset to its decoded text via [LblSubFile.readLabel].
-     * Returns null when [labelOffset] is 0 (sentinel for "no label") or when
+     * Returns null when `labelOffset` is 0 (sentinel for "no label") or when
      * the LBL handles are missing.
      */
     /**

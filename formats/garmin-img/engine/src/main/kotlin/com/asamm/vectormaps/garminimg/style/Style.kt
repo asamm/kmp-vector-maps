@@ -10,15 +10,15 @@ import com.asamm.vectormaps.garminimg.model.MapObject
 
 /**
  * Platform-neutral style records resolved from `(type, subType)` pairs by a
- * [StyleResolver]. Each branch covers one of the three [MapObject] subtypes;
- * a [RenderTarget] consumes the matching style when drawing each object.
+ * `StyleResolver`. Each branch covers one of the three [MapObject] subtypes;
+ * a `RenderTarget` consumes the matching style when drawing each object.
  *
  * Style records are immutable and cheap to share. The resolver caches them
  * by `(type, subType)` to avoid re-allocating per-object.
  */
 sealed interface Style {
 
-    /** Z-order priority within an [ObjectKind]. Higher draws on top. */
+    /** Z-order priority within an `ObjectKind`. Higher draws on top. */
     val drawPriority: Int
 
     /**
@@ -145,12 +145,12 @@ sealed interface Style {
         override fun hashCode(): Int {
             var h = drawPriority
             h = 31 * h + strokeColor.hashCode()
-            h = 31 * h + (borderColor?.hashCode() ?: 0)
+            h = 31 * h + borderColor.hashCode()
             h = 31 * h + strokeWidth.hashCode()
             h = 31 * h + borderWidth.hashCode()
-            h = 31 * h + (labelColor?.hashCode() ?: 0)
+            h = 31 * h + labelColor.hashCode()
             h = 31 * h + (dashPattern?.contentHashCode() ?: 0)
-            h = 31 * h + (pattern?.hashCode() ?: 0)
+            h = 31 * h + pattern.hashCode()
             h = 31 * h + fontScale.hashCode()
             return h
         }

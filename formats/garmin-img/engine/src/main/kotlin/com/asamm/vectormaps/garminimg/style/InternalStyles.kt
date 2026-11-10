@@ -28,7 +28,7 @@ object InternalStyles {
      */
     fun resolve(obj: MapObject): Style {
         return when (obj) {
-            is MapObject.Point -> resolvePoint(obj.type, obj.subType)
+            is MapObject.Point -> resolvePoint(obj.type)
             is MapObject.PolyShape -> if (obj.closed) {
                 resolvePolygon(obj.type)
             } else {
@@ -37,7 +37,7 @@ object InternalStyles {
         }
     }
 
-    fun resolvePoint(type: Int, subType: Int): Style.PointStyle {
+    fun resolvePoint(type: Int): Style.PointStyle {
         // City sizes (population markers) — type 0x01..0x11.
         return when (type) {
             in 0x01..0x11 -> CITY_LABEL
@@ -272,7 +272,7 @@ object InternalStyles {
      * Used for individual buildings & small urban-fabric polygons. TYP
      * styling typically supplies a light gray fill (#EBE9EB) — fine on
      * its own, but invisible against our cream page background. The
-     * dark grey stroke supplied here (kicked in by [StyleResolver.typAware]
+     * dark grey stroke supplied here (kicked in by `StyleResolver.typAware`
      * when the TYP record has no border colour) outlines each shape so
      * buildings remain visible.
      */

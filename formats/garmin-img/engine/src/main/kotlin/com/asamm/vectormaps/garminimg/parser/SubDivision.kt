@@ -30,7 +30,7 @@ package com.asamm.vectormaps.garminimg.parser
  *   data (POINT / INDEXED_POINT / POLYLINE / POLYGON records).
  * @property dataEnd RGN logical byte offset where this sub-division's plain
  *   data ends (exclusive). 0 until back-filled by neighbour info.
- * @property objectTypes Bit-flag set of [ObjectKind.POINT]…[ObjectKind.EXTENDED_POINT]
+ * @property objectTypes Bit-flag set of `ObjectKind.POINT`…`ObjectKind.EXTENDED_POINT`
  *   describing what kinds of objects this sub-division contains. Top nibble of
  *   the on-disk byte is the dataOffset overflow.
  * @property longitudeCenter Garmin-coord longitude of the sub-division centre.

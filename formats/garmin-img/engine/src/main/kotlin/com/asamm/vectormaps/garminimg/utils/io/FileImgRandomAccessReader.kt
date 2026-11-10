@@ -40,7 +40,18 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
 
     private val raf: RandomAccessFile = RandomAccessFile(file, "r")
 
-    override val size: Long
+    // raf.length() can throw after the file is open (concurrent truncation, disk error); the
+    // file is closed then, as the caller never gets the reader to close it
+    override val size: Long = try {
+        raf.length()
+    } catch (e: Throwable) {
+        try {
+            raf.close()
+        } catch (_: Throwable) {
+            // the original cause propagates
+        }
+        throw e
+    }
 
     /**
      * Logical position the consumer thinks they're at. The underlying
@@ -67,25 +78,6 @@ class FileImgRandomAccessReader(file: File) : ImgRandomAccessReader {
     private var buffer: ByteArray = EMPTY
     private var bufferStart: Long = 0L
     private var bufferLen: Int = 0
-
-    init {
-        // Guard against raf.length() throwing after the file is open
-        // (rare but possible — e.g., concurrent truncation, disk error).
-        // Without this the file descriptor leaks because the constructor
-        // bails before `this` escapes and the caller can't see the
-        // reader to close it.
-        size = try {
-            raf.length()
-        } catch (e: Throwable) {
-            try {
-                raf.close()
-            } catch (_: Throwable) {
-                // Ignore close-during-construction failure; propagate
-                // the original cause.
-            }
-            throw e
-        }
-    }
 
     override fun position(): Long {
         return logicalPos

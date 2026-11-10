@@ -16,7 +16,6 @@ class ObjectKindTest {
 
     @Test
     fun objectKindValuesMatchOnDiskSemantics() {
-        // Object kinds (low byte = unknown flags, high nibble = real kinds)
         assertEquals(0x10, ObjectKind.POINT)
         assertEquals(0x20, ObjectKind.INDEXED_POINT)
         assertEquals(0x40, ObjectKind.POLYLINE)
@@ -24,17 +23,6 @@ class ObjectKindTest {
         assertEquals(0x100, ObjectKind.EXTENDED_POLYGON)
         assertEquals(0x200, ObjectKind.EXTENDED_POLYLINE)
         assertEquals(0x400, ObjectKind.EXTENDED_POINT)
-    }
-
-    @Test
-    fun mapKindValuesMatchOnDiskSemantics() {
-        assertEquals(0x1000, ObjectKind.BASE_MAP)
-        assertEquals(0x2000, ObjectKind.NORMAL_MAP)
-        assertEquals(0xF000, ObjectKind.ALL_MAPS)
-        // ALL_MAPS is the OR of all map-kind bits; both BASE_MAP and NORMAL_MAP
-        // must fit inside it.
-        assertTrue((ObjectKind.BASE_MAP and ObjectKind.ALL_MAPS) == ObjectKind.BASE_MAP)
-        assertTrue((ObjectKind.NORMAL_MAP and ObjectKind.ALL_MAPS) == ObjectKind.NORMAL_MAP)
     }
 
     @Test
@@ -53,7 +41,6 @@ class ObjectKindTest {
         val everything = listOf(
             ObjectKind.POINT, ObjectKind.INDEXED_POINT, ObjectKind.POLYLINE, ObjectKind.POLYGON,
             ObjectKind.EXTENDED_POINT, ObjectKind.EXTENDED_POLYLINE, ObjectKind.EXTENDED_POLYGON,
-            ObjectKind.BASE_MAP, ObjectKind.NORMAL_MAP,
         )
         for (kind in everything) {
             assertEquals(

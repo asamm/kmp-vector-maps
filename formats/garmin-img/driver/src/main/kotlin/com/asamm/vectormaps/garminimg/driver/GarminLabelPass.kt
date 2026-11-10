@@ -18,7 +18,6 @@ import com.asamm.vectormaps.core.label.TileLabelStore
 import com.asamm.vectormaps.core.label.TiledLabelPass
 import com.asamm.vectormaps.garminimg.render.MapLabel
 import com.asamm.vectormaps.garminimg.render.RenderTarget
-import com.asamm.vectormaps.garminimg.render.TextAnchor
 import kotlin.math.atan2
 import kotlin.math.hypot
 import kotlin.math.roundToLong
@@ -68,7 +67,6 @@ class GarminLabelPass internal constructor(
                     color = label.color,
                     outlineColor = label.outlineColor,
                     fontSize = label.fontSize,
-                    anchor = TextAnchor.CENTER,
                 )
                 continue
             }

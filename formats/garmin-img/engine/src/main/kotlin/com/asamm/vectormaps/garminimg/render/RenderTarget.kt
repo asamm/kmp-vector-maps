@@ -120,8 +120,7 @@ interface RenderTarget {
     fun drawPoint(x: Float, y: Float, style: Style.PointStyle)
 
     /**
-     * Draws a text label centred on `(x, y)` (or anchored per
-     * [TextAnchor] if specified).
+     * Draws a text label centred on `(x, y)`.
      */
     fun drawText(
         x: Float,
@@ -130,7 +129,6 @@ interface RenderTarget {
         color: Color,
         outlineColor: Color? = null,
         fontSize: Float = 12f,
-        anchor: TextAnchor = TextAnchor.CENTER,
     )
 
     /**
@@ -166,7 +164,7 @@ interface RenderTarget {
     ) {
         if (xs.isNotEmpty() && ys.isNotEmpty() && text.isNotEmpty()) {
             val mid = xs.size / 2
-            drawText(xs[mid], ys[mid], text, color, outlineColor, fontSize, TextAnchor.CENTER)
+            drawText(xs[mid], ys[mid], text, color, outlineColor, fontSize)
         }
     }
 
@@ -183,15 +181,4 @@ interface RenderTarget {
          */
         const val MIN_TEXT_PX: Float = 8f
     }
-}
-
-/**
- * Where the `(x, y)` anchor sits relative to the text bounds.
- */
-enum class TextAnchor {
-    /** `(x, y)` is the centre of the text bounds. */
-    CENTER,
-
-    /** `(x, y)` is the start of the baseline (left for LTR scripts). */
-    BASELINE_START,
 }

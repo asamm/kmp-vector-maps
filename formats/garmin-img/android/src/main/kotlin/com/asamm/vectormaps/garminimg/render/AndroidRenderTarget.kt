@@ -351,7 +351,6 @@ class AndroidRenderTarget(
         color: GarminColor,
         outlineColor: GarminColor?,
         fontSize: Float,
-        anchor: TextAnchor,
     ) {
         if (text.isEmpty()) {
             return
@@ -362,10 +361,8 @@ class AndroidRenderTarget(
         val fm = paint.fontMetrics
         val ascent = -fm.ascent
         val descent = fm.descent
-        val (drawX, drawY) = when (anchor) {
-            TextAnchor.CENTER -> Pair(x - w / 2f, y + ascent / 2f - descent / 2f)
-            TextAnchor.BASELINE_START -> Pair(x, y)
-        }
+        val drawX = x - w / 2f
+        val drawY = y + ascent / 2f - descent / 2f
         if (outlineColor != null) {
             paint.color = outlineColor.argb
             for (dx in -1..1) {
@@ -420,7 +417,7 @@ class AndroidRenderTarget(
         }
         if (textWidth > totalLen - 4.0) {
             val midIdx = xs.size / 2
-            drawText(xs[midIdx], ys[midIdx], text, color, outlineColor, fontSize, TextAnchor.CENTER)
+            drawText(xs[midIdx], ys[midIdx], text, color, outlineColor, fontSize)
             return
         }
         val reversed = (xs.last() - xs.first()) < 0f

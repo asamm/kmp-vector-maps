@@ -7,7 +7,6 @@
 package com.asamm.vectormaps.garminimg.bench
 
 import com.asamm.vectormaps.garminimg.render.RenderTarget
-import com.asamm.vectormaps.garminimg.render.TextAnchor
 import com.asamm.vectormaps.garminimg.style.Bitmap
 import com.asamm.vectormaps.garminimg.style.Color
 import com.asamm.vectormaps.garminimg.style.Style
@@ -113,10 +112,9 @@ class TimingRenderTarget(private val delegate: RenderTarget) : RenderTarget {
     override fun drawText(
         x: Float, y: Float, text: String,
         color: Color, outlineColor: Color?, fontSize: Float,
-        anchor: TextAnchor,
     ) {
         val t = System.nanoTime()
-        delegate.drawText(x, y, text, color, outlineColor, fontSize, anchor)
+        delegate.drawText(x, y, text, color, outlineColor, fontSize)
         textNanos += System.nanoTime() - t
         textCount++
     }

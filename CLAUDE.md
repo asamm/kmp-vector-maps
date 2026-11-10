@@ -87,8 +87,9 @@ need it (`golden-android*`, `dev/bench/android`).
 
 ## Style
 
-- Inherits the user-level rules. Vendored code keeps upstream structure and order — **do not
-  reformat** beyond the conversion.
+- Inherits the user-level rules. Vendored Mapsforge may leave upstream's form (D41): idiomatic Kotlin
+  outside hot paths, which keep allocation-free index loops; every removal from upstream has its
+  row in docs/upstream.md.
 - New Kotlin follows the locus-core Kotlin style.
 - Docs follow the locus-core
   [documentation guide](https://github.com/asamm/locus-core/blob/development/docs/guides/documentation.md):
