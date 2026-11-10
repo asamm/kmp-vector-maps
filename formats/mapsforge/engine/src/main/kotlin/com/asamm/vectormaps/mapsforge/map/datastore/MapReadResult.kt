@@ -19,7 +19,6 @@
 package com.asamm.vectormaps.mapsforge.map.datastore
 
 import com.asamm.vectormaps.mapsforge.core.util.Utils
-import java.util.Collections
 import java.util.LinkedList
 
 /**
@@ -30,14 +29,11 @@ open class MapReadResult {
     /**
      * True if the read area is completely covered by water.
      */
-    @JvmField
     var isWater = false
 
     // linked lists: deduplicate removes from them in place
-    @JvmField
     val ways: MutableList<Way> = LinkedList()
 
-    @JvmField
     val pois: MutableList<PointOfInterest> = LinkedList()
 
     fun add(poiWayBundle: PoiWayBundle) {
@@ -57,9 +53,9 @@ open class MapReadResult {
      * Sorts the ways and POIs and drops duplicates; returns this result.
      */
     fun deduplicate(): MapReadResult {
-        Collections.sort(ways)
+        ways.sort()
         Utils.deduplicateSorted(ways)
-        Collections.sort(pois)
+        pois.sort()
         Utils.deduplicateSorted(pois)
         return this
     }

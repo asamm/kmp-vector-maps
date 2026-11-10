@@ -26,7 +26,6 @@ import java.io.InputStream
 
 open class AwtTileBitmap : AwtBitmap, TileBitmap {
 
-    private var expiration: Long = 0
     final override var timestamp: Long = System.currentTimeMillis()
 
     @Throws(IOException::class)
@@ -37,16 +36,4 @@ open class AwtTileBitmap : AwtBitmap, TileBitmap {
     constructor(tileSize: Int, hasAlpha: Boolean) : super(tileSize, tileSize, hasAlpha)
 
     constructor(bufferedImage: BufferedImage) : super(bufferedImage)
-
-    final override val isExpired: Boolean
-        get() {
-            if (expiration == 0L) {
-                return false
-            }
-            return expiration <= System.currentTimeMillis()
-        }
-
-    final override fun setExpiration(expiration: Long) {
-        this.expiration = expiration
-    }
 }

@@ -20,7 +20,6 @@ enum class FontFamily {
 
     companion object {
 
-        @JvmStatic
         fun fromString(value: String?): FontFamily {
             return when (value) {
                 "default" -> DEFAULT

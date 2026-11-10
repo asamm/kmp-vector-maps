@@ -52,7 +52,7 @@ sealed interface MapObject {
         /**
          * Structured POI metadata — present only when the LBL has a
          * POI properties section AND this record is flagged [isPoi].
-         * The legacy parser exposed these via lazy [POILabel] getters;
+         * The legacy parser exposed these via lazy `POILabel` getters;
          * we surface them eagerly so consumers don't have to re-seek
          * into LBL.
          */
@@ -120,7 +120,7 @@ sealed interface MapObject {
         override fun hashCode(): Int {
             var h = type
             h = 31 * h + subType
-            h = 31 * h + (label?.hashCode() ?: 0)
+            h = 31 * h + label.hashCode()
             h = 31 * h + closed.hashCode()
             h = 31 * h + direction.hashCode()
             h = 31 * h + extraBit.hashCode()

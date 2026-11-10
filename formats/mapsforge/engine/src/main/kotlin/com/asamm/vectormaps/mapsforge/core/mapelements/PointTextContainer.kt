@@ -30,53 +30,21 @@ import com.asamm.vectormaps.mapsforge.core.model.Rotation
  */
 abstract class PointTextContainer protected constructor(
     point: Point,
-    horizontalOffset: Double,
-    verticalOffset: Double,
+    val horizontalOffset: Double,
+    val verticalOffset: Double,
     display: Display,
     priority: Int,
-    text: String,
-    paintFront: Paint,
-    paintBack: Paint?,
-    symbolContainer: SymbolContainer?,
-    position: Position,
-    maxTextWidth: Int,
+    val text: String,
+    val paintFront: Paint,
+    val paintBack: Paint?,
+    val symbolContainer: SymbolContainer?,
+    val position: Position,
+    val maxTextWidth: Int,
 ) : MapElementContainer(point, display, priority) {
-
-    @JvmField
-    val horizontalOffset: Double
 
     final override val isNotVisible: Boolean
 
-    @JvmField
-    val maxTextWidth: Int
-
-    @JvmField
-    val paintBack: Paint?
-
-    @JvmField
-    val paintFront: Paint
-
-    @JvmField
-    val position: Position
-
-    @JvmField
-    val symbolContainer: SymbolContainer?
-
-    @JvmField
-    val text: String
-
-    @JvmField
-    val verticalOffset: Double
-
     init {
-        this.maxTextWidth = maxTextWidth
-        this.text = text
-        this.symbolContainer = symbolContainer
-        this.paintFront = paintFront
-        this.paintBack = paintBack
-        this.position = position
-        this.horizontalOffset = horizontalOffset
-        this.verticalOffset = verticalOffset
         this.isNotVisible = super.isNotVisible
             || (this.paintFront.isTransparent
                 && (this.paintBack == null || this.paintBack.isTransparent))
@@ -110,15 +78,8 @@ abstract class PointTextContainer protected constructor(
             return false
         }
 
-        val ptc: PointTextContainer = other
-
-        if (this.text == ptc.text
-            && this.xy.distance(ptc.xy) < 200
-        ) {
-            return true
-        }
-
-        return false
+        return this.text == other.text
+            && this.xy.distance(other.xy) < 200
     }
 
     override fun equals(other: Any?): Boolean {
@@ -339,7 +300,6 @@ abstract class PointTextContainer protected constructor(
         /**
          * New rotated x,y position of the container relative to the origin point.
          */
-        @JvmStatic
         fun getRotatedRelativePosition(
             pointTextContainer: PointTextContainer,
             originX: Double,
@@ -352,7 +312,6 @@ abstract class PointTextContainer protected constructor(
         /**
          * The clash rectangle transformed back to label space, mainly for debugging.
          */
-        @JvmStatic
         fun getClashRectangleTransformed(
             pointTextContainer: PointTextContainer,
             originX: Double,

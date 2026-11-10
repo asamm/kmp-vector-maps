@@ -154,7 +154,7 @@ object TreSubFile {
      * count UInt16. The number of records is implicit — keep reading until the
      * descriptor's `length` is exhausted.
      *
-     * The `bits-per-coord` value drives [TreSubFile.convertMapUnits]-equivalent
+     * The `bits-per-coord` value drives `TreSubFile.convertMapUnits`-equivalent
      * scaling: at level L with bitsPerCoord B, a coordinate delta is scaled by
      * `1 shl (24 - B - additionalAccuracy)`.
      *

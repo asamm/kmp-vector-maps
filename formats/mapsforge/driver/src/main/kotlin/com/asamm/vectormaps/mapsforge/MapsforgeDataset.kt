@@ -146,7 +146,11 @@ class MapsforgeDataset internal constructor(
         val result = MultiMapDataStore(MultiMapDataStore.DataPolicy.RETURN_ALL)
         try {
             for (file in files) {
-                result.addMapDataStore(CheckedMapFile(file = file, language = language), false, false)
+                result.addMapDataStore(
+                    CheckedMapFile(file = file, language = language),
+                    useStartZoomLevel = false,
+                    useStartPosition = false,
+                )
             }
         } catch (e: Exception) {
             result.close()

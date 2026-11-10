@@ -18,13 +18,14 @@ package com.asamm.vectormaps.mapsforge.map.rendertheme
 
 import com.asamm.vectormaps.mapsforge.core.graphics.GraphicFactory
 import com.asamm.vectormaps.mapsforge.core.mapelements.MapElementContainer
-import com.asamm.vectormaps.mapsforge.core.model.Tile
 import com.asamm.vectormaps.mapsforge.map.layer.renderer.CanvasRasterer
 import com.asamm.vectormaps.mapsforge.map.layer.renderer.RendererJob
 import com.asamm.vectormaps.mapsforge.map.layer.renderer.ShapePaintContainer
 import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderTheme
 import java.util.LinkedList
 import java.util.concurrent.ExecutionException
+import kotlin.math.max
+import kotlin.math.pow
 
 /**
  * A RenderContext contains all the information and data to render a map area, it is passed between
@@ -32,31 +33,24 @@ import java.util.concurrent.ExecutionException
  * job's theme and scales it to the job's zoom level.
  */
 open class RenderContext @Throws(InterruptedException::class, ExecutionException::class) constructor(
-    rendererJob: RendererJob,
+    val rendererJob: RendererJob,
     graphicFactory: GraphicFactory,
 ) {
 
-    @JvmField
-    val rendererJob: RendererJob
-
-    @JvmField
     val renderTheme: RenderTheme
 
     // Configuration that drives the rendering
-    @JvmField
     val canvasRasterer: CanvasRasterer
 
     // Data generated for the rendering process
     private var drawingLayer = 0
 
-    @JvmField
-    protected val labels: MutableList<MapElementContainer>
+    private val labels: MutableList<MapElementContainer>
 
     // per layer the lists of its levels, each created on first use (C15)
     private val ways = arrayOfNulls<Array<MutableList<ShapePaintContainer>?>>(LAYERS.toInt())
 
     init {
-        this.rendererJob = rendererJob
         this.labels = LinkedList()
         this.canvasRasterer = CanvasRasterer(this@RenderContext, graphicFactory)
         this.renderTheme = rendererJob.renderThemeFuture!!.get()
@@ -99,10 +93,10 @@ open class RenderContext @Throws(InterruptedException::class, ExecutionException
     }
 
     fun drawWays() {
-        for (layer in 0 until this.ways.size) {
+        for (layer in this.ways.indices) {
             val shapePaintContainers = this.ways[layer] ?: continue
 
-            for (level in 0 until shapePaintContainers.size) {
+            for (level in shapePaintContainers.indices) {
                 val wayList = shapePaintContainers[level] ?: continue
 
                 for (index in wayList.size - 1 downTo 0) {
@@ -125,21 +119,12 @@ open class RenderContext @Throws(InterruptedException::class, ExecutionException
     }
 
     /**
-     * Just a way of generating a hash key for a tile if only the RendererJob is known.
-     *
-     * @return a RendererJob based on the current one, only tile changes
-     */
-    fun otherTile(tile: Tile): RendererJob {
-        return this.rendererJob.otherTile(tile)
-    }
-
-    /**
      * Sets the scale stroke factor for the given zoom level.
      */
     private fun setScaleStrokeWidth(zoomLevel: Byte) {
-        val zoomLevelDiff = Math.max(zoomLevel - STROKE_MIN_ZOOM_LEVEL, 0)
+        val zoomLevelDiff = max(zoomLevel - STROKE_MIN_ZOOM_LEVEL, 0)
         this.renderTheme.scaleStrokeWidth(
-            Math.pow(STROKE_INCREASE, zoomLevelDiff.toDouble()).toFloat(),
+            STROKE_INCREASE.pow(zoomLevelDiff.toDouble()).toFloat(),
             this.rendererJob.tile.zoomLevel,
         )
     }

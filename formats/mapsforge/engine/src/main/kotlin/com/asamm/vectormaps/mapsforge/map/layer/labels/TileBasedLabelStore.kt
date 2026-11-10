@@ -28,10 +28,6 @@ open class TileBasedLabelStore(
     capacity: Int,
 ) : WorkingSetCache<Tile, List<MapElementContainer>>(capacity), LabelStore {
 
-    private var lastVisibleTileSet: Set<Tile> = HashSet()
-
-    private var version: Int = 0
-
     fun destroy() {
         this.clear()
     }
@@ -41,12 +37,7 @@ open class TileBasedLabelStore(
      */
     @Synchronized
     fun storeMapItems(tile: Tile, mapItems: MutableList<MapElementContainer>) {
-        this.put(tile, LayerUtil.collisionFreeOrdered(mapItems, Rotation.NULL_ROTATION, false))
-        this.version += 1
-    }
-
-    final override fun getVersion(): Int {
-        return this.version
+        this[tile] = LayerUtil.collisionFreeOrdered(mapItems, Rotation.NULL_ROTATION, false)
     }
 
     @Synchronized
@@ -59,10 +50,8 @@ open class TileBasedLabelStore(
 
     @Synchronized
     private fun getVisibleItems(tiles: Set<Tile>): MutableList<MapElementContainer> {
-        lastVisibleTileSet = tiles
-
         val visibleItems: MutableList<MapElementContainer> = ArrayList()
-        for (tile in lastVisibleTileSet) {
+        for (tile in tiles) {
             if (containsKey(tile)) {
                 visibleItems.addAll(get(tile)!!)
             }
@@ -70,22 +59,10 @@ open class TileBasedLabelStore(
         return visibleItems
     }
 
-    /**
-     * True if `tile` is in the current tile set and no data is stored for it.
-     */
-    @Synchronized
-    fun requiresTile(tile: Tile): Boolean {
-        return this.lastVisibleTileSet.contains(tile)
-            && !this.containsKey(tile)
-    }
-
     override fun removeEldestEntry(
         eldest: MutableMap.MutableEntry<Tile, List<MapElementContainer>>?,
     ): Boolean {
-        if (size > this.capacity) {
-            return true
-        }
-        return false
+        return size > this.capacity
     }
 
     private companion object {

@@ -371,7 +371,7 @@ object TypBodyParser {
     /**
      * Expands a 32×height 1bpp line bitmap to a 32×height RGBA tile.
      * Bits are LSB-first within each byte (matching mkgmap's
-     * [BitWriter] packing for `simple=true` line records). Set bits
+     * `BitWriter` packing for `simple=true` line records). Set bits
      * paint with [fg]; clear bits paint with [bg].
      */
     private fun expandLinePattern(
@@ -559,7 +559,7 @@ object TypBodyParser {
             val br = BitStream(rowBuf)
             for (col in 0 until width) {
                 val idx = br.read(bpp)
-                val c = if (idx in 0 until palette.size) palette[idx] else Color.Transparent
+                val c = if (idx in palette.indices) palette[idx] else Color.Transparent
                 rgba[dst] = c.red.toByte()
                 rgba[dst + 1] = c.green.toByte()
                 rgba[dst + 2] = c.blue.toByte()

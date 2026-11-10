@@ -17,33 +17,23 @@
 package com.asamm.vectormaps.mapsforge.core.model
 
 import java.io.Serializable
+import kotlin.math.cos
+import kotlin.math.sin
 
 /**
  * A rotation by an angle around a pivot point.
  */
 open class Rotation(
-    @JvmField val degrees: Float,
-    @JvmField val px: Float,
-    @JvmField val py: Float,
+    val degrees: Float,
+    val px: Float,
+    val py: Float,
 ) : Serializable {
 
-    @JvmField
     val radians: Double = Math.toRadians(degrees.toDouble())
-
-    /**
-     * This rotation with the angle reversed.
-     */
-    fun reverseRotation(): Rotation {
-        if (noRotation(this)) {
-            return NULL_ROTATION
-        }
-        return Rotation(-degrees, px, py)
-    }
 
     /**
      * The point (`x`, `y`) rotated around the pivot.
      */
-    @JvmOverloads
     fun rotate(x: Double, y: Double, reverse: Boolean = false): Point {
         if (reverse) {
             return rotateInternal(radians, x, y)
@@ -54,7 +44,6 @@ open class Rotation(
     /**
      * `p` rotated around the pivot; `p` itself without a rotation.
      */
-    @JvmOverloads
     fun rotate(p: Point, reverse: Boolean = false): Point {
         if (noRotation(this)) {
             return p
@@ -65,7 +54,6 @@ open class Rotation(
     /**
      * The envelope of `r` rotated around the pivot; `r` itself without a rotation.
      */
-    @JvmOverloads
     fun rotate(r: Rectangle, reverse: Boolean = false): Rectangle {
         if (noRotation(this)) {
             return r
@@ -90,19 +78,19 @@ open class Rotation(
         if (noRotation(other)) {
             return noRotation(this)
         }
-        return java.lang.Float.floatToIntBits(px) == java.lang.Float.floatToIntBits(other.px)
-            && java.lang.Float.floatToIntBits(py) == java.lang.Float.floatToIntBits(other.py)
-            && java.lang.Double.doubleToLongBits(radians) == java.lang.Double.doubleToLongBits(other.radians)
+        return px.toBits() == other.px.toBits()
+            && py.toBits() == other.py.toBits()
+            && radians.toBits() == other.radians.toBits()
     }
 
     override fun hashCode(): Int {
         val prime = 31
         var result = 1
-        var temp: Long = java.lang.Float.floatToIntBits(px).toLong()
+        var temp: Long = px.toBits().toLong()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Float.floatToIntBits(py).toLong()
+        temp = py.toBits().toLong()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(radians)
+        temp = radians.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
         return result
     }
@@ -115,8 +103,8 @@ open class Rotation(
         if (noRotation(this)) {
             return Point(x, y)
         }
-        val cosTheta = Math.cos(radians)
-        val sinTheta = Math.sin(radians)
+        val cosTheta = cos(radians)
+        val sinTheta = sin(radians)
         val rotatedX = (x - px) * cosTheta - (y - py) * sinTheta + px
         val rotatedY = (x - px) * sinTheta + (y - py) * cosTheta + py
         return Point(rotatedX, rotatedY)
@@ -126,13 +114,11 @@ open class Rotation(
 
         private const val serialVersionUID = 1L
 
-        @JvmField
         val NULL_ROTATION = Rotation(0f, 0f, 0f)
 
         /**
          * True for null, [NULL_ROTATION] or an angle of 0.
          */
-        @JvmStatic
         fun noRotation(rotation: Rotation?): Boolean {
             return NULL_ROTATION === rotation
                 || rotation == null

@@ -22,10 +22,6 @@ package com.asamm.vectormaps.mapsforge.map.android.graphics
 
 import android.content.Context
 import android.graphics.Bitmap.Config
-import android.graphics.Rect
-import android.graphics.drawable.BitmapDrawable
-import android.graphics.drawable.Drawable
-import android.os.Build
 import android.text.TextUtils
 import com.asamm.vectormaps.mapsforge.core.graphics.Bitmap
 import com.asamm.vectormaps.mapsforge.core.graphics.Canvas
@@ -172,8 +168,9 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
      * Android method accessible only via Context.
      */
     fun deleteFile(name: String): Boolean {
-        if (svgCacheDir != null) {
-            return File(svgCacheDir, name).delete()
+        val dir = svgCacheDir
+        if (dir != null) {
+            return File(dir, name).delete()
         }
         return getCacheFile(name).delete()
     }
@@ -182,8 +179,9 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
      * Android method accessible only via Context.
      */
     fun fileList(): Array<String>? {
-        if (svgCacheDir != null) {
-            return svgCacheDir!!.list()
+        val dir = svgCacheDir
+        if (dir != null) {
+            return dir.list()
         }
         return getCacheFile("").list()
     }
@@ -193,8 +191,9 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
      */
     @Throws(FileNotFoundException::class)
     fun openFileInput(name: String): FileInputStream {
-        if (svgCacheDir != null) {
-            return FileInputStream(File(svgCacheDir, name))
+        val dir = svgCacheDir
+        if (dir != null) {
+            return FileInputStream(File(dir, name))
         }
         return FileInputStream(getCacheFile(name))
     }
@@ -204,8 +203,9 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
      */
     @Throws(FileNotFoundException::class)
     fun openFileOutput(name: String, mode: Int): FileOutputStream {
-        if (svgCacheDir != null) {
-            return FileOutputStream(File(svgCacheDir, name), mode == Context.MODE_APPEND)
+        val dir = svgCacheDir
+        if (dir != null) {
+            return FileOutputStream(File(dir, name), mode == Context.MODE_APPEND)
         }
         return FileOutputStream(getCacheFile(name), mode == Context.MODE_APPEND)
     }
@@ -233,6 +233,10 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
         return AndroidSvgBitmap(inputStream, hash, scaleFactor, width, height, percent)
     }
 
+    /**
+     * Stores rendered SVG symbols in `svgCacheDir` instead of `cacheDir/mapsforge`; null for the
+     * default.
+     */
     fun setSvgCacheDir(svgCacheDir: File?) {
         this.svgCacheDir = svgCacheDir
     }
@@ -263,7 +267,6 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
          * The factory in use, without a context until [createInstance], e.g. for IDE layout
          * designers.
          */
-        @JvmField
         var INSTANCE = AndroidGraphicFactory(null)
 
         // if true RESOURCE_BITMAPS will be kept in the cache to avoid
@@ -271,89 +274,27 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
         const val KEEP_RESOURCE_BITMAPS = true
 
         // see nonTransparentBitmapConfig
-        @JvmField
         val TRANSPARENT_BITMAP: Config = Config.ARGB_8888
 
-        @JvmField
         val MONO_ALPHA_BITMAP: Config = Config.ALPHA_8
 
         const val LIBRARY_FILE_NAME = "mapsforge"
 
-        @JvmStatic
-        fun convertToAndroidBitmap(drawable: Drawable): android.graphics.Bitmap {
-            val bitmap: android.graphics.Bitmap
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P
-                && drawable is BitmapDrawable
-            ) {
-                bitmap = drawable.bitmap
-            } else {
-                val width = drawable.intrinsicWidth
-                val height = drawable.intrinsicHeight
-                bitmap = android.graphics.Bitmap.createBitmap(width, height, TRANSPARENT_BITMAP)
-                val canvas = android.graphics.Canvas(bitmap)
-
-                val rect: Rect = drawable.bounds
-                drawable.setBounds(0, 0, width, height)
-                drawable.draw(canvas)
-                drawable.bounds = rect
-            }
-
-            return bitmap
-        }
-
-        @JvmStatic
-        fun convertToBitmap(drawable: Drawable): Bitmap {
-            return AndroidBitmap(convertToAndroidBitmap(drawable))
-        }
-
-        @JvmStatic
-        fun convertToBitmap(drawable: Drawable, paint: android.graphics.Paint?): Bitmap {
-            val immutable = convertToAndroidBitmap(drawable)
-            val mutable = immutable.copy(TRANSPARENT_BITMAP, true)
-            val canvas = android.graphics.Canvas(mutable)
-
-            canvas.drawBitmap(mutable, 0f, 0f, paint)
-
-            return AndroidBitmap(mutable)
-        }
-
-        @JvmStatic
         fun createGraphicContext(canvas: android.graphics.Canvas): Canvas {
             return AndroidCanvas(canvas)
         }
 
-        @JvmStatic
         fun createInstance(context: Context?) {
             INSTANCE = AndroidGraphicFactory(context)
         }
 
         /**
-         * The bytes per pixel of a bitmap with `config`.
-         */
-        @Suppress("DEPRECATION")
-        @JvmStatic
-        fun getBytesPerPixel(config: Config): Int {
-            if (config == Config.ARGB_8888) {
-                return 4
-            } else if (config == Config.RGB_565) {
-                return 2
-            } else if (config == Config.ARGB_4444) {
-                return 2
-            } else if (config == Config.ALPHA_8) {
-                return 1
-            }
-            return 1
-        }
-
-        /**
          * The Android canvas, null once destroyed.
          */
-        @JvmStatic
         fun getCanvas(canvas: Canvas): android.graphics.Canvas? {
             return (canvas as AndroidCanvas).canvas
         }
 
-        @JvmStatic
         fun getPaint(paint: Paint): android.graphics.Paint {
             return (paint as AndroidPaint).paint
         }
@@ -361,12 +302,10 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
         /**
          * The Android bitmap, null once destroyed.
          */
-        @JvmStatic
         fun getBitmap(bitmap: Bitmap): android.graphics.Bitmap? {
             return (bitmap as AndroidBitmap).bitmap
         }
 
-        @JvmStatic
         internal fun getColor(color: Color): Int {
             return when (color) {
                 Color.BLACK -> android.graphics.Color.BLACK
@@ -378,22 +317,25 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
             }
         }
 
-        @JvmStatic
         internal fun getMatrix(matrix: Matrix): android.graphics.Matrix {
             return (matrix as AndroidMatrix).matrix
         }
 
-        @JvmStatic
         internal fun getPath(path: Path): android.graphics.Path {
             return (path as AndroidPath).path
         }
 
-        @JvmStatic
+        /**
+         * Deletes the rendered SVG symbols stored on disk.
+         */
         fun clearResourceFileCache() {
             AndroidSvgBitmapStore.clear()
         }
 
-        @JvmStatic
+        /**
+         * Recycles the theme symbol bitmaps kept in memory; call it only once every theme using
+         * them is destroyed, as a loaded theme keeps its bitmaps.
+         */
         fun clearResourceMemoryCache() {
             AndroidResourceBitmap.clearResourceBitmaps()
         }

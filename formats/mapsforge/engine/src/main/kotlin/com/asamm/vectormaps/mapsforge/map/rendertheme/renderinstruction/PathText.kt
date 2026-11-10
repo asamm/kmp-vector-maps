@@ -123,7 +123,7 @@ open class PathText @Throws(XmlPullParserException::class) constructor(
             } else if (DISPLAY == name) {
                 this.display = Display.fromString(value)
             } else if (DY == name) {
-                this.dy = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.dy = value.toFloat() * displayModel.scaleFactor
             } else if (FILL == name) {
                 this.fill.color = XmlUtils.getColor(graphicFactory, value, displayModel.themeCallback, this)
             } else if (FONT_FAMILY == name) {
@@ -133,15 +133,15 @@ open class PathText @Throws(XmlPullParserException::class) constructor(
             } else if (FONT_STYLE == name) {
                 fontStyle = FontStyle.fromString(value)
             } else if (REPEAT == name) {
-                this.repeat = java.lang.Boolean.parseBoolean(value)
+                this.repeat = value.toBoolean()
             } else if (REPEAT_GAP == name) {
-                this.repeatGap = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.repeatGap = value.toFloat() * displayModel.scaleFactor
             } else if (REPEAT_START == name) {
-                this.repeatStart = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.repeatStart = value.toFloat() * displayModel.scaleFactor
             } else if (PRIORITY == name) {
-                this.priority = Integer.parseInt(value)
+                this.priority = value.toInt()
             } else if (ROTATE == name) {
-                if (!java.lang.Boolean.parseBoolean(value)) {
+                if (!value.toBoolean()) {
                     this.textOrientation = TextOrientation.RIGHT
                 }
             } else if (SCALE == name) {
@@ -199,10 +199,7 @@ open class PathText @Throws(XmlPullParserException::class) constructor(
             return
         }
 
-        var caption = this.textKey!!.getValue(way.tags)
-        if (caption == null) {
-            return
-        }
+        var caption = this.textKey!!.getValue(way.tags) ?: return
         val themeCallback = displayModel.themeCallback
         if (themeCallback != null) {
             caption = themeCallback.getText(way, caption)

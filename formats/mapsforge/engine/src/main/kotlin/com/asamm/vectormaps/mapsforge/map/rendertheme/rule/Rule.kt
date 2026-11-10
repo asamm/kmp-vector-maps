@@ -27,20 +27,6 @@ import com.asamm.vectormaps.mapsforge.map.rendertheme.renderinstruction.RenderIn
 
 abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
 
-    /**
-     * Walks the sub-rules of a rule depth first, under the lock of the rule it was created on.
-     */
-    open inner class RuleVisitor {
-
-        open fun apply(r: Rule) {
-            synchronized(mySync) {
-                for (subRule in r.subRules) {
-                    this.apply(subRule)
-                }
-            }
-        }
-    }
-
     internal var cat: String? = ruleBuilder.cat
     internal val closedMatcher: ClosedMatcher = ruleBuilder.closedMatcher
     internal val elementMatcher: ElementMatcher = ruleBuilder.elementMatcher
@@ -67,10 +53,6 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
         }
     }
 
-    internal fun apply(v: RuleVisitor) {
-        v.apply(this)
-    }
-
     internal fun destroy() {
         synchronized(mySync) {
             for (ri in this.renderInstructions) {
@@ -83,10 +65,10 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
     }
 
     internal fun evictZoom(zoomLevel: Byte) {
-        for (i in 0 until this.renderInstructions.size) {
+        for (i in this.renderInstructions.indices) {
             this.renderInstructions[i].evictZoom(zoomLevel)
         }
-        for (i in 0 until this.subRules.size) {
+        for (i in this.subRules.indices) {
             this.subRules[i].evictZoom(zoomLevel)
         }
     }
@@ -102,11 +84,11 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
         pointOfInterest: PointOfInterest,
     ) {
         if (matchesNode(pointOfInterest.tags, renderContext.rendererJob.tile.zoomLevel)) {
-            for (i in 0 until this.renderInstructions.size) {
+            for (i in this.renderInstructions.indices) {
                 this.renderInstructions[i].renderNode(renderCallback, renderContext, pointOfInterest)
                 matchingList.add(this.renderInstructions[i])
             }
-            for (i in 0 until this.subRules.size) {
+            for (i in this.subRules.indices) {
                 this.subRules[i].matchNode(renderCallback, renderContext, matchingList, pointOfInterest)
             }
         }
@@ -121,11 +103,11 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
         renderContext: RenderContext,
     ) {
         if (matchesWay(way.tags, tile.zoomLevel, closed)) {
-            for (i in 0 until this.renderInstructions.size) {
+            for (i in this.renderInstructions.indices) {
                 this.renderInstructions[i].renderWay(renderCallback, renderContext, way)
                 matchingList.add(this.renderInstructions[i])
             }
-            for (i in 0 until this.subRules.size) {
+            for (i in this.subRules.indices) {
                 this.subRules[i].matchWay(renderCallback, way, tile, closed, matchingList, renderContext)
             }
         }
@@ -138,26 +120,26 @@ abstract class Rule internal constructor(ruleBuilder: RuleBuilder) {
         synchronized(mySync) {
             this.renderInstructions.trimToSize()
             this.subRules.trimToSize()
-            for (i in 0 until this.subRules.size) {
+            for (i in this.subRules.indices) {
                 this.subRules[i].onComplete()
             }
         }
     }
 
     internal fun scaleStrokeWidth(scaleFactor: Float, zoomLevel: Byte) {
-        for (i in 0 until this.renderInstructions.size) {
+        for (i in this.renderInstructions.indices) {
             this.renderInstructions[i].scaleStrokeWidth(scaleFactor, zoomLevel)
         }
-        for (i in 0 until this.subRules.size) {
+        for (i in this.subRules.indices) {
             this.subRules[i].scaleStrokeWidth(scaleFactor, zoomLevel)
         }
     }
 
     internal fun scaleTextSize(scaleFactor: Float, zoomLevel: Byte) {
-        for (i in 0 until this.renderInstructions.size) {
+        for (i in this.renderInstructions.indices) {
             this.renderInstructions[i].scaleTextSize(scaleFactor, zoomLevel)
         }
-        for (i in 0 until this.subRules.size) {
+        for (i in this.subRules.indices) {
             this.subRules[i].scaleTextSize(scaleFactor, zoomLevel)
         }
     }

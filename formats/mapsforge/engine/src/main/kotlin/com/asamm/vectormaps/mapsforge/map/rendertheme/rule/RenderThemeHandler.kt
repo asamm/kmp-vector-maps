@@ -128,7 +128,7 @@ class RenderThemeHandler private constructor(
                     RenderThemeBuilder(this.graphicFactory, this.displayModel, qName, pullParser).build()
             } else if (ELEMENT_NAME_RULE == qName) {
                 checkState(qName, Element.RULE)
-                val rule = RuleBuilder(qName, pullParser, this.ruleStack).build()
+                val rule = RuleBuilder(qName, pullParser).build()
                 if (!this.ruleStack.empty()
                     && isVisible(rule)
                 ) {
@@ -214,8 +214,8 @@ class RenderThemeHandler private constructor(
                 val currentLayer = this.currentLayer!!
                 val language = getStringAttribute("lang")
                 val value = getStringAttribute("value")
-                // without a value getTitle falls back to the default language anyway; a title
-                // without a language is dropped (upstream kept it under a null key)
+                // a name without a value adds no title; one without a language is dropped
+                // (upstream kept it under a null key)
                 if (language != null
                     && value != null
                 ) {
@@ -383,7 +383,6 @@ class RenderThemeHandler private constructor(
          * line and line-symbol images on first render; a missing or invalid one leaves its
          * instruction drawing without it.
          */
-        @JvmStatic
         @Throws(IOException::class, XmlPullParserException::class)
         fun getRenderTheme(
             graphicFactory: GraphicFactory,
@@ -404,16 +403,11 @@ class RenderThemeHandler private constructor(
             }
         }
 
-        @JvmStatic
         @Throws(XmlPullParserException::class)
         fun getXmlPullParserFactory(): XmlPullParserFactory {
             return xmlPullParserFactory
                 ?: XmlPullParserFactory.newInstance().also { xmlPullParserFactory = it }
         }
 
-        @JvmStatic
-        fun setXmlPullParserFactory(xmlPullParserFactory: XmlPullParserFactory?) {
-            this.xmlPullParserFactory = xmlPullParserFactory
-        }
     }
 }

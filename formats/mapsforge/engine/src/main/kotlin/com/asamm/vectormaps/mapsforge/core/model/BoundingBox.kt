@@ -21,23 +21,22 @@ import com.asamm.vectormaps.mapsforge.core.util.LatLongUtils
 import com.asamm.vectormaps.mapsforge.core.util.MercatorProjection
 import com.asamm.vectormaps.mapsforge.core.util.Parameters
 import java.io.Serializable
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
 
 /**
- * An immutable geographic box in degrees; `extendCoordinates`, `extendDegrees`, `extendMargin` and
- * `extendMeters` clip to the Mercator latitude range and to ±180, `extendBoundingBox` does not.
+ * An immutable geographic box in degrees; `extendMeters` clips to the Mercator latitude range and
+ * to ±180, `extendBoundingBox` does not.
  */
 open class BoundingBox : Serializable {
 
-    @JvmField
     val maxLatitude: Double
 
-    @JvmField
     val maxLongitude: Double
 
-    @JvmField
     val minLatitude: Double
 
-    @JvmField
     val minLongitude: Double
 
     /**
@@ -76,10 +75,10 @@ open class BoundingBox : Serializable {
             val latitude = latLong.latitude
             val longitude = latLong.longitude
 
-            minLatitude = Math.min(minLatitude, latitude)
-            minLongitude = Math.min(minLongitude, longitude)
-            maxLatitude = Math.max(maxLatitude, latitude)
-            maxLongitude = Math.max(maxLongitude, longitude)
+            minLatitude = min(minLatitude, latitude)
+            minLongitude = min(minLongitude, longitude)
+            maxLatitude = max(maxLatitude, latitude)
+            maxLongitude = max(maxLongitude, longitude)
         }
 
         this.minLatitude = minLatitude
@@ -106,10 +105,10 @@ open class BoundingBox : Serializable {
         if (other !is BoundingBox) {
             return false
         }
-        return java.lang.Double.doubleToLongBits(maxLatitude) == java.lang.Double.doubleToLongBits(other.maxLatitude)
-            && java.lang.Double.doubleToLongBits(maxLongitude) == java.lang.Double.doubleToLongBits(other.maxLongitude)
-            && java.lang.Double.doubleToLongBits(minLatitude) == java.lang.Double.doubleToLongBits(other.minLatitude)
-            && java.lang.Double.doubleToLongBits(minLongitude) == java.lang.Double.doubleToLongBits(other.minLongitude)
+        return maxLatitude.toBits() == other.maxLatitude.toBits()
+            && maxLongitude.toBits() == other.maxLongitude.toBits()
+            && minLatitude.toBits() == other.minLatitude.toBits()
+            && minLongitude.toBits() == other.minLongitude.toBits()
     }
 
     /**
@@ -117,75 +116,11 @@ open class BoundingBox : Serializable {
      */
     fun extendBoundingBox(boundingBox: BoundingBox): BoundingBox {
         return BoundingBox(
-            Math.min(minLatitude, boundingBox.minLatitude),
-            Math.min(minLongitude, boundingBox.minLongitude),
-            Math.max(maxLatitude, boundingBox.maxLatitude),
-            Math.max(maxLongitude, boundingBox.maxLongitude),
+            min(minLatitude, boundingBox.minLatitude),
+            min(minLongitude, boundingBox.minLongitude),
+            max(maxLatitude, boundingBox.maxLatitude),
+            max(maxLongitude, boundingBox.maxLongitude),
         )
-    }
-
-    /**
-     * The box also covering the point; this instance when it already does.
-     */
-    fun extendCoordinates(latitude: Double, longitude: Double): BoundingBox {
-        if (contains(latitude, longitude)) {
-            return this
-        }
-
-        val minLat = Math.max(MercatorProjection.LATITUDE_MIN, Math.min(minLatitude, latitude))
-        val minLon = Math.max(-180.0, Math.min(minLongitude, longitude))
-        val maxLat = Math.min(MercatorProjection.LATITUDE_MAX, Math.max(maxLatitude, latitude))
-        val maxLon = Math.min(180.0, Math.max(maxLongitude, longitude))
-
-        return BoundingBox(minLat, minLon, maxLat, maxLon)
-    }
-
-    fun extendCoordinates(latLong: LatLong): BoundingBox {
-        return extendCoordinates(latLong.latitude, latLong.longitude)
-    }
-
-    /**
-     * The box grown by the given degrees on each side; negative values throw
-     * [IllegalArgumentException].
-     */
-    fun extendDegrees(verticalExpansion: Double, horizontalExpansion: Double): BoundingBox {
-        if (verticalExpansion == 0.0
-            && horizontalExpansion == 0.0
-        ) {
-            return this
-        } else if (verticalExpansion < 0
-            || horizontalExpansion < 0
-        ) {
-            throw IllegalArgumentException("BoundingBox extend operation does not accept negative values")
-        }
-
-        val minLat = Math.max(MercatorProjection.LATITUDE_MIN, minLatitude - verticalExpansion)
-        val minLon = Math.max(-180.0, minLongitude - horizontalExpansion)
-        val maxLat = Math.min(MercatorProjection.LATITUDE_MAX, maxLatitude + verticalExpansion)
-        val maxLon = Math.min(180.0, maxLongitude + horizontalExpansion)
-
-        return BoundingBox(minLat, minLon, maxLat, maxLon)
-    }
-
-    /**
-     * The box scaled around its center by `margin`; 0 or less throws [IllegalArgumentException].
-     */
-    fun extendMargin(margin: Float): BoundingBox {
-        if (margin == 1f) {
-            return this
-        } else if (margin <= 0) {
-            throw IllegalArgumentException("BoundingBox extend operation does not accept negative or zero values")
-        }
-
-        val verticalExpansion = (latitudeSpan * margin - latitudeSpan) * 0.5
-        val horizontalExpansion = (longitudeSpan * margin - longitudeSpan) * 0.5
-
-        val minLat = Math.max(MercatorProjection.LATITUDE_MIN, minLatitude - verticalExpansion)
-        val minLon = Math.max(-180.0, minLongitude - horizontalExpansion)
-        val maxLat = Math.min(MercatorProjection.LATITUDE_MAX, maxLatitude + verticalExpansion)
-        val maxLon = Math.min(180.0, maxLongitude + horizontalExpansion)
-
-        return BoundingBox(minLat, minLon, maxLat, maxLon)
     }
 
     /**
@@ -201,13 +136,13 @@ open class BoundingBox : Serializable {
         val verticalExpansion = LatLongUtils.latitudeDistance(meters)
         val horizontalExpansion = LatLongUtils.longitudeDistance(
             meters,
-            Math.max(Math.abs(minLatitude), Math.abs(maxLatitude)),
+            max(abs(minLatitude), abs(maxLatitude)),
         )
 
-        val minLat = Math.max(MercatorProjection.LATITUDE_MIN, minLatitude - verticalExpansion)
-        val minLon = Math.max(-180.0, minLongitude - horizontalExpansion)
-        val maxLat = Math.min(MercatorProjection.LATITUDE_MAX, maxLatitude + verticalExpansion)
-        val maxLon = Math.min(180.0, maxLongitude + horizontalExpansion)
+        val minLat = max(MercatorProjection.LATITUDE_MIN, minLatitude - verticalExpansion)
+        val minLon = max(-180.0, minLongitude - horizontalExpansion)
+        val maxLat = min(MercatorProjection.LATITUDE_MAX, maxLatitude + verticalExpansion)
+        val maxLon = min(180.0, maxLongitude + horizontalExpansion)
 
         return BoundingBox(minLat, minLon, maxLat, maxLon)
     }
@@ -217,16 +152,6 @@ open class BoundingBox : Serializable {
             val latitudeOffset = (maxLatitude - minLatitude) / 2
             val longitudeOffset = (maxLongitude - minLongitude) / 2
             return LatLong(minLatitude + latitudeOffset, minLongitude + longitudeOffset)
-        }
-
-    val latitudeSpan: Double
-        get() {
-            return maxLatitude - minLatitude
-        }
-
-    val longitudeSpan: Double
-        get() {
-            return maxLongitude - minLongitude
         }
 
     /**
@@ -241,13 +166,13 @@ open class BoundingBox : Serializable {
     override fun hashCode(): Int {
         val prime = 31
         var result = 1
-        var temp = java.lang.Double.doubleToLongBits(maxLatitude)
+        var temp = maxLatitude.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(maxLongitude)
+        temp = maxLongitude.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(minLatitude)
+        temp = minLatitude.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(minLongitude)
+        temp = minLongitude.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
         return result
     }
@@ -274,7 +199,7 @@ open class BoundingBox : Serializable {
         }
 
         for (outer in latLongs) {
-            for (i in 0 until outer.size step 2) {
+            for (i in outer.indices step 2) {
                 if (contains(outer[i], outer[i + 1])) {
                     // if any of the points is inside the bbox return early
                     return true
@@ -289,11 +214,11 @@ open class BoundingBox : Serializable {
         var tmpMaxLon = latLongs[0][1]
 
         for (outer in latLongs) {
-            for (i in 0 until outer.size step 2) {
-                tmpMinLat = Math.min(tmpMinLat, outer[i])
-                tmpMaxLat = Math.max(tmpMaxLat, outer[i])
-                tmpMinLon = Math.min(tmpMinLon, outer[i + 1])
-                tmpMaxLon = Math.max(tmpMaxLon, outer[i + 1])
+            for (i in outer.indices step 2) {
+                tmpMinLat = min(tmpMinLat, outer[i])
+                tmpMaxLat = max(tmpMaxLat, outer[i])
+                tmpMinLon = min(tmpMinLon, outer[i + 1])
+                tmpMaxLon = max(tmpMaxLon, outer[i + 1])
             }
         }
 
@@ -312,7 +237,6 @@ open class BoundingBox : Serializable {
         /**
          * Parses "minLat,minLon,maxLat,maxLon" in degrees.
          */
-        @JvmStatic
         fun fromString(boundingBoxString: String): BoundingBox {
             val coordinates = LatLongUtils.parseCoordinateString(boundingBoxString, 4)
             return BoundingBox(coordinates[0], coordinates[1], coordinates[2], coordinates[3])

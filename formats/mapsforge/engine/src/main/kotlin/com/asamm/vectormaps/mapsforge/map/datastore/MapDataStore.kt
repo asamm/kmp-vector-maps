@@ -29,12 +29,8 @@ import java.util.Locale
  *
  * @param language the preferred language for localized names, null for the default
  */
-abstract class MapDataStore @JvmOverloads constructor(language: String? = null) {
+abstract class MapDataStore(language: String? = null) {
 
-    @JvmField
-    protected var priority = 0
-
-    @JvmField
     protected var preferredLanguage: String? = language
 
     open var mapCallback: MapCallback? = null
@@ -121,21 +117,6 @@ abstract class MapDataStore @JvmOverloads constructor(language: String? = null) 
     }
 
     /**
-     * The priority in a multi-map store; higher reads first, below 0 only fills gaps.
-     */
-    open fun getPriority(): Int {
-        return priority
-    }
-
-    /**
-     * Sets [getPriority]; returns this store.
-     */
-    open fun setPriority(priority: Int): MapDataStore {
-        this.priority = priority
-        return this
-    }
-
-    /**
      * The initial position, null when the store has none.
      */
     abstract fun startPosition(): LatLong?
@@ -167,7 +148,6 @@ abstract class MapDataStore @JvmOverloads constructor(language: String? = null) 
          * language match, else a base-language fallback (zh-min-lan to zh), else the default;
          * null for a blank `s`.
          */
-        @JvmStatic
         fun extract(s: String?, language: String?): String? {
             if (s == null
                 || s.trim { it <= ' ' }.isEmpty()

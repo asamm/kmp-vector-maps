@@ -16,29 +16,16 @@
  */
 package com.asamm.vectormaps.mapsforge.core.util
 
-import java.util.Collections
-
 object Utils {
 
-    /**
-     * Null-safe equals.
-     */
-    @JvmStatic
-    fun equals(o1: Any?, o2: Any?): Boolean {
-        return o1 === o2 || (o1 != null && o1 == o2)
-    }
-
-    @JvmStatic
     fun hashTagParameter(keyValue: String): Int {
         return keyValue.hashCode()
     }
 
-    @JvmStatic
     fun convertListString(list: List<String>): IntArray {
         return IntArray(list.size) { hashTagParameter(list[it]) }
     }
 
-    @JvmStatic
     fun contains(data: IntArray, item: Int): Boolean {
         for (value in data) {
             if (value == item) {
@@ -49,38 +36,9 @@ object Utils {
     }
 
     /**
-     * Removes duplicates from `collection` in place, keeping the order of the rest; sorts a copy to
-     * find them, so it suits collections with fast removal and few duplicates.
-     */
-    @JvmStatic
-    fun <T : Comparable<T>?> deduplicate(collection: MutableCollection<T>): MutableCollection<T> {
-        if (collection.isEmpty()) {
-            return collection
-        }
-        val sortedList = ArrayList(collection)
-        // as upstream: sorting throws on a null its compareTo cannot take
-        Collections.sort(sortedList)
-
-        var pivot = sortedList[0]
-        for (i in 1 until sortedList.size) {
-            val item = sortedList[i]
-            if (pivot === item
-                || (pivot != null && pivot.compareTo(item) == 0)
-            ) {
-                // removing duplicates is cheaper than building a new list when they are few
-                collection.remove(item)
-                continue
-            }
-            pivot = item
-        }
-        return collection
-    }
-
-    /**
      * Removes duplicates from the sorted `sortedCollection` in place, keeping the order of the rest;
      * iterates it once, so it suits collections with fast removal.
      */
-    @JvmStatic
     fun <T : Comparable<T>?> deduplicateSorted(sortedCollection: MutableCollection<T>): MutableCollection<T> {
         if (sortedCollection.isEmpty()) {
             return sortedCollection

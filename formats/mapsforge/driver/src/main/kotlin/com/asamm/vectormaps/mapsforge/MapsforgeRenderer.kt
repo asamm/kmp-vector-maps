@@ -82,8 +82,8 @@ class MapsforgeRenderer internal constructor(
         graphicFactory,
         null,
         labelStore,
-        false,
-        true,
+        renderLabels = false,
+        cacheLabels = true,
         hooks.hillshade?.let { hook ->
             HillshadingDrawer { canvas, tile ->
                 val request = TileRequest(x = tile.tileX, y = tile.tileY, zoom = tile.zoomLevel.toInt())
@@ -121,8 +121,8 @@ class MapsforgeRenderer internal constructor(
                 themeFuture,
                 displayModel,
                 key.config.textScale,
-                false,
-                false,
+                isTransparent = false,
+                labelsOnly = false,
             )
             // Mapsforge logs the cause and returns null
             target.bitmap = renderer.executeJob(job)

@@ -22,7 +22,7 @@ package com.asamm.vectormaps.mapsforge.core.util
  * @param capacity negative throws [IllegalArgumentException]
  */
 open class LRUCache<K, V>(
-    @JvmField val capacity: Int,
+    val capacity: Int,
 ) : LinkedHashMap<K, V>(calculateInitialCapacity(capacity), LOAD_FACTOR, true) {
 
     override fun removeEldestEntry(eldest: MutableMap.MutableEntry<K, V>?): Boolean {

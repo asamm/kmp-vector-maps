@@ -40,9 +40,7 @@ open class Hillshading(
      */
     fun render(renderContext: RenderContext, drawer: HillshadingDrawer, paint: Paint) {
         val zoomLevel = renderContext.rendererJob.tile.zoomLevel
-        if (zoomLevel < minZoom
-            || zoomLevel > maxZoom
-        ) {
+        if (zoomLevel !in minZoom..maxZoom) {
             return
         }
         val container = HillshadingContainer(drawer = drawer)

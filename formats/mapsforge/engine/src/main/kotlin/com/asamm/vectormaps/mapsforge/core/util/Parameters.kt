@@ -27,83 +27,46 @@ import com.asamm.vectormaps.mapsforge.core.model.Tag
  */
 object Parameters {
 
-    enum class ParentTilesRendering { QUALITY, SPEED, OFF }
-
     enum class SymbolScaling { ALL, POI }
 
     /**
      * Use `Config.ARGB_8888` instead of `Config.RGB_565` in non-transparent Android bitmaps.
      */
-    @JvmField
     var ANDROID_32BIT_COLOR = false
 
     /**
      * The anti-aliasing new `DisplayModel`s start with. Changing it leaves existing models alone.
      */
-    @JvmField
     var ANTI_ALIASING = true
-
-    @JvmField
-    var ELASTIC_ZOOM = false
-
-    @JvmField
-    var FRACTIONAL_ZOOM = false
-
-    /**
-     * Process layer scroll events.
-     */
-    @JvmField
-    var LAYER_SCROLL_EVENT = false
 
     /**
      * Maximum buffer size for map files, in bytes.
      */
-    @JvmField
     var MAXIMUM_BUFFER_SIZE = 10000000
 
     /**
      * The thread count new `DisplayModel`s start with; one more than the processors, as one thread
      * is likely blocked reading map data. Changing it leaves existing models alone.
      */
-    @JvmField
     var NUMBER_OF_THREADS = Runtime.getRuntime().availableProcessors() + 1
-
-    @JvmField
-    var PARENT_TILES_RENDERING = ParentTilesRendering.SPEED
 
     /**
      * The polygon exceptions new `DisplayModel`s start with: tags whose closed ways still render
      * below the polygon zoom. Changing it leaves existing models alone.
      */
-    @JvmField
     val POLYGON_EXCEPTIONS: MutableSet<Tag> = HashSet()
 
     /**
      * The lowest polygon zoom new `DisplayModel`s start with, e.g. 10 for speed; -1 for all.
      * Changing it leaves existing models alone.
      */
-    @JvmField
     var POLYGON_ZOOM_MIN = -1
-
-    /**
-     * Faster map rotation with a matrix.
-     */
-    @JvmField
-    var ROTATION_MATRIX = true
-
-    /**
-     * A frame buffer large enough for either orientation, so a rotation needs no new one.
-     */
-    @JvmField
-    var SQUARE_FRAME_BUFFER = true
 
     /**
      * The symbol scaling new `DisplayModel`s start with. Changing it leaves existing models alone.
      */
-    @JvmField
     var SYMBOL_SCALING = SymbolScaling.ALL
 
-    @JvmField
     var VALIDATE_COORDINATES = true
 
     init {

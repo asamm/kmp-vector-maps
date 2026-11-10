@@ -21,7 +21,6 @@ package com.asamm.vectormaps.mapsforge.map.awt.graphics
 import com.asamm.vectormaps.mapsforge.core.graphics.BaseBitmap
 import com.asamm.vectormaps.mapsforge.core.graphics.Bitmap
 import java.awt.AlphaComposite
-import java.awt.Color
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import java.io.IOException
@@ -39,11 +38,7 @@ open class AwtBitmap : BaseBitmap, Bitmap {
 
     @Throws(IOException::class)
     constructor(inputStream: InputStream) {
-        val image: BufferedImage? = ImageIO.read(inputStream)
-        if (image == null) {
-            throw IOException("ImageIO failed to read inputStream")
-        }
-        this.bufferedImage = image
+        this.bufferedImage = ImageIO.read(inputStream) ?: throw IOException("ImageIO failed to read inputStream")
     }
 
     constructor(width: Int, height: Int) : this(width, height, true)
@@ -83,12 +78,6 @@ open class AwtBitmap : BaseBitmap, Bitmap {
         // no-op
     }
 
-    // the image is never null, so never destroyed
-    final override val isDestroyed: Boolean
-        get() {
-            return false
-        }
-
     final override fun scaleTo(width: Int, height: Int) {
         if (this.width != width
             || this.height != height
@@ -106,14 +95,5 @@ open class AwtBitmap : BaseBitmap, Bitmap {
             graphics.dispose()
             this.bufferedImage = resizedImage
         }
-    }
-
-    final override fun setBackgroundColor(color: Int) {
-        val myBufImage = bufferedImage
-
-        val graphics = myBufImage.createGraphics()
-        graphics.color = Color(color, true)
-        graphics.fillRect(0, 0, myBufImage.width, myBufImage.height)
-        graphics.dispose()
     }
 }

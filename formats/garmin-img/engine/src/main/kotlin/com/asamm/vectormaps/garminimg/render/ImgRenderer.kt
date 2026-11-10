@@ -13,7 +13,6 @@ import com.asamm.vectormaps.garminimg.parser.TreLevels
 import com.asamm.vectormaps.garminimg.style.Color
 import com.asamm.vectormaps.garminimg.style.InternalStyles
 import com.asamm.vectormaps.garminimg.style.Style
-import kotlin.math.abs
 import kotlin.math.ln
 
 /**
@@ -612,7 +611,7 @@ fun interface StyleResolver {
         }
 
         /**
-         * Returns a resolver that consults the supplied [TypStyleTable]
+         * Returns a resolver that consults the supplied `TypStyleTable`
          * first and falls back to [InternalStyles] for `(type, subType)`
          * pairs the TYP doesn't carry. Default widths / labels / borders
          * from `InternalStyles` are preserved when the TYP doesn't

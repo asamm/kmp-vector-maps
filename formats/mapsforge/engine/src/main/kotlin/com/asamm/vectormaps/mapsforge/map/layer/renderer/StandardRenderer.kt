@@ -47,30 +47,24 @@ import java.util.Collections
  * @param mapDataStore the store the map data is read from
  * @param hillsRenderConfig the host's hillshading, drawn where the theme places it; null for none
  */
-open class StandardRenderer @JvmOverloads constructor(
+open class StandardRenderer(
     mapDataStore: MapDataStore?,
     graphicFactory: GraphicFactory,
     renderLabels: Boolean,
     hillsRenderConfig: HillshadingDrawer? = null,
 ) {
 
-    @JvmField
     protected val hillsRenderConfig: HillshadingDrawer? = hillsRenderConfig
 
     // the hillshading containers' Paint, never drawn with
-    @JvmField
     protected val hillshadingPaint: Paint? = hillsRenderConfig?.let { graphicFactory.createPaint() }
 
-    @JvmField
-    protected val renderCallback: MyRenderCallback = MyRenderCallback()
+    private val renderCallback: MyRenderCallback = MyRenderCallback()
 
-    @JvmField
     val mapDataStore: MapDataStore? = mapDataStore
 
-    @JvmField
     val graphicFactory: GraphicFactory = graphicFactory
 
-    @JvmField
     protected val renderLabels: Boolean = renderLabels
 
     /**
@@ -89,12 +83,7 @@ open class StandardRenderer @JvmOverloads constructor(
      */
     val startZoomLevel: Byte?
         get() {
-            if (mapDataStore != null
-                && null != mapDataStore.startZoomLevel()
-            ) {
-                return mapDataStore.startZoomLevel()
-            }
-            return DEFAULT_START_ZOOM_LEVEL
+            return mapDataStore?.startZoomLevel() ?: DEFAULT_START_ZOOM_LEVEL
         }
 
     val zoomLevelMax: Byte
@@ -137,7 +126,7 @@ open class StandardRenderer @JvmOverloads constructor(
             val displayModel = renderContext.rendererJob.displayModel
             if (renderContext.rendererJob.tile.zoomLevel >= displayModel.polygonZoomMin) {
                 renderContext.renderTheme.matchClosedWay(getRenderCallback(), renderContext, way)
-            } else if (!displayModel.polygonExceptions.isEmpty()) {
+            } else if (displayModel.polygonExceptions.isNotEmpty()) {
                 for (tag in displayModel.polygonExceptions) {
                     if (way.tags.contains(tag)) {
                         renderContext.renderTheme.matchClosedWay(getRenderCallback(), renderContext, way)
@@ -173,10 +162,6 @@ open class StandardRenderer @JvmOverloads constructor(
         if (mapReadResult.isWater) {
             renderWaterBackground(renderContext)
         }
-    }
-
-    fun interruptAndDestroy() {
-        // nothing to stop without hillshading
     }
 
     open fun getRenderCallback(): MyRenderCallback {
@@ -385,15 +370,12 @@ open class StandardRenderer @JvmOverloads constructor(
             if (renderLabels) {
                 WayDecorator.renderText(
                     graphicFactory,
-                    way.upperLeft,
-                    way.lowerRight,
                     text,
                     display,
                     priority,
                     dy,
                     fill,
                     stroke,
-                    repeat,
                     repeatGap,
                     repeatStart,
                     textOrientation,
@@ -408,7 +390,6 @@ open class StandardRenderer @JvmOverloads constructor(
 
         protected const val DEFAULT_START_ZOOM_LEVEL: Byte = 12
 
-        @JvmField
         protected val TAG_NATURAL_WATER: Tag = Tag("natural", "water")
 
         protected const val ZOOM_MAX: Byte = 22

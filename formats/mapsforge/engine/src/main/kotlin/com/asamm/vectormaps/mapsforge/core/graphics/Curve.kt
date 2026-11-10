@@ -32,7 +32,6 @@ enum class Curve {
         /**
          * [CUBIC] for "cubic", else [NO].
          */
-        @JvmStatic
         fun fromString(value: String?): Curve {
             return if ("cubic" == value) {
                 CUBIC

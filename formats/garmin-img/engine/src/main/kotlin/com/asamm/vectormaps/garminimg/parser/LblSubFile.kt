@@ -210,7 +210,7 @@ object LblSubFile {
      * direct label offset, or a `(subDivisionIndex, indexedPointIndex)`
      * pair pointing into RGN's indexed-points segment. Cross-file
      * access is messy to thread through LBL; the resolver is supplied
-     * by [ImgFile] so it has TRE+RGN handles in scope.
+     * by `ImgFile` so it has TRE+RGN handles in scope.
      */
     fun interface IndexedPointLabelResolver {
         fun resolve(subDivisionIndex: Int, pointIndex: Int): String?
@@ -254,7 +254,6 @@ object LblSubFile {
         // resolution; we restore back to the cursor after each so
         // subsequent fields read from the right POI-block position.
         val streetNumber = if (mask and 0x01 != 0) {
-            val before = reader.position()
             val v = readPoiNumber(reader, header)
             // readPoiNumber consumed a known number of bytes regardless
             // of the label-pointer / base-11 branch; nothing to restore.

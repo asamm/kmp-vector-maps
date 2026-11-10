@@ -30,8 +30,6 @@ interface Bitmap {
 
     val height: Int
 
-    val isDestroyed: Boolean
-
     val width: Int
 
     @Throws(IOException::class)
@@ -42,6 +40,4 @@ interface Bitmap {
     fun incrementRefCount()
 
     fun scaleTo(width: Int, height: Int)
-
-    fun setBackgroundColor(color: Int)
 }

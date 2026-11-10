@@ -42,7 +42,6 @@ object XmlUtils {
 
     private const val UNSUPPORTED_COLOR_FORMAT = "unsupported color format: "
 
-    @JvmStatic
     @Throws(XmlPullParserException::class)
     fun checkMandatoryAttribute(elementName: String, attributeName: String, attributeValue: Any?) {
         if (attributeValue == null) {
@@ -54,7 +53,6 @@ object XmlUtils {
      * Reads the bitmap [src] (SVG or raster) through [resourceProvider], else from a file, the
      * platform assets or the classpath; null when [src] is empty.
      */
-    @JvmStatic
     @Throws(IOException::class)
     fun createBitmap(
         graphicFactory: GraphicFactory,
@@ -66,9 +64,7 @@ object XmlUtils {
         height: Int,
         percent: Int,
     ): Bitmap? {
-        if (src == null
-            || src.isEmpty()
-        ) {
+        if (src.isNullOrEmpty()) {
             // no image source defined
             return null
         }
@@ -114,7 +110,6 @@ object XmlUtils {
         }
     }
 
-    @JvmStatic
     fun logUnknownAttribute(element: String, name: String, value: String, attributeIndex: Int) {
         LOGGER.warning("unknown attribute in element $element $attributeIndex : $name = $value")
     }
@@ -122,7 +117,6 @@ object XmlUtils {
     /**
      * Supported formats are `#RRGGBB` and `#AARRGGBB`.
      */
-    @JvmStatic
     fun getColor(graphicFactory: GraphicFactory, colorString: String): Int {
         return getColor(graphicFactory, colorString, null, null)
     }
@@ -130,7 +124,6 @@ object XmlUtils {
     /**
      * Supported formats are `#RRGGBB` and `#AARRGGBB`; [themeCallback] may then replace the color.
      */
-    @JvmStatic
     fun getColor(
         graphicFactory: GraphicFactory,
         colorString: String,
@@ -157,7 +150,6 @@ object XmlUtils {
         }
     }
 
-    @JvmStatic
     @Throws(XmlPullParserException::class)
     fun parseNonNegativeByte(name: String, value: String): Byte {
         val parsedByte = value.toByte()
@@ -165,7 +157,6 @@ object XmlUtils {
         return parsedByte
     }
 
-    @JvmStatic
     @Throws(XmlPullParserException::class)
     fun parseNonNegativeFloat(name: String, value: String): Float {
         val parsedFloat = value.toFloat()
@@ -173,7 +164,6 @@ object XmlUtils {
         return parsedFloat
     }
 
-    @JvmStatic
     @Throws(XmlPullParserException::class)
     fun parseNonNegativeInteger(name: String, value: String): Int {
         val parsedInt = value.toInt()

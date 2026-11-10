@@ -19,6 +19,6 @@ package com.asamm.vectormaps.mapsforge.map.datastore
  * The POIs and ways of one map block.
  */
 open class PoiWayBundle(
-    @JvmField internal val pois: List<PointOfInterest>,
-    @JvmField internal val ways: List<Way>,
+    internal val pois: List<PointOfInterest>,
+    internal val ways: List<Way>,
 )

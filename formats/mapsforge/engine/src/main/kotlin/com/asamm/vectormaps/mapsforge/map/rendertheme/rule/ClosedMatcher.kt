@@ -17,7 +17,5 @@ package com.asamm.vectormaps.mapsforge.map.rendertheme.rule
 
 internal interface ClosedMatcher {
 
-    fun isCoveredBy(closedMatcher: ClosedMatcher): Boolean
-
     fun matches(closed: Closed): Boolean
 }

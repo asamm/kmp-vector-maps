@@ -21,6 +21,7 @@ import com.asamm.vectormaps.mapsforge.core.util.Parameters
 import com.asamm.vectormaps.mapsforge.map.model.common.Observable
 import com.asamm.vectormaps.mapsforge.map.rendertheme.ThemeCallback
 import java.util.Collections
+import kotlin.math.max
 
 /**
  * Display settings: tile size from the device and user scale factors, background color, label
@@ -41,7 +42,7 @@ open class DisplayModel : Observable() {
     private var themeCallbackValue: ThemeCallback? = null
     private var tileSizeValue = DEFAULT_TILE_SIZE
     private var tileSizeMultipleValue = 64
-    private var userScaleFactorValue = defaultUserScaleFactor
+    private var userScaleFactorValue = 1f
 
     init {
         setTileSize()
@@ -57,14 +58,14 @@ open class DisplayModel : Observable() {
         return backgroundColorValue == other.backgroundColorValue
             && fixedTileSize == other.fixedTileSize
             && maxTextWidthValue == other.maxTextWidthValue
-            && java.lang.Float.floatToIntBits(maxTextWidthFactor) == java.lang.Float.floatToIntBits(other.maxTextWidthFactor)
+            && maxTextWidthFactor.toBits() == other.maxTextWidthFactor.toBits()
             && tileSizeValue == other.tileSizeValue
             && tileSizeMultipleValue == other.tileSizeMultipleValue
-            && java.lang.Float.floatToIntBits(userScaleFactorValue) == java.lang.Float.floatToIntBits(other.userScaleFactorValue)
-            && java.lang.Float.floatToIntBits(deviceScaleValue) == java.lang.Float.floatToIntBits(other.deviceScaleValue)
-            && java.lang.Float.floatToIntBits(lineScaleValue) == java.lang.Float.floatToIntBits(other.lineScaleValue)
-            && java.lang.Float.floatToIntBits(symbolScaleValue) == java.lang.Float.floatToIntBits(other.symbolScaleValue)
-            && java.lang.Float.floatToIntBits(textScaleValue) == java.lang.Float.floatToIntBits(other.textScaleValue)
+            && userScaleFactorValue.toBits() == other.userScaleFactorValue.toBits()
+            && deviceScaleValue.toBits() == other.deviceScaleValue.toBits()
+            && lineScaleValue.toBits() == other.lineScaleValue.toBits()
+            && symbolScaleValue.toBits() == other.symbolScaleValue.toBits()
+            && textScaleValue.toBits() == other.textScaleValue.toBits()
             && polygonZoomMin == other.polygonZoomMin
             && polygonExceptions == other.polygonExceptions
             && antiAliasing == other.antiAliasing
@@ -254,14 +255,14 @@ open class DisplayModel : Observable() {
         result = prime * result + backgroundColorValue
         result = prime * result + fixedTileSize
         result = prime * result + maxTextWidthValue
-        result = prime * result + java.lang.Float.floatToIntBits(maxTextWidthFactor)
+        result = prime * result + maxTextWidthFactor.toBits()
         result = prime * result + tileSizeValue
         result = prime * result + tileSizeMultipleValue
-        result = prime * result + java.lang.Float.floatToIntBits(userScaleFactorValue)
-        result = prime * result + java.lang.Float.floatToIntBits(deviceScaleValue)
-        result = prime * result + java.lang.Float.floatToIntBits(lineScaleValue)
-        result = prime * result + java.lang.Float.floatToIntBits(symbolScaleValue)
-        result = prime * result + java.lang.Float.floatToIntBits(textScaleValue)
+        result = prime * result + userScaleFactorValue.toBits()
+        result = prime * result + deviceScaleValue.toBits()
+        result = prime * result + lineScaleValue.toBits()
+        result = prime * result + symbolScaleValue.toBits()
+        result = prime * result + textScaleValue.toBits()
         result = prime * result + polygonZoomMin
         result = prime * result + polygonExceptions.hashCode()
         result = prime * result + antiAliasing.hashCode()
@@ -293,7 +294,7 @@ open class DisplayModel : Observable() {
         if (fixedTileSize == 0) {
             val temp = DEFAULT_TILE_SIZE * deviceScaleValue * userScaleFactorValue
             // clamps to the nearest multiple of the tileSizeMultiple, and never to 0
-            tileSizeValue = Math.max(
+            tileSizeValue = max(
                 tileSizeMultipleValue,
                 Math.round(temp / tileSizeMultipleValue) * tileSizeMultipleValue,
             )
@@ -312,55 +313,33 @@ open class DisplayModel : Observable() {
 
         private const val DEFAULT_MAX_TEXT_WIDTH_FACTOR = 0.7f
 
-        private val DEFAULT_MAX_TEXT_WIDTH = (DEFAULT_TILE_SIZE * DEFAULT_MAX_TEXT_WIDTH_FACTOR).toInt()
+        private const val DEFAULT_MAX_TEXT_WIDTH = (DEFAULT_TILE_SIZE * DEFAULT_MAX_TEXT_WIDTH_FACTOR).toInt()
 
         /**
          * The line scale new models start with.
          */
-        @JvmField
         var lineScale = 1f
 
         /**
          * The symbol scale new models start with.
          */
-        @JvmField
         var symbolScale = 1f
 
         /**
          * The text scale new models start with.
          */
-        @JvmField
         var textScale = 1f
-
-        private var defaultUserScaleFactor = 1f
 
         private var deviceScaleFactor = 1f
 
         /**
-         * The user scale factor new models start with.
-         */
-        @JvmStatic
-        @Synchronized
-        fun getDefaultUserScaleFactor(): Float {
-            return defaultUserScaleFactor
-        }
-
-        /**
          * The device scale factor new models start with.
          */
-        @JvmStatic
         @Synchronized
         fun getDeviceScaleFactor(): Float {
             return deviceScaleFactor
         }
 
-        @JvmStatic
-        @Synchronized
-        fun setDefaultUserScaleFactor(scaleFactor: Float) {
-            defaultUserScaleFactor = scaleFactor
-        }
-
-        @JvmStatic
         @Synchronized
         fun setDeviceScaleFactor(scaleFactor: Float) {
             deviceScaleFactor = scaleFactor

@@ -16,13 +16,10 @@
  */
 package com.asamm.vectormaps.mapsforge.map.android.graphics
 
-import android.graphics.Path.FillType
-import com.asamm.vectormaps.mapsforge.core.graphics.FillRule
 import com.asamm.vectormaps.mapsforge.core.graphics.Path
 
 internal open class AndroidPath : Path {
 
-    @JvmField
     internal val path = android.graphics.Path()
 
     final override val isEmpty: Boolean
@@ -48,19 +45,5 @@ internal open class AndroidPath : Path {
 
     final override fun quadTo(x1: Float, y1: Float, x2: Float, y2: Float) {
         path.quadTo(x1, y1, x2, y2)
-    }
-
-    final override fun setFillRule(fillRule: FillRule) {
-        path.fillType = getWindingRule(fillRule)
-    }
-
-    private companion object {
-
-        private fun getWindingRule(fillRule: FillRule): FillType {
-            return when (fillRule) {
-                FillRule.EVEN_ODD -> FillType.EVEN_ODD
-                FillRule.NON_ZERO -> FillType.WINDING
-            }
-        }
     }
 }

@@ -31,7 +31,7 @@ open class XmlRenderThemeStyleMenu(
     val layers: MutableMap<String?, XmlRenderThemeStyleLayer> = LinkedHashMap()
 
     fun createLayer(id: String?, visible: Boolean, enabled: Boolean): XmlRenderThemeStyleLayer {
-        val style = XmlRenderThemeStyleLayer(id, visible, enabled, this.defaultLanguage)
+        val style = XmlRenderThemeStyleLayer(id, visible, enabled)
         this.layers[id] = style
         return style
     }

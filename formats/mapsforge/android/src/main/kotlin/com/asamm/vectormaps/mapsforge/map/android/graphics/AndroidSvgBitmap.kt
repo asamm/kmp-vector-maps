@@ -26,6 +26,8 @@ import com.asamm.vectormaps.mapsforge.core.graphics.GraphicUtils
 import com.caverock.androidsvg.SVG
 import java.io.IOException
 import java.io.InputStream
+import kotlin.math.ceil
+import kotlin.math.sqrt
 
 open class AndroidSvgBitmap @Throws(IOException::class) constructor(
     inputStream: InputStream,
@@ -45,10 +47,8 @@ open class AndroidSvgBitmap @Throws(IOException::class) constructor(
         /**
          * Default size is 20x20px (400px) at baseline mdpi (160dpi).
          */
-        @JvmField
         var DEFAULT_SIZE = 400f
 
-        @JvmStatic
         @Throws(IOException::class)
         fun getResourceBitmap(
             inputStream: InputStream,
@@ -64,7 +64,7 @@ open class AndroidSvgBitmap @Throws(IOException::class) constructor(
                 val picture = svg.renderToPicture()
 
                 val scale = scaleFactor /
-                    Math.sqrt(((picture.height * picture.width) / defaultSize).toDouble())
+                    sqrt(((picture.height * picture.width) / defaultSize).toDouble())
 
                 val bmpSize = GraphicUtils.imageSize(
                     picture.width.toFloat(),
@@ -76,8 +76,8 @@ open class AndroidSvgBitmap @Throws(IOException::class) constructor(
                 )
 
                 val bitmap = Bitmap.createBitmap(
-                    Math.ceil(bmpSize[0].toDouble()).toInt(),
-                    Math.ceil(bmpSize[1].toDouble()).toInt(),
+                    ceil(bmpSize[0].toDouble()).toInt(),
+                    ceil(bmpSize[1].toDouble()).toInt(),
                     AndroidGraphicFactory.TRANSPARENT_BITMAP,
                 )
                 val canvas = Canvas(bitmap)
@@ -101,7 +101,7 @@ open class AndroidSvgBitmap @Throws(IOException::class) constructor(
             return synchronized(RESOURCE_BITMAPS) {
                 val data = RESOURCE_BITMAPS[hash]
                 if (data != null) {
-                    val updated = Pair<Bitmap, Int>(data.first, data.second + 1)
+                    val updated = Pair(data.first, data.second + 1)
                     RESOURCE_BITMAPS[hash] = updated
                     return data.first
                 }
@@ -123,7 +123,7 @@ open class AndroidSvgBitmap @Throws(IOException::class) constructor(
                 }
 
                 // save in in-memory cache
-                val updated = Pair<Bitmap, Int>(bitmap, 1)
+                val updated = Pair(bitmap, 1)
                 RESOURCE_BITMAPS[hash] = updated
 
                 if (AndroidGraphicFactory.DEBUG_BITMAPS) {

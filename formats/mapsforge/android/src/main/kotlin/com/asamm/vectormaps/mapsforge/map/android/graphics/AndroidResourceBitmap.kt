@@ -61,18 +61,14 @@ open class AndroidResourceBitmap protected constructor(
 
     companion object {
 
-        @JvmField
-        protected val LOGGER: Logger = Logger.getLogger(AndroidResourceBitmap::class.java.name)
+        internal val LOGGER: Logger = Logger.getLogger(AndroidResourceBitmap::class.java.name)
 
-        @JvmField
-        protected var rBitmaps: MutableSet<Int>? = null
+        internal var rBitmaps: MutableSet<Int>? = null
 
-        @JvmField
-        protected val RESOURCE_BITMAPS: MutableMap<Int, Pair<Bitmap, Int>> = HashMap()
+        internal val RESOURCE_BITMAPS: MutableMap<Int, Pair<Bitmap, Int>> = HashMap()
 
         // used for debug bitmap accounting
-        @JvmField
-        protected var rInstances: AtomicInteger? = null
+        internal var rInstances: AtomicInteger? = null
 
         init {
             if (AndroidGraphicFactory.DEBUG_BITMAPS) {
@@ -85,7 +81,6 @@ open class AndroidResourceBitmap protected constructor(
         // a dictionary for faster retrieval and are not deleted or recycled until
         // clearResourceBitmaps is called
 
-        @JvmStatic
         fun clearResourceBitmaps() {
             if (!AndroidGraphicFactory.KEEP_RESOURCE_BITMAPS) {
                 return
@@ -116,7 +111,7 @@ open class AndroidResourceBitmap protected constructor(
             return synchronized(RESOURCE_BITMAPS) {
                 val data = RESOURCE_BITMAPS[hash]
                 if (data != null) {
-                    val updated = Pair<Bitmap, Int>(data.first, data.second + 1)
+                    val updated = Pair(data.first, data.second + 1)
                     RESOURCE_BITMAPS[hash] = updated
                     data.first
                 } else {
@@ -146,7 +141,7 @@ open class AndroidResourceBitmap protected constructor(
                             true,
                         )
                     }
-                    val updated = Pair<Bitmap, Int>(bitmap, 1)
+                    val updated = Pair(bitmap, 1)
                     RESOURCE_BITMAPS[hash] = updated
                     if (AndroidGraphicFactory.DEBUG_BITMAPS) {
                         LOGGER.info("RESOURCE BITMAP CREATE $hash")
@@ -173,7 +168,7 @@ open class AndroidResourceBitmap protected constructor(
                 val data = RESOURCE_BITMAPS[hash]
                 if (data != null) {
                     if (data.second > 1) {
-                        val updated = Pair<Bitmap, Int>(data.first, data.second - 1)
+                        val updated = Pair(data.first, data.second - 1)
                         RESOURCE_BITMAPS[hash] = updated
                         return false
                     }

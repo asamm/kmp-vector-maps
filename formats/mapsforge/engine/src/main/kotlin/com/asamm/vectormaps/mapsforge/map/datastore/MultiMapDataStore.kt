@@ -20,15 +20,13 @@ package com.asamm.vectormaps.mapsforge.map.datastore
 import com.asamm.vectormaps.mapsforge.core.model.BoundingBox
 import com.asamm.vectormaps.mapsforge.core.model.LatLong
 import com.asamm.vectormaps.mapsforge.core.model.Tile
-import java.util.Collections
-import java.util.Comparator
+import kotlin.math.max
 
 /**
- * Reads several map stores as one, highest priority first; [DataPolicy] decides whether the first
- * covering store answers or all of them, with or without deduplication. A store with a negative
- * priority only fills tiles no other store fully covers.
+ * Reads several map stores as one, in the order they were added; [DataPolicy] decides whether the
+ * first covering store answers or all of them, with or without deduplication.
  */
-open class MultiMapDataStore @JvmOverloads constructor(
+open class MultiMapDataStore(
     private val dataPolicy: DataPolicy = DataPolicy.DEDUPLICATE,
 ) : MapDataStore() {
 
@@ -72,14 +70,7 @@ open class MultiMapDataStore @JvmOverloads constructor(
         if (useStartPosition) {
             startPosition = mapDataStore.startPosition()
         }
-        val current = boundingBox
-        boundingBox = if (null == current) {
-            mapDataStore.boundingBox()
-        } else {
-            current.extendBoundingBox(mapDataStore.boundingBox()!!)
-        }
-        // reverse order of priority
-        Collections.sort(mapDatabases, Comparator { mds1, mds2 -> -Integer.compare(mds1.getPriority(), mds2.getPriority()) })
+        boundingBox = boundingBox?.extendBoundingBox(mapDataStore.boundingBox()!!) ?: mapDataStore.boundingBox()
     }
 
     override fun boundingBox(): BoundingBox? {
@@ -109,7 +100,7 @@ open class MultiMapDataStore @JvmOverloads constructor(
                 var result = 0L
                 for (mdb in mapDatabases) {
                     if (mdb.supportsTile(tile)) {
-                        result = Math.max(result, mdb.getDataTimestamp(tile))
+                        result = max(result, mdb.getDataTimestamp(tile))
                     }
                 }
                 return result
@@ -135,7 +126,6 @@ open class MultiMapDataStore @JvmOverloads constructor(
     private fun readAllNamedItems(tile: Tile): MapReadResult {
         return readAll(
             supports = { mdb -> mdb.supportsTile(tile) },
-            supportsFully = { mdb -> mdb.supportsFullTile(tile) },
             read = { mdb -> mdb.readNamedItems(tile) },
         )
     }
@@ -158,7 +148,6 @@ open class MultiMapDataStore @JvmOverloads constructor(
     private fun readAllNamedItems(upperLeft: Tile, lowerRight: Tile): MapReadResult {
         return readAll(
             supports = { mdb -> coversArea(mdb, upperLeft, lowerRight) },
-            supportsFully = { mdb -> coversFullArea(mdb, upperLeft, lowerRight) },
             read = { mdb -> mdb.readNamedItems(upperLeft, lowerRight) },
         )
     }
@@ -181,7 +170,6 @@ open class MultiMapDataStore @JvmOverloads constructor(
     private fun readAllMapData(tile: Tile): MapReadResult {
         return readAll(
             supports = { mdb -> mdb.supportsTile(tile) },
-            supportsFully = { mdb -> mdb.supportsFullTile(tile) },
             read = { mdb -> mdb.readMapData(tile) },
         )
     }
@@ -204,7 +192,6 @@ open class MultiMapDataStore @JvmOverloads constructor(
     private fun readAllMapData(upperLeft: Tile, lowerRight: Tile): MapReadResult {
         return readAll(
             supports = { mdb -> coversArea(mdb, upperLeft, lowerRight) },
-            supportsFully = { mdb -> coversFullArea(mdb, upperLeft, lowerRight) },
             read = { mdb -> mdb.readMapData(upperLeft, lowerRight) },
         )
     }
@@ -227,7 +214,6 @@ open class MultiMapDataStore @JvmOverloads constructor(
     private fun readAllPoiData(tile: Tile): MapReadResult {
         return readAll(
             supports = { mdb -> mdb.supportsTile(tile) },
-            supportsFully = { mdb -> mdb.supportsFullTile(tile) },
             read = { mdb -> mdb.readPoiData(tile) },
         )
     }
@@ -250,33 +236,22 @@ open class MultiMapDataStore @JvmOverloads constructor(
     private fun readAllPoiData(upperLeft: Tile, lowerRight: Tile): MapReadResult {
         return readAll(
             supports = { mdb -> coversArea(mdb, upperLeft, lowerRight) },
-            supportsFully = { mdb -> coversFullArea(mdb, upperLeft, lowerRight) },
             read = { mdb -> mdb.readPoiData(upperLeft, lowerRight) },
         )
     }
 
-    // every store in priority order; the negative-priority ones only until a store fills the tile
+    // every store that covers the area, in the order they were added
     private inline fun readAll(
         supports: (MapDataStore) -> Boolean,
-        supportsFully: (MapDataStore) -> Boolean,
         read: (MapDataStore) -> MapReadResult?,
     ): MapReadResult {
         val mapReadResult = MapReadResult()
-        var isTileFilled = false
         for (mdb in mapDatabases) {
-            if (isTileFilled
-                && mdb.getPriority() < 0
-            ) {
-                break
-            }
             if (supports(mdb)) {
                 val result = read(mdb) ?: continue
                 val isWater = mapReadResult.isWater and result.isWater
                 mapReadResult.isWater = isWater
                 mapReadResult.add(result)
-            }
-            if (supportsFully(mdb)) {
-                isTileFilled = true
             }
         }
         return mapReadResult
@@ -284,18 +259,6 @@ open class MultiMapDataStore @JvmOverloads constructor(
 
     private fun coversArea(mdb: MapDataStore, upperLeft: Tile, lowerRight: Tile): Boolean {
         return mdb.supportsArea(Tile.getBoundingBox(upperLeft, lowerRight), upperLeft.zoomLevel)
-    }
-
-    private fun coversFullArea(mdb: MapDataStore, upperLeft: Tile, lowerRight: Tile): Boolean {
-        return mdb.supportsFullArea(Tile.getBoundingBox(upperLeft, lowerRight), upperLeft.zoomLevel)
-    }
-
-    fun setStartPosition(startPosition: LatLong?) {
-        this.startPosition = startPosition
-    }
-
-    fun setStartZoomLevel(startZoomLevel: Byte) {
-        this.startZoomLevel = startZoomLevel
     }
 
     /**

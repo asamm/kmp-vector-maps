@@ -42,8 +42,8 @@ open class Symbol @Throws(IOException::class, XmlPullParserException::class) con
     displayModel: DisplayModel,
     elementName: String,
     pullParser: XmlPullParser,
-    relativePathPrefix: String?,
-    resourceProvider: XmlThemeResourceProvider?,
+    private val relativePathPrefix: String?,
+    private val resourceProvider: XmlThemeResourceProvider?,
 ) : RenderInstruction(graphicFactory, displayModel) {
 
     private var bitmap: Bitmap? = null
@@ -54,15 +54,11 @@ open class Symbol @Throws(IOException::class, XmlPullParserException::class) con
         private set
     private var position: Position
     private var priority: Int = 0
-    private val relativePathPrefix: String?
-    private val resourceProvider: XmlThemeResourceProvider?
     private var src: String? = null
 
     private val mySync = Any()
 
     init {
-        this.relativePathPrefix = relativePathPrefix
-        this.resourceProvider = resourceProvider
         this.display = Display.IFSPACE
         this.position = Position.CENTER
         extractValues(elementName, pullParser)
@@ -96,7 +92,7 @@ open class Symbol @Throws(IOException::class, XmlPullParserException::class) con
             } else if (ID == name) {
                 this.id = value
             } else if (PRIORITY == name) {
-                this.priority = Integer.parseInt(value)
+                this.priority = value.toInt()
             } else if (SYMBOL_HEIGHT == name) {
                 this.height = XmlUtils.parseNonNegativeInteger(name, value) * displayModel.scaleFactor
             } else if (SYMBOL_PERCENT == name) {

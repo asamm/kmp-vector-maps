@@ -32,7 +32,7 @@ internal open class NegativeMatcher(
     }
 
     internal fun keyListDoesNotContainKeys(tags: List<Tag>): Boolean {
-        for (i in 0 until tags.size) {
+        for (i in tags.indices) {
             if (Utils.contains(keyList, tags[i].keyCode)) {
                 return false
             }

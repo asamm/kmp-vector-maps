@@ -30,11 +30,6 @@ interface LabelStore {
     fun clear()
 
     /**
-     * A version number, which changes every time an update is made to the LabelStore.
-     */
-    fun getVersion(): Int
-
-    /**
      * The map elements visible on the tiles from `upperLeft` to `lowerRight`, the corners of the
      * visible area.
      */

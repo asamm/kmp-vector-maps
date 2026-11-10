@@ -38,35 +38,18 @@ import com.asamm.vectormaps.mapsforge.core.model.Rotation
  * then not be drawn.
  */
 abstract class MapElementContainer protected constructor(
-    xy: Point,
-    display: Display,
-    priority: Int,
+    protected val xy: Point,
+    protected val display: Display,
+    val priority: Int,
 ) : Comparable<MapElementContainer> {
 
-    @JvmField
-    protected var boundaryAbsolute: Rectangle? = null
-
-    @JvmField
-    protected val display: Display
-
-    val priority: Int
-
-    @JvmField
-    protected val xy: Point
+    protected var cachedBoundaryAbsolute: Rectangle? = null
 
     @Volatile
-    @JvmField
     protected var clashRotationDegrees: Double = 0.0
 
     @Volatile
-    @JvmField
     protected var clashRect: Rectangle? = null
-
-    init {
-        this.xy = xy
-        this.display = display
-        this.priority = priority
-    }
 
     // lets subclasses read the display of another container, as Java's package access did
     internal val displayInternal: Display
@@ -113,18 +96,10 @@ abstract class MapElementContainer protected constructor(
                 return 1
             }
 
-            when (this.display) {
-                Display.NEVER -> {
-                    return -1
-                }
-                Display.IFSPACE -> {
-                    return 1
-                }
-                else -> {
-                    throw IllegalArgumentException(
-                        "Unknown Display state for MapElementContainer.compareTo()",
-                    )
-                }
+            return when (this.display) {
+                Display.NEVER -> -1
+                Display.IFSPACE -> 1
+                else -> throw IllegalArgumentException("Unknown Display state for MapElementContainer.compareTo()")
             }
         }
 
@@ -162,10 +137,10 @@ abstract class MapElementContainer protected constructor(
      * Gets the pixel absolute boundary for this element.
      */
     protected open fun getBoundaryAbsolute(): Rectangle {
-        if (boundaryAbsolute == null) {
-            boundaryAbsolute = this.getBoundary()!!.shift(xy)
+        if (cachedBoundaryAbsolute == null) {
+            cachedBoundaryAbsolute = this.getBoundary()!!.shift(xy)
         }
-        return boundaryAbsolute!!
+        return cachedBoundaryAbsolute!!
     }
 
     fun intersects(rectangle: Rectangle, rotation: Rotation?): Boolean {
@@ -195,13 +170,8 @@ abstract class MapElementContainer protected constructor(
         val rect1 = this.getClashRect(rotation)
         val rect2 = other.getClashRect(rotation)
 
-        if (rect1 != null
+        return rect1 != null
             && rect1.intersects(rect2)
-        ) {
-            return true
-        }
-
-        return false
     }
 
     /**

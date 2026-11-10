@@ -19,7 +19,6 @@ import com.asamm.vectormaps.mapsforge.core.graphics.Matrix
 
 internal open class AndroidMatrix : Matrix {
 
-    @JvmField
     internal val matrix = android.graphics.Matrix()
 
     final override fun reset() {

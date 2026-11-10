@@ -58,28 +58,20 @@ open class AwtPointTextContainer internal constructor(
     maxTextWidth,
 ) {
 
-    @JvmField
-    protected val boundary: Rectangle
+    private val boundary: Rectangle
 
-    @JvmField
     val textHeight: Int
 
-    @JvmField
     val textWidth: Int
 
-    @JvmField
     val boxWidth: Int
 
-    @JvmField
     val boxHeight: Int
 
-    @JvmField
     val isMultiline: Boolean
 
-    @JvmField
     val textBounds: Rectangle
 
-    @JvmField
     val fontPadding: Int
 
     init {

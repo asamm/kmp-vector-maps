@@ -28,10 +28,8 @@ import java.util.regex.Pattern
  */
 open class LatLong : Comparable<LatLong> {
 
-    @JvmField
     val latitude: Double
 
-    @JvmField
     val longitude: Double
 
     @Throws(IllegalArgumentException::class)
@@ -46,9 +44,9 @@ open class LatLong : Comparable<LatLong> {
     constructor(wellKnownText: String) {
         val m = WKT_POINT_PATTERN.matcher(wellKnownText)
         m.matches()
-        val longitude = java.lang.Double.parseDouble(m.group(1))
+        val longitude = m.group(1).toDouble()
         this.longitude = if (Parameters.VALIDATE_COORDINATES) LatLongUtils.validateLongitude(longitude) else longitude
-        val latitude = java.lang.Double.parseDouble(m.group(2))
+        val latitude = m.group(2).toDouble()
         this.latitude = if (Parameters.VALIDATE_COORDINATES) LatLongUtils.validateLatitude(latitude) else latitude
     }
 
@@ -66,20 +64,12 @@ open class LatLong : Comparable<LatLong> {
         if (other !is LatLong) {
             return false
         }
-        return java.lang.Double.compare(getLatitude(), other.getLatitude()) == 0
-            && java.lang.Double.compare(getLongitude(), other.getLongitude()) == 0
+        return latitude.compareTo(other.latitude) == 0
+            && longitude.compareTo(other.longitude) == 0
     }
 
     override fun hashCode(): Int {
-        return Objects.hash(getLatitude(), getLongitude())
-    }
-
-    /**
-     * The point `distance` meters away along the initial `bearing` in degrees from north.
-     * See [latlon.js](http://www.movable-type.co.uk/scripts/latlon.js).
-     */
-    fun destinationPoint(distance: Double, bearing: Float): LatLong {
-        return LatLongUtils.destinationPoint(this, distance, bearing)
+        return Objects.hash(latitude, longitude)
     }
 
     /**
@@ -89,40 +79,8 @@ open class LatLong : Comparable<LatLong> {
         return LatLongUtils.distance(this, other)
     }
 
-    fun getLatitude(): Double {
-        return latitude
-    }
-
-    val latitudeE6: Int
-        get() {
-            return LatLongUtils.degreesToMicrodegrees(latitude)
-        }
-
-    fun getLongitude(): Double {
-        return longitude
-    }
-
-    val longitudeE6: Int
-        get() {
-            return LatLongUtils.degreesToMicrodegrees(longitude)
-        }
-
-    /**
-     * The great-circle distance in meters, see [LatLongUtils.sphericalDistance].
-     */
-    fun sphericalDistance(other: LatLong): Double {
-        return LatLongUtils.sphericalDistance(this, other)
-    }
-
     override fun toString(): String {
         return "latitude=$latitude, longitude=$longitude"
-    }
-
-    /**
-     * The ellipsoidal distance in meters, see [LatLongUtils.vincentyDistance].
-     */
-    fun vincentyDistance(other: LatLong): Double {
-        return LatLongUtils.vincentyDistance(this, other)
     }
 
     companion object {
@@ -131,25 +89,16 @@ open class LatLong : Comparable<LatLong> {
 
         private val SEPARATOR_PATTERN: Pattern = Pattern.compile("[,;:\\s]")
 
-        @JvmStatic
-        fun fromMicroDegrees(latitudeE6: Int, longitudeE6: Int): LatLong {
-            return LatLong(
-                LatLongUtils.microdegreesToDegrees(latitudeE6),
-                LatLongUtils.microdegreesToDegrees(longitudeE6),
-            )
-        }
-
         /**
          * Parses "latitude,longitude" in degrees; ';', ':' and whitespace also separate.
          */
-        @JvmStatic
         fun fromString(latLonString: String): LatLong {
             val split = SEPARATOR_PATTERN.split(latLonString)
             if (split.size != 2) {
                 throw IllegalArgumentException("cannot read coordinate, not a valid format")
             }
-            val latitude = java.lang.Double.parseDouble(split[0])
-            val longitude = java.lang.Double.parseDouble(split[1])
+            val latitude = split[0].toDouble()
+            val longitude = split[1].toDouble()
             return LatLong(latitude, longitude)
         }
     }

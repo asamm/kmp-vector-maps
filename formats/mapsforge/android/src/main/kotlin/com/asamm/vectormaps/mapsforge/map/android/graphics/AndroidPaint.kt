@@ -39,10 +39,10 @@ import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Rectangle
 import com.asamm.vectormaps.mapsforge.core.util.Parameters
 import com.asamm.vectormaps.mapsforge.map.android.util.AndroidParameters
+import kotlin.math.max
 
 internal open class AndroidPaint : Paint {
 
-    @JvmField
     internal val paint: android.graphics.Paint
 
     // needed to record size of bitmap shader to compute the shift
@@ -121,10 +121,7 @@ internal open class AndroidPaint : Paint {
         if (bitmap == null) {
             return
         }
-        val androidBitmap = AndroidGraphicFactory.getBitmap(bitmap)
-        if (androidBitmap == null) {
-            return
-        }
+        val androidBitmap = AndroidGraphicFactory.getBitmap(bitmap) ?: return
 
         shaderWidth = bitmap.width
         shaderHeight = bitmap.height
@@ -256,15 +253,13 @@ internal open class AndroidPaint : Paint {
         /**
          * [Paint.FONT_PADDING_FACTOR] times `fontHeight`, at least 1.
          */
-        @JvmStatic
         fun getFontPadding(fontHeight: Int): Int {
-            return Math.max(1.0, Paint.FONT_PADDING_FACTOR * fontHeight).toInt()
+            return max(1.0, Paint.FONT_PADDING_FACTOR * fontHeight).toInt()
         }
 
         /**
          * The width of the widest line, measured accurately by the layout, which respects spans.
          */
-        @JvmStatic
         fun getTextWidth(layout: StaticLayout?): Int {
             var retVal = 0
 

@@ -143,7 +143,7 @@ class ImgFile internal constructor(
      * directly. Production callers should use [readMap] /
      * [readMapInBounds], which already wire it for them.
      */
-    internal val cityResolverInternal: com.asamm.vectormaps.garminimg.parser.LblSubFile.IndexedPointLabelResolver
+    internal val cityResolverInternal: LblSubFile.IndexedPointLabelResolver
         get() = cityResolver
 
     /**
@@ -153,8 +153,8 @@ class ImgFile internal constructor(
      * direct LBL offset. Runs the tree lookup only when a POI asks
      * for it.
      */
-    private val cityResolver: com.asamm.vectormaps.garminimg.parser.LblSubFile.IndexedPointLabelResolver =
-        com.asamm.vectormaps.garminimg.parser.LblSubFile.IndexedPointLabelResolver { sdIndex, pointIndex ->
+    private val cityResolver: LblSubFile.IndexedPointLabelResolver =
+        LblSubFile.IndexedPointLabelResolver { sdIndex, pointIndex ->
             val sd = tre.tree.byIndex[sdIndex] ?: return@IndexedPointLabelResolver null
             RgnSubFile.readIndexedPointLabel(
                 reader = rgn.reader,
@@ -506,7 +506,7 @@ class ImgFile internal constructor(
                 tre = TreData(treReader, treHeader, levels, tree),
                 rgn = RgnData(rgnReader, rgnHeader),
                 lbl = LblData(lblReader, lblHeader),
-                net = netHeader?.let { h -> NetData(netReader as ImgRandomAccessReader, h) },
+                net = netHeader?.let { h -> NetData(netReader, h) },
                 typ = typHeader,
                 typStyles = typStyles,
                 mapName = mapName,
@@ -652,12 +652,10 @@ private fun overlaps(
  * still need to descend into them to read buildings & friends.
  */
 private fun subDivisionHasAnyData(sd: SubDivision): Boolean {
-    if (sd.objectTypes != 0) {
-        return true
-    }
-    return sd.extendedPolygonEnd > sd.extendedPolygonOffset ||
-        sd.extendedPolylineEnd > sd.extendedPolylineOffset ||
-        sd.extendedPoiEnd > sd.extendedPoiOffset
+    return sd.objectTypes != 0
+        || sd.extendedPolygonEnd > sd.extendedPolygonOffset
+        || sd.extendedPolylineEnd > sd.extendedPolylineOffset
+        || sd.extendedPoiEnd > sd.extendedPoiOffset
 }
 
 // the sub-files a map reads through the shared containers

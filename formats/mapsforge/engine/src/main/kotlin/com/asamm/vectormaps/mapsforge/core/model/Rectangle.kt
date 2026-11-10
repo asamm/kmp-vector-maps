@@ -17,6 +17,8 @@
 package com.asamm.vectormaps.mapsforge.core.model
 
 import java.io.Serializable
+import kotlin.math.abs
+import kotlin.math.sign
 
 /**
  * An immutable rectangle; left above right or top below bottom throws
@@ -24,16 +26,12 @@ import java.io.Serializable
  */
 open class Rectangle : Serializable {
 
-    @JvmField
     val bottom: Double
 
-    @JvmField
     val left: Double
 
-    @JvmField
     val right: Double
 
-    @JvmField
     val top: Double
 
     constructor(left: Double, top: Double, right: Double, bottom: Double) {
@@ -69,10 +67,6 @@ open class Rectangle : Serializable {
         return Rectangle(this.left - left, this.top - top, this.right + right, this.bottom + bottom)
     }
 
-    fun envelope(padding: Double): Rectangle {
-        return Rectangle(left - padding, top - padding, right + padding, bottom + padding)
-    }
-
     override fun equals(other: Any?): Boolean {
         if (this === other) {
             return true
@@ -80,10 +74,10 @@ open class Rectangle : Serializable {
         if (other !is Rectangle) {
             return false
         }
-        return java.lang.Double.doubleToLongBits(left) == java.lang.Double.doubleToLongBits(other.left)
-            && java.lang.Double.doubleToLongBits(top) == java.lang.Double.doubleToLongBits(other.top)
-            && java.lang.Double.doubleToLongBits(right) == java.lang.Double.doubleToLongBits(other.right)
-            && java.lang.Double.doubleToLongBits(bottom) == java.lang.Double.doubleToLongBits(other.bottom)
+        return left.toBits() == other.left.toBits()
+            && top.toBits() == other.top.toBits()
+            && right.toBits() == other.right.toBits()
+            && bottom.toBits() == other.bottom.toBits()
     }
 
     val center: Point
@@ -114,13 +108,13 @@ open class Rectangle : Serializable {
     override fun hashCode(): Int {
         val prime = 31
         var result = 1
-        var temp = java.lang.Double.doubleToLongBits(left)
+        var temp = left.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(top)
+        temp = top.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(right)
+        temp = right.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
-        temp = java.lang.Double.doubleToLongBits(bottom)
+        temp = bottom.toBits()
         result = prime * result + (temp xor (temp ushr 32)).toInt()
         return result
     }
@@ -157,32 +151,6 @@ open class Rectangle : Serializable {
             && bottom >= rectangle.bottom
     }
 
-    fun intersectsCircle(pointX: Double, pointY: Double, radius: Double): Boolean {
-        val halfWidth = width / 2
-        val halfHeight = height / 2
-
-        val centerDistanceX = Math.abs(pointX - centerX)
-        val centerDistanceY = Math.abs(pointY - centerY)
-
-        // is the circle is far enough away from the rectangle?
-        if (centerDistanceX > halfWidth + radius) {
-            return false
-        } else if (centerDistanceY > halfHeight + radius) {
-            return false
-        }
-
-        // is the circle close enough to the rectangle?
-        if (centerDistanceX <= halfWidth) {
-            return true
-        } else if (centerDistanceY <= halfHeight) {
-            return true
-        }
-
-        val cornerDistanceX = centerDistanceX - halfWidth
-        val cornerDistanceY = centerDistanceY - halfHeight
-        return cornerDistanceX * cornerDistanceX + cornerDistanceY * cornerDistanceY <= radius * radius
-    }
-
     fun rotate(rotation: Rotation): Rectangle {
         return rotation.rotate(this)
     }
@@ -208,15 +176,15 @@ open class Rectangle : Serializable {
         if (output.width > horizontal
             || output.height > vertical
         ) {
-            val newLeft = if (Math.abs(output.left) > horizontal) Math.signum(output.left) * horizontal else output.left
-            val newTop = if (Math.abs(output.top) > vertical) Math.signum(output.top) * vertical else output.top
-            val newRight = if (Math.abs(output.right) > horizontal) {
-                Math.signum(output.right) * horizontal
+            val newLeft = if (abs(output.left) > horizontal) sign(output.left) * horizontal else output.left
+            val newTop = if (abs(output.top) > vertical) sign(output.top) * vertical else output.top
+            val newRight = if (abs(output.right) > horizontal) {
+                sign(output.right) * horizontal
             } else {
                 output.right
             }
-            val newBottom = if (Math.abs(output.bottom) > vertical) {
-                Math.signum(output.bottom) * vertical
+            val newBottom = if (abs(output.bottom) > vertical) {
+                sign(output.bottom) * vertical
             } else {
                 output.bottom
             }

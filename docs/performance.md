@@ -10,7 +10,7 @@ Benchmark baselines and how M7 measures against them; M7's steps and status are 
 JVM's Mapsforge renders up to 27 % faster. M7.2b's lock changes speed up the parallel block by up to
 32 % on the JVM and 29 % on the A54; M7.3 allocates 14–32 % less per render; since M7.4 a renderer
 with the style's current settings reuses its theme; M7.5 allocates up to 32 % less per render at the
-same render time, except JVM Monaco z12 (−23 %). **Next action:** M7.5 in review; M7.1 ⏸ (Q15).
+same render time, except JVM Monaco z12 (−23 %). **Next action:** M7.6 in review; M7.1 ⏸ (Q15).
 
 ## How to measure
 
@@ -138,6 +138,20 @@ allocated and median time, one run each, clocks locked.
   allocate; the gain is less collector work, most under parallel renders.
 - JVM time is level too, except Monaco z12 render (−23 %): every other change is within ±5 %, below
   the rounds' spread (up to 2× for single rounds at z12 and z17).
+
+## M7.6 — cleanup, 2026-11-10
+
+Allocated per operation (JMH `-prof gc`, JDK 17), `main` → the cleanup. Garmin (M7.6a, Monaco
+fixture at the harbour) drops one `Pair` per text the label pass draws; nothing else it removed ran on
+a hot path.
+
+| Benchmark | Monaco |
+|---|---|
+| Garmin read tile z12 / z15 / z17, KB | 628 / 522 / 834 → 593 / 511 / 837 (3 forks; level within their spread) |
+| Garmin render tile z12 / z15 / z17, KB | 2480 / 2159 / 2145 → 2480 / 2159 / 2144 |
+
+Mapsforge (M7.6b, M7.6c, both maps): read and render tile at z12, z15 and z17 within ±0.2 % of
+`main`. Loops over lists keep their index form (`indices`), compiled without an iterator.
 
 ## Baselines
 

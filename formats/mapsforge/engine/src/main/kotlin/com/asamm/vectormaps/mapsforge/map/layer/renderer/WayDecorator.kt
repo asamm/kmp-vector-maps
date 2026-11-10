@@ -29,8 +29,12 @@ import com.asamm.vectormaps.mapsforge.core.model.LineSegment
 import com.asamm.vectormaps.mapsforge.core.model.LineString
 import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Rectangle
-import com.asamm.vectormaps.mapsforge.core.model.Tile
 import com.asamm.vectormaps.mapsforge.map.rendertheme.RenderContext
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.hypot
+import kotlin.math.sqrt
 
 internal object WayDecorator {
 
@@ -55,11 +59,10 @@ internal object WayDecorator {
     ) {
         var skipPixels = repeatStart.toInt()
 
-        val c: DoubleArray
-        if (dy == 0f) {
-            c = coordinates[0]
+        val c = if (dy == 0f) {
+            coordinates[0]
         } else {
-            c = RendererUtils.parallelPath(coordinates[0], dy.toDouble())
+            RendererUtils.parallelPath(coordinates[0], dy.toDouble())
         }
 
         // get the first way point coordinates
@@ -73,47 +76,34 @@ internal object WayDecorator {
             val currentY = c[i + 1]
 
             // compute rotation along the segment
-            var theta = 0.0f
-            when (symbolOrientation) {
-                SymbolOrientation.AUTO -> {
-                    if (currentX <= previousX) {
-                        theta = Math.atan2(previousY - currentY, previousX - currentX).toFloat()
-                    } else {
-                        theta = Math.atan2(currentY - previousY, currentX - previousX).toFloat()
-                    }
+            val theta = when (symbolOrientation) {
+                SymbolOrientation.AUTO -> if (currentX <= previousX) {
+                    atan2(previousY - currentY, previousX - currentX).toFloat()
+                } else {
+                    atan2(currentY - previousY, currentX - previousX).toFloat()
                 }
 
-                SymbolOrientation.AUTO_DOWN -> {
-                    if (currentX <= previousX) {
-                        theta = Math.atan2(currentY - previousY, currentX - previousX).toFloat()
-                    } else {
-                        theta = Math.atan2(previousY - currentY, previousX - currentX).toFloat()
-                    }
+                SymbolOrientation.AUTO_DOWN -> if (currentX <= previousX) {
+                    atan2(currentY - previousY, currentX - previousX).toFloat()
+                } else {
+                    atan2(previousY - currentY, previousX - currentX).toFloat()
                 }
 
-                SymbolOrientation.RIGHT -> {
-                    // we always need to rotate "right"
-                    theta = Math.atan2(previousY - currentY, previousX - currentX).toFloat()
-                }
+                // we always need to rotate "right"
+                SymbolOrientation.RIGHT -> atan2(previousY - currentY, previousX - currentX).toFloat()
 
-                SymbolOrientation.LEFT -> {
-                    // we always need to rotate "left"
-                    theta = Math.atan2(currentY - previousY, currentX - previousX).toFloat()
-                }
+                // we always need to rotate "left"
+                SymbolOrientation.LEFT -> atan2(currentY - previousY, currentX - previousX).toFloat()
 
-                SymbolOrientation.UP -> {
-                    theta = 0f
-                }
+                SymbolOrientation.UP -> 0f
 
-                SymbolOrientation.DOWN -> {
-                    theta = Math.PI.toFloat()
-                }
+                SymbolOrientation.DOWN -> PI.toFloat()
             }
 
             // calculate the length of the current segment (Euclidian distance)
             val diffX = currentX - previousX
             val diffY = currentY - previousY
-            val segmentLengthInPixel = Math.sqrt(diffX * diffX + diffY * diffY)
+            val segmentLengthInPixel = sqrt(diffX * diffX + diffY * diffY)
 
             // calculate changes in coordinates per single pixel
             val diffXpx = diffX / segmentLengthInPixel
@@ -150,24 +140,20 @@ internal object WayDecorator {
 
     /**
      * Finds the parts of a way, absolute x, y pairs, along which `text` fits and adds a
-     * WayTextContainer for each to the labels of `renderContext`; `upperLeft`, `lowerRight` and
-     * `repeat` are unused: the text repeats every `repeatGap` regardless of `repeat`.
+     * WayTextContainer for each to the labels of `renderContext`; the text repeats every
+     * `repeatGap`, whatever the theme's `repeat` says.
      *
      * @param dy if not 0, a line parallel to the coordinates is computed first
      * @param stroke stroke paint for the text, null to measure with `fill`
      */
-    @Suppress("UNUSED_PARAMETER")
     fun renderText(
         graphicFactory: GraphicFactory,
-        upperLeft: Tile,
-        lowerRight: Tile,
         text: String,
         display: Display,
         priority: Int,
         dy: Float,
         fill: Paint,
         stroke: Paint?,
-        repeat: Boolean,
         repeatGap: Float,
         repeatStart: Float,
         textOrientation: TextOrientation,
@@ -178,11 +164,10 @@ internal object WayDecorator {
             return
         }
 
-        val c: DoubleArray
-        if (dy == 0f) {
-            c = coordinates[0]
+        val c = if (dy == 0f) {
+            coordinates[0]
         } else {
-            c = RendererUtils.parallelPath(coordinates[0], dy.toDouble())
+            RendererUtils.parallelPath(coordinates[0], dy.toDouble())
         }
 
         if (c.size < 4) {
@@ -192,7 +177,7 @@ internal object WayDecorator {
         // as LineString.length, summed in the same order
         var pathLength = 0.0
         for (i in 2 until c.size step 2) {
-            pathLength += Math.hypot(c[i - 2] - c[i], c[i - 1] - c[i + 1])
+            pathLength += hypot(c[i - 2] - c[i], c[i - 1] - c[i + 1])
         }
         // no text fits a way shorter than its start, so it is measured only when it may (C15)
         if (pathLength <= repeatStart) {
@@ -225,7 +210,7 @@ internal object WayDecorator {
             var tooSharp = false
             for (i in 1 until linePart.segments.size) {
                 val cornerAngle = linePart.segments[i - 1].angleTo(linePart.segments[i])
-                if (Math.abs(cornerAngle) > MAX_LABEL_CORNER_ANGLE) {
+                if (abs(cornerAngle) > MAX_LABEL_CORNER_ANGLE) {
                     tooSharp = true
                     break
                 }

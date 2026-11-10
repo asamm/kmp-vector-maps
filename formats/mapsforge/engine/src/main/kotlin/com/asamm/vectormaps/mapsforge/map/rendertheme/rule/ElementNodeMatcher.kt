@@ -17,10 +17,6 @@ package com.asamm.vectormaps.mapsforge.map.rendertheme.rule
 
 internal object ElementNodeMatcher : ElementMatcher {
 
-    override fun isCoveredBy(elementMatcher: ElementMatcher): Boolean {
-        return elementMatcher.matches(Element.NODE)
-    }
-
     override fun matches(element: Element): Boolean {
         return element == Element.NODE
     }

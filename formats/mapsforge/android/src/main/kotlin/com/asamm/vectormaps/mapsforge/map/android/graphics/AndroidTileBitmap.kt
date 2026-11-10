@@ -39,8 +39,6 @@ import java.util.logging.Logger
  */
 open class AndroidTileBitmap : AndroidBitmap, TileBitmap {
 
-    private var expiration: Long = 0
-
     final override var timestamp: Long = System.currentTimeMillis()
 
     /*
@@ -93,30 +91,18 @@ open class AndroidTileBitmap : AndroidBitmap, TileBitmap {
             } else {
                 AndroidGraphicFactory.INSTANCE.nonTransparentBitmapConfig
             }
-            this.bitmap = AndroidBitmap.createAndroidBitmap(tileSize, tileSize, config)
+            this.bitmap = createAndroidBitmap(tileSize, tileSize, config)
         }
         if (AndroidGraphicFactory.DEBUG_BITMAPS) {
             tileInstances!!.incrementAndGet()
         }
     }
 
-    final override val isExpired: Boolean
-        get() {
-            if (expiration == 0L) {
-                return false
-            }
-            return expiration <= System.currentTimeMillis()
-        }
-
-    final override fun setExpiration(expiration: Long) {
-        this.expiration = expiration
-    }
-
     override fun destroy() {
         super.destroy()
         if (AndroidGraphicFactory.DEBUG_BITMAPS) {
             val i = tileInstances!!.decrementAndGet()
-            LOGGER.info("TILEBITMAP COUNT " + Integer.toString(i))
+            LOGGER.info("TILEBITMAP COUNT " + i.toString())
         }
     }
 
@@ -195,10 +181,7 @@ open class AndroidTileBitmap : AndroidBitmap, TileBitmap {
             val hash = composeHash(tileSize, isTransparent)
 
             return synchronized(reusableTileBitmaps) {
-                val subSet = reusableTileBitmaps[hash]
-                if (subSet == null) {
-                    return null
-                }
+                val subSet = reusableTileBitmaps[hash] ?: return null
                 var bitmap: Bitmap? = null
                 val iterator = subSet.iterator()
                 var candidate: Bitmap?

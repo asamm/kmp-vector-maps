@@ -17,7 +17,5 @@ package com.asamm.vectormaps.mapsforge.map.rendertheme.rule
 
 internal interface ElementMatcher {
 
-    fun isCoveredBy(elementMatcher: ElementMatcher): Boolean
-
     fun matches(element: Element): Boolean
 }

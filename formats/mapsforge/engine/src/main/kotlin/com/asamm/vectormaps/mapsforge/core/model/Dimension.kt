@@ -20,13 +20,7 @@ import java.io.Serializable
 /**
  * A width and height; negative values throw [IllegalArgumentException].
  */
-open class Dimension(width: Int, height: Int) : Serializable {
-
-    @JvmField
-    val height: Int
-
-    @JvmField
-    val width: Int
+open class Dimension(val width: Int, val height: Int) : Serializable {
 
     init {
         if (width < 0) {
@@ -34,8 +28,6 @@ open class Dimension(width: Int, height: Int) : Serializable {
         } else if (height < 0) {
             throw IllegalArgumentException("height must not be negative: $height")
         }
-        this.width = width
-        this.height = height
     }
 
     val center: Point

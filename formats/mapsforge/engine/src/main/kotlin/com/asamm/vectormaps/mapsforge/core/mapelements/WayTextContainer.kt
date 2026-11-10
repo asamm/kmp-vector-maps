@@ -35,43 +35,21 @@ import com.asamm.vectormaps.mapsforge.core.model.Rotation
  * A text drawn along a line; its point is the start of the line.
  */
 open class WayTextContainer(
-    graphicFactory: GraphicFactory,
-    lineString: LineString,
+    private val graphicFactory: GraphicFactory,
+    // internal: the label pass reads the line, text, paints, text height and orientation (C10)
+    internal val lineString: LineString,
     display: Display,
     priority: Int,
-    text: String,
-    paintFront: Paint,
-    paintBack: Paint?,
-    textHeight: Double,
-    textOrientation: TextOrientation,
+    internal val text: String,
+    internal val paintFront: Paint,
+    internal val paintBack: Paint?,
+    internal val textHeight: Double,
+    internal val textOrientation: TextOrientation,
 ) : MapElementContainer(lineString.segments[0].start, display, priority) {
 
-    private val graphicFactory: GraphicFactory
-
-    @JvmField
-    protected val boundary: Rectangle
-
-    // internal: the label pass reads the line, text, paints, text height and orientation (C10)
-    internal val lineString: LineString
-
-    internal val paintFront: Paint
-
-    internal val paintBack: Paint?
-
-    internal val text: String
-
-    internal val textHeight: Double
-
-    internal val textOrientation: TextOrientation
+    private val boundary: Rectangle
 
     init {
-        this.graphicFactory = graphicFactory
-        this.lineString = lineString
-        this.text = text
-        this.textHeight = textHeight
-        this.paintFront = paintFront
-        this.paintBack = paintBack
-
         // a way text container should always run left to right, but I leave this in because it
         // might matter if we support right-to-left text.
         // we also need to make the container larger by textHeight as otherwise the end points do
@@ -82,9 +60,8 @@ open class WayTextContainer(
             textHeight / 2.0,
             textHeight / 2.0,
         )
-        this.boundaryAbsolute = absolute
+        this.cachedBoundaryAbsolute = absolute
         this.boundary = absolute.shift(Point(-this.xy.x, -this.xy.y))
-        this.textOrientation = textOrientation
     }
 
     override fun getBoundary(): Rectangle {
@@ -140,7 +117,7 @@ open class WayTextContainer(
         if (!doInvert) {
             val start = firstSegment.start.offset(-origin!!.x, -origin.y)
             path.moveTo(start.x.toFloat(), start.y.toFloat())
-            for (i in 0 until this.lineString.segments.size) {
+            for (i in this.lineString.segments.indices) {
                 val segment = this.lineString.segments[i]
                 val end = segment.end.offset(-origin.x, -origin.y)
                 path.lineTo(end.x.toFloat(), end.y.toFloat())

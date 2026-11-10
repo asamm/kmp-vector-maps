@@ -45,17 +45,14 @@ open class Line @Throws(IOException::class, XmlPullParserException::class) const
     displayModel: DisplayModel,
     elementName: String,
     pullParser: XmlPullParser,
-    level: Int,
-    relativePathPrefix: String?,
-    resourceProvider: XmlThemeResourceProvider?,
+    private val level: Int,
+    private val relativePathPrefix: String?,
+    private val resourceProvider: XmlThemeResourceProvider?,
 ) : RenderInstruction(graphicFactory, displayModel) {
 
     private var bitmapCreated: Boolean = false
     private var dy: Float = 0f
     private val dyScaled: MutableMap<Byte, Float>
-    private val level: Int
-    private val relativePathPrefix: String?
-    private val resourceProvider: XmlThemeResourceProvider?
     private var scale: Scale = Scale.STROKE
     private var shaderBitmap: Bitmap? = null
     private var src: String? = null
@@ -68,10 +65,6 @@ open class Line @Throws(IOException::class, XmlPullParserException::class) const
     private val mySync = Any()
 
     init {
-        this.level = level
-        this.relativePathPrefix = relativePathPrefix
-        this.resourceProvider = resourceProvider
-
         this.stroke = createPaint()
         this.stroke.setColor(Color.BLACK)
         this.stroke.setStyle(Style.STROKE)
@@ -113,7 +106,7 @@ open class Line @Throws(IOException::class, XmlPullParserException::class) const
             } else if (CURVE == name) {
                 curve = Curve.fromString(value)
             } else if (DY == name) {
-                this.dy = java.lang.Float.parseFloat(value) * displayModel.scaleFactor
+                this.dy = value.toFloat() * displayModel.scaleFactor
             } else if (SCALE == name) {
                 this.scale = scaleFromValue(value)
             } else if (STROKE == name) {
@@ -121,7 +114,7 @@ open class Line @Throws(IOException::class, XmlPullParserException::class) const
             } else if (STROKE_DASHARRAY == name) {
                 val strokeDasharray = parseFloatArray(name, value)
                 this.strokeDasharray = strokeDasharray
-                for (f in 0 until strokeDasharray.size) {
+                for (f in strokeDasharray.indices) {
                     strokeDasharray[f] = strokeDasharray[f] * displayModel.scaleFactor
                 }
                 this.stroke.setDashPathEffect(strokeDasharray)
@@ -204,7 +197,7 @@ open class Line @Throws(IOException::class, XmlPullParserException::class) const
                 && strokeDasharray != null
             ) {
                 val strokeDasharrayScaled = FloatArray(strokeDasharray.size)
-                for (i in 0 until strokeDasharray.size) {
+                for (i in strokeDasharray.indices) {
                     strokeDasharrayScaled[i] = strokeDasharray[i] * factor
                 }
                 paint.setDashPathEffect(strokeDasharrayScaled)
@@ -227,7 +220,7 @@ open class Line @Throws(IOException::class, XmlPullParserException::class) const
         private fun parseFloatArray(name: String, dashString: String): FloatArray {
             val dashEntries = SPLIT_PATTERN.split(dashString)
             val dashIntervals = FloatArray(dashEntries.size)
-            for (i in 0 until dashEntries.size) {
+            for (i in dashEntries.indices) {
                 dashIntervals[i] = XmlUtils.parseNonNegativeFloat(name, dashEntries[i])
             }
             return dashIntervals

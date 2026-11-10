@@ -56,11 +56,6 @@ internal open class AwtCanvas : Canvas {
 
     constructor()
 
-    constructor(graphics2D: Graphics2D) {
-        this.graphics2D = graphics2D
-        isAntiAlias = Parameters.ANTI_ALIASING
-    }
-
     final override fun destroy() {
         // do nothing
     }
@@ -229,7 +224,7 @@ internal open class AwtCanvas : Canvas {
             setColorAndStroke(awtPaint)
         }
 
-        val textStroke = TextStroke(text, awtPaint.font, this.graphics.fontRenderContext, false, false)
+        val textStroke = TextStroke(text, awtPaint.font, this.graphics.fontRenderContext, stretchToFit = false, repeat = false)
         val style = awtPaint.style
         when (style) {
             Style.FILL -> {
@@ -264,29 +259,6 @@ internal open class AwtCanvas : Canvas {
             affineTransform.translate(x.toDouble(), y.toDouble())
             this.graphics.draw(textLayout.getOutline(affineTransform))
         }
-    }
-
-    final override fun drawTextRotated(text: String, x1: Int, y1: Int, x2: Int, y2: Int, paint: Paint) {
-        // Java's String.trim() semantics: strips every char up to U+0020
-        if (text.trim { it <= ' ' }.isEmpty()) {
-            return
-        }
-        if (paint.isTransparent) {
-            return
-        }
-
-        val affineTransform = this.graphics.transform
-
-        val theta = Math.atan2((y2 - y1).toDouble(), (x2 - x1).toDouble())
-        this.graphics.rotate(theta, x1.toDouble(), y1.toDouble())
-
-        val lineLength = Math.hypot((x2 - x1).toDouble(), (y2 - y1).toDouble())
-        val textWidth = paint.getTextWidth(text)
-        val dx = (lineLength - textWidth).toInt() / 2
-        val xy = paint.getTextHeight(text) / 3
-        drawText(text, x1 + dx, y1 + xy, paint)
-
-        this.graphics.transform = affineTransform
     }
 
     final override fun fillColor(color: Color) {
@@ -443,7 +415,7 @@ internal open class AwtCanvas : Canvas {
                 Rectangle2D.Double(left.toDouble(), top.toDouble(), width.toDouble(), height.toDouble()),
             ),
         )
-        this.graphics.setClip(clip)
+        this.graphics.clip = clip
     }
 
     final override fun translate(dx: Float, dy: Float) {

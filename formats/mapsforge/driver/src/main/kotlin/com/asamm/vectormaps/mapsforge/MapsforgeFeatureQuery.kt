@@ -74,8 +74,8 @@ class MapsforgeFeatureQuery internal constructor(
             themeFuture,
             displayModel,
             textScale,
-            false,
-            false,
+            isTransparent = false,
+            labelsOnly = false,
         )
         val theme = themeFuture.get()
         // keeps the zoom's scaled Paints while matching, as a render does (D29)

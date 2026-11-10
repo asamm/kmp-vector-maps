@@ -23,7 +23,6 @@ enum class Join {
 
     companion object {
 
-        @JvmStatic
         fun fromString(value: String?): Join {
             return when (value) {
                 "bevel" -> BEVEL

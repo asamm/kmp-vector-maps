@@ -20,7 +20,6 @@ package com.asamm.vectormaps.mapsforge.map.datastore
 import com.asamm.vectormaps.mapsforge.core.model.LatLong
 import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Tag
-import java.util.Arrays
 import java.util.Objects
 
 /**
@@ -32,10 +31,10 @@ import java.util.Objects
  * @param labelPosition the position of the area label, null when there is none
  */
 open class Way(
-    @JvmField val layer: Byte,
-    @JvmField val tags: List<Tag>,
-    @JvmField val coordinates: Array<DoubleArray>,
-    @JvmField val labelPosition: LatLong?,
+    val layer: Byte,
+    val tags: List<Tag>,
+    val coordinates: Array<DoubleArray>,
+    val labelPosition: LatLong?,
 ) : Comparable<Way?> {
 
     /**
@@ -59,17 +58,17 @@ open class Way(
             return -1
         }
 
-        var retVal = java.lang.Byte.compare(layer, other.layer)
+        var retVal = layer.compareTo(other.layer)
         if (retVal != 0) {
             return retVal
         }
 
-        retVal = Integer.compare(coordinates.size, other.coordinates.size)
+        retVal = coordinates.size.compareTo(other.coordinates.size)
         if (retVal != 0) {
             return retVal
         }
 
-        retVal = Integer.compare(tags.size, other.tags.size)
+        retVal = tags.size.compareTo(other.tags.size)
         if (retVal != 0) {
             return retVal
         }
@@ -97,12 +96,12 @@ open class Way(
         for (i in coordinates.indices) {
             val ring = coordinates[i]
             val otherRing = other.coordinates[i]
-            retVal = Integer.compare(ring.size, otherRing.size)
+            retVal = ring.size.compareTo(otherRing.size)
             if (retVal != 0) {
                 return retVal
             }
             // as LatLong.compareTo: longitude, then latitude
-            for (j in 0 until ring.size step 2) {
+            for (j in ring.indices step 2) {
                 retVal = Point.compareCoord(ring[j + 1], ring[j], otherRing[j + 1], otherRing[j])
                 if (retVal != 0) {
                     return retVal
@@ -110,7 +109,7 @@ open class Way(
             }
         }
 
-        return retVal
+        return 0
     }
 
     override fun equals(other: Any?): Boolean {
@@ -127,6 +126,6 @@ open class Way(
     }
 
     override fun hashCode(): Int {
-        return Objects.hash(labelPosition, Arrays.deepHashCode(coordinates), layer, tags)
+        return Objects.hash(labelPosition, coordinates.contentDeepHashCode(), layer, tags)
     }
 }

@@ -39,6 +39,8 @@ import java.awt.geom.AffineTransform
 import java.awt.geom.FlatteningPathIterator
 import java.awt.geom.GeneralPath
 import java.awt.geom.PathIterator
+import kotlin.math.atan2
+import kotlin.math.sqrt
 
 /**
  * See http://www.jhlabs.com/java/java2d/strokes/
@@ -109,10 +111,10 @@ open class TextStroke(
                     thisY = points[1]
                     val dx = thisX - lastX
                     val dy = thisY - lastY
-                    val distance = Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+                    val distance = sqrt((dx * dx + dy * dy).toDouble()).toFloat()
                     if (distance >= next) {
                         val r = 1.0f / distance
-                        val angle = Math.atan2(dy.toDouble(), dx.toDouble()).toFloat()
+                        val angle = atan2(dy.toDouble(), dx.toDouble()).toFloat()
                         while (currentChar < length
                             && distance >= next
                         ) {
@@ -185,7 +187,7 @@ open class TextStroke(
                     thisY = points[1]
                     val dx = thisX - lastX
                     val dy = thisY - lastY
-                    total += Math.sqrt((dx * dx + dy * dy).toDouble()).toFloat()
+                    total += sqrt((dx * dx + dy * dy).toDouble()).toFloat()
                     lastX = thisX
                     lastY = thisY
                 }

@@ -33,6 +33,4 @@ interface Path {
      * without a [moveTo] in this contour it starts at (0, 0).
      */
     fun quadTo(x1: Float, y1: Float, x2: Float, y2: Float)
-
-    fun setFillRule(fillRule: FillRule)
 }

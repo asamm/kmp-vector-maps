@@ -22,7 +22,7 @@ import com.asamm.vectormaps.garminimg.utils.io.ImgRandomAccessReader
  * Layout per record:
  * - bytes 0..2 — RGN data offset (UInt24)
  * - byte 3 — `objectTypes`. Low nibble is dataOffset overflow (×2^24), high
- *   nibble is the [ObjectKind]-bit set.
+ *   nibble is the `ObjectKind`-bit set.
  * - bytes 4..6 — `longitudeCenter` (Int24)
  * - bytes 7..9 — `latitudeCenter` (Int24)
  * - bytes 10..11 — `halfWidth` UInt16 (high bit = last-in-level)
@@ -44,7 +44,7 @@ import com.asamm.vectormaps.garminimg.utils.io.ImgRandomAccessReader
  *
  * For each non-last sub-division `s`, `s.dataEnd = nextRecord.dataOffset`. The
  * last sub-division's `dataEnd` requires the RGN sub-file's plain-data end,
- * passed in by the caller. Same scheme for extended-types ends. When [rgnInfo]
+ * passed in by the caller. Same scheme for extended-types ends. When `rgnInfo`
  * is null (no RGN reader available yet), the last record's `dataEnd` stays 0
  * — call sites that depend on it must defer this work.
  */
@@ -62,7 +62,7 @@ object SubDivisionParser {
     /**
      * Low-nibble mask of the `objectTypes` byte. The low nibble is the
      * dataOffset overflow (each unit = 2^24 bytes); the high nibble
-     * carries the actual [ObjectKind] flags. Flip this to `0xF0` and
+     * carries the actual `ObjectKind` flags. Flip this to `0xF0` and
      * you'll silently swap the two halves and break every IMG read.
      */
     private const val OBJECT_TYPES_DATAOFFSET_OVERFLOW_MASK: Int = 0x0F
@@ -75,7 +75,7 @@ object SubDivisionParser {
     /**
      * Parses the sub-divisions section into a tree. Returns the root list (the
      * sub-divisions at [TreLevels.maxLevel]); each carries its children
-     * recursively. The flat [byIndex] map is also returned for callers that
+     * recursively. The flat `byIndex` map is also returned for callers that
      * want O(1) lookup (e.g. RGN parsing).
      *
      * @param reader logical sub-file reader for the TRE
@@ -291,7 +291,7 @@ object SubDivisionParser {
                 // children parsed yet — read SMALL records starting at
                 // nextIndex.
                 val basePos = recordPosition(nextIndex, SMALL_RECORD_SIZE)
-                if (basePos < sectionOffset || basePos >= sectionEnd) {
+                if (basePos !in sectionOffset until sectionEnd) {
                     continue
                 }
                 reader.seek(basePos)

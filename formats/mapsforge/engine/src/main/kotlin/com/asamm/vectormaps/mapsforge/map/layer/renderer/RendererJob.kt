@@ -30,27 +30,14 @@ import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
 open class RendererJob(
     tile: Tile?,
     mapFile: MapDataStore?,
-    renderThemeFuture: RenderThemeFuture?,
-    displayModel: DisplayModel,
-    textScale: Float,
+    val renderThemeFuture: RenderThemeFuture?,
+    val displayModel: DisplayModel,
+    val textScale: Float,
     isTransparent: Boolean,
-    labelsOnly: Boolean,
+    val labelsOnly: Boolean,
 ) : Job(tile, isTransparent) {
 
-    @JvmField
-    val displayModel: DisplayModel
-
-    @JvmField
-    var labelsOnly: Boolean
-
-    @JvmField
     val mapDataStore: MapDataStore
-
-    @JvmField
-    val renderThemeFuture: RenderThemeFuture?
-
-    @JvmField
-    val textScale: Float
 
     private val hashCodeValue: Int
 
@@ -58,16 +45,12 @@ open class RendererJob(
         if (mapFile == null) {
             throw IllegalArgumentException("mapFile must not be null")
         } else if (textScale <= 0f
-            || java.lang.Float.isNaN(textScale)
+            || textScale.isNaN()
         ) {
             throw IllegalArgumentException("invalid textScale: $textScale")
         }
 
-        this.labelsOnly = labelsOnly
-        this.displayModel = displayModel
         this.mapDataStore = mapFile
-        this.renderThemeFuture = renderThemeFuture
-        this.textScale = textScale
 
         this.hashCodeValue = calculateHashCode()
     }
@@ -82,8 +65,8 @@ open class RendererJob(
         }
         if (mapDataStore != other.mapDataStore) {
             return false
-        } else if (java.lang.Float.floatToIntBits(textScale)
-            != java.lang.Float.floatToIntBits(other.textScale)
+        } else if (textScale.toBits()
+            != other.textScale.toBits()
         ) {
             return false
         } else if (renderThemeFuture == null
@@ -121,18 +104,11 @@ open class RendererJob(
         )
     }
 
-    /**
-     * Makes this job generate only the labels.
-     */
-    fun setRetrieveLabelsOnly() {
-        labelsOnly = true
-    }
-
     private fun calculateHashCode(): Int {
         val prime = 31
         var result = super.hashCode()
         result = prime * result + mapDataStore.hashCode()
-        result = prime * result + java.lang.Float.floatToIntBits(textScale)
+        result = prime * result + textScale.toBits()
         if (renderThemeFuture != null) {
             result = prime * result + renderThemeFuture.hashCode()
         }

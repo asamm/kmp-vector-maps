@@ -109,27 +109,21 @@ class MapFileHeader {
 
             // get and check the base zoom level (1 byte)
             val baseZoomLevel = readBuffer.readByte()
-            if (baseZoomLevel < 0
-                || baseZoomLevel > BASE_ZOOM_LEVEL_MAX
-            ) {
+            if (baseZoomLevel !in 0..BASE_ZOOM_LEVEL_MAX) {
                 throw MapFileException("invalid base zoom level: $baseZoomLevel")
             }
             subFileParameterBuilder.baseZoomLevel = baseZoomLevel
 
             // get and check the minimum zoom level (1 byte)
             val zoomLevelMin = readBuffer.readByte()
-            if (zoomLevelMin < 0
-                || zoomLevelMin > 22
-            ) {
+            if (zoomLevelMin !in 0..22) {
                 throw MapFileException("invalid minimum zoom level: $zoomLevelMin")
             }
             subFileParameterBuilder.zoomLevelMin = zoomLevelMin
 
             // get and check the maximum zoom level (1 byte)
             val zoomLevelMax = readBuffer.readByte()
-            if (zoomLevelMax < 0
-                || zoomLevelMax > 22
-            ) {
+            if (zoomLevelMax !in 0..22) {
                 throw MapFileException("invalid maximum zoom level: $zoomLevelMax")
             }
             subFileParameterBuilder.zoomLevelMax = zoomLevelMax
@@ -141,9 +135,7 @@ class MapFileHeader {
 
             // get and check the start address of the sub-file (8 bytes)
             val startAddress = readBuffer.readLong()
-            if (startAddress < HEADER_SIZE_MIN
-                || startAddress >= fileSize
-            ) {
+            if (startAddress !in HEADER_SIZE_MIN until fileSize) {
                 throw MapFileException("invalid start address: $startAddress")
             }
             subFileParameterBuilder.startAddress = startAddress

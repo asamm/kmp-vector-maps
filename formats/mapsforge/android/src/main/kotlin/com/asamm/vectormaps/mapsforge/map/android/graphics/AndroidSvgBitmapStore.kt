@@ -44,12 +44,8 @@ object AndroidSvgBitmapStore {
 
     private const val SVG_SUFFIX = ".png"
 
-    @JvmStatic
     fun clear() {
-        val files = AndroidGraphicFactory.INSTANCE.fileList()
-        if (files == null) {
-            return
-        }
+        val files = AndroidGraphicFactory.INSTANCE.fileList() ?: return
         for (file in files) {
             if (file.startsWith(SVG_PREFIX)
                 && file.endsWith(SVG_SUFFIX)
@@ -64,7 +60,6 @@ object AndroidSvgBitmapStore {
         return sb.toString()
     }
 
-    @JvmStatic
     fun get(hash: Int): Bitmap? {
         val fileName = createFileName(hash)
         var inputStream: FileInputStream? = null
@@ -79,7 +74,6 @@ object AndroidSvgBitmapStore {
         return null
     }
 
-    @JvmStatic
     fun put(hash: Int, bitmap: Bitmap) {
         // perform in background
         Thread(SvgStorer(hash, bitmap)).start()

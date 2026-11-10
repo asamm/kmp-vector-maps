@@ -24,20 +24,18 @@ import java.io.Serializable
  * An immutable key-value pair, with hash codes of key and value for fast rule matching.
  */
 open class Tag(
-    @JvmField val key: String?,
-    @JvmField val value: String?,
+    val key: String?,
+    val value: String?,
 ) : Comparable<Tag>, Serializable {
 
     /**
      * The key's hash code, 0 for a null key.
      */
-    @JvmField
     val keyCode: Int = if (key == null) 0 else Utils.hashTagParameter(key)
 
     /**
      * The value's hash code, 0 for a null value.
      */
-    @JvmField
     val valueCode: Int = if (value == null) 0 else Utils.hashTagParameter(value)
 
     /**
@@ -82,7 +80,7 @@ open class Tag(
             return 1
         }
 
-        return retVal
+        return 0
     }
 
     // as upstream: two null keys compare equal whatever the values

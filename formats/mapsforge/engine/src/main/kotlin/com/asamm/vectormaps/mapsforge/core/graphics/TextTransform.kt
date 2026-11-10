@@ -26,7 +26,6 @@ enum class TextTransform {
         /**
          * The transform for `value`, [NONE] for any unknown value.
          */
-        @JvmStatic
         fun fromString(value: String?): TextTransform {
             return when (value) {
                 "uppercase" -> UPPERCASE

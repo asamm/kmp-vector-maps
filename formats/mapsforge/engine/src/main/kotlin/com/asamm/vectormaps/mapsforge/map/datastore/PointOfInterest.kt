@@ -27,9 +27,9 @@ import java.util.Objects
  * @param layer the layer plus 5, so it is not negative
  */
 open class PointOfInterest(
-    @JvmField val layer: Byte,
-    @JvmField val tags: List<Tag>,
-    @JvmField val position: LatLong,
+    val layer: Byte,
+    val tags: List<Tag>,
+    val position: LatLong,
 ) : Comparable<PointOfInterest?> {
 
     override fun compareTo(other: PointOfInterest?): Int {
@@ -40,7 +40,7 @@ open class PointOfInterest(
             return -1
         }
 
-        var retVal = java.lang.Byte.compare(layer, other.layer)
+        var retVal = layer.compareTo(other.layer)
         if (retVal != 0) {
             return retVal
         }
@@ -50,7 +50,7 @@ open class PointOfInterest(
             return retVal
         }
 
-        retVal = Integer.compare(tags.size, other.tags.size)
+        retVal = tags.size.compareTo(other.tags.size)
         if (retVal != 0) {
             return retVal
         }
@@ -62,7 +62,7 @@ open class PointOfInterest(
             }
         }
 
-        return retVal
+        return 0
     }
 
     final override fun equals(other: Any?): Boolean {

@@ -18,84 +18,16 @@
 package com.asamm.vectormaps.mapsforge.map.util
 
 import com.asamm.vectormaps.mapsforge.core.mapelements.MapElementContainer
-import com.asamm.vectormaps.mapsforge.core.model.BoundingBox
-import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Rectangle
 import com.asamm.vectormaps.mapsforge.core.model.Rotation
 import com.asamm.vectormaps.mapsforge.core.model.Tile
-import com.asamm.vectormaps.mapsforge.core.util.MercatorProjection
-import com.asamm.vectormaps.mapsforge.map.layer.TilePosition
-import java.util.Collections
 import java.util.LinkedList
 
 object LayerUtil {
 
     /**
-     * The tiles covering `boundingBox` with their pixel positions relative to `topLeftPoint`.
-     */
-    @JvmStatic
-    fun getTilePositions(boundingBox: BoundingBox, zoomLevel: Byte, topLeftPoint: Point, tileSize: Int): List<TilePosition> {
-        return getTilePositions(boundingBox, zoomLevel, topLeftPoint, tileSize, 0)
-    }
-
-    /**
-     * The tiles covering `boundingBox` plus `margin` tiles around it, clipped to the map, with their
-     * pixel positions relative to `topLeftPoint`.
-     */
-    @JvmStatic
-    fun getTilePositions(
-        boundingBox: BoundingBox,
-        zoomLevel: Byte,
-        topLeftPoint: Point,
-        tileSize: Int,
-        margin: Int,
-    ): List<TilePosition> {
-        val maxTileNumber = Tile.getMaxTileNumber(zoomLevel)
-
-        val tileLeft = Math.max(0, MercatorProjection.longitudeToTileX(boundingBox.minLongitude, zoomLevel) - margin)
-        val tileTop = Math.max(0, MercatorProjection.latitudeToTileY(boundingBox.maxLatitude, zoomLevel) - margin)
-        val tileRight = Math.min(
-            MercatorProjection.longitudeToTileX(boundingBox.maxLongitude, zoomLevel) + margin,
-            maxTileNumber,
-        )
-        val tileBottom = Math.min(
-            MercatorProjection.latitudeToTileY(boundingBox.minLatitude, zoomLevel) + margin,
-            maxTileNumber,
-        )
-
-        val initialCapacity = (tileRight - tileLeft + 1) * (tileBottom - tileTop + 1)
-        val tilePositions = ArrayList<TilePosition>(initialCapacity)
-
-        for (tileY in tileTop..tileBottom) {
-            for (tileX in tileLeft..tileRight) {
-                val pixelX = MercatorProjection.tileToPixel(tileX.toLong(), tileSize) - topLeftPoint.x
-                val pixelY = MercatorProjection.tileToPixel(tileY.toLong(), tileSize) - topLeftPoint.y
-
-                tilePositions.add(TilePosition(Tile(tileX, tileY, zoomLevel, tileSize), Point(pixelX, pixelY)))
-            }
-        }
-
-        return tilePositions
-    }
-
-    @JvmStatic
-    fun getUpperLeft(boundingBox: BoundingBox, zoomLevel: Byte, tileSize: Int): Tile {
-        val tileLeft = MercatorProjection.longitudeToTileX(boundingBox.minLongitude, zoomLevel)
-        val tileTop = MercatorProjection.latitudeToTileY(boundingBox.maxLatitude, zoomLevel)
-        return Tile(tileLeft, tileTop, zoomLevel, tileSize)
-    }
-
-    @JvmStatic
-    fun getLowerRight(boundingBox: BoundingBox, zoomLevel: Byte, tileSize: Int): Tile {
-        val tileRight = MercatorProjection.longitudeToTileX(boundingBox.maxLongitude, zoomLevel)
-        val tileBottom = MercatorProjection.latitudeToTileY(boundingBox.minLatitude, zoomLevel)
-        return Tile(tileRight, tileBottom, zoomLevel, tileSize)
-    }
-
-    /**
      * The tiles from `upperLeft` to `lowerRight`.
      */
-    @JvmStatic
     fun getTiles(upperLeft: Tile, lowerRight: Tile): Set<Tile> {
         val tiles = HashSet<Tile>()
         for (tileY in upperLeft.tileY..lowerRight.tileY) {
@@ -107,31 +39,10 @@ object LayerUtil {
     }
 
     /**
-     * The tiles covering `boundingBox`.
-     */
-    @JvmStatic
-    fun getTiles(boundingBox: BoundingBox, zoomLevel: Byte, tileSize: Int): Set<Tile> {
-        val tileLeft = MercatorProjection.longitudeToTileX(boundingBox.minLongitude, zoomLevel)
-        val tileTop = MercatorProjection.latitudeToTileY(boundingBox.maxLatitude, zoomLevel)
-        val tileRight = MercatorProjection.longitudeToTileX(boundingBox.maxLongitude, zoomLevel)
-        val tileBottom = MercatorProjection.latitudeToTileY(boundingBox.minLatitude, zoomLevel)
-
-        val tiles = HashSet<Tile>()
-
-        for (tileY in tileTop..tileBottom) {
-            for (tileX in tileLeft..tileRight) {
-                tiles.add(Tile(tileX, tileY, zoomLevel, tileSize))
-            }
-        }
-        return tiles
-    }
-
-    /**
      * The items that do not clash with an already kept, higher-priority item, ascending or
      * descending by priority.
      * Sorts `input` in place.
      */
-    @JvmStatic
     fun collisionFreeOrdered(
         input: MutableList<MapElementContainer>,
         rotation: Rotation?,
@@ -140,7 +51,7 @@ object LayerUtil {
         val output = LinkedList<MapElementContainer>()
 
         // sort items by priority (highest first)
-        Collections.sort(input, Collections.reverseOrder())
+        input.sortDescending()
 
         // in order of display and priority, see if an item can be drawn, i.e. none of the items
         // in the currentItemsToDraw list clashes with it.
@@ -163,7 +74,6 @@ object LayerUtil {
         return output
     }
 
-    @JvmStatic
     fun collisionFreeOrdered(
         input: MutableList<MapElementContainer>,
         rotation: Rotation?,
@@ -175,7 +85,6 @@ object LayerUtil {
      * As [collisionFreeOrdered], first dropping items that span tiles and clash with an equal or
      * higher-priority item.
      */
-    @JvmStatic
     fun collisionAndContestingFreeOrdered(
         input: MutableList<MapElementContainer>,
         tile: Tile,
@@ -184,7 +93,7 @@ object LayerUtil {
     ): MutableList<MapElementContainer> {
         val output = LinkedList<MapElementContainer>()
 
-        Collections.sort(input, Collections.reverseOrder())
+        input.sortDescending()
 
         val inputProcessed = omitContestingMultiTiledItems(input, tile, rotation)
 
@@ -209,7 +118,6 @@ object LayerUtil {
         return output
     }
 
-    @JvmStatic
     fun collisionAndContestingFreeOrdered(
         input: MutableList<MapElementContainer>,
         tile: Tile,
@@ -222,7 +130,6 @@ object LayerUtil {
      * `input` without the items that span tiles and clash with an equal or higher-priority item;
      * `input` must be sorted by priority, highest first.
      */
-    @JvmStatic
     fun omitContestingMultiTiledItems(
         input: Collection<MapElementContainer>,
         tile: Tile,
@@ -260,7 +167,6 @@ object LayerUtil {
     /**
      * Removes the items that are not visible from `input`.
      */
-    @JvmStatic
     fun removeInvisibleItems(input: MutableCollection<MapElementContainer>) {
         val iterator = input.iterator()
         while (iterator.hasNext()) {
@@ -274,7 +180,6 @@ object LayerUtil {
     /**
      * True if `labelRect` reaches beyond `tileRect` but still overlaps it.
      */
-    @JvmStatic
     fun isLabelMultiTiled(labelRect: Rectangle?, tileRect: Rectangle): Boolean {
         return !tileRect.contains(labelRect)
             && tileRect.intersects(labelRect)
