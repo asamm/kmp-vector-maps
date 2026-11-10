@@ -45,10 +45,8 @@ open class AndroidSvgBitmap @Throws(IOException::class) constructor(
         /**
          * Default size is 20x20px (400px) at baseline mdpi (160dpi).
          */
-        @JvmField
         var DEFAULT_SIZE = 400f
 
-        @JvmStatic
         @Throws(IOException::class)
         fun getResourceBitmap(
             inputStream: InputStream,

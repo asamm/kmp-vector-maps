@@ -42,7 +42,6 @@ enum class TextOrientation {
         /**
          * The orientation for `value`, [AUTO] for "auto" and any unknown value.
          */
-        @JvmStatic
         fun fromString(value: String): TextOrientation {
             return when (value) {
                 "auto_down" -> AUTO_DOWN

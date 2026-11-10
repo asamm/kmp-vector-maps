@@ -24,16 +24,12 @@ import java.io.Serializable
  */
 open class Rectangle : Serializable {
 
-    @JvmField
     val bottom: Double
 
-    @JvmField
     val left: Double
 
-    @JvmField
     val right: Double
 
-    @JvmField
     val top: Double
 
     constructor(left: Double, top: Double, right: Double, bottom: Double) {
@@ -67,10 +63,6 @@ open class Rectangle : Serializable {
      */
     fun enlarge(left: Double, top: Double, right: Double, bottom: Double): Rectangle {
         return Rectangle(this.left - left, this.top - top, this.right + right, this.bottom + bottom)
-    }
-
-    fun envelope(padding: Double): Rectangle {
-        return Rectangle(left - padding, top - padding, right + padding, bottom + padding)
     }
 
     override fun equals(other: Any?): Boolean {
@@ -155,32 +147,6 @@ open class Rectangle : Serializable {
             && right >= rectangle.right
             && top <= rectangle.top
             && bottom >= rectangle.bottom
-    }
-
-    fun intersectsCircle(pointX: Double, pointY: Double, radius: Double): Boolean {
-        val halfWidth = width / 2
-        val halfHeight = height / 2
-
-        val centerDistanceX = Math.abs(pointX - centerX)
-        val centerDistanceY = Math.abs(pointY - centerY)
-
-        // is the circle is far enough away from the rectangle?
-        if (centerDistanceX > halfWidth + radius) {
-            return false
-        } else if (centerDistanceY > halfHeight + radius) {
-            return false
-        }
-
-        // is the circle close enough to the rectangle?
-        if (centerDistanceX <= halfWidth) {
-            return true
-        } else if (centerDistanceY <= halfHeight) {
-            return true
-        }
-
-        val cornerDistanceX = centerDistanceX - halfWidth
-        val cornerDistanceY = centerDistanceY - halfHeight
-        return cornerDistanceX * cornerDistanceX + cornerDistanceY * cornerDistanceY <= radius * radius
     }
 
     fun rotate(rotation: Rotation): Rectangle {

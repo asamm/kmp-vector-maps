@@ -18,7 +18,6 @@ package com.asamm.vectormaps.mapsforge.map.rendertheme
 
 import com.asamm.vectormaps.mapsforge.core.graphics.GraphicFactory
 import com.asamm.vectormaps.mapsforge.core.mapelements.MapElementContainer
-import com.asamm.vectormaps.mapsforge.core.model.Tile
 import com.asamm.vectormaps.mapsforge.map.layer.renderer.CanvasRasterer
 import com.asamm.vectormaps.mapsforge.map.layer.renderer.RendererJob
 import com.asamm.vectormaps.mapsforge.map.layer.renderer.ShapePaintContainer
@@ -36,21 +35,17 @@ open class RenderContext @Throws(InterruptedException::class, ExecutionException
     graphicFactory: GraphicFactory,
 ) {
 
-    @JvmField
     val rendererJob: RendererJob
 
-    @JvmField
     val renderTheme: RenderTheme
 
     // Configuration that drives the rendering
-    @JvmField
     val canvasRasterer: CanvasRasterer
 
     // Data generated for the rendering process
     private var drawingLayer = 0
 
-    @JvmField
-    protected val labels: MutableList<MapElementContainer>
+    private val labels: MutableList<MapElementContainer>
 
     // per layer the lists of its levels, each created on first use (C15)
     private val ways = arrayOfNulls<Array<MutableList<ShapePaintContainer>?>>(LAYERS.toInt())
@@ -122,15 +117,6 @@ open class RenderContext @Throws(InterruptedException::class, ExecutionException
 
     fun clearLabels(labelsToClear: Set<MapElementContainer>) {
         this.labels.removeAll(labelsToClear)
-    }
-
-    /**
-     * Just a way of generating a hash key for a tile if only the RendererJob is known.
-     *
-     * @return a RendererJob based on the current one, only tile changes
-     */
-    fun otherTile(tile: Tile): RendererJob {
-        return this.rendererJob.otherTile(tile)
     }
 
     /**

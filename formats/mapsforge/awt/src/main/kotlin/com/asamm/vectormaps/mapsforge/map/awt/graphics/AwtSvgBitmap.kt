@@ -38,10 +38,8 @@ open class AwtSvgBitmap @Throws(IOException::class) constructor(
         /**
          * Default size is 20x20px (400px).
          */
-        @JvmField
         var DEFAULT_SIZE = 400f
 
-        @JvmStatic
         @Throws(IOException::class)
         fun getResourceBitmap(
             inputStream: InputStream,

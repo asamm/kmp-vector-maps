@@ -30,8 +30,6 @@ open class TileBasedLabelStore(
 
     private var lastVisibleTileSet: Set<Tile> = HashSet()
 
-    private var version: Int = 0
-
     fun destroy() {
         this.clear()
     }
@@ -42,11 +40,6 @@ open class TileBasedLabelStore(
     @Synchronized
     fun storeMapItems(tile: Tile, mapItems: MutableList<MapElementContainer>) {
         this.put(tile, LayerUtil.collisionFreeOrdered(mapItems, Rotation.NULL_ROTATION, false))
-        this.version += 1
-    }
-
-    final override fun getVersion(): Int {
-        return this.version
     }
 
     @Synchronized
@@ -68,15 +61,6 @@ open class TileBasedLabelStore(
             }
         }
         return visibleItems
-    }
-
-    /**
-     * True if `tile` is in the current tile set and no data is stored for it.
-     */
-    @Synchronized
-    fun requiresTile(tile: Tile): Boolean {
-        return this.lastVisibleTileSet.contains(tile)
-            && !this.containsKey(tile)
     }
 
     override fun removeEldestEntry(

@@ -23,7 +23,6 @@ enum class Cap {
 
     companion object {
 
-        @JvmStatic
         fun fromString(value: String?): Cap {
             return when (value) {
                 "butt" -> BUTT

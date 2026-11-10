@@ -43,23 +43,18 @@ abstract class MapElementContainer protected constructor(
     priority: Int,
 ) : Comparable<MapElementContainer> {
 
-    @JvmField
-    protected var boundaryAbsolute: Rectangle? = null
+    protected var cachedBoundaryAbsolute: Rectangle? = null
 
-    @JvmField
     protected val display: Display
 
     val priority: Int
 
-    @JvmField
     protected val xy: Point
 
     @Volatile
-    @JvmField
     protected var clashRotationDegrees: Double = 0.0
 
     @Volatile
-    @JvmField
     protected var clashRect: Rectangle? = null
 
     init {
@@ -162,10 +157,10 @@ abstract class MapElementContainer protected constructor(
      * Gets the pixel absolute boundary for this element.
      */
     protected open fun getBoundaryAbsolute(): Rectangle {
-        if (boundaryAbsolute == null) {
-            boundaryAbsolute = this.getBoundary()!!.shift(xy)
+        if (cachedBoundaryAbsolute == null) {
+            cachedBoundaryAbsolute = this.getBoundary()!!.shift(xy)
         }
-        return boundaryAbsolute!!
+        return cachedBoundaryAbsolute!!
     }
 
     fun intersects(rectangle: Rectangle, rotation: Rotation?): Boolean {

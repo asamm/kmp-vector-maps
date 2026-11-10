@@ -25,10 +25,8 @@ import java.io.File
  */
 open class Job(tile: Tile?, hasAlpha: Boolean) {
 
-    @JvmField
     val hasAlpha: Boolean
 
-    @JvmField
     val tile: Tile
 
     /**
@@ -67,9 +65,5 @@ open class Job(tile: Tile?, hasAlpha: Boolean) {
             return z.toString() + File.separatorChar + x + File.separatorChar + y
         }
 
-        @JvmStatic
-        fun composeKey(z: String, x: String, y: String): String {
-            return z + File.separatorChar + x + File.separatorChar + y
-        }
     }
 }

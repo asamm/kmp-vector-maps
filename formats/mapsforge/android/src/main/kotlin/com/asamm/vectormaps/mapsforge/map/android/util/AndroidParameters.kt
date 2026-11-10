@@ -24,6 +24,5 @@ object AndroidParameters {
      * drawback seems to be that line joins of a few paths may not be rounded. True for API 32 and
      * below.
      */
-    @JvmField
     var ANDROID_LIBHWUI_FIX = Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2
 }

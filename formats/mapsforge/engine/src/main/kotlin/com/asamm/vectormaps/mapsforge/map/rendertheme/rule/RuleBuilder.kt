@@ -18,17 +18,14 @@ package com.asamm.vectormaps.mapsforge.map.rendertheme.rule
 import com.asamm.vectormaps.mapsforge.map.rendertheme.XmlUtils
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
-import java.util.Stack
 import java.util.regex.Pattern
 
 /**
- * A builder for [Rule] instances, from the attributes of a `rule` element. [ruleStack], the
- * enclosing rules, is unused since upstream disabled its rule optimizer.
+ * A builder for [Rule] instances, from the attributes of a `rule` element.
  */
 open class RuleBuilder @Throws(XmlPullParserException::class) constructor(
     elementName: String,
     pullParser: XmlPullParser,
-    @Suppress("UNUSED_PARAMETER") ruleStack: Stack<Rule>,
 ) {
 
     internal var cat: String? = null

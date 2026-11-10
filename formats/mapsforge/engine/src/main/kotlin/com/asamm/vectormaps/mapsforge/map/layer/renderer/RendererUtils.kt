@@ -30,7 +30,6 @@ object RendererUtils {
      * than the angle limit. See
      * http://objectmix.com/graphics/132987-draw-parallel-polyline-algorithm-needed.html
      */
-    @JvmStatic
     fun parallelPath(p: DoubleArray, dy: Double): DoubleArray {
         val n = p.size / 2 - 1
         val ux = DoubleArray(n)
@@ -80,7 +79,6 @@ object RendererUtils {
     /**
      * The x, y pairs of `ring` relative to `origin`, the tile's, as a new array.
      */
-    @JvmStatic
     fun relativeTo(ring: DoubleArray, origin: Point): DoubleArray {
         val relative = DoubleArray(ring.size)
         for (i in 0 until ring.size step 2) {

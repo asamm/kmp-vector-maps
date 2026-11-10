@@ -22,7 +22,6 @@ object GraphicUtils {
     /**
      * The alpha of an AARRGGBB color.
      */
-    @JvmStatic
     fun getAlpha(color: Int): Int {
         return (color shr 24) and 0xff
     }
@@ -32,7 +31,6 @@ object GraphicUtils {
      * `width` or `height` other than 0 override it, keeping the aspect ratio when only one is set,
      * then `percent` scales the result.
      */
-    @JvmStatic
     fun imageSize(
         picWidth: Float,
         picHeight: Float,

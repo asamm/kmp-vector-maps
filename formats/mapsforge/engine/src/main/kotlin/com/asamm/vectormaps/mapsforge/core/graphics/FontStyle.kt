@@ -20,7 +20,6 @@ enum class FontStyle {
 
     companion object {
 
-        @JvmStatic
         fun fromString(value: String?): FontStyle {
             return when (value) {
                 "bold" -> BOLD

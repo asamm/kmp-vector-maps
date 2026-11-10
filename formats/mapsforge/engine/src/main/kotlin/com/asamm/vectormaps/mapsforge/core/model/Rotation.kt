@@ -22,28 +22,16 @@ import java.io.Serializable
  * A rotation by an angle around a pivot point.
  */
 open class Rotation(
-    @JvmField val degrees: Float,
-    @JvmField val px: Float,
-    @JvmField val py: Float,
+    val degrees: Float,
+    val px: Float,
+    val py: Float,
 ) : Serializable {
 
-    @JvmField
     val radians: Double = Math.toRadians(degrees.toDouble())
-
-    /**
-     * This rotation with the angle reversed.
-     */
-    fun reverseRotation(): Rotation {
-        if (noRotation(this)) {
-            return NULL_ROTATION
-        }
-        return Rotation(-degrees, px, py)
-    }
 
     /**
      * The point (`x`, `y`) rotated around the pivot.
      */
-    @JvmOverloads
     fun rotate(x: Double, y: Double, reverse: Boolean = false): Point {
         if (reverse) {
             return rotateInternal(radians, x, y)
@@ -54,7 +42,6 @@ open class Rotation(
     /**
      * `p` rotated around the pivot; `p` itself without a rotation.
      */
-    @JvmOverloads
     fun rotate(p: Point, reverse: Boolean = false): Point {
         if (noRotation(this)) {
             return p
@@ -65,7 +52,6 @@ open class Rotation(
     /**
      * The envelope of `r` rotated around the pivot; `r` itself without a rotation.
      */
-    @JvmOverloads
     fun rotate(r: Rectangle, reverse: Boolean = false): Rectangle {
         if (noRotation(this)) {
             return r
@@ -126,13 +112,11 @@ open class Rotation(
 
         private const val serialVersionUID = 1L
 
-        @JvmField
         val NULL_ROTATION = Rotation(0f, 0f, 0f)
 
         /**
          * True for null, [NULL_ROTATION] or an angle of 0.
          */
-        @JvmStatic
         fun noRotation(rotation: Rotation?): Boolean {
             return NULL_ROTATION === rotation
                 || rotation == null

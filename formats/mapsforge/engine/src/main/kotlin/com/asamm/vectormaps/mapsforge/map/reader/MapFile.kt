@@ -773,14 +773,6 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
         return zoomTable
     }
 
-    /**
-     * Restricts the data returned to the zoom range, for use in a multi-map data store.
-     */
-    fun restrictToZoomRange(minZoom: Byte, maxZoom: Byte) {
-        zoomLevelMax = maxZoom
-        zoomLevelMin = minZoom
-    }
-
     override fun startPosition(): LatLong {
         return mapFileInfo.startPosition ?: mapFileInfo.boundingBox.centerPoint
     }
@@ -909,10 +901,8 @@ open class MapFile private constructor(opened: Opened, language: String?) : MapD
          * clip lines, mostly at high zoom levels. Turn it off or raise [wayFilterDistance], the
          * margin around the tile in meters, to reduce clipping.
          */
-        @JvmField
         var wayFilterEnabled = true
 
-        @JvmField
         var wayFilterDistance = 20
 
         private fun open(mapFile: File?): Opened {

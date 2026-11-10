@@ -42,7 +42,6 @@ import com.asamm.vectormaps.mapsforge.map.android.util.AndroidParameters
 
 internal open class AndroidPaint : Paint {
 
-    @JvmField
     internal val paint: android.graphics.Paint
 
     // needed to record size of bitmap shader to compute the shift
@@ -256,7 +255,6 @@ internal open class AndroidPaint : Paint {
         /**
          * [Paint.FONT_PADDING_FACTOR] times `fontHeight`, at least 1.
          */
-        @JvmStatic
         fun getFontPadding(fontHeight: Int): Int {
             return Math.max(1.0, Paint.FONT_PADDING_FACTOR * fontHeight).toInt()
         }
@@ -264,7 +262,6 @@ internal open class AndroidPaint : Paint {
         /**
          * The width of the widest line, measured accurately by the layout, which respects spans.
          */
-        @JvmStatic
         fun getTextWidth(layout: StaticLayout?): Int {
             var retVal = 0
 

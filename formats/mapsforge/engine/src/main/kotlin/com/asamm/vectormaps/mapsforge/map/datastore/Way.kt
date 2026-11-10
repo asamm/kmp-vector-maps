@@ -32,10 +32,10 @@ import java.util.Objects
  * @param labelPosition the position of the area label, null when there is none
  */
 open class Way(
-    @JvmField val layer: Byte,
-    @JvmField val tags: List<Tag>,
-    @JvmField val coordinates: Array<DoubleArray>,
-    @JvmField val labelPosition: LatLong?,
+    val layer: Byte,
+    val tags: List<Tag>,
+    val coordinates: Array<DoubleArray>,
+    val labelPosition: LatLong?,
 ) : Comparable<Way?> {
 
     /**

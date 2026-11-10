@@ -25,16 +25,15 @@ import java.io.Serializable
  * [IllegalArgumentException]. Equal by number, zoom level and tile size.
  */
 open class Tile(
-    @JvmField val tileX: Int,
-    @JvmField val tileY: Int,
-    @JvmField val zoomLevel: Byte,
-    @JvmField val tileSize: Int,
+    val tileX: Int,
+    val tileY: Int,
+    val zoomLevel: Byte,
+    val tileSize: Int,
 ) : Serializable {
 
     /**
      * The map size at this zoom level in pixels.
      */
-    @JvmField
     val mapSize: Long
 
     @Volatile
@@ -134,14 +133,6 @@ open class Tile(
     val boundaryAbsolute: Rectangle
         get() {
             return Rectangle(origin.x, origin.y, origin.x + tileSize, origin.y + tileSize)
-        }
-
-    /**
-     * This tile's pixel rectangle in its own coordinates.
-     */
-    val boundaryRelative: Rectangle
-        get() {
-            return Rectangle(0.0, 0.0, tileSize.toDouble(), tileSize.toDouble())
         }
 
     /**
@@ -265,37 +256,6 @@ open class Tile(
             return Tile(x, y, zoomLevel, tileSize)
         }
 
-    /**
-     * The tile one zoom level up, null at zoom level 0.
-     */
-    val parent: Tile?
-        get() {
-            if (zoomLevel.toInt() == 0) {
-                return null
-            }
-            return Tile(tileX / 2, tileY / 2, (zoomLevel - 1).toByte(), tileSize)
-        }
-
-    /**
-     * The horizontal offset of this tile within `otherTile`, an ancestor, in tiles.
-     */
-    fun getShiftX(otherTile: Tile): Int {
-        if (this == otherTile) {
-            return 0
-        }
-        return tileX % 2 + 2 * parent!!.getShiftX(otherTile)
-    }
-
-    /**
-     * The vertical offset of this tile within `otherTile`, an ancestor, in tiles.
-     */
-    fun getShiftY(otherTile: Tile): Int {
-        if (this == otherTile) {
-            return 0
-        }
-        return tileY % 2 + 2 * parent!!.getShiftY(otherTile)
-    }
-
     override fun hashCode(): Int {
         var result = 7
         result = 31 * result + (tileX xor (tileX ushr 16))
@@ -316,7 +276,6 @@ open class Tile(
         /**
          * The geographic box from `upperLeft` to `lowerRight`.
          */
-        @JvmStatic
         fun getBoundingBox(upperLeft: Tile, lowerRight: Tile): BoundingBox {
             val ul = upperLeft.boundingBox
             val lr = lowerRight.boundingBox
@@ -324,38 +283,8 @@ open class Tile(
         }
 
         /**
-         * The pixel rectangle from `upperLeft` to `lowerRight` on the whole map.
-         */
-        @JvmStatic
-        fun getBoundaryAbsolute(upperLeft: Tile, lowerRight: Tile): Rectangle {
-            return Rectangle(
-                upperLeft.origin.x,
-                upperLeft.origin.y,
-                lowerRight.origin.x + upperLeft.tileSize,
-                lowerRight.origin.y + upperLeft.tileSize,
-            )
-        }
-
-        /**
-         * True if the two tile areas overlap; false across zoom levels.
-         */
-        @JvmStatic
-        fun tileAreasOverlap(upperLeft: Tile, lowerRight: Tile, upperLeftOther: Tile, lowerRightOther: Tile): Boolean {
-            if (upperLeft.zoomLevel != upperLeftOther.zoomLevel) {
-                return false
-            }
-            if (upperLeft == upperLeftOther
-                && lowerRight == lowerRightOther
-            ) {
-                return true
-            }
-            return getBoundaryAbsolute(upperLeft, lowerRight).intersects(getBoundaryAbsolute(upperLeftOther, lowerRightOther))
-        }
-
-        /**
          * The highest tile number at `zoomLevel`; negative throws [IllegalArgumentException].
          */
-        @JvmStatic
         fun getMaxTileNumber(zoomLevel: Byte): Int {
             if (zoomLevel < 0) {
                 throw IllegalArgumentException("zoomLevel must not be negative: $zoomLevel")

@@ -49,11 +49,6 @@ open class MapDataStoreLabelStore(
     final override fun clear() {
     }
 
-    final override fun getVersion(): Int {
-        // the mapDataStore cannot change, so version will always be the same.
-        return 0
-    }
-
     final override fun getVisibleItems(
         upperLeft: Tile?,
         lowerRight: Tile?,

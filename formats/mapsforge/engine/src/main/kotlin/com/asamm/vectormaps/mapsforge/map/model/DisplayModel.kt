@@ -41,7 +41,7 @@ open class DisplayModel : Observable() {
     private var themeCallbackValue: ThemeCallback? = null
     private var tileSizeValue = DEFAULT_TILE_SIZE
     private var tileSizeMultipleValue = 64
-    private var userScaleFactorValue = defaultUserScaleFactor
+    private var userScaleFactorValue = 1f
 
     init {
         setTileSize()
@@ -317,50 +317,28 @@ open class DisplayModel : Observable() {
         /**
          * The line scale new models start with.
          */
-        @JvmField
         var lineScale = 1f
 
         /**
          * The symbol scale new models start with.
          */
-        @JvmField
         var symbolScale = 1f
 
         /**
          * The text scale new models start with.
          */
-        @JvmField
         var textScale = 1f
-
-        private var defaultUserScaleFactor = 1f
 
         private var deviceScaleFactor = 1f
 
         /**
-         * The user scale factor new models start with.
-         */
-        @JvmStatic
-        @Synchronized
-        fun getDefaultUserScaleFactor(): Float {
-            return defaultUserScaleFactor
-        }
-
-        /**
          * The device scale factor new models start with.
          */
-        @JvmStatic
         @Synchronized
         fun getDeviceScaleFactor(): Float {
             return deviceScaleFactor
         }
 
-        @JvmStatic
-        @Synchronized
-        fun setDefaultUserScaleFactor(scaleFactor: Float) {
-            defaultUserScaleFactor = scaleFactor
-        }
-
-        @JvmStatic
         @Synchronized
         fun setDeviceScaleFactor(scaleFactor: Float) {
             deviceScaleFactor = scaleFactor

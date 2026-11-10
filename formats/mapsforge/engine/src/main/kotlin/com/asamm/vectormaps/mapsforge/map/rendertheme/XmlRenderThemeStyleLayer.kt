@@ -26,7 +26,6 @@ open class XmlRenderThemeStyleLayer internal constructor(
     val id: String?,
     private val visible: Boolean,
     private val enabled: Boolean,
-    private val defaultLanguage: String?,
 ) : Serializable {
 
     val categories: MutableSet<String> = LinkedHashSet()
@@ -49,13 +48,6 @@ open class XmlRenderThemeStyleLayer internal constructor(
 
     fun addTranslation(language: String, name: String) {
         this.titles[language] = name
-    }
-
-    /**
-     * The title in [language], else in the menu's default language.
-     */
-    fun getTitle(language: String?): String? {
-        return this.titles[language] ?: this.titles[this.defaultLanguage]
     }
 
     private companion object {

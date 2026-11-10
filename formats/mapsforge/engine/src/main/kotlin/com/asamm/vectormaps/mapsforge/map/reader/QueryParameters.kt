@@ -36,34 +36,6 @@ internal class QueryParameters {
     var toBlockY = 0L
     var useTileBitmask = false
 
-    fun calculateBaseTiles(tile: Tile, subFileParameter: SubFileParameter) {
-        if (tile.zoomLevel < subFileParameter.baseZoomLevel) {
-            // calculate the XY numbers of the upper left and lower right sub-tiles
-            val zoomLevelDifference = subFileParameter.baseZoomLevel - tile.zoomLevel
-            fromBaseTileX = (tile.tileX shl zoomLevelDifference).toLong()
-            fromBaseTileY = (tile.tileY shl zoomLevelDifference).toLong()
-            toBaseTileX = fromBaseTileX + (1 shl zoomLevelDifference) - 1
-            toBaseTileY = fromBaseTileY + (1 shl zoomLevelDifference) - 1
-            useTileBitmask = false
-        } else if (tile.zoomLevel > subFileParameter.baseZoomLevel) {
-            // calculate the XY numbers of the parent base tile
-            val zoomLevelDifference = tile.zoomLevel - subFileParameter.baseZoomLevel
-            fromBaseTileX = (tile.tileX ushr zoomLevelDifference).toLong()
-            fromBaseTileY = (tile.tileY ushr zoomLevelDifference).toLong()
-            toBaseTileX = fromBaseTileX
-            toBaseTileY = fromBaseTileY
-            useTileBitmask = true
-            queryTileBitmask = QueryCalculations.calculateTileBitmask(tile, zoomLevelDifference)
-        } else {
-            // use the tile XY numbers of the requested tile
-            fromBaseTileX = tile.tileX.toLong()
-            fromBaseTileY = tile.tileY.toLong()
-            toBaseTileX = fromBaseTileX
-            toBaseTileY = fromBaseTileY
-            useTileBitmask = false
-        }
-    }
-
     fun calculateBaseTiles(upperLeft: Tile, lowerRight: Tile, subFileParameter: SubFileParameter) {
         if (upperLeft.zoomLevel < subFileParameter.baseZoomLevel) {
             // here we need to combine multiple base tiles

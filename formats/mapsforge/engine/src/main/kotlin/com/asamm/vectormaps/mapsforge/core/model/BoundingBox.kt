@@ -28,16 +28,12 @@ import java.io.Serializable
  */
 open class BoundingBox : Serializable {
 
-    @JvmField
     val maxLatitude: Double
 
-    @JvmField
     val maxLongitude: Double
 
-    @JvmField
     val minLatitude: Double
 
-    @JvmField
     val minLongitude: Double
 
     /**
@@ -125,70 +121,6 @@ open class BoundingBox : Serializable {
     }
 
     /**
-     * The box also covering the point; this instance when it already does.
-     */
-    fun extendCoordinates(latitude: Double, longitude: Double): BoundingBox {
-        if (contains(latitude, longitude)) {
-            return this
-        }
-
-        val minLat = Math.max(MercatorProjection.LATITUDE_MIN, Math.min(minLatitude, latitude))
-        val minLon = Math.max(-180.0, Math.min(minLongitude, longitude))
-        val maxLat = Math.min(MercatorProjection.LATITUDE_MAX, Math.max(maxLatitude, latitude))
-        val maxLon = Math.min(180.0, Math.max(maxLongitude, longitude))
-
-        return BoundingBox(minLat, minLon, maxLat, maxLon)
-    }
-
-    fun extendCoordinates(latLong: LatLong): BoundingBox {
-        return extendCoordinates(latLong.latitude, latLong.longitude)
-    }
-
-    /**
-     * The box grown by the given degrees on each side; negative values throw
-     * [IllegalArgumentException].
-     */
-    fun extendDegrees(verticalExpansion: Double, horizontalExpansion: Double): BoundingBox {
-        if (verticalExpansion == 0.0
-            && horizontalExpansion == 0.0
-        ) {
-            return this
-        } else if (verticalExpansion < 0
-            || horizontalExpansion < 0
-        ) {
-            throw IllegalArgumentException("BoundingBox extend operation does not accept negative values")
-        }
-
-        val minLat = Math.max(MercatorProjection.LATITUDE_MIN, minLatitude - verticalExpansion)
-        val minLon = Math.max(-180.0, minLongitude - horizontalExpansion)
-        val maxLat = Math.min(MercatorProjection.LATITUDE_MAX, maxLatitude + verticalExpansion)
-        val maxLon = Math.min(180.0, maxLongitude + horizontalExpansion)
-
-        return BoundingBox(minLat, minLon, maxLat, maxLon)
-    }
-
-    /**
-     * The box scaled around its center by `margin`; 0 or less throws [IllegalArgumentException].
-     */
-    fun extendMargin(margin: Float): BoundingBox {
-        if (margin == 1f) {
-            return this
-        } else if (margin <= 0) {
-            throw IllegalArgumentException("BoundingBox extend operation does not accept negative or zero values")
-        }
-
-        val verticalExpansion = (latitudeSpan * margin - latitudeSpan) * 0.5
-        val horizontalExpansion = (longitudeSpan * margin - longitudeSpan) * 0.5
-
-        val minLat = Math.max(MercatorProjection.LATITUDE_MIN, minLatitude - verticalExpansion)
-        val minLon = Math.max(-180.0, minLongitude - horizontalExpansion)
-        val maxLat = Math.min(MercatorProjection.LATITUDE_MAX, maxLatitude + verticalExpansion)
-        val maxLon = Math.min(180.0, maxLongitude + horizontalExpansion)
-
-        return BoundingBox(minLat, minLon, maxLat, maxLon)
-    }
-
-    /**
      * The box grown by `meters` on each side; negative throws [IllegalArgumentException].
      */
     fun extendMeters(meters: Int): BoundingBox {
@@ -217,16 +149,6 @@ open class BoundingBox : Serializable {
             val latitudeOffset = (maxLatitude - minLatitude) / 2
             val longitudeOffset = (maxLongitude - minLongitude) / 2
             return LatLong(minLatitude + latitudeOffset, minLongitude + longitudeOffset)
-        }
-
-    val latitudeSpan: Double
-        get() {
-            return maxLatitude - minLatitude
-        }
-
-    val longitudeSpan: Double
-        get() {
-            return maxLongitude - minLongitude
         }
 
     /**
@@ -312,7 +234,6 @@ open class BoundingBox : Serializable {
         /**
          * Parses "minLat,minLon,maxLat,maxLon" in degrees.
          */
-        @JvmStatic
         fun fromString(boundingBoxString: String): BoundingBox {
             val coordinates = LatLongUtils.parseCoordinateString(boundingBoxString, 4)
             return BoundingBox(coordinates[0], coordinates[1], coordinates[2], coordinates[3])

@@ -37,10 +37,7 @@ import com.asamm.vectormaps.mapsforge.core.graphics.TileBitmap
 import com.asamm.vectormaps.mapsforge.core.mapelements.PointTextContainer
 import com.asamm.vectormaps.mapsforge.core.mapelements.SymbolContainer
 import com.asamm.vectormaps.mapsforge.core.model.Point
-import com.kitfox.svg.SVGCache
 import java.awt.Font
-import java.awt.Graphics
-import java.awt.Graphics2D
 import java.awt.geom.AffineTransform
 import java.awt.image.BufferedImage
 import java.io.IOException
@@ -159,10 +156,8 @@ open class AwtGraphicFactory private constructor(private val fonts: Map<FontFami
 
     companion object {
 
-        @JvmField
         val INSTANCE: GraphicFactory = AwtGraphicFactory(emptyMap())
 
-        @JvmField
         val TRANSPARENT = java.awt.Color(0, 0, 0, 0)
 
         /**
@@ -170,37 +165,22 @@ open class AwtGraphicFactory private constructor(private val fonts: Map<FontFami
          * style, instead of the system's logical font; the golden tests use it to render text alike on
          * every system.
          */
-        @JvmStatic
         fun withFonts(fonts: Map<FontFamily, Font>): GraphicFactory {
             return AwtGraphicFactory(fonts.toMap())
         }
 
-        @JvmStatic
-        fun createGraphicContext(graphics: Graphics): Canvas {
-            return AwtCanvas(graphics as Graphics2D)
-        }
-
-        @JvmStatic
         internal fun getAffineTransform(matrix: Matrix): AffineTransform {
             return (matrix as AwtMatrix).affineTransform
         }
 
-        @JvmStatic
-        fun getGraphics(canvas: Canvas): Graphics2D? {
-            return (canvas as AwtCanvas).getGraphicObject()
-        }
-
-        @JvmStatic
         fun getPaint(paint: Paint): AwtPaint {
             return paint as AwtPaint
         }
 
-        @JvmStatic
         internal fun getPath(path: Path): AwtPath {
             return path as AwtPath
         }
 
-        @JvmStatic
         internal fun getColor(color: Color): java.awt.Color {
             return when (color) {
                 Color.BLACK -> java.awt.Color.BLACK
@@ -212,23 +192,12 @@ open class AwtGraphicFactory private constructor(private val fonts: Map<FontFami
             }
         }
 
-        @JvmStatic
-        fun clearResourceFileCache() {
-            // We don't use a resource file cache
-        }
-
-        @JvmStatic
-        fun clearResourceMemoryCache() {
-            SVGCache.getSVGUniverse().clear()
-        }
-
         /**
          * Returns the internal image representation.
          *
          * @param bitmap Mapsforge Bitmap
          * @return platform specific image.
          */
-        @JvmStatic
         fun getBitmap(bitmap: Bitmap): BufferedImage {
             return (bitmap as AwtBitmap).bufferedImage
         }

@@ -30,7 +30,6 @@ enum class Display {
 
     companion object {
 
-        @JvmStatic
         fun fromString(value: String?): Display {
             return when (value) {
                 "ifspace" -> IFSPACE

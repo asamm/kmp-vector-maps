@@ -23,8 +23,8 @@ import java.util.Objects
  * An immutable pair of double coordinates.
  */
 open class Point(
-    @JvmField val x: Double,
-    @JvmField val y: Double,
+    val x: Double,
+    val y: Double,
 ) : Comparable<Point>, Serializable {
 
     override fun compareTo(other: Point): Int {
@@ -80,7 +80,6 @@ open class Point(
         /**
          * Orders by x, then y.
          */
-        @JvmStatic
         fun compareCoord(x1: Double, y1: Double, x2: Double, y2: Double): Int {
             if (x1 > x2) {
                 return 1

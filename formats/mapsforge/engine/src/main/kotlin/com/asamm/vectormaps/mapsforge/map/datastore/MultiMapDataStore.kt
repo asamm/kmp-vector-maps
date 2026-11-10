@@ -28,7 +28,7 @@ import java.util.Comparator
  * covering store answers or all of them, with or without deduplication. A store with a negative
  * priority only fills tiles no other store fully covers.
  */
-open class MultiMapDataStore @JvmOverloads constructor(
+open class MultiMapDataStore constructor(
     private val dataPolicy: DataPolicy = DataPolicy.DEDUPLICATE,
 ) : MapDataStore() {
 
@@ -288,14 +288,6 @@ open class MultiMapDataStore @JvmOverloads constructor(
 
     private fun coversFullArea(mdb: MapDataStore, upperLeft: Tile, lowerRight: Tile): Boolean {
         return mdb.supportsFullArea(Tile.getBoundingBox(upperLeft, lowerRight), upperLeft.zoomLevel)
-    }
-
-    fun setStartPosition(startPosition: LatLong?) {
-        this.startPosition = startPosition
-    }
-
-    fun setStartZoomLevel(startZoomLevel: Byte) {
-        this.startZoomLevel = startZoomLevel
     }
 
     /**

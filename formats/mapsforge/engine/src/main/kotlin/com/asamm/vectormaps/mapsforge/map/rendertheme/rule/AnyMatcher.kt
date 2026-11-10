@@ -19,14 +19,6 @@ import com.asamm.vectormaps.mapsforge.core.model.Tag
 
 internal object AnyMatcher : ElementMatcher, AttributeMatcher, ClosedMatcher {
 
-    override fun isCoveredBy(closedMatcher: ClosedMatcher): Boolean {
-        return closedMatcher === this
-    }
-
-    override fun isCoveredBy(elementMatcher: ElementMatcher): Boolean {
-        return elementMatcher === this
-    }
-
     override fun matches(closed: Closed): Boolean {
         return true
     }

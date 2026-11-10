@@ -79,8 +79,6 @@ interface GraphicContext {
 
     fun drawText(text: String, x: Int, y: Int, paint: Paint)
 
-    fun drawTextRotated(text: String, x1: Int, y1: Int, x2: Int, y2: Int, paint: Paint)
-
     fun fillColor(color: Color)
 
     fun fillColor(color: Int)

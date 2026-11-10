@@ -48,8 +48,7 @@ open class WayTextContainer(
 
     private val graphicFactory: GraphicFactory
 
-    @JvmField
-    protected val boundary: Rectangle
+    private val boundary: Rectangle
 
     // internal: the label pass reads the line, text, paints, text height and orientation (C10)
     internal val lineString: LineString
@@ -82,7 +81,7 @@ open class WayTextContainer(
             textHeight / 2.0,
             textHeight / 2.0,
         )
-        this.boundaryAbsolute = absolute
+        this.cachedBoundaryAbsolute = absolute
         this.boundary = absolute.shift(Point(-this.xy.x, -this.xy.y))
         this.textOrientation = textOrientation
     }

@@ -37,7 +37,6 @@ open class AndroidBitmap protected constructor() : BaseBitmap(), Bitmap {
      * The Android bitmap, null once destroyed.
      */
     @Volatile
-    @JvmField
     internal var bitmap: android.graphics.Bitmap? = null
 
     private val refCount = AtomicInteger()
@@ -51,15 +50,8 @@ open class AndroidBitmap protected constructor() : BaseBitmap(), Bitmap {
         }
     }
 
-    constructor(bitmap: android.graphics.Bitmap) : this() {
-        if (bitmap.isRecycled) {
-            throw IllegalArgumentException("bitmap is already recycled")
-        }
-        this.bitmap = bitmap
-    }
-
     internal constructor(width: Int, height: Int, config: Config) : this() {
-        this.bitmap = getBitmapFromReusableSet(width, height, config)
+        this.bitmap = getBitmapFromReusableSet(width, height)
         if (this.bitmap == null) {
             this.bitmap = createAndroidBitmap(width, height, config)
         }
@@ -68,11 +60,6 @@ open class AndroidBitmap protected constructor() : BaseBitmap(), Bitmap {
     final override val height: Int
         get() {
             return bitmap!!.height
-        }
-
-    final override val isDestroyed: Boolean
-        get() {
-            return bitmap == null
         }
 
     final override val width: Int
@@ -116,10 +103,6 @@ open class AndroidBitmap protected constructor() : BaseBitmap(), Bitmap {
             destroy()
             bitmap = scaledBitmap
         }
-    }
-
-    final override fun setBackgroundColor(color: Int) {
-        bitmap!!.eraseColor(color)
     }
 
     override fun toString(): String {
@@ -179,7 +162,6 @@ open class AndroidBitmap protected constructor() : BaseBitmap(), Bitmap {
     protected fun getBitmapFromReusableSet(
         width: Int,
         height: Int,
-        config: Config,
     ): android.graphics.Bitmap? {
         var result: android.graphics.Bitmap? = null
 
@@ -230,8 +212,7 @@ open class AndroidBitmap protected constructor() : BaseBitmap(), Bitmap {
                 null
             }
 
-        @JvmStatic
-        protected fun createAndroidBitmap(
+        internal fun createAndroidBitmap(
             width: Int,
             height: Int,
             config: Config,
@@ -239,8 +220,7 @@ open class AndroidBitmap protected constructor() : BaseBitmap(), Bitmap {
             return android.graphics.Bitmap.createBitmap(width, height, config)
         }
 
-        @JvmStatic
-        protected fun createBitmapFactoryOptions(config: Config): BitmapFactory.Options {
+        internal fun createBitmapFactoryOptions(config: Config): BitmapFactory.Options {
             val bitmapFactoryOptions = BitmapFactory.Options()
             bitmapFactoryOptions.inPreferredConfig = config
             return bitmapFactoryOptions

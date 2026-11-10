@@ -37,19 +37,14 @@ open class RendererJob(
     labelsOnly: Boolean,
 ) : Job(tile, isTransparent) {
 
-    @JvmField
     val displayModel: DisplayModel
 
-    @JvmField
     var labelsOnly: Boolean
 
-    @JvmField
     val mapDataStore: MapDataStore
 
-    @JvmField
     val renderThemeFuture: RenderThemeFuture?
 
-    @JvmField
     val textScale: Float
 
     private val hashCodeValue: Int
@@ -119,13 +114,6 @@ open class RendererJob(
             hasAlpha,
             labelsOnly,
         )
-    }
-
-    /**
-     * Makes this job generate only the labels.
-     */
-    fun setRetrieveLabelsOnly() {
-        labelsOnly = true
     }
 
     private fun calculateHashCode(): Int {

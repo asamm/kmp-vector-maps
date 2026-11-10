@@ -29,7 +29,7 @@ import java.io.InputStream
  *
  * @throws FileNotFoundException if the file does not exist or cannot be read.
  */
-open class ExternalRenderTheme @JvmOverloads @Throws(FileNotFoundException::class) constructor(
+open class ExternalRenderTheme @Throws(FileNotFoundException::class) constructor(
     private val renderThemeFile: File,
     final override var menuCallback: XmlRenderThemeMenuCallback? = null,
 ) : XmlRenderTheme {
@@ -55,7 +55,6 @@ open class ExternalRenderTheme @JvmOverloads @Throws(FileNotFoundException::clas
         }
     }
 
-    @JvmOverloads
     @Throws(FileNotFoundException::class)
     constructor(
         renderThemePath: String,

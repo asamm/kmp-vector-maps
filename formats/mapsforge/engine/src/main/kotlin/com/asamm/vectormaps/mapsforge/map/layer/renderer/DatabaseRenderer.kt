@@ -54,25 +54,16 @@ open class DatabaseRenderer(
     hillsRenderConfig: HillshadingDrawer?,
 ) : StandardRenderer(mapDataStore, graphicFactory, renderLabels || cacheLabels, hillsRenderConfig) {
 
-    @JvmField
     protected val tileCache: TileCache? = tileCache
 
-    @JvmField
     protected val labelStore: LabelStore? = labelStore
 
     /**
      * True to draw the labels onto the tiles; the inherited `renderLabels` also covers caching them.
      */
-    @JvmField
     protected val drawLabels: Boolean = renderLabels
 
-    @JvmField
     protected val tileDependencies: TileDependencies = TileDependencies()
-
-    val mapDatabase: MapDataStore?
-        get() {
-            return mapDataStore
-        }
 
     /**
      * Renders `rendererJob` and caches a full tile. Null for a labels-only job inside the map or if
@@ -324,7 +315,6 @@ open class DatabaseRenderer(
 
     companion object {
 
-        @JvmField
         protected val LOGGER: Logger = Logger.getLogger(DatabaseRenderer::class.java.name)
     }
 }

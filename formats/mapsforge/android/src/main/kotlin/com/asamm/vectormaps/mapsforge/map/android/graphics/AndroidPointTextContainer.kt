@@ -60,29 +60,22 @@ open class AndroidPointTextContainer internal constructor(
     maxTextWidth,
 ) {
 
-    @JvmField
-    protected val boundary: Rectangle
+    private val boundary: Rectangle
 
     private val backLayout: StaticLayout?
 
     private val frontLayout: StaticLayout?
 
-    @JvmField
     val textHeight: Int
 
-    @JvmField
     val textWidth: Int
 
-    @JvmField
     val isMultiline: Boolean
 
-    @JvmField
     val textBounds: Rectangle
 
-    @JvmField
     val fontPadding: Int
 
-    @JvmField
     protected val debugClashBoundsPaint: android.graphics.Paint?
 
     init {

@@ -30,14 +30,11 @@ open class MapReadResult {
     /**
      * True if the read area is completely covered by water.
      */
-    @JvmField
     var isWater = false
 
     // linked lists: deduplicate removes from them in place
-    @JvmField
     val ways: MutableList<Way> = LinkedList()
 
-    @JvmField
     val pois: MutableList<PointOfInterest> = LinkedList()
 
     fun add(poiWayBundle: PoiWayBundle) {

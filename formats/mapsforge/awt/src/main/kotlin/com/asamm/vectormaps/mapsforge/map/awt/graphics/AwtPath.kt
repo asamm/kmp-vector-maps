@@ -16,7 +16,6 @@
  */
 package com.asamm.vectormaps.mapsforge.map.awt.graphics
 
-import com.asamm.vectormaps.mapsforge.core.graphics.FillRule
 import com.asamm.vectormaps.mapsforge.core.graphics.Path
 import java.awt.geom.Path2D
 
@@ -48,19 +47,5 @@ internal open class AwtPath : Path {
 
     final override fun quadTo(x1: Float, y1: Float, x2: Float, y2: Float) {
         this.path2D.quadTo(x1.toDouble(), y1.toDouble(), x2.toDouble(), y2.toDouble())
-    }
-
-    final override fun setFillRule(fillRule: FillRule) {
-        this.path2D.windingRule = getWindingRule(fillRule)
-    }
-
-    private companion object {
-
-        private fun getWindingRule(fillRule: FillRule): Int {
-            return when (fillRule) {
-                FillRule.EVEN_ODD -> Path2D.WIND_EVEN_ODD
-                FillRule.NON_ZERO -> Path2D.WIND_NON_ZERO
-            }
-        }
     }
 }

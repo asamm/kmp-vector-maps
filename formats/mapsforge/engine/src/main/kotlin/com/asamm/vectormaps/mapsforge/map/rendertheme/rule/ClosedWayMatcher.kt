@@ -17,10 +17,6 @@ package com.asamm.vectormaps.mapsforge.map.rendertheme.rule
 
 internal object ClosedWayMatcher : ClosedMatcher {
 
-    override fun isCoveredBy(closedMatcher: ClosedMatcher): Boolean {
-        return closedMatcher.matches(Closed.YES)
-    }
-
     override fun matches(closed: Closed): Boolean {
         return closed == Closed.YES
     }

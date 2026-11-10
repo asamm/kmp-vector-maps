@@ -18,21 +18,10 @@ package com.asamm.vectormaps.mapsforge.core.graphics
 interface TileBitmap : Bitmap {
 
     /**
-     * True once the expiration time has passed, never for an expiration of 0; the tile may still
-     * show until a fresh copy is available.
-     */
-    val isExpired: Boolean
-
-    /**
      * When the tile's source data was last retrieved, in milliseconds since the epoch, 0 when
      * unknown: the map file date for a rendered tile, the file time for a cached one, else the
      * creation time, which implementations store until it is set.
      */
     var timestamp: Long
 
-    /**
-     * When the tile expires, in milliseconds since the epoch, 0 when unknown: the server's
-     * expiration for a download, else now plus a TTL.
-     */
-    fun setExpiration(expiration: Long)
 }

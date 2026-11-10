@@ -104,7 +104,7 @@ Each change measured against the baselines in [performance.md](performance.md) (
 | M7.4 | Theme parse (~80 ms on the A54): one compiled theme per style, shared by its renderers (D40) | a second renderer does not parse (`MapsforgeDriverTest`) ✅ PR #50 |
 | M7.5 | Way geometry in `DoubleArray`s from the reader to the path: no `LatLong` or `Point` per node | allocated per render, JVM: −7 to −32 %; A54 objects −10 to −53 %, render time level on both except JVM Monaco z12 −23 %, A54 read z12 −8 to −11 % ✅ PR #51 |
 | M7.6a | Garmin cleanup: dead code, idiomatic Kotlin | Garmin golden and dump comparison unchanged; allocated per op: read −1 to −6 %, render level 🔧 |
-| M7.6b | Mapsforge dead code: unused classes, members and `Parameters` flags, `@JvmField`s (D41) | Mapsforge goldens unchanged; every module and the golden harness compile |
+| M7.6b | Mapsforge dead code: unused classes, members and `Parameters` flags, `@JvmField`s (D41) | Mapsforge goldens (JVM, Android) unchanged; every module and the golden harness compile 🔧 |
 | M7.6c | Mapsforge idioms outside hot paths (D41) | Mapsforge goldens unchanged; allocation per op not up |
 
 - M7.2a: `ThemeCachesTest` drives 8 × 25,000 new tag lists through the 8,192-entry way matching

@@ -278,12 +278,6 @@ open class RenderTheme internal constructor(renderThemeBuilder: RenderThemeBuild
         }
     }
 
-    fun traverseRules(visitor: Rule.RuleVisitor) {
-        for (rule in this.rulesList) {
-            rule.apply(visitor)
-        }
-    }
-
     /**
      * True when the theme has a `<hillshading>` element, whether or not its category shows.
      */

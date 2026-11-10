@@ -61,18 +61,14 @@ open class AndroidResourceBitmap protected constructor(
 
     companion object {
 
-        @JvmField
-        protected val LOGGER: Logger = Logger.getLogger(AndroidResourceBitmap::class.java.name)
+        internal val LOGGER: Logger = Logger.getLogger(AndroidResourceBitmap::class.java.name)
 
-        @JvmField
-        protected var rBitmaps: MutableSet<Int>? = null
+        internal var rBitmaps: MutableSet<Int>? = null
 
-        @JvmField
-        protected val RESOURCE_BITMAPS: MutableMap<Int, Pair<Bitmap, Int>> = HashMap()
+        internal val RESOURCE_BITMAPS: MutableMap<Int, Pair<Bitmap, Int>> = HashMap()
 
         // used for debug bitmap accounting
-        @JvmField
-        protected var rInstances: AtomicInteger? = null
+        internal var rInstances: AtomicInteger? = null
 
         init {
             if (AndroidGraphicFactory.DEBUG_BITMAPS) {
@@ -84,25 +80,6 @@ open class AndroidResourceBitmap protected constructor(
         // if AndroidGraphicFactory.KEEP_RESOURCE_BITMAPS is set, the bitmaps are kept in
         // a dictionary for faster retrieval and are not deleted or recycled until
         // clearResourceBitmaps is called
-
-        @JvmStatic
-        fun clearResourceBitmaps() {
-            if (!AndroidGraphicFactory.KEEP_RESOURCE_BITMAPS) {
-                return
-            }
-            synchronized(RESOURCE_BITMAPS) {
-                for (p in RESOURCE_BITMAPS.values) {
-                    p.first.recycle()
-                    if (AndroidGraphicFactory.DEBUG_BITMAPS) {
-                        rInstances!!.decrementAndGet()
-                    }
-                }
-                if (AndroidGraphicFactory.DEBUG_BITMAPS) {
-                    rBitmaps!!.clear()
-                }
-                RESOURCE_BITMAPS.clear()
-            }
-        }
 
         @Throws(IOException::class)
         private fun getResourceBitmap(

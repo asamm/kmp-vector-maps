@@ -39,8 +39,6 @@ import java.util.logging.Logger
  */
 open class AndroidTileBitmap : AndroidBitmap, TileBitmap {
 
-    private var expiration: Long = 0
-
     final override var timestamp: Long = System.currentTimeMillis()
 
     /*
@@ -98,18 +96,6 @@ open class AndroidTileBitmap : AndroidBitmap, TileBitmap {
         if (AndroidGraphicFactory.DEBUG_BITMAPS) {
             tileInstances!!.incrementAndGet()
         }
-    }
-
-    final override val isExpired: Boolean
-        get() {
-            if (expiration == 0L) {
-                return false
-            }
-            return expiration <= System.currentTimeMillis()
-        }
-
-    final override fun setExpiration(expiration: Long) {
-        this.expiration = expiration
     }
 
     override fun destroy() {

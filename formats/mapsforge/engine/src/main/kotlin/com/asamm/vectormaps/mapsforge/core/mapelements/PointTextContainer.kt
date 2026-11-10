@@ -42,30 +42,22 @@ abstract class PointTextContainer protected constructor(
     maxTextWidth: Int,
 ) : MapElementContainer(point, display, priority) {
 
-    @JvmField
     val horizontalOffset: Double
 
     final override val isNotVisible: Boolean
 
-    @JvmField
     val maxTextWidth: Int
 
-    @JvmField
     val paintBack: Paint?
 
-    @JvmField
     val paintFront: Paint
 
-    @JvmField
     val position: Position
 
-    @JvmField
     val symbolContainer: SymbolContainer?
 
-    @JvmField
     val text: String
 
-    @JvmField
     val verticalOffset: Double
 
     init {
@@ -339,7 +331,6 @@ abstract class PointTextContainer protected constructor(
         /**
          * New rotated x,y position of the container relative to the origin point.
          */
-        @JvmStatic
         fun getRotatedRelativePosition(
             pointTextContainer: PointTextContainer,
             originX: Double,
@@ -352,7 +343,6 @@ abstract class PointTextContainer protected constructor(
         /**
          * The clash rectangle transformed back to label space, mainly for debugging.
          */
-        @JvmStatic
         fun getClashRectangleTransformed(
             pointTextContainer: PointTextContainer,
             originX: Double,

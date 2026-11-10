@@ -29,7 +29,6 @@ import com.asamm.vectormaps.mapsforge.core.model.LineSegment
 import com.asamm.vectormaps.mapsforge.core.model.LineString
 import com.asamm.vectormaps.mapsforge.core.model.Point
 import com.asamm.vectormaps.mapsforge.core.model.Rectangle
-import com.asamm.vectormaps.mapsforge.core.model.Tile
 import com.asamm.vectormaps.mapsforge.map.rendertheme.RenderContext
 
 internal object WayDecorator {
@@ -150,24 +149,20 @@ internal object WayDecorator {
 
     /**
      * Finds the parts of a way, absolute x, y pairs, along which `text` fits and adds a
-     * WayTextContainer for each to the labels of `renderContext`; `upperLeft`, `lowerRight` and
-     * `repeat` are unused: the text repeats every `repeatGap` regardless of `repeat`.
+     * WayTextContainer for each to the labels of `renderContext`; the text repeats every
+     * `repeatGap`, whatever the theme's `repeat` says.
      *
      * @param dy if not 0, a line parallel to the coordinates is computed first
      * @param stroke stroke paint for the text, null to measure with `fill`
      */
-    @Suppress("UNUSED_PARAMETER")
     fun renderText(
         graphicFactory: GraphicFactory,
-        upperLeft: Tile,
-        lowerRight: Tile,
         text: String,
         display: Display,
         priority: Int,
         dy: Float,
         fill: Paint,
         stroke: Paint?,
-        repeat: Boolean,
         repeatGap: Float,
         repeatStart: Float,
         textOrientation: TextOrientation,

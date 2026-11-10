@@ -54,19 +54,6 @@ open class InMemoryTileCache(capacity: Int) : TileCache {
     }
 
     @Synchronized
-    final override fun getCapacity(): Int {
-        return lruCache.capacity
-    }
-
-    final override fun getCapacityFirstLevel(): Int {
-        return getCapacity()
-    }
-
-    final override fun getImmediately(key: Job): TileBitmap? {
-        return get(key)
-    }
-
-    @Synchronized
     final override fun purge() {
         for (bitmap in lruCache.values) {
             bitmap.decrementRefCount()
@@ -86,17 +73,6 @@ open class InMemoryTileCache(capacity: Int) : TileCache {
         }
         bitmap.incrementRefCount()
         observable.notifyObservers()
-    }
-
-    /**
-     * Sets the new size of this cache, dropping entries by the cache policy if it holds more;
-     * negative throws [IllegalArgumentException].
-     */
-    @Synchronized
-    fun setCapacity(capacity: Int) {
-        val lruCacheNew = BitmapLRUCache(capacity)
-        lruCacheNew.putAll(lruCache)
-        lruCache = lruCacheNew
     }
 
     @Synchronized

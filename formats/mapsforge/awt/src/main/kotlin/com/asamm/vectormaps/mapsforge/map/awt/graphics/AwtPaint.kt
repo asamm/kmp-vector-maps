@@ -253,10 +253,6 @@ open class AwtPaint : Paint {
         )
     }
 
-    fun setStroke(stroke: Stroke?) {
-        this.stroke = stroke
-    }
-
     companion object {
 
         private val TEXT_ATTRIBUTES: MutableMap<AttributedCharacterIterator.Attribute, Any> = HashMap()
@@ -302,7 +298,6 @@ open class AwtPaint : Paint {
         /**
          * [Paint.FONT_PADDING_FACTOR] times `fontHeight`, at least 1.
          */
-        @JvmStatic
         fun getFontPadding(fontHeight: Int): Int {
             return Math.max(1.0, Paint.FONT_PADDING_FACTOR * fontHeight).toInt()
         }

@@ -40,18 +40,6 @@ interface TileCache : ObservableInterface {
      */
     fun get(key: Job): TileBitmap?
 
-    fun getCapacity(): Int
-
-    /**
-     * The capacity of the first level of a multi-level cache.
-     */
-    fun getCapacityFirstLevel(): Int
-
-    /**
-     * The image for `key` only if the fastest level of a multi-level cache holds it, else null.
-     */
-    fun getImmediately(key: Job): TileBitmap?
-
     /**
      * Drops every tile added before; purge when map model parameters change, such as the render
      * style for locally rendered tiles or the source for downloaded ones.

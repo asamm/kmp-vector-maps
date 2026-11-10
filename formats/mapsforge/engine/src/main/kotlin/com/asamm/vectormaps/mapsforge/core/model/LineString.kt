@@ -21,7 +21,6 @@ package com.asamm.vectormaps.mapsforge.core.model
  */
 open class LineString {
 
-    @JvmField
     val segments: MutableList<LineSegment> = ArrayList()
 
     override fun equals(other: Any?): Boolean {
@@ -118,24 +117,6 @@ open class LineString {
             }
             return Rectangle(minX, minY, maxX, maxY)
         }
-
-    /**
-     * The point `distance` along the line, null when it lies outside 0 to [length].
-     */
-    fun interpolate(distance: Double): Point? {
-        if (distance < 0) {
-            return null
-        }
-        var remaining = distance
-        for (segment in segments) {
-            val length = segment.length()
-            if (remaining <= length) {
-                return segment.pointAlongLineSegment(remaining)
-            }
-            remaining -= length
-        }
-        return null
-    }
 
     fun length(): Double {
         var result = 0.0

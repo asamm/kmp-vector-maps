@@ -52,19 +52,14 @@ abstract class RenderInstruction protected constructor(
     var category: String? = null
         protected set
 
-    @JvmField
     val displayModel: DisplayModel
 
-    @JvmField
     val graphicFactory: GraphicFactory
 
-    @JvmField
     protected var height: Float = 0f
 
-    @JvmField
     protected var percent: Int = 100
 
-    @JvmField
     protected var width: Float = 0f
 
     init {

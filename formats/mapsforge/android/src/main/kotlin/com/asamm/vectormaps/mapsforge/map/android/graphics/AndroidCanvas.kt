@@ -42,10 +42,8 @@ internal open class AndroidCanvas(canvas: android.graphics.Canvas) : Canvas {
     /**
      * The Android canvas, null once destroyed.
      */
-    @JvmField
     internal var canvas: android.graphics.Canvas? = canvas
 
-    @JvmField
     protected val bitmapPaint = android.graphics.Paint()
 
     init {
@@ -310,28 +308,6 @@ internal open class AndroidCanvas(canvas: android.graphics.Canvas) : Canvas {
             return
         }
         canvas!!.drawText(text, x.toFloat(), y.toFloat(), AndroidGraphicFactory.getPaint(paint))
-    }
-
-    final override fun drawTextRotated(
-        text: String,
-        x1: Int,
-        y1: Int,
-        x2: Int,
-        y2: Int,
-        paint: Paint,
-    ) {
-        // Java's String.trim(), which strips chars up to U+0020
-        if (text.trim { it <= ' ' }.isEmpty()) {
-            return
-        }
-        if (paint.isTransparent) {
-            return
-        }
-
-        val path = android.graphics.Path()
-        path.moveTo(x1.toFloat(), y1.toFloat())
-        path.lineTo(x2.toFloat(), y2.toFloat())
-        canvas!!.drawTextOnPath(text, path, 0f, 3f, AndroidGraphicFactory.getPaint(paint))
     }
 
     final override fun fillColor(color: Color) {

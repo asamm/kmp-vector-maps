@@ -27,7 +27,6 @@ object IOUtils {
     /**
      * Closes `closeable`, which may be null; an [IOException] is logged, not thrown.
      */
-    @JvmStatic
     fun closeQuietly(closeable: Closeable?) {
         try {
             closeable?.close()

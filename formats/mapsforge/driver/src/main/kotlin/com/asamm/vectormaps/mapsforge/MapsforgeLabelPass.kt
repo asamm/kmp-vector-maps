@@ -166,7 +166,7 @@ class MapsforgeLabelPass internal constructor(
         return hash
     }
 
-    // the vendored store, read a tile at a time; its `requiresTile`, unused, then sees one tile
+    // the vendored store, read a tile at a time
     private class StoreTiles(
         private val store: TileBasedLabelStore,
         private val tileSize: Int,

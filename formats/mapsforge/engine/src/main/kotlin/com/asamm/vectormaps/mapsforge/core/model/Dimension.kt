@@ -22,10 +22,8 @@ import java.io.Serializable
  */
 open class Dimension(width: Int, height: Int) : Serializable {
 
-    @JvmField
     val height: Int
 
-    @JvmField
     val width: Int
 
     init {

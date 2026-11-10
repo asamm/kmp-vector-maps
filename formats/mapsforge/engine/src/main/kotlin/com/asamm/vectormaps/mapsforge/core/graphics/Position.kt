@@ -50,7 +50,6 @@ enum class Position {
 
     companion object {
 
-        @JvmStatic
         fun fromString(value: String?): Position {
             return when (value) {
                 // auto positioning is implemented as below
