@@ -179,7 +179,7 @@ open class Caption @Throws(XmlPullParserException::class) constructor(
             } else if (POSITION == name) {
                 this.position = Position.fromString(value)
             } else if (PRIORITY == name) {
-                this.priority = Integer.parseInt(value)
+                this.priority = value.toInt()
             } else if (STROKE == name) {
                 this.stroke.color = XmlUtils.getColor(graphicFactory, value, displayModel.themeCallback, this)
             } else if (STROKE_WIDTH == name) {

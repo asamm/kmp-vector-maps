@@ -98,7 +98,7 @@ open class LineSymbol @Throws(IOException::class, XmlPullParserException::class)
                 this.src = value
             } else if (ALIGN_CENTER == name) {
                 // Deprecated way to say position="center"
-                val alignCenter = java.lang.Boolean.parseBoolean(value)
+                val alignCenter = value.toBoolean()
                 if (alignCenter) {
                     this.position = Position.CENTER
                 }
@@ -109,15 +109,15 @@ open class LineSymbol @Throws(IOException::class, XmlPullParserException::class)
             } else if (DY == name) {
                 this.dy = value.toFloat() * displayModel.scaleFactor
             } else if (PRIORITY == name) {
-                this.priority = Integer.parseInt(value)
+                this.priority = value.toInt()
             } else if (REPEAT == name) {
-                this.repeat = java.lang.Boolean.parseBoolean(value)
+                this.repeat = value.toBoolean()
             } else if (REPEAT_GAP == name) {
                 this.repeatGap = value.toFloat() * displayModel.scaleFactor
             } else if (REPEAT_START == name) {
                 this.repeatStart = value.toFloat() * displayModel.scaleFactor
             } else if (ROTATE == name) {
-                if (!java.lang.Boolean.parseBoolean(value)) {
+                if (!value.toBoolean()) {
                     this.symbolOrientation = SymbolOrientation.UP
                 }
             } else if (SCALE == name) {

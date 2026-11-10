@@ -333,8 +333,8 @@ class AndroidGraphicFactory private constructor(private val context: Context?) :
         }
 
         /**
-         * Recycles the theme symbol bitmaps kept in memory; a render running meanwhile decodes them
-         * again.
+         * Recycles the theme symbol bitmaps kept in memory; call it only once every theme using
+         * them is destroyed, as a loaded theme keeps its bitmaps.
          */
         fun clearResourceMemoryCache() {
             AndroidResourceBitmap.clearResourceBitmaps()

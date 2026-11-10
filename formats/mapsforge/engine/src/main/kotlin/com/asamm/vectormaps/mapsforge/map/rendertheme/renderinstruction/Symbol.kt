@@ -92,7 +92,7 @@ open class Symbol @Throws(IOException::class, XmlPullParserException::class) con
             } else if (ID == name) {
                 this.id = value
             } else if (PRIORITY == name) {
-                this.priority = Integer.parseInt(value)
+                this.priority = value.toInt()
             } else if (SYMBOL_HEIGHT == name) {
                 this.height = XmlUtils.parseNonNegativeInteger(name, value) * displayModel.scaleFactor
             } else if (SYMBOL_PERCENT == name) {

@@ -10,7 +10,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 
 **Status: M0–M6 done (PRs #1–#45, the last merged as `41f6968` on 2026-11-06); M7.0 done on
 2026-11-09: no regression ([performance.md](performance.md)); M7.2–M7.5 done (PRs #47–#51); M7.1 ⏸,
-the desktop stays AWT (Q15).** Next action: M7.6, the codebase cleanup (D41); then M8.0.
+the desktop stays AWT (Q15).** Next action: M7.6 in review, the codebase cleanup (D41); then M8.0.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -103,7 +103,7 @@ Each change measured against the baselines in [performance.md](performance.md) (
 | M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring (C15) | allocated per render, JVM: −14 to −32 % (z12 −15 to −17 %); A54 not run ✅ PR #49 |
 | M7.4 | Theme parse (~80 ms on the A54): one compiled theme per style, shared by its renderers (D40) | a second renderer does not parse (`MapsforgeDriverTest`) ✅ PR #50 |
 | M7.5 | Way geometry in `DoubleArray`s from the reader to the path: no `LatLong` or `Point` per node | allocated per render, JVM: −7 to −32 %; A54 objects −10 to −53 %, render time level on both except JVM Monaco z12 −23 %, A54 read z12 −8 to −11 % ✅ PR #51 |
-| M7.6a | Garmin cleanup: dead code, idiomatic Kotlin | Garmin golden and dump comparison unchanged; allocated per op: read −1 to −6 %, render level 🔧 |
+| M7.6a | Garmin cleanup: dead code, idiomatic Kotlin | Garmin golden and dump comparison unchanged; allocated per op level (read within the forks' spread) 🔧 |
 | M7.6b | Mapsforge dead code: unused classes, members and `Parameters` flags, `@JvmField`s (D41) | Mapsforge goldens (JVM, Android) unchanged; every module and the golden harness compile 🔧 |
 | M7.6c | Mapsforge idioms outside hot paths (D41) | Mapsforge goldens (JVM, Android) unchanged; allocated per op within ±0.2 % 🔧 |
 
@@ -214,7 +214,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D38 | `FeatureQuery` is format-neutral in `:core`, implemented by the Mapsforge driver only in M6.3 for LoPoints; Garmin follows when a host needs it |
 | D39 | Labels are drawn only by a label pass over label-free tiles; no driver draws them into tiles. Locus' in-tile uses (text rotation off, the world map at low zooms, `MapDataPreviewGenerator`) move to the pass at M8: previews and prints render their tiles, then `LabelPass.prepareNow` and the format's draw. Tiles stay label-free, so equal `RenderKey` gives equal tiles; a tile is not self-contained (an exported or cached tile shows no labels). Supersedes M6.1c's order-independent `IN_TILE`, the in-tile half of M6.1d and the two soak modes of D25 and D31 (the soak is single-mode); Garmin draws into its tiles until M6.1d |
 | D40 | A Mapsforge style keeps one compiled theme, for the settings of its latest renderer, shared by every renderer with those settings, as Locus keeps one active theme; it is kept until the style is closed or the settings change, and a replaced theme lives until its last renderer closes; no other theme is cached. `MapStyle.close()` releases it, and the host closes a style it replaces (M7.4) |
-| D41 | Vendored code may leave upstream's form: M7.6 removes what no module of this repo uses (the golden harness, bench and viewers included) and turns the rest into idiomatic Kotlin; hot paths (reader, renderer, label placement, theme matching) keep allocation-free index loops unless a measurement shows no cost. Upstream tags are still followed (D36), ported by meaning, not line by line; upstream.md records each removal |
+| D41 | Vendored code may leave upstream's form: M7.6 removes what no module of this repo uses (the golden harness, bench and viewers included) and turns the rest into idiomatic Kotlin; hot paths (reader, renderer, label placement, theme matching) keep allocation-free index loops unless a measurement shows no cost. Upstream tags are still followed (D36), ported by meaning, not line by line; upstream.md records each removal. Supersedes D28 for the view flags, which are removed |
 
 - D12, rejected: switching Locus to the Java fork after a memory fix. The growth (F1) has been in
   the app for years; one switch to the finished library is preferred.

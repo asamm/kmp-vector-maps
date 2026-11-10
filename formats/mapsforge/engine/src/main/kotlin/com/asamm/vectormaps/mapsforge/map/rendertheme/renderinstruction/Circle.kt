@@ -103,7 +103,7 @@ open class Circle @Throws(XmlPullParserException::class) constructor(
             } else if (FILL == name) {
                 this.fill.color = XmlUtils.getColor(graphicFactory, value, displayModel.themeCallback, this)
             } else if (SCALE_RADIUS == name) {
-                this.scaleRadius = java.lang.Boolean.parseBoolean(value)
+                this.scaleRadius = value.toBoolean()
             } else if (STROKE == name) {
                 this.stroke.color = XmlUtils.getColor(graphicFactory, value, displayModel.themeCallback, this)
             } else if (STROKE_WIDTH == name) {

@@ -133,15 +133,15 @@ open class PathText @Throws(XmlPullParserException::class) constructor(
             } else if (FONT_STYLE == name) {
                 fontStyle = FontStyle.fromString(value)
             } else if (REPEAT == name) {
-                this.repeat = java.lang.Boolean.parseBoolean(value)
+                this.repeat = value.toBoolean()
             } else if (REPEAT_GAP == name) {
                 this.repeatGap = value.toFloat() * displayModel.scaleFactor
             } else if (REPEAT_START == name) {
                 this.repeatStart = value.toFloat() * displayModel.scaleFactor
             } else if (PRIORITY == name) {
-                this.priority = Integer.parseInt(value)
+                this.priority = value.toInt()
             } else if (ROTATE == name) {
-                if (!java.lang.Boolean.parseBoolean(value)) {
+                if (!value.toBoolean()) {
                     this.textOrientation = TextOrientation.RIGHT
                 }
             } else if (SCALE == name) {

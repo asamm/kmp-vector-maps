@@ -117,13 +117,6 @@ abstract class MapDataStore(language: String? = null) {
     }
 
     /**
-     * The priority in a multi-map store; higher reads first, below 0 only fills gaps.
-     */
-    open fun getPriority(): Int {
-        return 0
-    }
-
-    /**
      * The initial position, null when the store has none.
      */
     abstract fun startPosition(): LatLong?

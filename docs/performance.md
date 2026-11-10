@@ -147,7 +147,7 @@ a hot path.
 
 | Benchmark | Monaco |
 |---|---|
-| Garmin read tile z12 / z15 / z17, KB | 623 / 522 / 844 → 593 / 493 / 833 |
+| Garmin read tile z12 / z15 / z17, KB | 628 / 522 / 834 → 593 / 511 / 837 (3 forks; level within their spread) |
 | Garmin render tile z12 / z15 / z17, KB | 2480 / 2159 / 2145 → 2480 / 2159 / 2144 |
 
 Mapsforge (M7.6b, M7.6c, both maps): read and render tile at z12, z15 and z17 within ±0.2 % of

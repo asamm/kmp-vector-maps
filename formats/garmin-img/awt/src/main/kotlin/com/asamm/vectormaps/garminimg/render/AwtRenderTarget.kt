@@ -228,23 +228,6 @@ class AwtRenderTarget(
     }
 
     /**
-     * Renders a polyline as a textured stroke: each segment is filled
-     * with the `pattern` tile rotated to follow the segment angle. The
-     * tile is anchored at the segment's start so the texture progresses
-     * continuously along the line; height equals the pattern's height
-     * (Garmin's natural pixel-stroke width for that line type).
-     *
-     * AWT's [TexturePaint] is screen-aligned, not stroke-aligned, so we
-     * rotate the world via an [AffineTransform] for each segment and
-     * fill an axis-aligned rectangle in that rotated space — which
-     * lands as the line-aligned rectangle in screen space.
-     *
-     * Sharp corners produce small visual gaps because adjacent segments
-     * don't share a join geometry. For typical Garmin lines (gently
-     * curved roads, contours, railways) this is invisible at render
-     * resolution.
-     */
-    /**
      * Renders a polyline whose TYP "pattern" is a single-row dash bitmap.
      * Walks the bitmap once to extract run lengths of opaque vs
      * transparent pixels, then strokes the polyline with a [BasicStroke]
@@ -338,6 +321,23 @@ class AwtRenderTarget(
         g.draw(path)
     }
 
+    /**
+     * Renders a polyline as a textured stroke: each segment is filled
+     * with the [pattern] tile rotated to follow the segment angle. The
+     * tile is anchored at the segment's start so the texture progresses
+     * continuously along the line; height equals the pattern's height
+     * (Garmin's natural pixel-stroke width for that line type).
+     *
+     * AWT's [TexturePaint] is screen-aligned, not stroke-aligned, so we
+     * rotate the world via an [AffineTransform] for each segment and
+     * fill an axis-aligned rectangle in that rotated space — which
+     * lands as the line-aligned rectangle in screen space.
+     *
+     * Sharp corners produce small visual gaps because adjacent segments
+     * don't share a join geometry. For typical Garmin lines (gently
+     * curved roads, contours, railways) this is invisible at render
+     * resolution.
+     */
     private fun drawPatternedPolyline(
         xs: FloatArray,
         ys: FloatArray,
