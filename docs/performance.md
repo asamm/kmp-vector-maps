@@ -6,11 +6,10 @@ Benchmark baselines and how M7 measures against them; M7's steps and status are 
 **Author:** Menion · **Started:** 2026-11-06, split from the roadmap · **Baselines:** M2.7, M2.7b
 (Mapsforge, Java), M4.3c (Garmin)
 
-**Status:** M7.0 measured `main` after M6 (2026-11-08): no regression against the baselines, the
-JVM's Mapsforge renders up to 27 % faster. M7.2b's lock changes speed up the parallel block by up to
-32 % on the JVM and 29 % on the A54; M7.3 allocates 14–32 % less per render; since M7.4 a renderer
-with the style's current settings reuses its theme; M7.5 allocates up to 32 % less per render at the
-same render time, except JVM Monaco z12 (−23 %). **Next action:** M7.6 in review; M7.1 ⏸ (Q15).
+**Status:** M7 done (2026-11-10). Against the baselines: no regression (M7.0); the 8-thread block
+up to 32 % faster on the JVM and 29 % on the A54 (M7.2b); up to 43 % less allocated per render
+(M7.3, M7.5) at the same single-tile time; a style's renderers share one compiled theme (M7.4).
+**Next action:** none in M7; M7.1 ⏸ (Q15). The open costs are below.
 
 ## How to measure
 
@@ -73,14 +72,7 @@ baselines.
 - No regression from M5 and M6 on the A54 (Q20): every number is within the run-to-run spread above,
   Garmin Monaco render z12 (+11 %, one run) at its edge. On the JVM, Mapsforge renders 5–27 % faster
   (z12–z17) and its single-thread block 27–39 %, though the baselines were not taken idle.
-- One JVM outlier: Garmin Monaco renders z17 in 8.2 ms against M4.3c's 5.8, and its block is 7–13 %
-  slower from 2 threads; the A54 shows neither, and M4.3c's JVM numbers carry ±20 %.
 - Theme parse on the A54 is 83–99 ms across runs and maps; the 80–83 baselines are the low end.
-- Garmin renders no labels since M6.1d (P4), yet the A54 times stay level: label work was a small
-  share of a Garmin tile on the device. The JVM's Czech Garmin gain is mostly JDK 17 against the
-  baseline's JDK 24 on a busy desktop (±20 %).
-- Same desktop and device as the baselines; the JVM baselines ran on JDK 24 (Garmin) and 17
-  (Mapsforge).
 
 ## M7.2b — lock contention, 2026-11-09
 
@@ -112,11 +104,7 @@ load, the times in the same runs were not taken idle and are not compared.
 | read tile z12 / z15 / z17, MB | 5.33 / 0.34 / 0.25 → 4.63 / 0.31 / 0.23 | 18.0 / 2.44 / 2.42 → 14.5 / 2.29 / 2.21 |
 | render tile z12 / z15 / z17, MB | 12.4 / 2.72 / 2.16 → 10.3 / 2.03 / 1.47 | 31.1 / 7.61 / 4.97 → 26.4 / 6.54 / 4.06 |
 
-- A JFR allocation profile of the Czech renders (z12, z15) before: `RenderContext`'s empty level
-  lists 9 % at z15 (~0.7 MB per render, P3), a `ReadBuffer` per block, boxed tag IDs and a
-  regrown tag list per element, and both text measures of every named way.
-- Left, the largest: a `LatLong` per way node in the reader and a `Point` per node in the renderer
-  (~25–35 %), and the 512 px tile bitmap (1 MB, the host's).
+- The way nodes left after M7.3 (~25–35 %) went in M7.5.
 
 ## M7.5 — way geometry, 2026-11-10
 
@@ -129,7 +117,6 @@ allocated and median time, one run each, clocks locked.
 | JVM read tile z12 / z15 / z17, MB | 4.63 / 0.31 / 0.23 → 3.34 / 0.23 / 0.17 | 14.5 / 2.29 / 2.21 → 11.3 / 1.94 / 2.09 |
 | JVM render tile z12 / z15 / z17, MB | 10.5 / 2.03 / 1.47 → 7.09 / 1.71 / 1.36 | 26.2 / 6.53 / 4.06 → 18.4 / 5.12 / 3.79 |
 | JVM render tile z12 / z15 / z17, ms | 40.7 / 15.3 / 5.51 → 31.3 / 14.6 / 5.75 | 103 / 81.3 / 22.9 → 104 / 85.5 / 23.4 |
-| JVM read tile z12 / z15 / z17, ms | 1.47 / 0.05 / 0.04 → 1.34 / 0.05 / 0.04 | 7.33 / 1.04 / 1.01 → 7.41 / 0.98 / 1.05 |
 | A54 render tile z12 / z15 / z17, objects | 239k / 21.9k / 8.98k → 112k / 15.0k / 6.37k | 645k / 119k / 64.5k → 410k / 95.6k / 58.4k |
 | A54 render tile z12 / z15 / z17, ms | 120 / 37.4 / 13.9 → 124 / 38.5 / 14.1 | 253 / 129 / 33.7 → 256 / 132 / 34.1 |
 | A54 read tile z12 / z15 / z17, ms | 9.62 / 0.58 / 0.45 → 8.53 / 0.57 / 0.47 | 29.3 / 4.32 / 4.52 → 27.1 / 4.36 / 4.59 |
@@ -141,17 +128,8 @@ allocated and median time, one run each, clocks locked.
 
 ## M7.6 — cleanup, 2026-11-10
 
-Allocated per operation (JMH `-prof gc`, JDK 17), `main` → the cleanup. Garmin (M7.6a, Monaco
-fixture at the harbour) drops one `Pair` per text the label pass draws; nothing else it removed ran on
-a hot path.
-
-| Benchmark | Monaco |
-|---|---|
-| Garmin read tile z12 / z15 / z17, KB | 628 / 522 / 834 → 593 / 511 / 837 (3 forks; level within their spread) |
-| Garmin render tile z12 / z15 / z17, KB | 2480 / 2159 / 2145 → 2480 / 2159 / 2144 |
-
-Mapsforge (M7.6b, M7.6c, both maps): read and render tile at z12, z15 and z17 within ±0.2 % of
-`main`. Loops over lists keep their index form (`indices`), compiled without an iterator.
+Allocated per operation (JMH `-prof gc`) level with `main`: Mapsforge read and render within
+±0.2 %, Garmin within the spread of 3 forks.
 
 ## Baselines
 

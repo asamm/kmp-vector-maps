@@ -8,9 +8,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md) ·
 **Benchmarks:** [performance.md](performance.md)
 
-**Status: M0–M6 done (PRs #1–#45, the last merged as `41f6968` on 2026-11-06); M7.0 done on
-2026-11-09: no regression ([performance.md](performance.md)); M7.2–M7.5 done (PRs #47–#51); M7.1 ⏸,
-the desktop stays AWT (Q15).** Next action: M7.6 in review, the codebase cleanup (D41); then M8.0.
+**Status: M0–M7 done (PRs #1–#52, the last merged as `6155c9d` on 2026-11-10); M7.1 ⏸, the
+desktop stays AWT (Q15).** Next action: M8.0, logging through kmp-logger.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -96,37 +95,25 @@ Each change measured against the baselines in [performance.md](performance.md) (
 
 | Step | Content | Verify |
 |---|---|---|
-| M7.0 | Re-run JMH and the A54 benchmarks on `main` (Q20, P4) | new tables beside the baselines ✅ 2026-11-09 |
+| M7.0 | Re-run JMH and the A54 benchmarks on `main` (Q20, P4) | no regression against the baselines ✅ 2026-11-09 |
 | M7.1 | `render/skia` via Skiko, so desktop numbers track Android | ⏸ the desktop stays AWT (Q15, Q5) |
-| M7.2a | Tests that fail without the matching-cache or the Paint lock (P7) | each fails with its lock removed: 6/6 and 8/8 runs ✅ PR #47 |
-| M7.2b | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock, `PathText` (C14) | M7.2a's tests stay green; blocks against M7.0: 8 threads −27 to −32 % JVM, −15 to −29 % A54 ✅ PR #48 |
-| M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring (C15) | allocated per render, JVM: −14 to −32 % (z12 −15 to −17 %); A54 not run ✅ PR #49 |
-| M7.4 | Theme parse (~80 ms on the A54): one compiled theme per style, shared by its renderers (D40) | a second renderer does not parse (`MapsforgeDriverTest`) ✅ PR #50 |
-| M7.5 | Way geometry in `DoubleArray`s from the reader to the path: no `LatLong` or `Point` per node | allocated per render, JVM: −7 to −32 %; A54 objects −10 to −53 %, render time level on both except JVM Monaco z12 −23 %, A54 read z12 −8 to −11 % ✅ PR #51 |
-| M7.6a | Garmin cleanup: dead code, idiomatic Kotlin | Garmin golden and dump comparison unchanged; allocated per op level (read within the forks' spread) 🔧 |
-| M7.6b | Mapsforge dead code: unused classes, members and `Parameters` flags, `@JvmField`s (D41) | Mapsforge goldens (JVM, Android) unchanged; every module and the golden harness compile 🔧 |
-| M7.6c | Mapsforge idioms outside hot paths (D41) | Mapsforge goldens (JVM, Android) unchanged; allocated per op within ±0.2 % 🔧 |
+| M7.2a | Tests that fail without the matching-cache or the Paint lock (P7) | each fails with its lock removed ✅ PR #47 |
+| M7.2b | Lock contention: per-draw `synchronized(paint)`, `Rule` subtree lock, `PathText` (C14) | 8-thread block −27 to −32 % JVM, −15 to −29 % A54 ✅ PR #48 |
+| M7.3 | Allocations: `RenderContext` lists, `ReadBuffer`, per-way text measuring (C15) | allocated per render −14 to −32 % JVM ✅ PR #49 |
+| M7.4 | Theme parse: one compiled theme per style, shared by its renderers (D40) | a second renderer does not parse ✅ PR #50 |
+| M7.5 | Way geometry in `DoubleArray`s from the reader to the path (C16) | allocated per render −7 to −32 % JVM, A54 objects −10 to −53 %; render time level ✅ PR #51 |
+| M7.6a | Garmin cleanup: dead code, idiomatic Kotlin | golden unchanged, allocation level ✅ PR #52 |
+| M7.6b | Mapsforge dead code, `@Jvm*` annotations (D41, C17) | goldens unchanged ✅ PR #52 |
+| M7.6c | Mapsforge idioms outside hot paths (D41) | goldens unchanged, allocation within ±0.2 % ✅ PR #52 |
 
-- M7.2a: `ThemeCachesTest` drives 8 × 25,000 new tag lists through the 8,192-entry way matching
-  cache and checks its size, entry order and hash table agree; `SharedPaintRenderTest`
-  pattern-fills every closed way and renders a 4×4 block on 8 threads against a serial render.
-  The POI matching cache has the same lock and is not tested separately.
-- M7.2b: a JFR profile of the 8-thread Czech block found the three locks; the Paint lock stays for
-  pattern Paints only. Unlocked text measuring exposed a shared `Rect` in `AndroidPaint`, caught
-  by the A54 soak, not by a JVM test (performance.md). `Caption` keeps its lock over caption lookup
-  and text layout (still among the blocked sites in the after profile); not narrowed yet.
-- M7.3: the lazy `RenderContext` lists also take P3's ~0.7 MB per `FeatureQuery.point`. Left: the
-  way nodes (M7.5) and the host's tile bitmap ([performance.md](performance.md)).
-- M7.4: Locus parses one theme for the app (`PrefMapVectorV4Theme`), again only on the user's
-  request; the driver parsed one per renderer. The parse itself is ~45 % XML tokenising (JFR), no
-  easy win in the engine; a parse costs the same, so its benchmark is unchanged by design. SVG
-  rasterising on first render is not measured yet.
-- M7.5: a way node was a `LatLong`, an absolute and a tile-relative `Point` (~84 B on ART, ~25–35 %
-  of a render's allocation, M7.3); now two doubles per node in the `Way`, two in the projected
-  ring, the tile-relative coordinates computed while the path is built (C16). `Way.latLongs` builds
-  `LatLong`s for the golden dumps; a way text's `LineString` keeps `Point`s, built only for a way
-  the text fits on once. Same arithmetic: dumps and pixels unchanged. Fewer allocations, not
-  faster single tiles ([performance.md](performance.md)).
+Left after M7, each measured before it is changed:
+
+- `Caption` keeps its lock over caption lookup and text layout (C14), still among the blocked sites
+  of the 8-thread profile.
+- The POI matching cache shares the way cache's lock but has no test of its own (M7.2a).
+- SVG rasterising on first render is not measured; a theme parse is ~45 % XML tokenising (M7.4).
+- Fewer allocations did not make single tiles faster (M7.5); the 512 px tile bitmap (1 MB) is the
+  host's.
 
 ## M8 — Android host API
 
