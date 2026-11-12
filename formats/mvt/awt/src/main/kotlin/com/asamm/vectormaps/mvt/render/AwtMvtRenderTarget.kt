@@ -46,6 +46,19 @@ class AwtMvtRenderTarget(
         g.fillRect(0, 0, widthPx, heightPx)
     }
 
+    override fun withPlatformCanvas(block: (Any) -> Unit) {
+        val copy = g.create() as Graphics2D
+        // not the last layer's pattern, dash or blending
+        copy.paint = java.awt.Color.BLACK
+        copy.stroke = BasicStroke()
+        copy.composite = AlphaComposite.SrcOver
+        try {
+            block(copy)
+        } finally {
+            copy.dispose()
+        }
+    }
+
     override fun fillPath(path: MvtPath, color: Color, antialias: Boolean) {
         g.setRenderingHint(
             RenderingHints.KEY_ANTIALIASING,

@@ -4,13 +4,17 @@
  */
 package com.asamm.vectormaps.mvt.golden
 
+import com.asamm.vectormaps.core.RenderConfig
+import com.asamm.vectormaps.core.RenderResult
+import com.asamm.vectormaps.core.StyleSelection
+import com.asamm.vectormaps.core.TileRequest
+import com.asamm.vectormaps.mvt.driver.MvtDriver
+import com.asamm.vectormaps.mvt.driver.MvtRenderer
+import com.asamm.vectormaps.mvt.driver.MvtStyle
+import com.asamm.vectormaps.mvt.driver.MvtTileTarget
 import com.asamm.vectormaps.mvt.render.AwtFonts
-import com.asamm.vectormaps.mvt.render.AwtSprite
-import com.asamm.vectormaps.mvt.render.TileRenderer
-import com.asamm.vectormaps.mvt.style.SpriteIndex
-import com.asamm.vectormaps.mvt.style.Style
-import com.asamm.vectormaps.mvt.symbol.SymbolLayout
-import com.asamm.vectormaps.mvt.tile.VectorTile
+import com.asamm.vectormaps.mvt.render.AwtMvtGraphics
+import com.asamm.vectormaps.mvt.render.AwtMvtRenderTarget
 import java.awt.Font
 import java.awt.image.BufferedImage
 import java.io.File
@@ -18,7 +22,7 @@ import javax.imageio.ImageIO
 import kotlin.math.abs
 
 /**
- * The MVT fixtures of `dev/fixtures/mvt` and what the goldens build from them.
+ * The MVT fixtures of `dev/fixtures/mvt` read through the driver, as the goldens draw them.
  */
 internal object MvtFixtures {
 
@@ -33,35 +37,38 @@ internal object MvtFixtures {
 
     val outDir = File(requireNotNull(System.getProperty("outDir")))
 
-    val style: Style by lazy {
-        Style.parse(File(mvtDir, "styles/hike_bike/style.json").readText())
-    }
-
-    val spriteIndex: SpriteIndex by lazy {
-        SpriteIndex.parse(File(mvtDir, "styles/hike_bike/sprite.json").readText())
-    }
-
-    val sprite: AwtSprite by lazy {
-        AwtSprite(spriteIndex, ImageIO.read(File(mvtDir, "styles/hike_bike/sprite.png")))
-    }
-
     // the bundled font, so label goldens match on every system
-    val fonts: AwtFonts by lazy {
-        AwtFonts(Font.createFont(Font.TRUETYPE_FONT, File(fixturesDir, "fonts/dejavu/DejaVuSans.ttf")))
+    val driver: MvtDriver by lazy {
+        val font = Font.createFont(Font.TRUETYPE_FONT, File(fixturesDir, "fonts/dejavu/DejaVuSans.ttf"))
+        MvtDriver(AwtMvtGraphics(AwtFonts(font)))
     }
 
-    fun tile(z: Int, x: Int, y: Int): VectorTile? {
-        return File(mvtDir, "tiles/planet/$z/$x/$y.pbf")
-            .takeIf { it.isFile }
-            ?.let { VectorTile.decode(it.readBytes()) }
+    val style: MvtStyle by lazy {
+        driver.loadStyle(File(mvtDir, "styles/hike_bike/style.json"))
     }
 
-    fun renderer(): TileRenderer {
-        return TileRenderer(style, maxDataZoom = 14, tileSource = ::tile)
+    /**
+     * A renderer of the fixture tiles, in one PMTiles file written by dev/mvt/pmtiles.py; the file
+     * closes with the renderer.
+     */
+    fun renderer(): MvtRenderer {
+        return driver.open(listOf(File(mvtDir, "tiles/fixtures.pmtiles"))).use { dataset ->
+            dataset.createRenderer(style, StyleSelection.DEFAULT, RenderConfig(tileSizePx = SIZE))
+        }
     }
 
-    fun layout(): SymbolLayout {
-        return SymbolLayout(style, spriteIndex, fonts, maxDataZoom = 14, tileSource = ::tile)
+    /**
+     * Tile (`z`, `x`, `y`) as `renderer` draws it; null when it has no data.
+     */
+    fun render(renderer: MvtRenderer, z: Int, x: Int, y: Int): BufferedImage? {
+        val target = MvtTileTarget(SIZE)
+        val result = renderer.render(TileRequest(x = x, y = y, zoom = z), target) { false }
+        if (result != RenderResult.DRAWN) {
+            return null
+        }
+        val canvas = target.canvas as AwtMvtRenderTarget
+        canvas.dispose()
+        return canvas.image
     }
 
     /**

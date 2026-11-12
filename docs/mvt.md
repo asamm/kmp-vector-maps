@@ -4,7 +4,7 @@ Rendering Asamm's own vector tiles with their MapLibre styles in this library, o
 third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin renderer (size L).
 
 **Author:** Menion · **Analysed:** 2026-11-12 · **Milestone:** M10 (see [ROADMAP.md](ROADMAP.md)) ·
-**Status:** spike done 2026-11-12; M10.1 symbols 🔧 2026-11-12, see [Symbols](#symbols)
+**Status:** spike and M10.1 symbols done 2026-11-12; M10.2 driver 🔧, see [Driver](#driver)
 
 ## Goal
 
@@ -33,7 +33,7 @@ third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin render
 
 | Option | Effort | Verdict |
 |---|---|---|
-| **A. Own Kotlin renderer** behind the driver interface: MVT decoder, MBTiles and PMTiles readers, an HTTP tile source, style JSON with the expressions the Asamm styles use, fill / line / circle / background on its own `MvtRenderTarget`, symbols through the cross-tile label pass, platform text | L (XL for broad spec parity) | **Recommended** |
+| **A. Own Kotlin renderer** behind the driver interface: MVT decoder, MBTiles and PMTiles readers, online tiles from the host, style JSON with the expressions the Asamm styles use, fill / line / circle / background on its own `MvtRenderTarget`, symbols through the cross-tile label pass, platform text | L (XL for broad spec parity) | **Recommended** |
 | B. MapLibre Native `MapSnapshotter` as a tile rasteriser | M | Rejected: contradicts libMapCore D20 (own GL renderer, no MapLibre); +4–8 MB native code per ABI; a GL context and Looper per worker; no desktop path, no goldens |
 | C. Convert each GL style to a Mapsforge-like theme (as VTM's `openmaptiles.xml`) | M per style | Rejected: hand work per style, lossy, two style sources to keep in sync |
 | D. GeoTools `gt-mbstyle`, VTM, maplibre-rs | — | Not usable: AWT-only and unsupported; a GL map view with own themes; a proof of concept |
@@ -53,7 +53,7 @@ Why A fits:
 
 | Part | Size |
 |---|---|
-| MVT 2.1 decoder, MBTiles and PMTiles v3 readers, HTTP source | S |
+| MVT 2.1 decoder, MBTiles and PMTiles v3 readers, host tile sources (`MvtTileSource`) | S |
 | Style JSON: sources, layers, zoom ranges, filters, legacy filters and `{stops}` functions | M |
 | Expression engine for the operators above, tested on the Asamm styles | M |
 | Background, fill (incl. pattern), line (dasharray, offset, pattern), circle on `MvtRenderTarget` | M |
@@ -122,9 +122,29 @@ draws them on the target (D39).
   wider than Noto, so some labels lose collisions MapLibre's win. Reported, not checked.
 - A malformed size, halo or padding drops or clamps the value; a symbol layer that throws is left
   out whole and listed in `SymbolLayout.failedLayers`.
-- Left: font stacks mapped to platform fonts (M10.2), balanced line wrapping, `text-variable-anchor`
+- Left: font stacks mapped to named platform fonts (the desktop viewer passes the logical fonts), balanced line wrapping, `text-variable-anchor`
   and `icon-text-fit` (unused by the Asamm styles), MapLibre's exact line anchor offsets, path
   text placed along the line by `text-anchor` or `text-offset[0]` (centred here), an icon beside a
   path text (no Asamm style has one), `symbol-sort-key` beyond 0–999, mixed-direction text runs
-  (one base direction per line); with M10.2 the label golden on a four-tile corner with a
-  placement dump and `isCancelled` for the layout; with M10.3 shaped text cached per layer.
+  (one base direction per line); the label golden on a four-tile corner with a placement dump
+  and `isCancelled` for the layout, with neighbouring fixture tiles; with M10.3 shaped text cached
+  per layer.
+
+## Driver
+
+2026-11-12, M10.2: `MvtDriver` (`formats/mvt/driver`) behind the `:core` interface, as the other
+formats; the desktop viewer opens `.pmtiles` maps with a `style.json`.
+
+| Part | What |
+|---|---|
+| Offline | `open(files)` reads PMTiles v3 (`PmTilesSource`: gzip or plain directories and tiles, leaf directories), files of one max zoom; MBTiles waits for V1 |
+| Online | `openSource(MvtTileSource)`: the host's downloader and cache; the library ships none, an HTTP source belongs to the desktop and Android samples |
+| Style | `loadStyle(style.json)` with `sprite.json` and `sprite.png` beside it, or the name its `sprite` gives; every vector source reads the dataset |
+| Platform | `MvtGraphics` creates targets and decodes sprites; `AwtMvtGraphics` on the desktop, Android with M10.3 |
+| Renderer | tiles above the sources' max zoom cut from it, decoded data tiles cached for their children; the label store sized by the host; the hillshade hook at each active hillshade and colour-relief layer, with its source and paint (`HillshadeLayer`); labels stored per tile for the label pass |
+
+- The fixture `dev/fixtures/mvt/tiles/fixtures.pmtiles` holds the 6 fixture tiles, written by
+  `dev/mvt/pmtiles.py` from the spec, apart from the Kotlin reader; the goldens read it through
+  the driver.
+- Only `RenderConfig.tileSizePx` applies so far: `deviceScale`, `textScale` and `language` with
+  M10.3, the style's `text-field` choosing the language as on the web and iOS.

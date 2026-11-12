@@ -84,7 +84,7 @@ anchors, each with a per-format default.
 
 | Anchor | Mapsforge | Garmin IMG | MVT |
 |---|---|---|---|
-| `HILLSHADE` | theme `<hillshading>` (layer + level); else after all features | after polygons | style layer |
+| `HILLSHADE` | theme `<hillshading>` (layer + level); else after all features | after polygons | each `hillshade` and `color-relief` layer |
 | `LABELS` | label pass | label pass | label pass (symbol layers) |
 
 - The hillshade hook (`RenderHooks.hillshade`, a `createRenderer` argument outside `RenderKey`)
@@ -92,7 +92,9 @@ anchors, each with a per-format default.
   with matrix, clip and layers restored after), its geo bounds and pixels per metre, and draws
   with its own alpha and blend mode; a throw is logged and the tile stays unshaded; the host
   prefetches DEM data. A Mapsforge `<hillshading>` draws within its zoom range (default 9..17)
-  and not at all with its category off.
+  and not at all with its category off. MVT calls it once per active elevation layer with a
+  `HillshadeLayer` (its `raster-dem` source and paint at the zoom), so the host picks the layers
+  it draws, such as only its terrain source.
 
 ## Labels
 
@@ -109,7 +111,7 @@ anchors, each with a per-format default.
 - Tiles carry no labels (D39); candidates are placed per screen, rotation-aware and upright, by
   `LabelPlacer` (written fresh, after Locus' grid collision). A preview or print renders its tiles,
   then draws the pass over them. Every driver has a pass: Mapsforge from M6.1b, Garmin from M6.1d,
-  MVT from M10.1 (`formats/mvt/driver`, its driver follows in M10.2).
+  MVT from M10.1 (`formats/mvt/driver`, built by `MvtDriver` from M10.2).
 - `TiledLabelPass` (`:core`, M6.1e) collects the tiles under the turned screen from a
   `TileLabelSource` (a `TileLabelStore`, or Mapsforge's vendored store through an adapter) and
   turns each stored label into a candidate through the driver's converter; `LabelId` (FNV-1a) and
@@ -140,6 +142,7 @@ anchors, each with a per-format default.
   become a small painter on top. Until a driver draws through it, it only carries the size; each
   driver defines target types over its own graphics (Mapsforge: `TileBitmapTarget`, which receives
   the bitmap Mapsforge allocates until M8.1; Garmin: `GarminTileTarget`, filled by the host's
-  `GarminCanvasFactory`), and the host hands the driver its backend when it builds the registry.
+  `GarminCanvasFactory`; MVT: `MvtTileTarget`, holding the target the host's `MvtGraphics`
+  creates), and the host hands the driver its backend when it builds the registry.
 - Paint caches belong to the theme and are bounded to a window of 4 zoom levels, the zoom of
   each rendering job held (D29, locus-core F2/F3).

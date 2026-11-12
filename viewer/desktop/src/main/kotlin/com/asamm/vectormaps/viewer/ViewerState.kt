@@ -33,6 +33,10 @@ import com.asamm.vectormaps.mapsforge.MapsforgeDataset
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.MapsforgeLabelPass
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
+import com.asamm.vectormaps.mvt.driver.MvtDataset
+import com.asamm.vectormaps.mvt.driver.MvtDriver
+import com.asamm.vectormaps.mvt.driver.MvtLabelPass
+import com.asamm.vectormaps.mvt.render.AwtMvtRenderTarget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.awt.image.BufferedImage
@@ -448,6 +452,12 @@ class ViewerState(
                 target.endFrame()
                 target.image.toComposeImageBitmap()
             }
+            is MvtLabelPass -> {
+                val target = pass.newTarget(width, height) as AwtMvtRenderTarget
+                pass.draw(target = target, view = view, prepared = prepared)
+                target.dispose()
+                target.image.toComposeImageBitmap()
+            }
             else -> {
                 return null
             }
@@ -670,6 +680,13 @@ class ViewerState(
                     config = config,
                     labelStoreTiles = builtLabelStoreTiles,
                 )
+            } else if (dataset is MvtDataset) {
+                dataset.createRenderer(
+                    style = style,
+                    selection = selection,
+                    config = config,
+                    labelStoreTiles = builtLabelStoreTiles,
+                )
             } else {
                 dataset.createRenderer(style = style, selection = selection, config = config)
             }
@@ -827,6 +844,7 @@ class ViewerState(
         return when (driver) {
             is MapsforgeDriver -> AwtTileImages
             is GarminDriver -> GarminTileImages
+            is MvtDriver -> MvtTileImages
             else -> throw IllegalArgumentException("imagesFor(), no images for driver ${driver.id}")
         }
     }

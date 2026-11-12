@@ -1,6 +1,6 @@
 /*
- * MVT golden tests: the fixture tiles through the MVT engine and its AWT target against MapLibre
- * GL JS renders from `dev/mvt/reference`, and the label pass against the committed
+ * MVT golden tests: the fixture PMTiles through the MVT driver and its AWT target against
+ * MapLibre GL JS renders from `dev/mvt/reference`, and the label pass against the committed
  * `golden/labels` PNGs in the bundled font. Not published.
  */
 plugins {

@@ -474,12 +474,13 @@ private val ROTATIONS = listOf(0.0f, 15.0f, 30.0f, 45.0f, 90.0f, 180.0f, 270.0f)
 
 /**
  * Other style files of the map's format in the folder of `style`; `.poi.xml` files are LoMaps POI
- * themes, not map styles.
+ * themes, and a `.json` beside a `.png` of its name a MapLibre sprite, not map styles.
  */
 private fun siblingStyles(style: File, extensions: Set<String>): List<File> {
     val folder = style.parentFile ?: return listOf(style)
     return folder.listFiles().orEmpty()
         .filter { it.isFile && it.extension.lowercase() in extensions && !it.name.endsWith(".poi.xml") }
+        .filterNot { it.extension.lowercase() == "json" && File(folder, "${it.nameWithoutExtension}.png").isFile }
         .sortedBy { it.name }
 }
 

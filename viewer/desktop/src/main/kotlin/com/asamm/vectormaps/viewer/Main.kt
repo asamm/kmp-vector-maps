@@ -22,6 +22,10 @@ import com.asamm.vectormaps.garminimg.render.AwtBitmapCache
 import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
+import com.asamm.vectormaps.mvt.driver.MvtDriver
+import com.asamm.vectormaps.mvt.render.AwtFonts
+import com.asamm.vectormaps.mvt.render.AwtMvtGraphics
+import java.awt.Font
 import java.awt.GraphicsEnvironment
 import java.awt.Rectangle
 import java.io.File
@@ -43,7 +47,9 @@ fun main() {
             bitmapCache = garminBitmaps,
         )
     }
-    val formats = MapFormats(listOf(MapsforgeDriver(AwtGraphicFactory.INSTANCE), garmin))
+    // MapLibre styles name Noto fonts; the desktop draws the logical fonts, falling back per script
+    val mvt = MvtDriver(AwtMvtGraphics(AwtFonts(Font(Font.SANS_SERIF, Font.PLAIN, 12), Font(Font.SERIF, Font.PLAIN, 12))))
+    val formats = MapFormats(listOf(MapsforgeDriver(AwtGraphicFactory.INSTANCE), garmin, mvt))
     val state = ViewerState(
         formats = formats,
         session = session,

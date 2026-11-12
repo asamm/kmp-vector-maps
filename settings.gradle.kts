@@ -62,7 +62,7 @@ include(":formats:garmin-img:driver")
 // Garmin IMG golden test and dump comparison, not published
 include(":dev:garmin-img:golden")
 
-// MVT format (M10): the engine, its AWT render target, the driver (its label pass so far)
+// MVT format (M10): the engine, its AWT render target, the driver
 include(":formats:mvt:engine")
 include(":formats:mvt:awt")
 include(":formats:mvt:driver")
