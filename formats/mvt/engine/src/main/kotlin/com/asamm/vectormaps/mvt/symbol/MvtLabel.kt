@@ -32,7 +32,8 @@ class MvtLabel(
  * Shaped text: its lines and the box they fill, centred at an offset from the label's anchor.
  *
  * @param width the widest line, in pixels; the full text for a path text
- * @param centerX offset of the box centre from the anchor; across the line for a path text
+ * @param centerX offset of the box centre from the anchor; unused for a path text
+ * @param centerY offset of the box centre from the anchor; across the line for a path text
  */
 class MvtText(
     val lines: List<String>,
@@ -52,6 +53,9 @@ class MvtText(
 
 /**
  * A sprite image drawn at an offset from the label's anchor, `scale` times its sprite size.
+ *
+ * @param centerX `icon-offset` of the centre from the anchor, turned with the icon
+ * @param translateX `icon-translate`, a shift in the map's frame that never turns with the icon
  */
 class MvtIcon(
     val name: String,
@@ -59,6 +63,8 @@ class MvtIcon(
     val height: Float,
     val centerX: Float,
     val centerY: Float,
+    val translateX: Float,
+    val translateY: Float,
     val scale: Float,
     val rotateDeg: Float,
     val paddingPx: Float,
@@ -97,7 +103,8 @@ data class MvtFont(
 fun interface TextMetrics {
 
     /**
-     * The advance width of `text` in pixels, without letter spacing.
+     * The advance width of `text` in pixels as the platform shapes it, `letterSpacingPx` added
+     * between its glyphs.
      */
-    fun width(text: String, sizePx: Float, font: MvtFont): Float
+    fun width(text: String, sizePx: Float, font: MvtFont, letterSpacingPx: Float): Float
 }

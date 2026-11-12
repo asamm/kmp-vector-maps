@@ -23,7 +23,7 @@ class SymbolLayoutTest {
         style = Style.parse(File(mvtDir, "styles/hike_bike/style.json").readText()),
         sprite = SpriteIndex.parse(File(mvtDir, "styles/hike_bike/sprite.json").readText()),
         // a fixed advance keeps the test independent of fonts
-        metrics = { text, size, _ -> text.length * size * 0.6f },
+        metrics = { text, size, _, _ -> text.length * size * 0.6f },
         maxDataZoom = 14,
     ) { z, x, y ->
         File(mvtDir, "tiles/planet/$z/$x/$y.pbf").takeIf { it.isFile }?.let { VectorTile.decode(it.readBytes()) }
@@ -50,8 +50,23 @@ class SymbolLayoutTest {
         assertTrue(arrows.isNotEmpty(), "one-way arrows")
         assertTrue(arrows.all { it.lineAngleDeg != null && it.path == null })
         assertTrue(arrows.map { it.lineAngleDeg }.distinct().size > 1, "arrows follow their roads")
-        // line placement ignores point features, as MapLibre
-        assertTrue(labels.none { it.layerId.startsWith("label_shield") && it.lineAngleDeg != null })
+    }
+
+    @Test
+    fun placesNoLineSymbolsAtPoints() {
+        fun labelsOf(placement: String): List<MvtLabel> {
+            val style = Style.parse(
+                """{"layers": [{"id": "a", "type": "symbol", "source-layer": "poi",
+                    "layout": {"symbol-placement": "$placement", "text-field": "x"}}]}""",
+            )
+            return SymbolLayout(style, null, { text, size, _, _ -> text.length * size * 0.6f }, 14) { z, x, y ->
+                File(mvtDir, "tiles/planet/$z/$x/$y.pbf").takeIf { it.isFile }?.let { VectorTile.decode(it.readBytes()) }
+            }.labels(zoom = 14, x = 8529, y = 5974, tileSizePx = 512)
+        }
+
+        // the poi layer holds points: placed with point placement, never with line placement, as MapLibre
+        assertTrue(labelsOf("point").isNotEmpty())
+        assertEquals(emptyList(), labelsOf("line"))
     }
 
     @Test
@@ -61,7 +76,7 @@ class SymbolLayoutTest {
             """{"layers": [{"id": "a", "type": "symbol", "source-layer": "transportation",
                 "layout": {"symbol-placement": "line", "symbol-spacing": -3, "text-field": "x"}}]}""",
         )
-        val negative = SymbolLayout(style, null, { text, size, _ -> text.length * size * 0.6f }, 14) { z, x, y ->
+        val negative = SymbolLayout(style, null, { text, size, _, _ -> text.length * size * 0.6f }, 14) { z, x, y ->
             File(mvtDir, "tiles/planet/$z/$x/$y.pbf").takeIf { it.isFile }?.let { VectorTile.decode(it.readBytes()) }
         }
 
@@ -79,7 +94,7 @@ class SymbolLayoutTest {
         )
 
         assertEquals(2, merged.size)
-        assertEquals(listOf(0f, 0f, 10f, 0f, 20f, 0f), merged.first { it.size == 6 }.toList())
+        assertEquals(listOf(0f, 0f, 10f, 0f, 20f, 0f), merged.first { it.coords.size == 6 }.coords.toList())
     }
 
     @Test

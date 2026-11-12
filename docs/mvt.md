@@ -4,7 +4,7 @@ Rendering Asamm's own vector tiles with their MapLibre styles in this library, o
 third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin renderer (size L).
 
 **Author:** Menion · **Analysed:** 2026-11-12 · **Milestone:** M10 (see [ROADMAP.md](ROADMAP.md)) ·
-**Status:** desktop spike done 2026-11-12, see [Spike](#spike)
+**Status:** spike done 2026-11-12; M10.1 symbols 🔧 2026-11-12, see [Symbols](#symbols)
 
 ## Goal
 
@@ -103,17 +103,20 @@ draws them on the target (D39).
 |---|---|
 | Point at its point, line at its first point, polygon at its pole of inaccessibility | same |
 | `line` placement along lines and polygon rings, none at points | same |
-| `line` every `symbol-spacing` (spec minimum 1) from half a spacing in, `line-center` once | same, simpler start offset |
-| `text-max-angle` over 3/5 of the text size, not for icons alone | same |
-| Pieces of one road or route with text joined first (`mergeLines`) | same |
-| Icons on lines turn with them (`icon-rotation-alignment` `auto` = `map`) | same |
+| `line` every `symbol-spacing` (spec minimum 1, widened to a longer label) from half a spacing in, else the middle; `line-center` once | same |
+| `text-max-angle`: absolute turns within 3/5 of the text size, for every text, not for icons alone | same |
+| `line` pieces with text joined first (`mergeLines`), each chain with its first piece's symbol | same |
+| Icons on lines turn with them (`icon-rotation-alignment` `auto` = `map`), `icon-offset` with `icon-rotate`, `icon-translate` in the map's frame | same |
 | Later layers place first, then lower `symbol-sort-key` | label priority |
 | `allow-overlap` | `ALWAYS`, which also never blocks others |
 | Text: `text-field`, `-transform`, `-size`, `-font` face, `-max-width` wrapping at spaces and hyphens, `-line-height`, `-letter-spacing`, `-anchor`, `-offset`, `-padding`, halo | same; lines wrap greedily, not balanced |
 | Icons: `icon-image`, `-size`, `-offset`, `-rotate`, `-padding`, `icon-translate` | same |
-| SDF glyphs from the font server | platform fonts; goldens use the bundled DejaVu Sans |
+| SDF glyphs from the font server | platform fonts, shaped (joining, bidi base direction) for measuring and drawing; goldens use the bundled DejaVu Sans |
 
-- Each tile keeps the labels whose anchors fall inside it, so a screen sees each anchor once.
+- Each tile keeps the labels whose anchors fall inside it, so a screen sees each anchor once; only
+  the segments and polygons meeting the tile are anchored, so a tile above the data zoom does no
+  more than its share.
+- The golden checks each fixture tile on a screen of its size and on one turned 30°.
 - Against MapLibre GL JS with labels (`labels` references, hillshade off): mean 1.6–12.6 of 255,
   2.0–13.7 % of pixels off by more than 32; text in another font dominates, and DejaVu Sans is
   wider than Noto, so some labels lose collisions MapLibre's win. Reported, not checked.
@@ -121,5 +124,7 @@ draws them on the target (D39).
   out whole and listed in `SymbolLayout.failedLayers`.
 - Left: font stacks mapped to platform fonts (M10.2), balanced line wrapping, `text-variable-anchor`
   and `icon-text-fit` (unused by the Asamm styles), MapLibre's exact line anchor offsets, path
-  text placed along the line by `text-anchor` (centred here), an icon beside a path text (no Asamm
-  style has one), `symbol-sort-key` beyond 0–999.
+  text placed along the line by `text-anchor` or `text-offset[0]` (centred here), an icon beside a
+  path text (no Asamm style has one), `symbol-sort-key` beyond 0–999, mixed-direction text runs
+  (one base direction per line); with M10.2 the label golden on a four-tile corner with a
+  placement dump and `isCancelled` for the layout; with M10.3 shaped text cached per layer.

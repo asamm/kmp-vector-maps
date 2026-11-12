@@ -5,6 +5,7 @@
 package com.asamm.vectormaps.mvt.symbol
 
 import java.util.PriorityQueue
+import kotlin.math.ceil
 import kotlin.math.hypot
 import kotlin.math.min
 import kotlin.math.sqrt
@@ -56,20 +57,21 @@ internal object Polylabel {
             maxX = maxOf(maxX, coords[i])
             maxY = maxOf(maxY, coords[i + 1])
         }
-        val cellSize = min(maxX - minX, maxY - minY)
-        if (cellSize <= 0f) {
+        val width = maxX - minX
+        val height = maxY - minY
+        if (!(min(width, height) > 0f)) {
             return Pair(minX, minY)
         }
+        // square cells of the shorter side, grown so a sliver seeds at most MAX_SEEDS of them
+        val cellSize = maxOf(min(width, height), sqrt(width * height / MAX_SEEDS))
+        val columns = ceil(width / cellSize).toInt()
+        val rows = ceil(height / cellSize).toInt()
         val queue = PriorityQueue<Cell>(compareByDescending { it.max })
         var h = cellSize / 2f
-        var x = minX
-        while (x < maxX) {
-            var y = minY
-            while (y < maxY) {
-                queue += Cell(x + h, y + h, h, coords, polygon)
-                y += cellSize
+        for (c in 0 until columns) {
+            for (r in 0 until rows) {
+                queue += Cell(minX + c * cellSize + h, minY + r * cellSize + h, h, coords, polygon)
             }
-            x += cellSize
         }
         var best = centroidCell(coords, polygon)
         val boxCell = Cell(minX + (maxX - minX) / 2f, minY + (maxY - minY) / 2f, 0f, coords, polygon)
@@ -98,6 +100,8 @@ internal object Polylabel {
     }
 
     private const val MAX_PROBES = 2000
+
+    private const val MAX_SEEDS = 1024f
 
     private class Cell(
         val x: Float,

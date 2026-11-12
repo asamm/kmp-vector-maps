@@ -4,8 +4,6 @@
  */
 package com.asamm.vectormaps.mvt.symbol
 
-import kotlin.math.abs
-
 /**
  * Joins line pieces whose ends meet, as MapLibre's `mergeLines` does before it anchors the
  * symbols of one road or route: a symbol then repeats along the whole line, not per piece.
@@ -13,41 +11,57 @@ import kotlin.math.abs
 internal object LineMerge {
 
     /**
-     * `parts` (x, y pairs each) with every piece that starts where another ends appended to it.
+     * A joined line and the index of the piece it started from, whose symbol it shows.
      */
-    fun merge(parts: List<FloatArray>): List<FloatArray> {
-        if (parts.size < 2) {
-            return parts
-        }
-        val lines = parts.toMutableList<FloatArray?>()
-        var joined = true
-        while (joined) {
-            joined = false
-            for (a in lines.indices) {
-                val first = lines[a] ?: continue
-                for (b in lines.indices) {
-                    val second = lines[b] ?: continue
-                    if (a == b
-                        || !meets(first, second)
-                    ) {
-                        continue
-                    }
-                    // the shared point once
-                    lines[a] = first + second.copyOfRange(2, second.size)
-                    lines[b] = null
-                    joined = true
-                    break
-                }
+    class Chain(
+        val coords: FloatArray,
+        val first: Int,
+    )
+
+    /**
+     * `parts` (x, y pairs each) joined where one piece ends at another's start, through indexes of
+     * the free ends, in one pass in piece order.
+     */
+    fun merge(parts: List<FloatArray>): List<Chain> {
+        val lines = arrayOfNulls<FloatArray>(parts.size)
+        // a free end's point to the index of the line it starts or ends
+        val starts = HashMap<Long, Int>()
+        val ends = HashMap<Long, Int>()
+        for ((k, part) in parts.withIndex()) {
+            val startKey = key(part[0], part[1])
+            val endKey = key(part[part.size - 2], part[part.size - 1])
+            val before = ends[startKey]
+            val after = starts[endKey]
+            if (before != null
+                && after != null
+                && before != after
+            ) {
+                // the piece joins two lines into one
+                lines[before] = lines[before]!! + part.copyOfRange(2, part.size) +
+                    lines[after]!!.copyOfRange(2, lines[after]!!.size)
+                ends.remove(startKey)
+                starts.remove(endKey)
+                val joined = lines[before]!!
+                ends[key(joined[joined.size - 2], joined[joined.size - 1])] = before
+                lines[after] = null
+            } else if (before != null) {
+                lines[before] = lines[before]!! + part.copyOfRange(2, part.size)
+                ends.remove(startKey)
+                ends[endKey] = before
+            } else if (after != null) {
+                lines[after] = part + lines[after]!!.copyOfRange(2, lines[after]!!.size)
+                starts.remove(endKey)
+                starts[startKey] = after
+            } else {
+                lines[k] = part
+                starts[startKey] = k
+                ends[endKey] = k
             }
         }
-        return lines.filterNotNull()
+        return lines.indices.mapNotNull { i -> lines[i]?.let { Chain(it, i) } }
     }
 
-    // the end of `first` is the start of `second`
-    private fun meets(first: FloatArray, second: FloatArray): Boolean {
-        return abs(first[first.size - 2] - second[0]) < EPSILON
-            && abs(first[first.size - 1] - second[1]) < EPSILON
+    private fun key(x: Float, y: Float): Long {
+        return (x.toRawBits().toLong() shl 32) or (y.toRawBits().toLong() and 0xffffffffL)
     }
-
-    private const val EPSILON = 0.01f
 }

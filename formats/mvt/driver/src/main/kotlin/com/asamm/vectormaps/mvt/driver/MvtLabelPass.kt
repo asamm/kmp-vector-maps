@@ -18,7 +18,9 @@ import com.asamm.vectormaps.core.label.ScreenTransform
 import com.asamm.vectormaps.core.label.TileLabelSource
 import com.asamm.vectormaps.core.label.TiledLabelPass
 import com.asamm.vectormaps.mvt.render.MvtRenderTarget
+import com.asamm.vectormaps.mvt.symbol.MvtIcon
 import com.asamm.vectormaps.mvt.symbol.MvtLabel
+import com.asamm.vectormaps.mvt.symbol.MvtText
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -47,9 +49,10 @@ class MvtLabelPass(
         val y = originY + label.y
         val text = label.text
         val display = if (label.allowOverlap) LabelDisplay.ALWAYS else LabelDisplay.IF_SPACE
+        val value = text?.lines?.joinToString("\n")
         val labelText = text?.let {
             LabelText(
-                value = it.lines.joinToString("\n"),
+                value = value!!,
                 sizePx = it.sizePx,
                 fillArgb = it.color.argb,
                 haloArgb = it.haloColor.argb,
@@ -58,7 +61,7 @@ class MvtLabelPass(
                 italic = it.font.italic,
             )
         }
-        val id = idOf(label, x, y)
+        val id = idOf(label, x, y, value)
         val path = label.path
         if (path != null
             && text != null
@@ -92,25 +95,17 @@ class MvtLabelPass(
         val icon = label.icon
         if (icon != null) {
             val angle = label.lineAngleDeg
-            if (angle == null) {
-                boxes += CollisionBox(
-                    centerX = icon.centerX.toDouble(),
-                    centerY = icon.centerY.toDouble(),
-                    halfWidth = icon.width * icon.scale / 2.0 + icon.paddingPx,
-                    halfHeight = icon.height * icon.scale / 2.0 + icon.paddingPx,
-                )
-            } else {
-                // an icon along its line turns with it, offset included
-                val (cx, cy) = turned(icon.centerX, icon.centerY, angle.toDouble())
-                boxes += CollisionBox(
-                    centerX = cx,
-                    centerY = cy,
-                    halfWidth = icon.width * icon.scale / 2.0 + icon.paddingPx,
-                    halfHeight = icon.height * icon.scale / 2.0 + icon.paddingPx,
-                    angleDeg = angle + icon.rotateDeg.toDouble(),
-                    alignment = BoxAlignment.MAP,
-                )
-            }
+            // icon-offset turns with icon-rotate, and with its line; icon-translate never turns
+            val turn = (angle ?: 0f) + icon.rotateDeg.toDouble()
+            val (ox, oy) = turned(icon.centerX, icon.centerY, turn)
+            boxes += CollisionBox(
+                centerX = ox + icon.translateX,
+                centerY = oy + icon.translateY,
+                halfWidth = icon.width * icon.scale / 2.0 + icon.paddingPx,
+                halfHeight = icon.height * icon.scale / 2.0 + icon.paddingPx,
+                angleDeg = if (angle != null) turn else 0.0,
+                alignment = if (angle != null) BoxAlignment.MAP else BoxAlignment.VIEWPORT,
+            )
         }
         return LabelCandidate(
             id = id,
@@ -157,14 +152,11 @@ class MvtLabelPass(
             val sx = screen.x(candidate.x, candidate.y).toFloat()
             val sy = screen.y(candidate.x, candidate.y).toFloat()
             label.icon?.let {
-                val angle = label.lineAngleDeg
-                if (angle == null) {
-                    target.drawIcon(it, sx + it.centerX, sy + it.centerY, it.rotateDeg)
-                } else {
-                    val screenAngle = angle + view.rotationDeg
-                    val (ox, oy) = turned(it.centerX, it.centerY, screenAngle)
-                    target.drawIcon(it, sx + ox.toFloat(), sy + oy.toFloat(), (screenAngle + it.rotateDeg).toFloat())
-                }
+                // an icon along its line turns with the line and the map; icon-translate with the map
+                val turn = (label.lineAngleDeg?.let { a -> a + view.rotationDeg } ?: 0.0) + it.rotateDeg
+                val (ox, oy) = turned(it.centerX, it.centerY, turn)
+                val (tx, ty) = turned(it.translateX, it.translateY, view.rotationDeg)
+                target.drawIcon(it, sx + (ox + tx).toFloat(), sy + (oy + ty).toFloat(), turn.toFloat())
             }
             if (text != null) {
                 target.drawText(text, sx + text.centerX, sy + text.centerY)
@@ -175,19 +167,40 @@ class MvtLabelPass(
     private fun isFinite(label: MvtLabel): Boolean {
         val text = label.text
         val icon = label.icon
-        val textFinite = text == null
-            || (text.width.isFinite() && text.height.isFinite() && text.centerX.isFinite() &&
-                text.centerY.isFinite() && text.sizePx > 0f && text.sizePx.isFinite() &&
-                text.haloWidthPx >= 0f && text.paddingPx >= 0f)
-        val iconFinite = icon == null
-            || (icon.centerX.isFinite() && icon.centerY.isFinite() && icon.scale > 0f &&
-                icon.scale.isFinite() && icon.paddingPx >= 0f && icon.rotateDeg.isFinite())
         return label.x.isFinite()
             && label.y.isFinite()
             && label.lineAngleDeg?.isFinite() != false
             && label.path?.all { it.isFinite() } != false
-            && textFinite
-            && iconFinite
+            && (text == null || isFinite(text))
+            && (icon == null || isFinite(icon))
+    }
+
+    private fun isFinite(text: MvtText): Boolean {
+        return text.sizePx > 0f
+            && text.sizePx.isFinite()
+            && nonNegative(text.width / 2f + text.paddingPx)
+            && nonNegative(text.height / 2f + text.paddingPx)
+            && nonNegative(text.sizePx / 2f + abs(text.centerY) + text.paddingPx)
+            && nonNegative(text.haloWidthPx)
+            && text.centerX.isFinite()
+            && text.centerY.isFinite()
+    }
+
+    private fun isFinite(icon: MvtIcon): Boolean {
+        return icon.width > 0f
+            && icon.height > 0f
+            && nonNegative(icon.width * icon.scale / 2f + icon.paddingPx)
+            && nonNegative(icon.height * icon.scale / 2f + icon.paddingPx)
+            && icon.centerX.isFinite()
+            && icon.centerY.isFinite()
+            && icon.translateX.isFinite()
+            && icon.translateY.isFinite()
+            && icon.rotateDeg.isFinite()
+    }
+
+    private fun nonNegative(value: Float): Boolean {
+        return value >= 0f
+            && value.isFinite()
     }
 
     // (x, y) turned clockwise by `angleDeg`
@@ -226,12 +239,12 @@ class MvtLabelPass(
      * The same symbol gets the same id in every run (A7): its layer, text and anchor rounded to
      * 1/16 px.
      */
-    private fun idOf(label: MvtLabel, x: Double, y: Double): Long {
+    private fun idOf(label: MvtLabel, x: Double, y: Double, text: String?): Long {
         var hash = LabelId.mix(hash = LabelId.START, text = label.layerId)
         hash = LabelId.mix(hash = hash, value = (x * POSITION_STEPS).roundToLong())
         hash = LabelId.mix(hash = hash, value = (y * POSITION_STEPS).roundToLong())
-        label.text?.let {
-            hash = LabelId.mix(hash = hash, text = it.lines.joinToString("\n"))
+        if (text != null) {
+            hash = LabelId.mix(hash = hash, text = text)
         }
         label.icon?.let {
             hash = LabelId.mix(hash = hash, text = it.name)

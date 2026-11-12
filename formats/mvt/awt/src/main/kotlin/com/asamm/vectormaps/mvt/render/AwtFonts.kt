@@ -8,12 +8,15 @@ import com.asamm.vectormaps.mvt.symbol.MvtFont
 import com.asamm.vectormaps.mvt.symbol.TextMetrics
 import java.awt.Font
 import java.awt.font.FontRenderContext
+import java.awt.font.GlyphVector
+import java.awt.geom.Point2D
+import java.text.Bidi
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The AWT fonts behind the style's `text-font` faces, measuring for the symbol layout what the
- * target draws: `sans` and `serif` at their regular weight, bold and italic derived where the
- * family has no own face.
+ * The AWT fonts behind the style's `text-font` faces, shaping text for both the symbol layout's
+ * measuring and the target's drawing: `sans` and `serif` at their regular weight, bold and italic
+ * derived where the family has no own face.
  */
 class AwtFonts(
     private val sans: Font,
@@ -33,8 +36,29 @@ class AwtFonts(
         return face.deriveFont(sizePx)
     }
 
-    override fun width(text: String, sizePx: Float, font: MvtFont): Float {
-        return font(font, sizePx).getStringBounds(text, CONTEXT).width.toFloat()
+    /**
+     * `text` laid out by the font's shaper (joining, ligatures, reordering for complex scripts), in
+     * the direction of its first strong character, `letterSpacingPx` added between glyphs.
+     */
+    fun shape(text: String, sizePx: Float, font: MvtFont, letterSpacingPx: Float): GlyphVector {
+        val rightToLeft = !Bidi(text, Bidi.DIRECTION_DEFAULT_LEFT_TO_RIGHT).baseIsLeftToRight()
+        val flags = if (rightToLeft) Font.LAYOUT_RIGHT_TO_LEFT else Font.LAYOUT_LEFT_TO_RIGHT
+        val chars = text.toCharArray()
+        val glyphs = font(font, sizePx).layoutGlyphVector(CONTEXT, chars, 0, chars.size, flags)
+        if (letterSpacingPx != 0f) {
+            for (i in 0..glyphs.numGlyphs) {
+                val p = glyphs.getGlyphPosition(i)
+                glyphs.setGlyphPosition(i, Point2D.Float(p.x.toFloat() + i * letterSpacingPx, p.y.toFloat()))
+            }
+            // the end position counts one gap less than the glyphs
+            val end = glyphs.getGlyphPosition(glyphs.numGlyphs)
+            glyphs.setGlyphPosition(glyphs.numGlyphs, Point2D.Float(end.x.toFloat() - letterSpacingPx, end.y.toFloat()))
+        }
+        return glyphs
+    }
+
+    override fun width(text: String, sizePx: Float, font: MvtFont, letterSpacingPx: Float): Float {
+        return shape(text, sizePx, font, letterSpacingPx).logicalBounds.width.toFloat()
     }
 
     internal companion object {

@@ -9,16 +9,13 @@ import com.asamm.vectormaps.mvt.symbol.MvtIcon
 import com.asamm.vectormaps.mvt.symbol.MvtText
 import java.awt.AlphaComposite
 import java.awt.BasicStroke
-import java.awt.Font
 import java.awt.Graphics2D
 import java.awt.RenderingHints
 import java.awt.Shape
 import java.awt.TexturePaint
-import java.awt.font.GlyphVector
 import java.awt.geom.AffineTransform
 import java.awt.geom.Ellipse2D
 import java.awt.geom.Path2D
-import java.awt.geom.Point2D
 import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
 import kotlin.math.atan2
@@ -141,14 +138,17 @@ class AwtMvtRenderTarget(
         val font = fonts.font(text.font, text.sizePx)
         val metrics = font.getLineMetrics("Hg", AwtFonts.CONTEXT)
         val top = y - text.height / 2f
+        // all lines in one outline, so no line's halo covers another's glyphs
+        val outline = Path2D.Float()
         for ((i, line) in text.lines.withIndex()) {
-            val glyphs = glyphs(font, line, text.letterSpacingPx)
+            val glyphs = fonts.shape(line, text.sizePx, text.font, text.letterSpacingPx)
             val width = glyphs.logicalBounds.width.toFloat()
             // each line box is a line height tall, its glyphs centred in it
             val baseline = top + i * text.lineHeightPx + text.lineHeightPx / 2f +
                 (metrics.ascent - metrics.descent) / 2f
-            paint(glyphs.getOutline(x - width / 2f, baseline), text)
+            outline.append(glyphs.getOutline(x - width / 2f, baseline), false)
         }
+        paint(outline, text)
     }
 
     override fun drawTextAlongPath(text: MvtText, path: FloatArray) {
@@ -156,7 +156,7 @@ class AwtMvtRenderTarget(
         val line = text.lines.firstOrNull() ?: return
         val font = fonts.font(text.font, text.sizePx)
         val metrics = font.getLineMetrics("Hg", AwtFonts.CONTEXT)
-        val glyphs = glyphs(font, line, text.letterSpacingPx)
+        val glyphs = fonts.shape(line, text.sizePx, text.font, text.letterSpacingPx)
         val total = glyphs.logicalBounds.width.toFloat()
         var length = 0f
         for (i in 2 until path.size step 2) {
@@ -187,12 +187,12 @@ class AwtMvtRenderTarget(
         transform.rotate(Math.toRadians(rotateDeg.toDouble()))
         transform.translate(-w / 2.0, -h / 2.0)
         transform.scale(w / tile.width.toDouble(), h / tile.height.toDouble())
+        // a fresh Graphics2D reports no hint; its default is nearest neighbour
         val saved = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION)
+            ?: RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
         g.drawImage(tile, transform, null)
-        if (saved != null) {
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, saved)
-        }
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, saved)
     }
 
     fun dispose() {
@@ -219,22 +219,6 @@ class AwtMvtRenderTarget(
         return p
     }
 
-    private fun glyphs(font: Font, line: String, letterSpacingPx: Float): GlyphVector {
-        val glyphs = font.createGlyphVector(AwtFonts.CONTEXT, line)
-        if (letterSpacingPx != 0f) {
-            for (i in 0 until glyphs.numGlyphs) {
-                val p = glyphs.getGlyphPosition(i)
-                glyphs.setGlyphPosition(i, Point2D.Float(p.x.toFloat() + i * letterSpacingPx, p.y.toFloat()))
-            }
-            val end = glyphs.getGlyphPosition(glyphs.numGlyphs)
-            glyphs.setGlyphPosition(
-                glyphs.numGlyphs,
-                Point2D.Float(end.x.toFloat() + (glyphs.numGlyphs - 1).coerceAtLeast(0) * letterSpacingPx, end.y.toFloat()),
-            )
-        }
-        return glyphs
-    }
-
     // the halo as a round stroke around the glyphs, then the glyphs over it
     private fun paint(outline: Shape, text: MvtText) {
         if (text.haloWidthPx > 0f
@@ -248,7 +232,8 @@ class AwtMvtRenderTarget(
         g.fill(outline)
     }
 
-    // the point at `distance` along `path` and the angle of its segment
+    // the point at `distance` along `path` and the angle of its segment; past either end it goes on
+    // straight, for glyphs measured a little wider than the stretch
     private fun pointAt(path: FloatArray, distance: Float): Triple<Float, Float, Double> {
         var at = 0f
         var i = 2

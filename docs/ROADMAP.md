@@ -152,7 +152,7 @@ the umbrella `feature/m10-mvt`, which merges into `main` when M10 is done.
 |---|---|---|
 | M10.0 | Desktop spike: decoder, style subset, renderer for every layer type but symbols, MapLibre reference renders, golden | goldens within mean 4.0 / 6 % of MapLibre ✅ PR #53 |
 | M10.1 | Symbol layers: icons, text, along-line placement and collision, through the label pass | label goldens with the bundled font; MapLibre `labels` renders compared, reported 🔧 |
-| M10.2 | Driver behind `core/`, desktop viewer; MBTiles, PMTiles and HTTP tile sources | online and offline tiles render alike ⬜ |
+| M10.2 | Driver behind `core/`, desktop viewer; MBTiles, PMTiles and HTTP tile sources; `MvtLabelPass` built by the driver only (`internal constructor`, as the Garmin and Mapsforge passes) | online and offline tiles render alike ⬜ |
 | M10.3 | Performance and spike leftovers (mvt.md Spike), Android target, JMH and A54 benchmarks | baselines in performance.md ⬜ |
 
 ## M9 — Locus integration
