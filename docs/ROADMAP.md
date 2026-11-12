@@ -12,7 +12,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 desktop stays AWT (Q15). M8 and M9 ⏸ since 2026-11-12, while locus-core reworks the
 libMapCore plan (locus-core `docs/libraries/libMapCore/plan/`) around this library. M10 (vector
 tiles) started 2026-11-12 with a desktop spike on the umbrella branch `feature/m10-mvt`
-([mvt.md](mvt.md)).** Next action: M10.1, symbol layers through the label pass; M8.0 (logging
+([mvt.md](mvt.md)).** Next action: M10.2, the driver and tile sources; M8.0 (logging
 through kmp-logger) resumes when the libMapCore plan says so.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
@@ -34,7 +34,7 @@ settles, labels before speed, the Locus-facing API last.
 | M7 | Performance and Skia desktop backend | L | ✅ PRs #47–#52, `6155c9d`; M7.1 ⏸ (Q15) |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⏸ libMapCore plan |
 | M9 | Locus integration | M | ⏸ libMapCore plan; needs Q14, Q16 |
-| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | 🔧 spike on the umbrella `feature/m10-mvt` |
+| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | 🔧 M10.1 on the umbrella `feature/m10-mvt` |
 
 ## Done: M0–M6
 
@@ -150,9 +150,9 @@ the umbrella `feature/m10-mvt`, which merges into `main` when M10 is done.
 
 | Step | Content | Verify |
 |---|---|---|
-| M10.0 | Desktop spike: decoder, style subset, renderer for every layer type but symbols, MapLibre reference renders, golden | goldens within mean 4.0 / 6 % of MapLibre 🔧 PR #53 |
-| M10.1 | Symbol layers: icons, text, along-line placement and collision, through the label pass | label goldens against MapLibre `full` renders ⬜ |
-| M10.2 | Driver behind `core/`, desktop viewer; MBTiles, PMTiles and HTTP tile sources | online and offline tiles render alike ⬜ |
+| M10.0 | Desktop spike: decoder, style subset, renderer for every layer type but symbols, MapLibre reference renders, golden | goldens within mean 4.0 / 6 % of MapLibre ✅ PR #53 |
+| M10.1 | Symbol layers: icons, text, along-line placement and collision, through the label pass | label goldens with the bundled font; MapLibre `labels` renders compared, reported 🔧 |
+| M10.2 | Driver behind `core/`, desktop viewer; MBTiles, PMTiles and HTTP tile sources; `MvtLabelPass` built by the driver only (`internal constructor`, as the Garmin and Mapsforge passes) | online and offline tiles render alike ⬜ |
 | M10.3 | Performance and spike leftovers (mvt.md Spike), Android target, JMH and A54 benchmarks | baselines in performance.md ⬜ |
 
 ## M9 — Locus integration
@@ -266,7 +266,7 @@ See the locus-core plan, R1–R7. Repo-specific:
 | H2 | Vendored code misses upstream changes | per tag: `upstream_diff.py` grouping, hand port, parity with both goldens against the tag (`verify_upstream.py`, D36), deviation tables in [upstream.md](upstream.md) |
 | H3 | Interface shaped by Mapsforge alone | Garmin (M4) right after core v0 (M3) |
 | H4 | Locus sees nothing until M9 | A54 runs in the shared viewer; I7 fallback flag |
-| H5 | Committed PNGs break across OS, JDK, fonts | committed PNGs only for Mapsforge labels (AWT in the bundled DejaVu Sans, Android in Robolectric's fonts) and Garmin (DejaVu Sans), ≤ 0.2 % everywhere; a tile without an exact dump can lose a small label within it (D37, M6.0b gaps) |
+| H5 | Committed PNGs break across OS, JDK, fonts | committed PNGs only for Mapsforge labels (AWT in the bundled DejaVu Sans, Android in Robolectric's fonts) and Garmin (DejaVu Sans), ≤ 0.2 % everywhere, and MVT labels (DejaVu Sans, ≤ 0.5 %); a tile without an exact dump can lose a small label within it (D37, M6.0b gaps) |
 | H6 | JitPack outage or rebuild | checksum verification; cache the jars if outages hurt |
 | H7 | Host API drifts from Locus' real seam | mirrors `MapSourceRenderer`; M8.3 throwaway wiring |
 

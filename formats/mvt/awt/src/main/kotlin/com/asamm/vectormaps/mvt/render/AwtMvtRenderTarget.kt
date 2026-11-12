@@ -5,23 +5,30 @@
 package com.asamm.vectormaps.mvt.render
 
 import com.asamm.vectormaps.mvt.style.Color
+import com.asamm.vectormaps.mvt.symbol.MvtIcon
+import com.asamm.vectormaps.mvt.symbol.MvtText
 import java.awt.AlphaComposite
 import java.awt.BasicStroke
 import java.awt.Graphics2D
 import java.awt.RenderingHints
+import java.awt.Shape
 import java.awt.TexturePaint
+import java.awt.geom.AffineTransform
 import java.awt.geom.Ellipse2D
 import java.awt.geom.Path2D
 import java.awt.geom.Rectangle2D
 import java.awt.image.BufferedImage
+import kotlin.math.atan2
+import kotlin.math.hypot
 
 /**
- * [MvtRenderTarget] over a `BufferedImage` through `Graphics2D`, antialiased; patterns come from
- * `sprite`, shared by the targets of one style.
+ * [MvtRenderTarget] over a `BufferedImage` through `Graphics2D`, antialiased; patterns and icons
+ * come from `sprite`, text from `fonts`, both shared by the targets of one style.
  */
 class AwtMvtRenderTarget(
     val image: BufferedImage,
     private val sprite: AwtSprite? = null,
+    private val fonts: AwtFonts? = null,
 ) : MvtRenderTarget {
 
     private val g: Graphics2D = image.createGraphics().apply {
@@ -126,6 +133,68 @@ class AwtMvtRenderTarget(
         }
     }
 
+    override fun drawText(text: MvtText, x: Float, y: Float) {
+        val fonts = fonts ?: return
+        val font = fonts.font(text.font, text.sizePx)
+        val metrics = font.getLineMetrics("Hg", AwtFonts.CONTEXT)
+        val top = y - text.height / 2f
+        // all lines in one outline, so no line's halo covers another's glyphs
+        val outline = Path2D.Float()
+        for ((i, line) in text.lines.withIndex()) {
+            val glyphs = fonts.shape(line, text.sizePx, text.font, text.letterSpacingPx)
+            val width = glyphs.logicalBounds.width.toFloat()
+            // each line box is a line height tall, its glyphs centred in it
+            val baseline = top + i * text.lineHeightPx + text.lineHeightPx / 2f +
+                (metrics.ascent - metrics.descent) / 2f
+            outline.append(glyphs.getOutline(x - width / 2f, baseline), false)
+        }
+        paint(outline, text)
+    }
+
+    override fun drawTextAlongPath(text: MvtText, path: FloatArray) {
+        val fonts = fonts ?: return
+        val line = text.lines.firstOrNull() ?: return
+        val font = fonts.font(text.font, text.sizePx)
+        val metrics = font.getLineMetrics("Hg", AwtFonts.CONTEXT)
+        val glyphs = fonts.shape(line, text.sizePx, text.font, text.letterSpacingPx)
+        val total = glyphs.logicalBounds.width.toFloat()
+        var length = 0f
+        for (i in 2 until path.size step 2) {
+            length += hypot(path[i] - path[i - 2], path[i + 1] - path[i - 1])
+        }
+        val start = (length - total) / 2f
+        // the baseline sits so the glyphs centre on the line, shifted across it by text-offset
+        val across = (metrics.ascent - metrics.descent) / 2f + text.centerY
+        val outline = Path2D.Float()
+        for (g in 0 until glyphs.numGlyphs) {
+            val position = glyphs.getGlyphPosition(g)
+            val advance = glyphs.getGlyphMetrics(g).advance
+            val at = start + position.x.toFloat() + advance / 2f
+            val (px, py, angle) = pointAt(path, at)
+            val glyph = glyphs.getGlyphOutline(g, -(position.x.toFloat() + advance / 2f), across)
+            val transform = AffineTransform.getTranslateInstance(px.toDouble(), py.toDouble())
+            transform.rotate(angle)
+            outline.append(transform.createTransformedShape(glyph), false)
+        }
+        paint(outline, text)
+    }
+
+    override fun drawIcon(icon: MvtIcon, x: Float, y: Float, rotateDeg: Float) {
+        val tile = sprite?.image(icon.name) ?: return
+        val w = icon.width * icon.scale
+        val h = icon.height * icon.scale
+        val transform = AffineTransform.getTranslateInstance(x.toDouble(), y.toDouble())
+        transform.rotate(Math.toRadians(rotateDeg.toDouble()))
+        transform.translate(-w / 2.0, -h / 2.0)
+        transform.scale(w / tile.width.toDouble(), h / tile.height.toDouble())
+        // a fresh Graphics2D reports no hint; its default is nearest neighbour
+        val saved = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION)
+            ?: RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+        g.drawImage(tile, transform, null)
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, saved)
+    }
+
     fun dispose() {
         g.dispose()
     }
@@ -148,6 +217,42 @@ class AwtMvtRenderTarget(
             start = end
         }
         return p
+    }
+
+    // the halo as a round stroke around the glyphs, then the glyphs over it
+    private fun paint(outline: Shape, text: MvtText) {
+        if (text.haloWidthPx > 0f
+            && text.haloColor.alpha > 0
+        ) {
+            g.color = awt(text.haloColor)
+            g.stroke = BasicStroke(text.haloWidthPx * 2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+            g.draw(outline)
+        }
+        g.color = awt(text.color)
+        g.fill(outline)
+    }
+
+    // the point at `distance` along `path` and the angle of its segment; past either end it goes on
+    // straight, for glyphs measured a little wider than the stretch
+    private fun pointAt(path: FloatArray, distance: Float): Triple<Float, Float, Double> {
+        var at = 0f
+        var i = 2
+        while (i < path.size) {
+            val x0 = path[i - 2]
+            val y0 = path[i - 1]
+            val dx = path[i] - x0
+            val dy = path[i + 1] - y0
+            val segment = hypot(dx, dy)
+            if (segment > 0f
+                && (distance <= at + segment || i + 2 >= path.size)
+            ) {
+                val t = (distance - at) / segment
+                return Triple(x0 + dx * t, y0 + dy * t, atan2(dy.toDouble(), dx.toDouble()))
+            }
+            at += segment
+            i += 2
+        }
+        return Triple(path[0], path[1], 0.0)
     }
 
     private fun awt(color: Color): java.awt.Color {

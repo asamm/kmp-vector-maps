@@ -16,7 +16,7 @@ benchmarks: [docs/performance.md](docs/performance.md).
 |---|---|
 | Mapsforge `.map` v5 | vendored from [Mapsforge](https://github.com/mapsforge/mapsforge) 0.30.0, synced to 0.31.0 |
 | Garmin IMG | from `asamm/kmp-garmin-img` 0.5.2 (history in [docs/garmin-img/](docs/garmin-img/)), extended in M4 |
-| Mapbox Vector Tiles | M10 spike, desktop only ([docs/mvt.md](docs/mvt.md)) |
+| Mapbox Vector Tiles | M10 in progress, desktop only ([docs/mvt.md](docs/mvt.md)) |
 
 Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 
@@ -35,10 +35,12 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 - **`:formats:garmin-img:android`**, **`:awt`** — its render targets.
 - **`:formats:garmin-img:driver`** — the `:core` driver over the Garmin engine; the host passes its
   `GarminCanvasFactory`. `./gradlew :formats:garmin-img:driver:test`.
-- **`:formats:mvt:engine`**, **`:awt`** — MVT decoder, MapLibre style subset and renderer, its AWT
-  target (M10 spike). `./gradlew :formats:mvt:engine:test`.
+- **`:formats:mvt:engine`**, **`:awt`** — MVT decoder, MapLibre style subset, renderer and symbol
+  layout, its AWT target (M10). `./gradlew :formats:mvt:engine:test`.
+- **`:formats:mvt:driver`** — the `:core` side of MVT; its label pass so far (M10.1).
 - **`:dev:mvt:golden`** — MVT renders against MapLibre GL JS references from `dev/mvt/reference`
-  (`node render.mjs` there regenerates them). `./gradlew :dev:mvt:golden:test`.
+  (`node render.mjs` there regenerates them), the label pass against committed PNGs.
+  `./gradlew :dev:mvt:golden:test`.
 - **`:dev:mapsforge:golden`** — render comparison against upstream 0.30.0: exact for the reader
   and theme-callback dumps, label-free tiles within `accepted-differences.txt`; tiles with labels
   and the label dumps against the committed `labels/` (D37). `./gradlew :dev:mapsforge:golden:test`;

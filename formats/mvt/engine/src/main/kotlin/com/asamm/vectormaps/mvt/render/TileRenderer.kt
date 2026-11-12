@@ -6,8 +6,6 @@ package com.asamm.vectormaps.mvt.render
 
 import com.asamm.vectormaps.mvt.style.Color
 import com.asamm.vectormaps.mvt.style.EvalContext
-import com.asamm.vectormaps.mvt.style.Expression
-import com.asamm.vectormaps.mvt.style.ExpressionCompiler
 import com.asamm.vectormaps.mvt.style.LayerType
 import com.asamm.vectormaps.mvt.style.Style
 import com.asamm.vectormaps.mvt.style.StyleLayer
@@ -51,14 +49,9 @@ class TileRenderer(
         target: MvtRenderTarget,
         isCancelled: () -> Boolean,
     ): Boolean {
-        val dataZoom = minOf(zoom, maxDataZoom)
-        val dz = zoom - dataZoom
-        val tile = tileSource(dataZoom, x shr dz, y shr dz) ?: return false
-        // the requested tile's offset within its data tile, in requested-tile units
-        val offsetX = x - ((x shr dz) shl dz)
-        val offsetY = y - ((y shr dz) shl dz)
-        val scaleUnits = target.widthPx * (1 shl dz).toFloat()
-        val pixelScale = target.widthPx / 512f
+        val frame = DataTileFrame(zoom, x, y, target.widthPx, target.heightPx, maxDataZoom)
+        val tile = tileSource(frame.dataZoom, frame.dataX, frame.dataY) ?: return false
+        val pixelScale = frame.pixelScale
         val ctx = EvalContext(zoom.toDouble())
         for (layer in style.layers) {
             if (isCancelled()) {
@@ -81,7 +74,6 @@ class TileRenderer(
                 continue
             }
             val source = tile.layers[layer.sourceLayer] ?: continue
-            val scale = scaleUnits / source.extent
             try {
                 for (feature in source.features) {
                     ctx.feature = feature
@@ -91,14 +83,7 @@ class TileRenderer(
                         continue
                     }
                     val geometry = feature.decodeGeometry()
-                    val coords = geometry.coords
-                    val screen = FloatArray(coords.size)
-                    var i = 0
-                    while (i < coords.size) {
-                        screen[i] = coords[i] * scale - offsetX * target.widthPx
-                        screen[i + 1] = coords[i + 1] * scale - offsetY * target.heightPx
-                        i += 2
-                    }
+                    val screen = frame.project(geometry, source.extent)
                     val path = MvtPath(screen, geometry.partEnds, feature.type == GeometryType.POLYGON)
                     when (layer.type) {
                         LayerType.FILL -> drawFill(layer, path, feature.type, ctx, target, x, y)
@@ -206,13 +191,5 @@ class TileRenderer(
             )
             i += 2
         }
-    }
-
-    private fun number(e: Expression?, ctx: EvalContext, default: Double): Double {
-        return e?.eval(ctx) as? Double ?: default
-    }
-
-    private fun color(e: Expression?, ctx: EvalContext): Color? {
-        return ExpressionCompiler.toColor(e?.eval(ctx))
     }
 }

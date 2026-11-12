@@ -4,7 +4,7 @@ Rendering Asamm's own vector tiles with their MapLibre styles in this library, o
 third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin renderer (size L).
 
 **Author:** Menion · **Analysed:** 2026-11-12 · **Milestone:** M10 (see [ROADMAP.md](ROADMAP.md)) ·
-**Status:** desktop spike done 2026-11-12, see [Spike](#spike)
+**Status:** spike done 2026-11-12; M10.1 symbols 🔧 2026-11-12, see [Symbols](#symbols)
 
 ## Goal
 
@@ -86,9 +86,45 @@ Why A fits:
 - Against MapLibre GL JS on the same layers (`dev/mvt/reference`, headless Edge): mean pixel
   difference 0.6–2.6 of 255, 0.2–4.1 % of pixels off by more than 32, on 8 tiles z10–16.
 - 7–160 ms per 512 px tile on the JVM, untuned.
-- Not yet: symbols (the label pass), the driver, the viewer, MBTiles / PMTiles / HTTP sources.
+- Not yet: the driver, the viewer, MBTiles / PMTiles / HTTP sources.
 - Left from its review (M10.3): geometry decoded once per feature and tile, an overzoom
   bounding-box cull, feature-constant properties evaluated once per layer, a tri-state render
   result for cancelling, patterns scaled for non-512 px tiles and `@2x` sprites; expression
   details MapLibre handles differently and the Asamm styles do not use (`string`/`number` type
   assertions, `to-number` of null, negative `slice`, `round` of halves, uint64 ids).
+
+## Symbols
+
+2026-11-12, M10.1: `SymbolLayout` (engine) lays out each tile's symbol layers into labels;
+`MvtLabelPass` (`formats/mvt/driver`) places them per screen through the core `LabelPlacer` and
+draws them on the target (D39).
+
+| MapLibre behaviour | Here |
+|---|---|
+| Point at its point, line at its first point, polygon at its pole of inaccessibility | same |
+| `line` placement along lines and polygon rings, none at points | same |
+| `line` every `symbol-spacing` (spec minimum 1, widened to a longer label) from half a spacing in, else the middle; `line-center` once | same |
+| `text-max-angle`: absolute turns within 3/5 of the text size, for every text, not for icons alone | same |
+| `line` pieces with text joined first (`mergeLines`), each chain with its first piece's symbol | same |
+| Icons on lines turn with them (`icon-rotation-alignment` `auto` = `map`), `icon-offset` with `icon-rotate`, `icon-translate` in the map's frame | same |
+| Later layers place first, then lower `symbol-sort-key` | label priority |
+| `allow-overlap` | `ALWAYS`, which also never blocks others |
+| Text: `text-field`, `-transform`, `-size`, `-font` face, `-max-width` wrapping at spaces and hyphens, `-line-height`, `-letter-spacing`, `-anchor`, `-offset`, `-padding`, halo | same; lines wrap greedily, not balanced |
+| Icons: `icon-image`, `-size`, `-offset`, `-rotate`, `-padding`, `icon-translate` | same |
+| SDF glyphs from the font server | platform fonts, shaped (joining, bidi base direction) for measuring and drawing; goldens use the bundled DejaVu Sans |
+
+- Each tile keeps the labels whose anchors fall inside it, so a screen sees each anchor once; only
+  the segments and polygons meeting the tile are anchored, so a tile above the data zoom does no
+  more than its share.
+- The golden checks each fixture tile on a screen of its size and on one turned 30°.
+- Against MapLibre GL JS with labels (`labels` references, hillshade off): mean 1.6–12.6 of 255,
+  2.0–13.7 % of pixels off by more than 32; text in another font dominates, and DejaVu Sans is
+  wider than Noto, so some labels lose collisions MapLibre's win. Reported, not checked.
+- A malformed size, halo or padding drops or clamps the value; a symbol layer that throws is left
+  out whole and listed in `SymbolLayout.failedLayers`.
+- Left: font stacks mapped to platform fonts (M10.2), balanced line wrapping, `text-variable-anchor`
+  and `icon-text-fit` (unused by the Asamm styles), MapLibre's exact line anchor offsets, path
+  text placed along the line by `text-anchor` or `text-offset[0]` (centred here), an icon beside a
+  path text (no Asamm style has one), `symbol-sort-key` beyond 0–999, mixed-direction text runs
+  (one base direction per line); with M10.2 the label golden on a four-tile corner with a
+  placement dump and `isCancelled` for the layout; with M10.3 shaped text cached per layer.
