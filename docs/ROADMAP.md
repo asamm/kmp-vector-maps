@@ -9,7 +9,9 @@ driver interface, with desktop JVM for benchmarks and tools.
 **Benchmarks:** [performance.md](performance.md)
 
 **Status: M0–M7 done (PRs #1–#52, the last merged as `6155c9d` on 2026-11-10); M7.1 ⏸, the
-desktop stays AWT (Q15).** Next action: M8.0, logging through kmp-logger.
+desktop stays AWT (Q15). M8 and M9 ⏸ since 2026-11-12, while locus-core reworks the
+[libMapCore plan][mapcore-plan] around this library.** Next action: none here; M8.0 (logging
+through kmp-logger) resumes when that plan says so.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -27,9 +29,9 @@ settles, labels before speed, the Locus-facing API last.
 | M4 | Garmin IMG joins | M | ✅ PRs #27–#34, `e3c3aef` |
 | M5 | Mapsforge to Kotlin, hot-spot fixes per area, `legacy/` deleted | L | ✅ PRs #6–#26, `b22e989` |
 | M6 | Core features: label model, hillshade anchor, feature query | M | ✅ PRs #36–#45, `41f6968` |
-| M7 | Performance and Skia desktop backend | L | 🔧 M7.1 ⏸ (Q15) |
-| M8 | Android host API, proven on a throwaway Locus branch | M | ⬜ |
-| M9 | Locus integration | M | ⬜ needs Q14, Q16 |
+| M7 | Performance and Skia desktop backend | L | ✅ PRs #47–#52, `6155c9d`; M7.1 ⏸ (Q15) |
+| M8 | Android host API, proven on a throwaway Locus branch | M | ⏸ libMapCore plan |
+| M9 | Locus integration | M | ⏸ libMapCore plan; needs Q14, Q16 |
 | M10 | Mapbox Vector Tiles | L | ⏸ |
 
 ## Done: M0–M6
@@ -154,6 +156,28 @@ locus-core side.
 | I7 | One release behind a remote flag, upstream Mapsforge as fallback (`com.asamm.*` by then) |
 | I8 | A54 A/B of 7 views, zoom soak vs F1, `third_party_licenses.md` updated |
 | I9 | Garmin from this repo instead of `com.asamm.kmp:kmp-garmin-img-android:0.5.2`; only then delete `asamm/kmp-garmin-img`, as its GitHub Packages go with it |
+
+Against the locus-core [libMapCore plan][mapcore-plan], which moves `maps/` framework code out of
+libLocusCore (2026-11-10):
+
+- M8.0–M8.2 need nothing from locus-core: the host API has no Locus types, only the seam's shape.
+- M8.1 is shaped after its N8 (its D18): `MapSourceRenderer` takes a plain `TileRenderRequest`
+  with an `isCancelled` callback and returns a sealed render result, both in libMapCore. Its
+  result adds `drawnDark`, `Loading` and `Error`; take them into `TileRenderResult` or map them in
+  the adapter.
+- M8.3 and I1 write against that seam, not against `TileRequest` / `TileContent`, which its P4e
+  moves later without touching the adapter.
+- Its N9 puts the screen-space labels behind an interface mirroring `LabelPass`, so
+  `MapLayerLocal` no longer reaches `MapsForgeV4LabelRenderer` through `MapSourceMapsForgeV4`;
+  M8.3 wraps it. Its P5 draw list later gives the label pass its place.
+- Its N10 adds the `MapSourceVector` base that I4 switches the checks to. I4 removes
+  `MapSourceMapsForgeV4` checks from `MapContent` and `MapLayerLocal`, both in its move set (P4f,
+  P4e); I2 and I5 shrink what it moves.
+- M9 lands before its N6 and P4e, never alongside: both rewrite `sources/` and `tiles/` (its H7).
+- I6 (Q16) and its N6 both change the tile requests and the tile cache.
+- D32 (GPU renderer, bucket delivery) is its P7 and the "later GL backend" behind its D16 seams.
+
+[mapcore-plan]: https://github.com/asamm/locus-core/blob/development/docs/libraries/libMapCore/plan/README.md
 
 ## Decisions
 
