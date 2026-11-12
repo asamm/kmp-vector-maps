@@ -1,6 +1,7 @@
 /*
- * MVT golden test: the fixture tiles through the MVT engine and its AWT target against MapLibre
- * GL JS renders from `dev/mvt/reference`. Not published.
+ * MVT golden tests: the fixture tiles through the MVT engine and its AWT target against MapLibre
+ * GL JS renders from `dev/mvt/reference`, and the label pass against the committed
+ * `golden/labels` PNGs in the bundled font. Not published.
  */
 plugins {
     alias(libs.plugins.kotlinJvm)
@@ -12,6 +13,7 @@ kotlin {
 
 dependencies {
     testImplementation(project(":formats:mvt:awt"))
+    testImplementation(project(":formats:mvt:driver"))
     testImplementation(kotlin("test-junit5"))
 }
 

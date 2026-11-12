@@ -18,8 +18,10 @@ const port = 8765;
 const python = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 
 const VARIANTS = {
-  // what the Kotlin renderer draws so far: no symbols, no elevation layers
+  // the tile renderer's layers: no symbols, no elevation layers
   base: 'symbol,hillshade,color-relief',
+  // the tiles with the label pass over them: no elevation layers, which the host draws
+  labels: 'hillshade,color-relief',
   full: '',
 };
 

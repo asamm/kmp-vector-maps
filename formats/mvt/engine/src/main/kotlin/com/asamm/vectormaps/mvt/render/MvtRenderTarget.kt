@@ -5,6 +5,8 @@
 package com.asamm.vectormaps.mvt.render
 
 import com.asamm.vectormaps.mvt.style.Color
+import com.asamm.vectormaps.mvt.symbol.MvtIcon
+import com.asamm.vectormaps.mvt.symbol.MvtText
 
 /**
  * Platform drawing surface of the MVT renderer, in screen pixels with a top-left origin. The AWT
@@ -48,6 +50,23 @@ interface MvtRenderTarget {
         join: LineJoin,
         dash: FloatArray?,
     )
+
+    /**
+     * Draws the lines of `text` centred on (`x`, `y`), each line centred, halo below the fill.
+     */
+    fun drawText(text: MvtText, x: Float, y: Float)
+
+    /**
+     * Draws `text` along `path` (x, y pairs, from its first point), centred on its length and on
+     * the line, each glyph turned with the path.
+     */
+    fun drawTextAlongPath(text: MvtText, path: FloatArray)
+
+    /**
+     * Draws `icon` centred on (`x`, `y`), `icon.scale` times its sprite size, turned clockwise by
+     * `rotateDeg`; nothing for an unknown image.
+     */
+    fun drawIcon(icon: MvtIcon, x: Float, y: Float, rotateDeg: Float)
 
     /**
      * Fills a circle of `radius` and strokes `strokeWidth` outside it.

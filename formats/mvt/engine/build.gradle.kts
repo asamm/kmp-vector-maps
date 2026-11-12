@@ -1,6 +1,7 @@
 /*
- * MVT engine: Mapbox Vector Tile decoding, the MapLibre style subset the Asamm styles use, and the
- * renderer over its own `MvtRenderTarget`, in `com.asamm.vectormaps.mvt` (M10, docs/mvt.md).
+ * MVT engine: Mapbox Vector Tile decoding, the MapLibre style subset the Asamm styles use, the
+ * renderer over its own `MvtRenderTarget` and the symbol layout, in `com.asamm.vectormaps.mvt`
+ * (M10, docs/mvt.md).
  */
 plugins {
     alias(libs.plugins.kotlinJvm)

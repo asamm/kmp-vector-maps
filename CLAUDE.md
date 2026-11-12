@@ -1,7 +1,7 @@
 # CLAUDE.md — kmp-vector-maps
 
 Asamm-owned vector map renderers for Locus Map behind one driver interface: Mapsforge `.map` first
-(extracted from Mapsforge 0.30.0, synced to 0.31.0), Garmin IMG (M4), Mapbox Vector Tiles (M10, spike).
+(extracted from Mapsforge 0.30.0, synced to 0.31.0), Garmin IMG (M4), Mapbox Vector Tiles (M10).
 Android is the product; JVM desktop runs benchmarks and tools; no iOS.
 
 **Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, commit-sized
@@ -16,7 +16,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | Mapsforge: reader, theme engine, renderer, labels, SVG, `RenderCallback` | in |
 | Garmin IMG: reader (TRE, RGN, LBL, NET, TYP), TYP styling, renderer | in, M4 |
 | Android host API for Locus | in, M8 |
-| Mapbox Vector Tiles: Asamm tiles and MapLibre styles ([docs/mvt.md](docs/mvt.md)) | in, M10 (spike) |
+| Mapbox Vector Tiles: Asamm tiles and MapLibre styles ([docs/mvt.md](docs/mvt.md)) | in, M10 |
 | Hillshading data, Locus tile pipeline and adapters | locus-core |
 | Mapsforge POI database, map writer, views, layers, MBTiles | out |
 | Garmin encrypted or locked maps, NET routing, MDR search, mkgmap-style conversion | out |
@@ -29,13 +29,13 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `formats/mapsforge/driver` | Mapsforge driver: the `core/` interface over the engine |
 | `formats/garmin-img/engine`, `android`, `awt` | Garmin IMG from kmp-garmin-img (M4.1, D33), `com.asamm.vectormaps.garminimg.*`: the reader, TYP styles and renderer over its own `RenderTarget`, its Android and AWT targets |
 | `formats/garmin-img/driver` | Garmin driver: the `core/` interface over the engine |
-| `formats/mvt/engine`, `awt` | MVT (M10, spike): tile decoder, MapLibre style subset and expressions, renderer over its own `MvtRenderTarget`, `com.asamm.vectormaps.mvt.*`; its AWT target |
+| `formats/mvt/engine`, `awt`, `driver` | MVT (M10): tile decoder, MapLibre style subset and expressions, renderer over its own `MvtRenderTarget` and symbol layout, `com.asamm.vectormaps.mvt.*`; its AWT target; the driver, its label pass so far |
 | `viewer/*` | dev viewers for every registered format: `common` tile engine, `desktop` (Compose), `android` |
 | `dev/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored label-free corpus tiles render through the driver, those with labels in the tiles through the engine (D39); label-free tiles within `golden/accepted-differences.txt`, tiles with labels against the committed `golden/labels` (D37), the label pass against `golden/labels/pass`; the shared harness in `golden/harness` |
 | `dev/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `formats/mapsforge/android`, Robolectric; plain Mapsforge, not the driver; tiles with labels against `golden/labels/android` |
 | `dev/mapsforge/upstream` | upstream sync helpers: `upstream_diff.py` groups a tag's changes, `verify_upstream.py` runs both goldens against a tag built from source ([docs/upstream.md](docs/upstream.md)) |
 | `dev/garmin-img/golden` | Garmin pixel test of Monaco tiles (label-free) and the label pass through the driver against committed PNGs and dumps (bundled font, every system) and the dump comparison against the legacy Java parser libGarminImg |
-| `dev/mvt/golden`, `reference` | MVT golden test against MapLibre GL JS renders; the renders themselves in headless Edge (Playwright, `node render.mjs`) |
+| `dev/mvt/golden`, `reference` | MVT goldens: tiles against MapLibre GL JS renders, the label pass against committed `golden/labels` (bundled font); the MapLibre renders themselves in headless Edge (Playwright, `node render.mjs`) |
 | `dev/fixtures/` | test maps, themes and the golden font, see [dev/fixtures/README.md](dev/fixtures/README.md) |
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines M2.7 (Mapsforge) and M4.3c (Garmin) in [docs/performance.md](docs/performance.md) |
 | `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines M2.7b and M4.3c in docs/performance.md; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
