@@ -25,8 +25,10 @@ class AwtSprite(
         val i = index.images[name] ?: return null
         if (i.width <= 0
             || i.height <= 0
-            || i.x + i.width > sheet.width
-            || i.y + i.height > sheet.height
+            || i.x < 0
+            || i.y < 0
+            || i.x > sheet.width - i.width
+            || i.y > sheet.height - i.height
         ) {
             return null
         }

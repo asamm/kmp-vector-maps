@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feature/m10-mvt]
+    branches: [main]
   pull_request:
     branches: [main, feature/m10-mvt]
 
@@ -52,6 +52,6 @@ jobs:
             dev/mapsforge/golden-android/build/golden/
             dev/mapsforge/golden-android-upstream/build/golden/expected/
             dev/garmin-img/golden/build/test-output/
-            formats/mvt/awt/build/renders/
+            dev/mvt/golden/build/renders/
           if-no-files-found: ignore
           retention-days: 7

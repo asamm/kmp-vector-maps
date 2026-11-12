@@ -4,8 +4,8 @@
   SPDX-License-Identifier: Apache-2.0
 
   MapLibre reference renderer for the MVT goldens: shows one 512 px tile of a fixture style.
-  Served from the repository root (render.mjs does it), e.g.
-  /dev/mvt/reference/index.html?tile=14/8529/5974&style=hike_bike&tiles=local&hide=symbol,hillshade
+  Served from the repository's dev/ folder (render.mjs does it), e.g.
+  /mvt/reference/index.html?tile=14/8529/5974&style=hike_bike&tiles=local&hide=symbol,hillshade
   - tile: z/x/y of a 512 px tile; without it the map is interactive
   - style: a folder in dev/fixtures/mvt/styles
   - tiles: local (dev/fixtures/mvt/tiles) or online (tiles.locusmap.app)
@@ -35,7 +35,7 @@
   const styleName = params.get('style') || 'hike_bike';
   const local = (params.get('tiles') || 'local') === 'local';
   const hide = new Set((params.get('hide') || '').split(',').filter(Boolean));
-  const root = location.origin + '/dev/fixtures/mvt';
+  const root = location.origin + '/fixtures/mvt';
 
   function tileCenter(z, x, y) {
     const n = Math.pow(2, z);

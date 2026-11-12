@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 
 class StyleTest {
 
-    private val mvtDir = File(System.getProperty("fixturesDir"), "mvt")
+    private val mvtDir = File(requireNotNull(System.getProperty("fixturesDir")), "mvt")
 
     @Test
     fun parsesHikeBike() {
@@ -28,7 +28,9 @@ class StyleTest {
     fun evaluatesEveryFilterAndPropertyOnTheFixtures() {
         val style = Style.parse(File(mvtDir, "styles/hike_bike/style.json").readText())
         var matched = 0
-        for (file in File(mvtDir, "tiles/planet").walk().filter { it.extension == "pbf" }) {
+        val files = File(mvtDir, "tiles/planet").walk().filter { it.extension == "pbf" }.toList()
+        assertEquals(6, files.size, "fixture tiles")
+        for (file in files) {
             val zoom = file.parentFile.parentFile.name.toDouble()
             val tile = VectorTile.decode(file.readBytes())
             val ctx = EvalContext(zoom)
@@ -88,5 +90,20 @@ class StyleTest {
 
         assertEquals(1, style.problems.size, "${style.problems}")
         assertEquals(null, style.layers.single().filter)
+    }
+
+    @Test
+    fun listsMalformedShapesAsProblems() {
+        val style = Style.parse(
+            """{"layers": [
+                1,
+                {"id": "a", "type": "line", "paint": {"line-width": ["let", "x", ["zoom"]]}},
+                {"id": "b", "type": "line", "filter": ["all", ["==", "class"], ["!in", "k"]]},
+                {"id": "c", "type": "line", "paint": {"line-color": ["let"]}}
+            ]}""",
+        )
+
+        assertEquals(3, style.layers.size)
+        assertEquals(4, style.problems.size, "${style.problems}")
     }
 }

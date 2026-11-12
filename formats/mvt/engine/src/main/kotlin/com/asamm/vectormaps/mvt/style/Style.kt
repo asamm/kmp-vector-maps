@@ -27,8 +27,14 @@ class Style(
         fun parse(text: String): Style {
             val root = Json.parseToJsonElement(text).jsonObject
             val problems = ArrayList<String>()
-            val layers = (root["layers"] as? JsonArray).orEmpty()
-                .map { parseLayer(it.jsonObject, problems) }
+            val layers = (root["layers"] as? JsonArray).orEmpty().mapNotNull {
+                if (it is JsonObject) {
+                    parseLayer(it, problems)
+                } else {
+                    problems.add("layer $it: not an object")
+                    null
+                }
+            }
             return Style(
                 name = root.string("name") ?: "",
                 sprite = root.string("sprite"),
@@ -70,15 +76,10 @@ class Style(
             problems: MutableList<String>,
             block: () -> Expression,
         ): Expression? {
+            // any malformed JSON shape leaves this property out, not the whole style
             return try {
                 block()
-            } catch (e: IllegalArgumentException) {
-                problems.add("$id $key: ${e.message}")
-                null
-            } catch (e: IndexOutOfBoundsException) {
-                problems.add("$id $key: ${e.message}")
-                null
-            } catch (e: ClassCastException) {
+            } catch (e: RuntimeException) {
                 problems.add("$id $key: ${e.message}")
                 null
             }

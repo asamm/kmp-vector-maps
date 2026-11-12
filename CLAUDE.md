@@ -35,7 +35,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `dev/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `formats/mapsforge/android`, Robolectric; plain Mapsforge, not the driver; tiles with labels against `golden/labels/android` |
 | `dev/mapsforge/upstream` | upstream sync helpers: `upstream_diff.py` groups a tag's changes, `verify_upstream.py` runs both goldens against a tag built from source ([docs/upstream.md](docs/upstream.md)) |
 | `dev/garmin-img/golden` | Garmin pixel test of Monaco tiles (label-free) and the label pass through the driver against committed PNGs and dumps (bundled font, every system) and the dump comparison against the legacy Java parser libGarminImg |
-| `dev/mvt/reference` | MapLibre GL JS reference renders of the MVT fixtures in headless Edge (Playwright, `node render.mjs`) |
+| `dev/mvt/golden`, `reference` | MVT golden test against MapLibre GL JS renders; the renders themselves in headless Edge (Playwright, `node render.mjs`) |
 | `dev/fixtures/` | test maps, themes and the golden font, see [dev/fixtures/README.md](dev/fixtures/README.md) |
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines M2.7 (Mapsforge) and M4.3c (Garmin) in [docs/performance.md](docs/performance.md) |
 | `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines M2.7b and M4.3c in docs/performance.md; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |

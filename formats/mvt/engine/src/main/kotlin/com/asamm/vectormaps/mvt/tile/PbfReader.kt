@@ -103,21 +103,28 @@ internal class PbfReader(
     fun skip(tag: Int) {
         when (tag and 0x7) {
             WIRE_VARINT -> readVarint()
-            WIRE_FIXED64 -> pos += 8
+            WIRE_FIXED64 -> advance(8)
             WIRE_LENGTH -> pos += readLength()
-            WIRE_FIXED32 -> pos += 4
+            WIRE_FIXED32 -> advance(4)
             else -> throw IllegalArgumentException("skip(), wire type ${tag and 0x7} at $pos")
         }
     }
 
+    private fun advance(n: Int) {
+        require(n <= end - pos) {
+            "advance(), $n at $pos beyond $end"
+        }
+        pos += n
+    }
+
     private fun readLength(): Int {
-        val length = readVarint().toInt()
+        val length = readVarint()
         require(length >= 0
             && length <= end - pos
         ) {
             "readLength(), $length at $pos beyond $end"
         }
-        return length
+        return length.toInt()
     }
 
     private fun readFixed32(): Int {

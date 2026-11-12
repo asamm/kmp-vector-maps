@@ -50,7 +50,8 @@ abstract class Expression {
 
         /**
          * Compiles a JSON value: an expression array, or a constant (literal string, number, ...).
-         * Unknown operators throw [UnsupportedExpressionException].
+         * An array whose head is not a spec operator is a constant; a spec operator this engine
+         * does not implement throws [UnsupportedExpressionException].
          */
         internal fun compile(json: JsonElement): Expression {
             return ExpressionCompiler.compile(json)
@@ -167,6 +168,11 @@ internal object ExpressionCompiler {
         val name = (json[0] as JsonPrimitive).content
         val key = if (json.size > 1) (json[1] as? JsonPrimitive)?.content ?: "" else ""
         val values = json.drop(2).map { toValue(it) }
+        require(values.isNotEmpty()
+            || name in setOf("all", "any", "none", "has", "!has", "in", "!in")
+        ) {
+            "legacy filter $name without a value"
+        }
         val read = legacyGetter(key)
         return when (name) {
             "all" -> op(json.drop(1).map { compileLegacyFilter(it) }) { ctx, a ->
@@ -232,6 +238,12 @@ internal object ExpressionCompiler {
             "id" -> feature { ctx -> ctx.feature?.id?.toDouble() }
             "zoom" -> Op(emptyArray(), readsFeature = false, readsZoom = true) { ctx, _ -> ctx.zoom }
             "let" -> {
+                // name, value pairs and a body
+                require(raw.size >= 3
+                    && raw.size % 2 == 1
+                ) {
+                    "let with ${raw.size} arguments"
+                }
                 val names = raw.dropLast(1)
                     .filterIndexed { i, _ -> i % 2 == 0 }
                     .map { (it as JsonPrimitive).content }

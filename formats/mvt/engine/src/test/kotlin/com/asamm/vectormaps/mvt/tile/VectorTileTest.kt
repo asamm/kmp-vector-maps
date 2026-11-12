@@ -11,7 +11,7 @@ import kotlin.test.assertTrue
 
 class VectorTileTest {
 
-    private val tilesDir = File(System.getProperty("fixturesDir"), "mvt/tiles/planet")
+    private val tilesDir = File(requireNotNull(System.getProperty("fixturesDir")), "mvt/tiles/planet")
 
     @Test
     fun decodesMonacoZ14() {
@@ -28,7 +28,9 @@ class VectorTileTest {
 
     @Test
     fun decodesEveryGeometry() {
-        for (file in tilesDir.walk().filter { it.extension == "pbf" }) {
+        val files = tilesDir.walk().filter { it.extension == "pbf" }.toList()
+        assertEquals(6, files.size, "fixture tiles in $tilesDir")
+        for (file in files) {
             val tile = VectorTile.decode(file.readBytes())
             for (layer in tile.layers.values) {
                 for (feature in layer.features) {

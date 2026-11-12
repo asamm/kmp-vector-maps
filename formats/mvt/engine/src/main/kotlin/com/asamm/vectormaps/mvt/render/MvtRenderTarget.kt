@@ -32,6 +32,7 @@ interface MvtRenderTarget {
         path: MvtPath,
         pattern: String,
         opacity: Float,
+        antialias: Boolean,
         tileOriginX: Long,
         tileOriginY: Long,
     )

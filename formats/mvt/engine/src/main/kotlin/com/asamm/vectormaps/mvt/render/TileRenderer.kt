@@ -13,6 +13,7 @@ import com.asamm.vectormaps.mvt.style.Style
 import com.asamm.vectormaps.mvt.style.StyleLayer
 import com.asamm.vectormaps.mvt.tile.GeometryType
 import com.asamm.vectormaps.mvt.tile.VectorTile
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Draws the background, fill, line and circle layers of a [Style] for one tile; symbols are the
@@ -25,6 +26,17 @@ class TileRenderer(
     private val maxDataZoom: Int,
     private val tileSource: (zoom: Int, x: Int, y: Int) -> VectorTile?,
 ) {
+
+    /**
+     * Ids of the layers a render skipped because evaluating them threw, such as a malformed
+     * expression meeting unexpected tile data; the rest of the tile still draws.
+     */
+    val failedLayers: Set<String>
+        get() {
+            return failed
+        }
+
+    private val failed = ConcurrentHashMap.newKeySet<String>()
 
     /**
      * Renders tile (`zoom`, `x`, `y`) into `target`, whose width is the tile size; the style's
@@ -70,28 +82,33 @@ class TileRenderer(
             }
             val source = tile.layers[layer.sourceLayer] ?: continue
             val scale = scaleUnits / source.extent
-            for (feature in source.features) {
-                ctx.feature = feature
-                if (layer.filter != null
-                    && layer.filter.eval(ctx) != true
-                ) {
-                    continue
+            try {
+                for (feature in source.features) {
+                    ctx.feature = feature
+                    if (layer.filter != null
+                        && layer.filter.eval(ctx) != true
+                    ) {
+                        continue
+                    }
+                    val geometry = feature.decodeGeometry()
+                    val coords = geometry.coords
+                    val screen = FloatArray(coords.size)
+                    var i = 0
+                    while (i < coords.size) {
+                        screen[i] = coords[i] * scale - offsetX * target.widthPx
+                        screen[i + 1] = coords[i + 1] * scale - offsetY * target.heightPx
+                        i += 2
+                    }
+                    val path = MvtPath(screen, geometry.partEnds, feature.type == GeometryType.POLYGON)
+                    when (layer.type) {
+                        LayerType.FILL -> drawFill(layer, path, feature.type, ctx, target, x, y)
+                        LayerType.LINE -> drawLine(layer, path, feature.type, ctx, target, pixelScale)
+                        else -> drawCircles(layer, path, ctx, target, pixelScale)
+                    }
                 }
-                val geometry = feature.decodeGeometry()
-                val coords = geometry.coords
-                val screen = FloatArray(coords.size)
-                var i = 0
-                while (i < coords.size) {
-                    screen[i] = coords[i] * scale - offsetX * target.widthPx
-                    screen[i + 1] = coords[i + 1] * scale - offsetY * target.heightPx
-                    i += 2
-                }
-                val path = MvtPath(screen, geometry.partEnds, feature.type == GeometryType.POLYGON)
-                when (layer.type) {
-                    LayerType.FILL -> drawFill(layer, path, feature.type, ctx, target, x, y)
-                    LayerType.LINE -> drawLine(layer, path, feature.type, ctx, target, pixelScale)
-                    else -> drawCircles(layer, path, ctx, target, pixelScale)
-                }
+            } catch (e: RuntimeException) {
+                // a malformed style or tile skips this layer, not the tile
+                failed.add(layer.id)
             }
         }
         return true
@@ -110,6 +127,7 @@ class TileRenderer(
             return
         }
         val opacity = number(layer.paint["fill-opacity"], ctx, 1.0)
+        val antialias = layer.paint["fill-antialias"]?.eval(ctx) != false
         val pattern = layer.paint["fill-pattern"]
         if (pattern != null) {
             val name = pattern.eval(ctx) as? String ?: return
@@ -117,13 +135,13 @@ class TileRenderer(
                 path,
                 name,
                 opacity.toFloat(),
+                antialias,
                 x.toLong() * target.widthPx,
                 y.toLong() * target.heightPx,
             )
             return
         }
         val color = color(layer.paint["fill-color"], ctx) ?: Color(0xff000000.toInt())
-        val antialias = layer.paint["fill-antialias"]?.eval(ctx) != false
         target.fillPath(path, color.withOpacity(opacity), antialias)
     }
 

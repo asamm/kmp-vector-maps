@@ -15,6 +15,8 @@ object Colors {
 
     private const val MAX_CACHE = 4096
 
+    private const val MAX_CACHED_LENGTH = 64
+
     private val cache = ConcurrentHashMap<String, Color>()
 
     fun parse(text: String): Color? {
@@ -22,8 +24,10 @@ object Colors {
             return it
         }
         val color = parseUncached(text.trim().lowercase()) ?: return null
-        // style constants fill it; colours read from tile data are bounded by the cap
-        if (cache.size < MAX_CACHE) {
+        // style constants fill it; colours read from tile data are bounded by the caps
+        if (cache.size < MAX_CACHE
+            && text.length <= MAX_CACHED_LENGTH
+        ) {
             cache[text] = color
         }
         return color
@@ -36,10 +40,11 @@ object Colors {
         if (t.isNaN()) {
             return a
         }
+        val f = t.coerceIn(0.0, 1.0)
         fun channel(shift: Int): Int {
             val ca = a.argb ushr shift and 0xff
             val cb = b.argb ushr shift and 0xff
-            return (ca + (cb - ca) * t).roundToInt().coerceIn(0, 255)
+            return (ca + (cb - ca) * f).roundToInt().coerceIn(0, 255)
         }
         return Color((channel(24) shl 24) or (channel(16) shl 16) or (channel(8) shl 8) or channel(0))
     }
@@ -72,6 +77,9 @@ object Colors {
     }
 
     private fun parseHex(h: String): Color? {
+        if (!h.all { it in '0'..'9' || it in 'a'..'f' }) {
+            return null
+        }
         val v = h.toLongOrNull(16) ?: return null
         return when (h.length) {
             3 -> rgb(((v shr 8) and 0xf) * 17, ((v shr 4) and 0xf) * 17, (v and 0xf) * 17, 255)
@@ -115,8 +123,11 @@ object Colors {
             return null
         }
         val h = (parts[0].removeSuffix("deg").toDoubleOrNull() ?: return null).mod(360.0) / 360.0
-        val s = (parts[1].removeSuffix("%").toDoubleOrNull() ?: return null) / 100.0
-        val l = (parts[2].removeSuffix("%").toDoubleOrNull() ?: return null) / 100.0
+        val s = (parts[1].removeSuffix("%").toDoubleOrNull() ?: return null).coerceIn(0.0, 100.0) / 100
+        val l = (parts[2].removeSuffix("%").toDoubleOrNull() ?: return null).coerceIn(0.0, 100.0) / 100
+        if (h.isNaN()) {
+            return null
+        }
         val a = alpha(parts.getOrNull(3)) ?: return null
         val q = if (l < 0.5) l * (1 + s) else l + s - l * s
         val p = 2 * l - q

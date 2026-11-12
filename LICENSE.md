@@ -8,8 +8,9 @@ under its path, unless a file header states otherwise ([docs/licence.md](docs/li
 | Mapsforge format, incl. its Kotlin conversion and golden tests | `formats/mapsforge/`, `dev/mapsforge/` | LGPL-3.0-or-later + additional permission below | [COPYING.LESSER](COPYING.LESSER), [COPYING](COPYING) |
 | Core, renderers, Android host API, new viewer, benchmarks | `core/`, `render/`, `android/`, `dev/bench/`, `viewer/` | Apache-2.0 | [LICENSE-APACHE](LICENSE-APACHE) |
 | Garmin IMG format and its tests | `formats/garmin-img/`, `dev/garmin-img/` | LGPL-2.1-or-later | [COPYING.LGPL-2.1](COPYING.LGPL-2.1) |
+| MVT format and its tools | `formats/mvt/`, `dev/mvt/` | Apache-2.0 | [LICENSE-APACHE](LICENSE-APACHE) |
 | Test data | `dev/fixtures/` | per [dev/fixtures/README.md](dev/fixtures/README.md) | — |
-| Renders of the test maps (golden PNGs, visual references, CI artifacts) | anywhere | ODbL Produced Work, © OpenStreetMap contributors; `otm-monaco` renders also map style © OpenTopoMap (CC-BY-SA 4.0) | [dev/fixtures/README.md](dev/fixtures/README.md) |
+| Renders of the test maps (golden PNGs, visual references, CI artifacts) | anywhere | ODbL Produced Work, © OpenStreetMap contributors; `otm-monaco` renders also map style © OpenTopoMap (CC-BY-SA 4.0); MVT renders also © OpenMapTiles | [dev/fixtures/README.md](dev/fixtures/README.md) |
 
 The LGPL development viewers were deleted in M3.3.
 

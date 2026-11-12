@@ -53,6 +53,7 @@ class AwtMvtRenderTarget(
         path: MvtPath,
         pattern: String,
         opacity: Float,
+        antialias: Boolean,
         tileOriginX: Long,
         tileOriginY: Long,
     ) {
@@ -67,8 +68,13 @@ class AwtMvtRenderTarget(
         )
         val saved = g.composite
         g.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity.coerceIn(0f, 1f))
+        g.setRenderingHint(
+            RenderingHints.KEY_ANTIALIASING,
+            if (antialias) RenderingHints.VALUE_ANTIALIAS_ON else RenderingHints.VALUE_ANTIALIAS_OFF,
+        )
         g.paint = TexturePaint(tile, anchor)
         g.fill(toPath(path, Path2D.WIND_NON_ZERO))
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         g.composite = saved
     }
 

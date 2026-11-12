@@ -11,9 +11,11 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const repo = resolve(here, '../../..');
-const fixtures = join(repo, 'dev/fixtures/mvt');
+// the server sees dev/ only, never the rest of the repository
+const served = resolve(here, '../..');
+const fixtures = join(served, 'fixtures/mvt');
 const port = 8765;
+const python = process.env.PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
 
 const VARIANTS = {
   // what the Kotlin renderer draws so far: no symbols, no elevation layers
@@ -39,12 +41,39 @@ function referenceTiles() {
 }
 
 const tiles = process.argv.length > 2 ? process.argv.slice(2) : referenceTiles();
-const server = spawn('python', ['-m', 'http.server', String(port), '--bind', '127.0.0.1', '--directory', repo], { stdio: 'ignore' });
+async function waitForServer(server) {
+  let exited = null;
+  server.on('exit', code => { exited = code; });
+  for (let i = 0; i < 50; i++) {
+    if (exited !== null) {
+      throw new Error(`${python} http.server exited with ${exited}; is port ${port} taken?`);
+    }
+    try {
+      const response = await fetch(`http://127.0.0.1:${port}/mvt/reference/index.html`);
+      if (response.ok) {
+        return;
+      }
+    } catch {
+      // not listening yet
+    }
+    await new Promise(r => setTimeout(r, 200));
+  }
+  throw new Error(`no server on port ${port}`);
+}
+
+const server = spawn(python, ['-m', 'http.server', String(port), '--bind', '127.0.0.1', '--directory', served], {
+  stdio: 'ignore',
+});
+server.on('error', e => {
+  console.error(`cannot start ${python}: ${e.message}; set PYTHON`);
+  process.exit(1);
+});
+let browser;
 try {
-  await new Promise(r => setTimeout(r, 1000));
+  await waitForServer(server);
   // the system Edge, so nothing needs downloading; PW_CHANNEL=chromium for Playwright's own build
   const channel = process.env.PW_CHANNEL || 'msedge';
-  const browser = await chromium.launch({
+  browser = await chromium.launch({
     channel: channel === 'chromium' ? undefined : channel,
     args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
   });
@@ -57,7 +86,7 @@ try {
   page.on('console', m => { if (m.type() === 'error') console.error('  page:', m.text()); });
   for (const [variant, hide] of Object.entries(VARIANTS)) {
     for (const tile of tiles) {
-      const url = `http://127.0.0.1:${port}/dev/mvt/reference/index.html?tile=${tile}&style=hike_bike&tiles=local&hide=${hide}`;
+      const url = `http://127.0.0.1:${port}/mvt/reference/index.html?tile=${tile}&style=hike_bike&tiles=local&hide=${hide}`;
       await page.goto(url);
       await page.waitForFunction(() => window.referenceReady === true, null, { timeout: 60000 });
       const file = join(fixtures, 'reference/maplibre', variant, `${tile}.png`);
@@ -66,7 +95,7 @@ try {
       console.log(`${variant} ${tile}`);
     }
   }
-  await browser.close();
 } finally {
+  await browser?.close();
   server.kill();
 }

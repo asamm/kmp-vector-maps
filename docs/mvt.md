@@ -33,7 +33,7 @@ third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin render
 
 | Option | Effort | Verdict |
 |---|---|---|
-| **A. Own Kotlin renderer** behind the driver interface: MVT decoder, MBTiles and PMTiles readers, an HTTP tile source, style JSON with the expressions the Asamm styles use, fill / line / circle / background on the existing `RenderTarget`, symbols through the cross-tile label pass, platform text | L (XL for broad spec parity) | **Recommended** |
+| **A. Own Kotlin renderer** behind the driver interface: MVT decoder, MBTiles and PMTiles readers, an HTTP tile source, style JSON with the expressions the Asamm styles use, fill / line / circle / background on its own `MvtRenderTarget`, symbols through the cross-tile label pass, platform text | L (XL for broad spec parity) | **Recommended** |
 | B. MapLibre Native `MapSnapshotter` as a tile rasteriser | M | Rejected: contradicts libMapCore D20 (own GL renderer, no MapLibre); +4–8 MB native code per ABI; a GL context and Looper per worker; no desktop path, no goldens |
 | C. Convert each GL style to a Mapsforge-like theme (as VTM's `openmaptiles.xml`) | M per style | Rejected: hand work per style, lossy, two style sources to keep in sync |
 | D. GeoTools `gt-mbstyle`, VTM, maplibre-rs | — | Not usable: AWT-only and unsupported; a GL map view with own themes; a proof of concept |
@@ -46,19 +46,20 @@ Why A fits:
 - Platform text (Android Canvas, Java2D) shapes complex scripts that MapLibre glyph PBFs cannot,
   and Android needs no glyph download.
 - Hillshade and `color-relief` map to the existing `HILLSHADE` anchor; the host draws elevation.
-- tileserver-gl's PNGs of the same styles are a visual reference for the goldens (not pixel parity).
+- MapLibre GL JS renders of the same styles are the goldens' reference (`dev/mvt/reference`), the
+  tileserver-gl PNGs a cross-check; not pixel parity.
 
-## Work, if started
+## Work
 
 | Part | Size |
 |---|---|
 | MVT 2.1 decoder, MBTiles and PMTiles v3 readers, HTTP source | S |
 | Style JSON: sources, layers, zoom ranges, filters, legacy filters and `{stops}` functions | M |
 | Expression engine for the operators above, tested on the Asamm styles | M |
-| Background, fill (incl. pattern), line (dasharray, offset, pattern), circle on `RenderTarget` | M |
+| Background, fill (incl. pattern), line (dasharray, offset, pattern), circle on `MvtRenderTarget` | M |
 | Symbols: icons from sprites, text, along-line placement, collision, sort keys, through the label pass | L |
 | Overzoom from z14, 512 px tile convention, tile-buffer clipping | S |
-| Goldens against tileserver-gl PNGs, JMH and A54 benchmarks | M |
+| Goldens against MapLibre GL JS renders, JMH and A54 benchmarks | M |
 
 ## Risks
 
@@ -72,11 +73,12 @@ Why A fits:
 | ID | Question |
 |---|---|
 | V1 | Offline package: PMTiles (as the server) or MBTiles (as iOS) for Android? One package for both apps? |
+| V2 | Does the offline Mapsforge LoMaps package go once vector tiles cover it? Answered 2026-11-12: no influence here; the Mapsforge driver stays for third-party maps. |
 | V3 | Attribution: the tileserver credits OpenMapTiles, but the web app overrides it with a list without it (schema CC-BY); the web's internal 3D-buildings layer names a source `openmaptiles` the Asamm styles do not have. |
 
 ## Spike
 
-2026-11-12, `formats/mvt/engine` and `awt`, desktop only:
+2026-11-12, M10.0: `formats/mvt/engine` and `awt`, the golden `dev/mvt/golden`, desktop only:
 
 - Decoder, the whole `hike_bike` style (455 layers) and every filter and property evaluate on the
   fixture tiles; only the bathymetry `color-relief` is left to the host.
@@ -85,7 +87,8 @@ Why A fits:
   difference 0.6–2.6 of 255, 0.2–4.1 % of pixels off by more than 32, on 8 tiles z10–16.
 - 7–160 ms per 512 px tile on the JVM, untuned.
 - Not yet: symbols (the label pass), the driver, the viewer, MBTiles / PMTiles / HTTP sources.
-- Left from its review, for the driver step: geometry decoded once per feature and tile, an
-  overzoom bounding-box cull, feature-constant properties evaluated once per layer, a tri-state
-  render result for cancelling, patterns scaled for non-512 px tiles and `@2x` sprites, and the
-  pixel test moved to `dev/mvt/golden` as the other formats' goldens.
+- Left from its review (M10.3): geometry decoded once per feature and tile, an overzoom
+  bounding-box cull, feature-constant properties evaluated once per layer, a tri-state render
+  result for cancelling, patterns scaled for non-512 px tiles and `@2x` sprites; expression
+  details MapLibre handles differently and the Asamm styles do not use (`string`/`number` type
+  assertions, `to-number` of null, negative `slice`, `round` of halves, uint64 ids).
