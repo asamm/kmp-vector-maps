@@ -1,0 +1,80 @@
+<!doctype html>
+<!--
+  Copyright 2026 Asamm Software
+  SPDX-License-Identifier: Apache-2.0
+
+  MapLibre reference renderer for the MVT goldens: shows one 512 px tile of a fixture style.
+  Served from the repository's dev/ folder (render.mjs does it), e.g.
+  /mvt/reference/index.html?tile=14/8529/5974&style=hike_bike&tiles=local&hide=symbol,hillshade
+  - tile: z/x/y of a 512 px tile; without it the map is interactive
+  - style: a folder in dev/fixtures/mvt/styles
+  - tiles: local (dev/fixtures/mvt/tiles) or online (tiles.locusmap.app)
+  - hide: layer types to leave out, comma separated
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>MVT reference</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.css"
+        integrity="sha384-gNYNsUmuZqDYiT3gbirWTV5K7rt71RoveS/yXAaU09d4ZUmeDVTD3XoqB6uJAIFR"
+        crossorigin="anonymous">
+  <script src="https://unpkg.com/maplibre-gl@5.9.0/dist/maplibre-gl.js"
+          integrity="sha384-81ppUWZZO+pveTPk4qU9cZuScEFULHfuOMHVJHFZ7xVBlWQTG1zsPrVIMGAl1WMb"
+          crossorigin="anonymous"></script>
+  <style>
+    html, body { margin: 0; background: #fff; }
+    #map { width: 512px; height: 512px; }
+    body.interactive #map { width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+  const params = new URLSearchParams(location.search);
+  const tile = params.get('tile');
+  const styleName = params.get('style') || 'hike_bike';
+  const local = (params.get('tiles') || 'local') === 'local';
+  const hide = new Set((params.get('hide') || '').split(',').filter(Boolean));
+  const root = location.origin + '/fixtures/mvt';
+
+  function tileCenter(z, x, y) {
+    const n = Math.pow(2, z);
+    const lon = (x + 0.5) / n * 360 - 180;
+    const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / n))) * 180 / Math.PI;
+    return [lon, lat];
+  }
+
+  async function loadStyle() {
+    const style = await (await fetch(`${root}/styles/${styleName}/style.json`)).json();
+    style.sprite = `${root}/styles/${styleName}/sprite`;
+    if (local) {
+      for (const [id, source] of Object.entries(style.sources)) {
+        if (source.type === 'vector') {
+          delete source.url;
+          source.tiles = [`${root}/tiles/planet/{z}/{x}/{y}.pbf`];
+          source.minzoom = 0;
+          source.maxzoom = 14;
+        }
+      }
+    }
+    style.layers = style.layers.filter(l => !hide.has(l.type));
+    return style;
+  }
+
+  loadStyle().then(style => {
+    const options = { container: 'map', style, attributionControl: false, fadeDuration: 0, pixelRatio: 1 };
+    if (tile) {
+      const [z, x, y] = tile.split('/').map(Number);
+      Object.assign(options, { center: tileCenter(z, x, y), zoom: z, interactive: false });
+    } else {
+      document.body.classList.add('interactive');
+      Object.assign(options, { center: [7.42, 43.735], zoom: 14, hash: true });
+    }
+    const map = new maplibregl.Map(options);
+    window.map = map;
+    map.once('idle', () => { window.referenceReady = true; });
+    map.on('error', e => { console.error(e.error && e.error.message || e); });
+  });
+</script>
+</body>
+</html>
