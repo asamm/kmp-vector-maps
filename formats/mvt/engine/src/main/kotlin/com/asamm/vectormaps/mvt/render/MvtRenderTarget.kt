@@ -21,6 +21,12 @@ interface MvtRenderTarget {
     fun drawBackground(color: Color)
 
     /**
+     * Runs `block` on the platform canvas drawn on, for host drawing such as hillshading: a
+     * `java.awt.Graphics2D` copy, or the `android.graphics.Canvas` with its state restored after.
+     */
+    fun withPlatformCanvas(block: (Any) -> Unit)
+
+    /**
      * Fills the rings of `path` with the non-zero rule, so MVT holes (opposite winding) stay open.
      */
     fun fillPath(path: MvtPath, color: Color, antialias: Boolean)

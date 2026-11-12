@@ -12,7 +12,11 @@ import com.asamm.vectormaps.garminimg.render.AwtRenderTarget
 import com.asamm.vectormaps.garminimg.utils.io.FileImgRandomAccessReader
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
+import com.asamm.vectormaps.mvt.driver.MvtDriver
+import com.asamm.vectormaps.mvt.render.AwtFonts
+import com.asamm.vectormaps.mvt.render.AwtMvtGraphics
 import kotlinx.coroutines.runBlocking
+import java.awt.Font
 import java.io.File
 import java.util.Properties
 import javax.imageio.ImageIO
@@ -42,8 +46,13 @@ class ViewerStateTest {
         listOf(
             MapsforgeDriver(AwtGraphicFactory.INSTANCE),
             GarminDriver { size, antiAliased, scale -> AwtRenderTarget(size, size, antiAliased, scale) },
+            MvtDriver(AwtMvtGraphics(AwtFonts(Font(Font.SANS_SERIF, Font.PLAIN, 12)))),
         ),
     )
+
+    private val pmtiles = File(fixtures, "mvt/tiles/fixtures.pmtiles")
+
+    private val mapLibreStyle = File(fixtures, "mvt/styles/hike_bike/style.json")
 
     private val temp = createTempDirectory().toFile()
 
@@ -73,6 +82,25 @@ class ViewerStateTest {
             assertEquals(viewport.zoom.toString(), view.getProperty("zoom"))
             assertEquals(viewport.lat, view.getProperty("lat").toDouble(), 1e-6)
             assertNotNull(state.setupMs)
+        }
+    }
+
+    @Test
+    fun mvtMapRendersWithItsStyleAndLabels() {
+        // Monaco at z14, where the fixture file has its tile
+        val session = Session(tileSize = 256, mapPath = pmtiles.absolutePath, place = Session.Place(43.735, 7.42, 14))
+        ViewerState(formats = formats, session = session, capturesDir = temp).use { state ->
+            state.openMap(pmtiles)
+            assertTrue(state.openStyle(mapLibreStyle))
+            state.resize(width = 600, height = 400)
+
+            val engine = assertNotNull(state.engine)
+            // tiles outside the file stay empty, so one drawn tile is the check
+            val tiles = assertNotNull(state.viewport).tiles(600, 400)
+            waitFor { tiles.any { engine[it] != null } }
+            assertNull(engine.error)
+            waitFor { state.labelImage(600, 400) != null }
+            assertNull(state.error)
         }
     }
 

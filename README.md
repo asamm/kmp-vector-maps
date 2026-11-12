@@ -35,9 +35,10 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 - **`:formats:garmin-img:android`**, **`:awt`** — its render targets.
 - **`:formats:garmin-img:driver`** — the `:core` driver over the Garmin engine; the host passes its
   `GarminCanvasFactory`. `./gradlew :formats:garmin-img:driver:test`.
-- **`:formats:mvt:engine`**, **`:awt`** — MVT decoder, MapLibre style subset, renderer and symbol
-  layout, its AWT target (M10). `./gradlew :formats:mvt:engine:test`.
-- **`:formats:mvt:driver`** — the `:core` side of MVT; its label pass so far (M10.1).
+- **`:formats:mvt:engine`**, **`:awt`** — MVT decoder, PMTiles reader and the host tile source
+  interface, MapLibre style subset, renderer and symbol layout, its AWT target (M10). `./gradlew :formats:mvt:engine:test`.
+- **`:formats:mvt:driver`** — the `:core` driver over the MVT engine: `.pmtiles` files, host tile
+  sources, MapLibre `style.json`; the host passes its `MvtGraphics`. `./gradlew :formats:mvt:driver:test`.
 - **`:dev:mvt:golden`** — MVT renders against MapLibre GL JS references from `dev/mvt/reference`
   (`node render.mjs` there regenerates them), the label pass against committed PNGs.
   `./gradlew :dev:mvt:golden:test`.

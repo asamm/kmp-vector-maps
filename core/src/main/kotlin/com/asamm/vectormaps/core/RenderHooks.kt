@@ -26,7 +26,8 @@ class RenderHooks(
 /**
  * Draws the host's hillshading into a tile at the format's `HILLSHADE` anchor (D13): Mapsforge at
  * its theme's `<hillshading>` layer and level, or after all features when the theme has none;
- * Garmin after the polygons. Called on render threads, several at once.
+ * Garmin after the polygons; MVT at the style's first `hillshade` or `color-relief` layer active at
+ * the zoom, not at all without one. Called on render threads, several at once.
  */
 fun interface HillshadeHook {
 

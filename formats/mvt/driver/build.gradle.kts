@@ -1,6 +1,6 @@
 /*
- * MVT driver: the `:core` interfaces over the MVT engine; for now its label pass (M10.1), the
- * driver itself follows in M10.2.
+ * MVT driver: the `:core` driver interface over the MVT engine, its PMTiles and host tile sources
+ * and its label pass. Takes the graphics backend (AWT, Android) from the host as `MvtGraphics`.
  */
 plugins {
     alias(libs.plugins.kotlinJvm)
@@ -13,4 +13,14 @@ kotlin {
 dependencies {
     api(project(":core"))
     api(project(":formats:mvt:engine"))
+    testImplementation(project(":formats:mvt:awt"))
+    testImplementation(kotlin("test-junit5"))
+}
+
+val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures")
+
+tasks.test {
+    useJUnitPlatform()
+    inputs.dir(fixturesDir)
+    systemProperty("fixturesDir", fixturesDir.asFile.absolutePath)
 }

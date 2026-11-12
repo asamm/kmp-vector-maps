@@ -17,6 +17,7 @@ import com.asamm.vectormaps.core.label.PreparedLabels
 import com.asamm.vectormaps.core.label.ScreenTransform
 import com.asamm.vectormaps.core.label.TileLabelSource
 import com.asamm.vectormaps.core.label.TiledLabelPass
+import com.asamm.vectormaps.mvt.render.MvtGraphics
 import com.asamm.vectormaps.mvt.render.MvtRenderTarget
 import com.asamm.vectormaps.mvt.symbol.MvtIcon
 import com.asamm.vectormaps.mvt.symbol.MvtLabel
@@ -33,9 +34,11 @@ import kotlin.math.sin
  * on an [MvtRenderTarget] the size of the screen. Point symbols stay upright; path texts follow
  * their line and read upright.
  */
-class MvtLabelPass(
+class MvtLabelPass internal constructor(
     source: TileLabelSource<MvtLabel>,
     private val tileSize: Int,
+    private val graphics: MvtGraphics,
+    private val sprite: Any?,
 ) : TiledLabelPass<MvtLabel>(source = source, tileSize = tileSize) {
 
     override fun candidateOf(label: MvtLabel, tile: TileRequest): LabelCandidate? {
@@ -121,8 +124,16 @@ class MvtLabelPass(
     }
 
     /**
-     * Draws [prepared], by default the latest placement, on [target] the size of [view]; nothing
-     * while it is for another zoom. [target] needs the fonts that measured the labels.
+     * A transparent target of the screen's size for [draw], with the fonts and sprite the labels
+     * were measured and drawn with.
+     */
+    fun newTarget(widthPx: Int, heightPx: Int): MvtRenderTarget {
+        return graphics.createTarget(widthPx, heightPx, sprite)
+    }
+
+    /**
+     * Draws [prepared], by default the latest placement, on [target] the size of [view], made by
+     * [newTarget]; nothing while it is for another zoom.
      */
     fun draw(target: MvtRenderTarget, view: LabelViewport, prepared: PreparedLabels? = this.prepared) {
         if (prepared == null
