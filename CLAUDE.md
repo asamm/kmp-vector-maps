@@ -1,7 +1,7 @@
 # CLAUDE.md — kmp-vector-maps
 
 Asamm-owned vector map renderers for Locus Map behind one driver interface: Mapsforge `.map` first
-(extracted from Mapsforge 0.30.0, synced to 0.31.0), Garmin IMG (M4), Mapbox Vector Tiles later.
+(extracted from Mapsforge 0.30.0, synced to 0.31.0), Garmin IMG (M4), Mapbox Vector Tiles (M10, spike).
 Android is the product; JVM desktop runs benchmarks and tools; no iOS.
 
 **Read [docs/ROADMAP.md](docs/ROADMAP.md) before starting work** — status, next action, commit-sized
@@ -16,7 +16,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | Mapsforge: reader, theme engine, renderer, labels, SVG, `RenderCallback` | in |
 | Garmin IMG: reader (TRE, RGN, LBL, NET, TYP), TYP styling, renderer | in, M4 |
 | Android host API for Locus | in, M8 |
-| Mapbox Vector Tiles | deferred, M10 |
+| Mapbox Vector Tiles: Asamm tiles and MapLibre styles ([docs/mvt.md](docs/mvt.md)) | in, M10 (spike) |
 | Hillshading data, Locus tile pipeline and adapters | locus-core |
 | Mapsforge POI database, map writer, views, layers, MBTiles | out |
 | Garmin encrypted or locked maps, NET routing, MDR search, mkgmap-style conversion | out |
@@ -29,11 +29,13 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `formats/mapsforge/driver` | Mapsforge driver: the `core/` interface over the engine |
 | `formats/garmin-img/engine`, `android`, `awt` | Garmin IMG from kmp-garmin-img (M4.1, D33), `com.asamm.vectormaps.garminimg.*`: the reader, TYP styles and renderer over its own `RenderTarget`, its Android and AWT targets |
 | `formats/garmin-img/driver` | Garmin driver: the `core/` interface over the engine |
+| `formats/mvt/engine`, `awt` | MVT (M10, spike): tile decoder, MapLibre style subset and expressions, renderer over its own `MvtRenderTarget`, `com.asamm.vectormaps.mvt.*`; its AWT target |
 | `viewer/*` | dev viewers for every registered format: `common` tile engine, `desktop` (Compose), `android` |
 | `dev/mapsforge/golden`, `golden-upstream` | pixel test vs upstream 0.30.0 (JitPack); vendored label-free corpus tiles render through the driver, those with labels in the tiles through the engine (D39); label-free tiles within `golden/accepted-differences.txt`, tiles with labels against the committed `golden/labels` (D37), the label pass against `golden/labels/pass`; the shared harness in `golden/harness` |
 | `dev/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `formats/mapsforge/android`, Robolectric; plain Mapsforge, not the driver; tiles with labels against `golden/labels/android` |
 | `dev/mapsforge/upstream` | upstream sync helpers: `upstream_diff.py` groups a tag's changes, `verify_upstream.py` runs both goldens against a tag built from source ([docs/upstream.md](docs/upstream.md)) |
 | `dev/garmin-img/golden` | Garmin pixel test of Monaco tiles (label-free) and the label pass through the driver against committed PNGs and dumps (bundled font, every system) and the dump comparison against the legacy Java parser libGarminImg |
+| `dev/mvt/reference` | MapLibre GL JS reference renders of the MVT fixtures in headless Edge (Playwright, `node render.mjs`) |
 | `dev/fixtures/` | test maps, themes and the golden font, see [dev/fixtures/README.md](dev/fixtures/README.md) |
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines M2.7 (Mapsforge) and M4.3c (Garmin) in [docs/performance.md](docs/performance.md) |
 | `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines M2.7b and M4.3c in docs/performance.md; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
@@ -55,7 +57,8 @@ not relitigate a decision without asking. Update the roadmap status in the same 
   `Copyright 2026 Asamm Software` ([licence.md](docs/licence.md) L2).
 - New Asamm files: `Copyright 2026 Asamm Software` + SPDX id — `LGPL-3.0-or-later` under
   `formats/mapsforge/` and `dev/mapsforge/`, `LGPL-2.1-or-later` under `formats/garmin-img/` and
-  `dev/garmin-img/`, `Apache-2.0` for `core/`, `render/`, `android/`, `dev/bench/` and `viewer/`.
+  `dev/garmin-img/`, `Apache-2.0` for `core/`, `render/`, `android/`, `formats/mvt/`, `dev/mvt/`,
+  `dev/bench/` and `viewer/`.
 - **Formats depend on the core only.** No Locus types anywhere.
 - Kotlin/JVM libraries: `android.*` only in `render/android`, `android/`,
   `formats/mapsforge/android`, `formats/garmin-img/android`.

@@ -3,8 +3,8 @@
 Rendering Asamm's own vector tiles with their MapLibre styles in this library, on Android, as a
 third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin renderer (size L).
 
-**Author:** Menion · **Analysed:** 2026-11-12 · **Milestone:** M10, ⏸ behind the libMapCore plan
-(see [ROADMAP.md](ROADMAP.md)) · **Status:** analysis only, no code
+**Author:** Menion · **Analysed:** 2026-11-12 · **Milestone:** M10 (see [ROADMAP.md](ROADMAP.md)) ·
+**Status:** desktop spike done 2026-11-12, see [Spike](#spike)
 
 ## Goal
 
@@ -21,13 +21,13 @@ third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin render
 |---|---|---|
 | Tiles | One planet tileset: OpenMapTiles 3.16 schema plus Asamm layers (`hiking`, `cycling`, `ski`, `contour`, `lm_transportation`, `outdoor_poi`, …), z0–14, overzoomed by clients to z19–20 | `tiles.locusmap.app/data/planet.json` |
 | Generator | Planetiler with the Asamm fork of the OpenMapTiles profile; Asamm layers in `src/main/java/org/openmaptiles/addons/layers/` | [asamm/planetiler-openmaptiles](https://github.com/asamm/planetiler-openmaptiles) |
-| Online server | tileserver-gl workers over PMTiles on shared storage, Bunny CDN in front (`tiles.locusmap.app`); `/data/planet/{z}/{x}/{y}.pbf` and 512 px PNG rasters of the same styles | [asamm/lomaps-server-updater](https://github.com/asamm/lomaps-server-updater) (private) |
-| Offline (iOS) | MBTiles per Locus Store map, plus a style template whose `mbtiles://`, sprite and glyph placeholders the app fills; elevation stays online | locus-map-ios `OfflineMapsFileManager.swift` |
-| Styles | `hike_bike`, `ski` and their dark variants; generated from Glug sheets and released to online, offline and tileserver targets | [asamm/lomaps-vector-hike-bike-theme](https://github.com/asamm/lomaps-vector-hike-bike-theme) (private), `lib/glug_sheets/` |
+| Online server | tileserver-gl over PMTiles behind a CDN (`tiles.locusmap.app`); `/data/planet/{z}/{x}/{y}.pbf` and 512 px PNG rasters of the same styles | Asamm server setup |
+| Offline (iOS) | MBTiles per Locus Store map, plus a style template whose `mbtiles://`, sprite and glyph placeholders the app fills; elevation stays online | Locus Map iOS |
+| Styles | `hike_bike`, `ski` and their dark variants, released for online, offline and tileserver use | Asamm style sources |
 | Style content | ~455 layers: 336 line, 71 symbol, 42 fill, hillshade, 1 `color-relief` (bathymetry), circle, background; no 3D, heatmap or terrain | `hike_bike` style JSON |
 | Expressions | ~25 of the spec's 88 operators: `get`, `all`, `==`, `in`, `interpolate`, `case`, `step`, `let`/`var`, `index-of`, `slice`, `concat`, `geometry-type`, `has`, `upcase`, arithmetic | `hike_bike` style JSON |
 | Text | 4 Noto stacks; the iOS offline glyph download is 131.7 MB | offline release JSON |
-| Consumers | web (`locus-server/web-ui`, maplibre-gl 6), iOS (MapLibre Native); iOS online still reads MapTiler, to be switched to Asamm tiles | both repos |
+| Consumers | Locus Map web (maplibre-gl 6), Locus Map iOS (MapLibre Native); iOS online still reads MapTiler, to be switched to Asamm tiles | both apps |
 
 ## Options
 
@@ -72,11 +72,20 @@ Why A fits:
 | ID | Question |
 |---|---|
 | V1 | Offline package: PMTiles (as the server) or MBTiles (as iOS) for Android? One package for both apps? |
-| V2 | Does the offline Mapsforge LoMaps package go once vector tiles cover it? Third-party Mapsforge and Garmin maps stay. |
-| V3 | Attribution: the web credits OSM but not OpenMapTiles (schema CC-BY); the web's internal 3D-buildings layer names a source `openmaptiles` the Asamm styles do not have. |
+| V3 | Attribution: the tileserver credits OpenMapTiles, but the web app overrides it with a list without it (schema CC-BY); the web's internal 3D-buildings layer names a source `openmaptiles` the Asamm styles do not have. |
 
-## Next step
+## Spike
 
-A desktop-only spike (S–M): fetch a few `planet` tiles, parse `hike_bike`, draw background, fill
-and line layers in the desktop viewer, and compare them with tileserver-gl's PNGs of the same
-tiles. It shows how far the expression subset reaches before M10 is planned.
+2026-11-12, `formats/mvt/engine` and `awt`, desktop only:
+
+- Decoder, the whole `hike_bike` style (455 layers) and every filter and property evaluate on the
+  fixture tiles; only the bathymetry `color-relief` is left to the host.
+- Background, fill, pattern fill, line (dash, offset) and circle layers, overzoom from z14.
+- Against MapLibre GL JS on the same layers (`dev/mvt/reference`, headless Edge): mean pixel
+  difference 0.6–2.6 of 255, 0.2–4.1 % of pixels off by more than 32, on 8 tiles z10–16.
+- 7–160 ms per 512 px tile on the JVM, untuned.
+- Not yet: symbols (the label pass), the driver, the viewer, MBTiles / PMTiles / HTTP sources.
+- Left from its review, for the driver step: geometry decoded once per feature and tile, an
+  overzoom bounding-box cull, feature-constant properties evaluated once per layer, a tri-state
+  render result for cancelling, patterns scaled for non-512 px tiles and `@2x` sprites, and the
+  pixel test moved to `dev/mvt/golden` as the other formats' goldens.

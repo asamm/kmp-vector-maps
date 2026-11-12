@@ -10,8 +10,10 @@ driver interface, with desktop JVM for benchmarks and tools.
 
 **Status: M0–M7 done (PRs #1–#52, the last merged as `6155c9d` on 2026-11-10); M7.1 ⏸, the
 desktop stays AWT (Q15). M8 and M9 ⏸ since 2026-11-12, while locus-core reworks the
-[libMapCore plan][mapcore-plan] around this library.** Next action: none here; M8.0 (logging
-through kmp-logger) resumes when that plan says so.
+libMapCore plan around this library. M10 (vector tiles) started 2026-11-12 with a desktop spike
+on the umbrella branch `feature/m10-mvt` ([mvt.md](mvt.md)).** Next action: M10, the symbol layers
+through the label pass, then the driver; M8.0 (logging through kmp-logger) resumes when the
+libMapCore plan says so.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -32,7 +34,7 @@ settles, labels before speed, the Locus-facing API last.
 | M7 | Performance and Skia desktop backend | L | ✅ PRs #47–#52, `6155c9d`; M7.1 ⏸ (Q15) |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⏸ libMapCore plan |
 | M9 | Locus integration | M | ⏸ libMapCore plan; needs Q14, Q16 |
-| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | ⏸ analysed 2026-11-12 |
+| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | 🔧 spike on the umbrella `feature/m10-mvt` |
 
 ## Done: M0–M6
 
@@ -157,7 +159,7 @@ locus-core side.
 | I8 | A54 A/B of 7 views, zoom soak vs F1, `third_party_licenses.md` updated |
 | I9 | Garmin from this repo instead of `com.asamm.kmp:kmp-garmin-img-android:0.5.2`; only then delete `asamm/kmp-garmin-img`, as its GitHub Packages go with it |
 
-Against the locus-core [libMapCore plan][mapcore-plan], which moves `maps/` framework code out of
+Against the locus-core libMapCore plan, which moves `maps/` framework code out of
 libLocusCore (2026-11-10):
 
 - M8.0–M8.2 need nothing from locus-core: the host API has no Locus types, only the seam's shape.
@@ -177,7 +179,6 @@ libLocusCore (2026-11-10):
 - I6 (Q16) and its N6 both change the tile requests and the tile cache.
 - D32 (GPU renderer, bucket delivery) is its P7 and the "later GL backend" behind its D16 seams.
 
-[mapcore-plan]: https://github.com/asamm/locus-core/blob/development/docs/libraries/libMapCore/plan/README.md
 
 ## Decisions
 
