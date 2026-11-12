@@ -48,8 +48,8 @@ def varint(value):
 
 def gzipped(data):
     buffer = io.BytesIO()
-    # a fixed time keeps the file the same on every run
-    with gzip.GzipFile(fileobj=buffer, mode='wb', mtime=0) as f:
+    # a fixed time and level keep the file the same on every run of one Python and zlib build
+    with gzip.GzipFile(fileobj=buffer, mode='wb', compresslevel=9, mtime=0) as f:
         f.write(data)
     return buffer.getvalue()
 

@@ -84,7 +84,7 @@ anchors, each with a per-format default.
 
 | Anchor | Mapsforge | Garmin IMG | MVT |
 |---|---|---|---|
-| `HILLSHADE` | theme `<hillshading>` (layer + level); else after all features | after polygons | style layer |
+| `HILLSHADE` | theme `<hillshading>` (layer + level); else after all features | after polygons | each `hillshade` and `color-relief` layer |
 | `LABELS` | label pass | label pass | label pass (symbol layers) |
 
 - The hillshade hook (`RenderHooks.hillshade`, a `createRenderer` argument outside `RenderKey`)
@@ -92,7 +92,9 @@ anchors, each with a per-format default.
   with matrix, clip and layers restored after), its geo bounds and pixels per metre, and draws
   with its own alpha and blend mode; a throw is logged and the tile stays unshaded; the host
   prefetches DEM data. A Mapsforge `<hillshading>` draws within its zoom range (default 9..17)
-  and not at all with its category off.
+  and not at all with its category off. MVT calls it once per active elevation layer with a
+  `HillshadeLayer` (its `raster-dem` source and paint at the zoom), so the host picks the layers
+  it draws, such as only its terrain source.
 
 ## Labels
 

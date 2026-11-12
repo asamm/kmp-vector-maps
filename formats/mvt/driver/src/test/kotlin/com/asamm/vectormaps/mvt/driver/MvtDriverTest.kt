@@ -5,6 +5,7 @@
 package com.asamm.vectormaps.mvt.driver
 
 import com.asamm.vectormaps.core.HillshadeHook
+import com.asamm.vectormaps.core.HillshadeLayer
 import com.asamm.vectormaps.core.MapFormats
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.RenderHooks
@@ -73,7 +74,7 @@ class MvtDriverTest {
     }
 
     @Test
-    fun rendersAHostSourceAndCallsTheHillshadeHookOnce() {
+    fun rendersAHostSourceAndCallsTheHillshadeHookPerTile() {
         val reads = AtomicInteger()
         val source = object : MvtTileSource {
             override val minZoom = 0
@@ -86,7 +87,7 @@ class MvtDriverTest {
             }
         }
         val hillshades = AtomicInteger()
-        val hooks = RenderHooks(hillshade = HillshadeHook { _, _, _, _ -> hillshades.incrementAndGet() })
+        val hooks = RenderHooks(hillshade = HillshadeHook { _, _, _, _, _ -> hillshades.incrementAndGet() })
         driver.openSource(source).use { dataset ->
             dataset.createRenderer(style, StyleSelection.DEFAULT, RenderConfig(tileSizePx = 512), hooks).use { renderer ->
                 // four children above the data zoom read their ancestor once
@@ -101,6 +102,41 @@ class MvtDriverTest {
 
         assertEquals(1, reads.get())
         assertEquals(4, hillshades.get())
+    }
+
+    @Test
+    fun callsTheHillshadeHookAtEachElevationLayer() {
+        val bytes = File(mvtDir, "tiles/planet/10/533/373.pbf").readBytes()
+        // any tile's data, as only the elevation layers matter here
+        val source = object : MvtTileSource {
+            override val minZoom = 0
+            override val maxZoom = 14
+            override val bounds: DoubleArray? = null
+
+            override fun tile(zoom: Int, x: Int, y: Int): ByteArray = bytes
+        }
+        val layers = ArrayList<HillshadeLayer>()
+        val hooks = RenderHooks(hillshade = HillshadeHook { _, _, _, _, layer -> layers.add(requireNotNull(layer)) })
+        driver.openSource(source).use { dataset ->
+            dataset.createRenderer(style, StyleSelection.DEFAULT, RenderConfig(tileSizePx = 256), hooks).use { renderer ->
+                renderer.render(TileRequest(x = 16, y = 11, zoom = 5), MvtTileTarget(256)) { false }
+            }
+        }
+
+        // bathymetry under the land, terrain over it, in style order
+        assertEquals(listOf("bathymetry_colored", "bathymetry", "hillshade"), layers.map { it.id })
+        val relief = layers[0]
+        assertEquals(HillshadeLayer.Type.COLOR_RELIEF, relief.type)
+        assertEquals("bathymetry-rgb", relief.source)
+        assertEquals("terrarium", relief.encoding)
+        assertEquals(-11000.0 to 0xff0d3d5f.toInt(), (relief.paint["color-relief-color"] as List<*>).first())
+        val terrain = layers[2]
+        assertEquals(HillshadeLayer.Type.HILLSHADE, terrain.type)
+        assertEquals("terrain-rgb", terrain.source)
+        assertEquals("https://tiles.locusmap.app/data/terrain-rgb.json", terrain.sourceUrl)
+        assertEquals(0xff3c3228.toInt(), terrain.paint["hillshade-shadow-color"])
+        // 0.5 at z2 to 0.3 at z5
+        assertEquals(0.3, terrain.paint["hillshade-exaggeration"] as Double, 1e-9)
     }
 
     @Test

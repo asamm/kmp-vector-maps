@@ -190,7 +190,7 @@ the umbrella `feature/m10-mvt`, which merges into `main` when M10 is done.
 | M10.0 | Desktop spike: decoder, style subset, renderer for every layer type but symbols, MapLibre reference renders, golden | goldens within mean 4.0 / 6 % of MapLibre ✅ PR #53 |
 | M10.1 | Symbol layers: icons, text, along-line placement and collision, through the label pass | label goldens with the bundled font; MapLibre `labels` renders compared, reported ✅ PR #54 |
 | M10.2 | Driver behind `core/` (PMTiles files, the host's tile sources for online maps, `style.json` with its sprite), desktop viewer; MBTiles waits for V1; `MvtLabelPass` built by the driver only | goldens through the driver on a PMTiles fixture; driver and viewer tests 🔧 |
-| M10.3 | Performance and spike leftovers (mvt.md Spike), Android target, JMH and A54 benchmarks | baselines in performance.md ⬜ |
+| M10.3 | Performance and spike leftovers (mvt.md Spike), Android target, JMH and A54 benchmarks; `RenderConfig.deviceScale`, `textScale` and `language`; PMTiles directories as `LongArray` columns, cached by entries (measured on a planet file); one decode per data tile and directory under concurrent misses; a reusable label-pass target (`clear()`) | baselines in performance.md ⬜ |
 
 ## Decisions
 

@@ -121,15 +121,20 @@ class MvtDataset internal constructor(
             renderers++
             sources.toList()
         }
-        return MvtRenderer(
-            dataset = this,
-            sources = current,
-            style = style,
-            selection = selection,
-            config = config,
-            labelStoreTiles = labelStoreTiles,
-            hooks = hooks,
-        )
+        return try {
+            MvtRenderer(
+                dataset = this,
+                sources = current,
+                style = style,
+                selection = selection,
+                config = config,
+                labelStoreTiles = labelStoreTiles,
+                hooks = hooks,
+            )
+        } catch (e: Throwable) {
+            release()
+            throw e
+        }
     }
 
     // called once by each renderer's close
@@ -164,7 +169,7 @@ class MvtDataset internal constructor(
 
     private companion object {
 
-        // the labels of more tiles than a screen shows, so a pan keeps its neighbours' labels
-        const val LABEL_STORE_TILES = 128
+        // as the Mapsforge driver
+        const val LABEL_STORE_TILES = 100
     }
 }

@@ -119,8 +119,11 @@ class MvtDriver(
          */
         fun boundsOf(source: MvtTileSource): GeoBounds {
             val b = source.bounds
+            // an archive without bounds may hold zeros
             if (b == null
                 || b.size < 4
+                || b[0] == b[2]
+                || b[1] == b[3]
             ) {
                 return WORLD
             }

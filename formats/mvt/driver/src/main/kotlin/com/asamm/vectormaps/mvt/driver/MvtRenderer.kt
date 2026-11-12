@@ -4,6 +4,7 @@
  */
 package com.asamm.vectormaps.mvt.driver
 
+import com.asamm.vectormaps.core.HillshadeLayer
 import com.asamm.vectormaps.core.MapRenderer
 import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.RenderHooks
@@ -15,9 +16,15 @@ import com.asamm.vectormaps.core.label.TileLabelStore
 import com.asamm.vectormaps.mvt.render.MvtRenderTarget
 import com.asamm.vectormaps.mvt.render.TileRenderer
 import com.asamm.vectormaps.mvt.source.MvtTileSource
+import com.asamm.vectormaps.mvt.style.Color
+import com.asamm.vectormaps.mvt.style.Colors
+import com.asamm.vectormaps.mvt.style.EvalContext
+import com.asamm.vectormaps.mvt.style.LayerType
+import com.asamm.vectormaps.mvt.style.StyleLayer
 import com.asamm.vectormaps.mvt.symbol.MvtLabel
 import com.asamm.vectormaps.mvt.symbol.SymbolLayout
 import com.asamm.vectormaps.mvt.tile.VectorTile
+import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -27,7 +34,8 @@ import com.asamm.vectormaps.core.RenderTarget as CoreRenderTarget
  * Renders a dataset's tiles with one MapLibre style into [MvtTileTarget]s, on as many threads as
  * there are cores; tiles above the sources' max zoom are cut from that zoom's tiles, kept
  * decoded in a small cache their children share. Tiles carry no labels: each tile's symbols go to
- * the label store for [labelPass] (D39). Its sources stay open until it is closed.
+ * the label store for [labelPass] (D39). Its sources stay open until it is closed; [close] waits
+ * for running renders, so it must not be called from inside one.
  */
 class MvtRenderer internal constructor(
     private val dataset: MvtDataset,
@@ -46,6 +54,8 @@ class MvtRenderer internal constructor(
     private val graphics = dataset.driver.graphics
 
     private val maxDataZoom = sources.maxOf { it.maxZoom }
+
+    private val permits = Semaphore(maxParallelism)
 
     private val closed = AtomicBoolean()
 
@@ -92,9 +102,32 @@ class MvtRenderer internal constructor(
         require(target.widthPx == tileSize) {
             "render(), target ${target.widthPx} px, tile $tileSize px"
         }
-        check(!closed.get()) {
-            "render($tile), renderer closed"
+        permits.acquireUninterruptibly()
+        try {
+            check(!closed.get()) {
+                "render($tile), renderer closed"
+            }
+            return renderTile(tile = tile, target = target, isCancelled = isCancelled)
+        } finally {
+            permits.release()
         }
+    }
+
+    override fun close() {
+        if (!closed.compareAndSet(false, true)) {
+            return
+        }
+        labelPass.close()
+        // waits for running renders; later ones fail the closed check
+        permits.acquireUninterruptibly(maxParallelism)
+        try {
+            dataset.release()
+        } finally {
+            permits.release(maxParallelism)
+        }
+    }
+
+    private fun renderTile(tile: TileRequest, target: MvtTileTarget, isCancelled: () -> Boolean): RenderResult {
         if (isCancelled()) {
             return RenderResult.CANCELLED
         }
@@ -103,6 +136,7 @@ class MvtRenderer internal constructor(
         if (tile(zoom = tile.zoom - dz, x = tile.x shr dz, y = tile.y shr dz) == null) {
             return RenderResult.EMPTY
         }
+        val tileSize = key.config.tileSizePx
         val canvas = graphics.createTarget(widthPx = tileSize, heightPx = tileSize, sprite = style.sprite)
         val drawn = tiles.render(
             zoom = tile.zoom,
@@ -110,15 +144,16 @@ class MvtRenderer internal constructor(
             y = tile.y,
             target = canvas,
             isCancelled = isCancelled,
-        ) {
+        ) { layer ->
             val hook = hooks.hillshade ?: return@render
             try {
+                val hillshade = hillshadeLayer(layer = layer, zoom = tile.zoom)
                 canvas.withPlatformCanvas { platform ->
-                    hook.drawTile(canvas = platform, tile = tile, tileSizePx = tileSize)
+                    hook.drawTile(canvas = platform, tile = tile, tileSizePx = tileSize, layer = hillshade)
                 }
             } catch (e: Exception) {
                 // the tile stays, unshaded
-                LOGGER.log(Level.SEVERE, "hillshade($tile)", e)
+                LOGGER.log(Level.SEVERE, "hillshade($tile, ${layer.id})", e)
             }
         }
         if (!drawn) {
@@ -132,17 +167,34 @@ class MvtRenderer internal constructor(
         return RenderResult.DRAWN
     }
 
-    override fun close() {
-        if (closed.compareAndSet(false, true)) {
-            labelPass.close()
-            dataset.release()
+    // the style layer with its source and its paint at the zoom, as the host reads them
+    private fun hillshadeLayer(layer: StyleLayer, zoom: Int): HillshadeLayer {
+        val source = layer.source?.let { style.style.sources[it] }
+        val ctx = EvalContext(zoom.toDouble())
+        val paint = HashMap<String, Any>()
+        for ((name, expression) in layer.paint) {
+            val value = hostValue(name = name, value = expression.eval(ctx)) ?: continue
+            paint[name] = value
         }
+        val type = when (layer.type) {
+            LayerType.HILLSHADE -> HillshadeLayer.Type.HILLSHADE
+            else -> HillshadeLayer.Type.COLOR_RELIEF
+        }
+        return HillshadeLayer(
+            id = layer.id,
+            type = type,
+            source = layer.source ?: "",
+            sourceUrl = source?.url,
+            tiles = source?.tiles.orEmpty(),
+            encoding = source?.encoding ?: "mapbox",
+            paint = paint,
+        )
     }
 
     // the decoded tile of the first source that has it
     private fun tile(zoom: Int, x: Int, y: Int): VectorTile? {
-        // zooms up to TileRequest.MAX_ZOOM (30) keep x and y below 2^29
-        val key = (zoom.toLong() shl 58) or (x.toLong() shl 29) or y.toLong()
+        // zooms up to TileRequest.MAX_ZOOM (30) keep x and y below 2^30
+        val key = (zoom.toLong() shl 60) or (x.toLong() shl 30) or y.toLong()
         synchronized(decoded) {
             decoded[key]?.let {
                 return it
@@ -167,6 +219,19 @@ class MvtRenderer internal constructor(
         val LOGGER: Logger = Logger.getLogger(MvtRenderer::class.java.name)
 
         const val DECODED_TILES = 32
+
+        // colours as ARGB, the colour-relief stops as metres to ARGB
+        fun hostValue(name: String, value: Any?): Any? {
+            return when {
+                value is Color -> value.argb
+                value is String
+                    && name.endsWith("-color") -> Colors.parse(value)?.argb
+                value is List<*> -> value.map {
+                    if (it is Pair<*, *>) it.first to hostValue(name = name, value = it.second) else it
+                }
+                else -> value
+            }
+        }
     }
 }
 

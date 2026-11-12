@@ -20,8 +20,11 @@ class StyleTest {
         val style = Style.parse(File(mvtDir, "styles/hike_bike/style.json").readText())
 
         assertEquals(455, style.layers.size)
-        // elevation layers are the host's (HILLSHADE anchor)
-        assertEquals(listOf("bathymetry_colored color-relief-color: elevation"), style.problems)
+        assertEquals(emptyList(), style.problems)
+        // elevation layers are the host's (HILLSHADE anchor), their stops passed on
+        val relief = style.layers.first { it.id == "bathymetry_colored" }.paint.getValue("color-relief-color")
+        assertEquals(-11000.0 to Colors.parse("#0d3d5f"), (relief.eval(EvalContext()) as List<*>).first())
+        assertEquals("terrarium", style.sources.getValue("bathymetry-rgb").encoding)
     }
 
     @Test

@@ -8,7 +8,6 @@ import com.asamm.vectormaps.core.RenderConfig
 import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
-import com.asamm.vectormaps.mvt.driver.MvtDataset
 import com.asamm.vectormaps.mvt.driver.MvtDriver
 import com.asamm.vectormaps.mvt.driver.MvtRenderer
 import com.asamm.vectormaps.mvt.driver.MvtStyle
@@ -44,17 +43,18 @@ internal object MvtFixtures {
         MvtDriver(AwtMvtGraphics(AwtFonts(font)))
     }
 
-    // the fixture tiles in one PMTiles file, written by dev/mvt/pmtiles.py
-    val dataset: MvtDataset by lazy {
-        driver.open(listOf(File(mvtDir, "tiles/fixtures.pmtiles")))
-    }
-
     val style: MvtStyle by lazy {
         driver.loadStyle(File(mvtDir, "styles/hike_bike/style.json"))
     }
 
+    /**
+     * A renderer of the fixture tiles, in one PMTiles file written by dev/mvt/pmtiles.py; the file
+     * closes with the renderer.
+     */
     fun renderer(): MvtRenderer {
-        return dataset.createRenderer(style, StyleSelection.DEFAULT, RenderConfig(tileSizePx = SIZE))
+        return driver.open(listOf(File(mvtDir, "tiles/fixtures.pmtiles"))).use { dataset ->
+            dataset.createRenderer(style, StyleSelection.DEFAULT, RenderConfig(tileSizePx = SIZE))
+        }
     }
 
     /**

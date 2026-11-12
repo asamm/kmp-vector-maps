@@ -40,14 +40,14 @@ interface MvtTileSource : Closeable {
 
     companion object {
 
-        // far above any real tile or directory, below what a render thread can hold
+        // far above any real tile, below what a render thread can hold
         private const val MAX_INFLATED = 64 shl 20
 
         /**
          * `bytes` inflated when gzip-compressed, as tiles usually are, else as they are. Throws
-         * when they inflate past 64 MB.
+         * when they inflate past [limit] bytes, 64 MB by default.
          */
-        fun uncompressed(bytes: ByteArray): ByteArray {
+        fun uncompressed(bytes: ByteArray, limit: Int = MAX_INFLATED): ByteArray {
             if (bytes.size < 2
                 || bytes[0] != 0x1f.toByte()
                 || bytes[1] != 0x8b.toByte()
@@ -55,7 +55,7 @@ interface MvtTileSource : Closeable {
                 return bytes
             }
             GZIPInputStream(ByteArrayInputStream(bytes)).use { input ->
-                val out = ByteArrayOutputStream(bytes.size * 4)
+                val out = ByteArrayOutputStream(minOf(bytes.size.toLong() * 4, limit.toLong()).toInt())
                 val buffer = ByteArray(16 * 1024)
                 while (true) {
                     val n = input.read(buffer)
@@ -63,8 +63,8 @@ interface MvtTileSource : Closeable {
                         return out.toByteArray()
                     }
                     out.write(buffer, 0, n)
-                    if (out.size() > MAX_INFLATED) {
-                        throw IOException("uncompressed(), inflates past $MAX_INFLATED bytes")
+                    if (out.size() > limit) {
+                        throw IOException("uncompressed(), inflates past $limit bytes")
                     }
                 }
             }

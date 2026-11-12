@@ -4,6 +4,7 @@
  */
 package com.asamm.vectormaps.mvt.source
 
+import com.asamm.vectormaps.mvt.tile.PbfReader
 import java.io.File
 import java.io.RandomAccessFile
 import java.nio.ByteBuffer
@@ -42,10 +43,18 @@ class PmTilesSource(file: File) : MvtTileSource {
 
     override val maxZoom: Int = header.maxZoom
 
-    override val bounds: DoubleArray = doubleArrayOf(header.minLon, header.minLat, header.maxLon, header.maxLat)
+    override val bounds: DoubleArray
+        get() {
+            return doubleArrayOf(header.minLon, header.minLat, header.maxLon, header.maxLat)
+        }
 
     override fun tile(zoom: Int, x: Int, y: Int): ByteArray? {
-        if (zoom !in minZoom..maxZoom) {
+        if (zoom !in minZoom..maxZoom
+            || x < 0
+            || y < 0
+            || x >= 1L shl zoom
+            || y >= 1L shl zoom
+        ) {
             return null
         }
         val id = tileId(zoom, x, y)
@@ -75,8 +84,14 @@ class PmTilesSource(file: File) : MvtTileSource {
                 return it
             }
         }
+        require(length in 0..MAX_DIRECTORY_BYTES) {
+            "directory(), $length bytes at $offset"
+        }
         val raw = read(offset, length.toInt())
-        val bytes = if (header.internalCompression == COMPRESSION_GZIP) MvtTileSource.uncompressed(raw) else raw
+        val bytes = when (header.internalCompression) {
+            COMPRESSION_GZIP -> MvtTileSource.uncompressed(raw, limit = MAX_DIRECTORY_BYTES)
+            else -> raw
+        }
         val entries = parseDirectory(bytes)
         synchronized(directories) {
             directories[offset] = entries
@@ -151,6 +166,15 @@ class PmTilesSource(file: File) : MvtTileSource {
                     maxLon = b.getInt(110) / 1e7,
                     maxLat = b.getInt(114) / 1e7,
                 )
+                // the spec keeps the root directory within the first 16 KB
+                require(header.rootLength in 0..ROOT_SPACE - HEADER_SIZE) {
+                    "parse(), root directory of ${header.rootLength} bytes"
+                }
+                require(header.minZoom <= header.maxZoom
+                    && header.maxZoom <= MAX_ZOOM
+                ) {
+                    "parse(), zooms ${header.minZoom}-${header.maxZoom}"
+                }
                 require(header.tileType == TILE_TYPE_MVT) {
                     "parse(), tile type ${header.tileType}, only vector tiles are read"
                 }
@@ -178,6 +202,14 @@ class PmTilesSource(file: File) : MvtTileSource {
         private const val MAX_DEPTH = 4
 
         private const val MAX_DIRECTORIES = 64
+
+        private const val ROOT_SPACE = 16384
+
+        // as the core's TileRequest.MAX_ZOOM; tile ids of deeper zooms overflow
+        private const val MAX_ZOOM = 30
+
+        // far above a planet's leaf directories, so a crafted one cannot exhaust the heap
+        private const val MAX_DIRECTORY_BYTES = 8 shl 20
 
         // unknown (0) counts as none, as the reference readers do
         private val READABLE_COMPRESSION = setOf(0, COMPRESSION_NONE, COMPRESSION_GZIP)
@@ -220,25 +252,26 @@ class PmTilesSource(file: File) : MvtTileSource {
          * as varint columns; an offset of 0 after the first entry continues the previous entry.
          */
         fun parseDirectory(bytes: ByteArray): List<Entry> {
-            val reader = VarintReader(bytes)
-            val count = reader.next().toInt()
-            require(count in 0..bytes.size) {
+            val reader = PbfReader(bytes, 0, bytes.size)
+            val count = reader.readVarint()
+            // each entry takes at least four bytes, one per column
+            require(count in 0..(bytes.size - 1) / 4L) {
                 "parseDirectory(), $count entries in ${bytes.size} bytes"
             }
-            val ids = LongArray(count)
+            val ids = LongArray(count.toInt())
             var last = 0L
-            for (i in 0 until count) {
-                last += reader.next()
+            for (i in ids.indices) {
+                last += reader.readVarint()
                 ids[i] = last
             }
-            val runs = LongArray(count) { reader.next() }
-            val lengths = LongArray(count) { reader.next() }
-            val offsets = LongArray(count)
-            for (i in 0 until count) {
-                val value = reader.next()
+            val runs = LongArray(ids.size) { reader.readVarint() }
+            val lengths = LongArray(ids.size) { reader.readVarint() }
+            val offsets = LongArray(ids.size)
+            for (i in ids.indices) {
+                val value = reader.readVarint()
                 offsets[i] = if (value == 0L && i > 0) offsets[i - 1] + lengths[i - 1] else value - 1
             }
-            return List(count) { Entry(ids[it], offsets[it], lengths[it], runs[it]) }
+            return List(ids.size) { Entry(ids[it], offsets[it], lengths[it], runs[it]) }
         }
 
         // the entry holding `id`: the last one at or before it, a tile run covering it or a leaf
@@ -265,29 +298,6 @@ class PmTilesSource(file: File) : MvtTileSource {
                 entry.runLength == 0L -> entry
                 id - entry.tileId < entry.runLength -> entry
                 else -> null
-            }
-        }
-    }
-
-    private class VarintReader(private val bytes: ByteArray) {
-
-        private var pos = 0
-
-        fun next(): Long {
-            var result = 0L
-            var shift = 0
-            while (true) {
-                require(pos < bytes.size
-                    && shift < 64
-                ) {
-                    "next(), truncated directory at $pos"
-                }
-                val b = bytes[pos++].toInt()
-                result = result or ((b and 0x7f).toLong() shl shift)
-                if (b and 0x80 == 0) {
-                    return result
-                }
-                shift += 7
             }
         }
     }

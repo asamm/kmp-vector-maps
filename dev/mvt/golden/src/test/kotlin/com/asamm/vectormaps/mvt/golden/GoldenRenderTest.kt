@@ -47,7 +47,7 @@ class GoldenRenderTest {
                     continue
                 }
                 val (mean, offShare) = MvtFixtures.difference(image, base)
-                val result = "%s in %.1f ms, vs MapLibre mean %.1f, %.1f %% off".format(ref.name, ms, mean, offShare)
+                val result = "%s in %.1f ms (driver render and layout), vs MapLibre mean %.1f, %.1f %% off".format(ref.name, ms, mean, offShare)
                 println("rendered $result")
                 if (mean > MAX_MEAN
                     || offShare > MAX_OFF_PERCENT

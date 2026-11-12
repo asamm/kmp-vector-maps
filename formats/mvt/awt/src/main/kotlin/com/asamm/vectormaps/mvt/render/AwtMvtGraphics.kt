@@ -20,14 +20,38 @@ class AwtMvtGraphics(
     override val metrics: TextMetrics = fonts
 
     override fun loadSprite(index: SpriteIndex, png: ByteArray): Any {
-        val sheet = requireNotNull(ImageIO.read(ByteArrayInputStream(png))) {
-            "loadSprite(), not a readable image"
+        val input = requireNotNull(ImageIO.createImageInputStream(ByteArrayInputStream(png))) {
+            "loadSprite(), no image input"
         }
-        return AwtSprite(index, sheet)
+        input.use {
+            val reader = requireNotNull(ImageIO.getImageReaders(input).asSequence().firstOrNull()) {
+                "loadSprite(), not a readable image"
+            }
+            try {
+                reader.input = input
+                // the size first, so a crafted header cannot exhaust the heap
+                val width = reader.getWidth(0)
+                val height = reader.getHeight(0)
+                require(width <= MAX_SPRITE_PX
+                    && height <= MAX_SPRITE_PX
+                ) {
+                    "loadSprite(), sheet of $width x $height px"
+                }
+                return AwtSprite(index, reader.read(0))
+            } finally {
+                reader.dispose()
+            }
+        }
     }
 
     override fun createTarget(widthPx: Int, heightPx: Int, sprite: Any?): AwtMvtRenderTarget {
         val image = BufferedImage(widthPx, heightPx, BufferedImage.TYPE_INT_ARGB)
         return AwtMvtRenderTarget(image, sprite as AwtSprite?, fonts)
+    }
+
+    private companion object {
+
+        // far above any real sheet
+        const val MAX_SPRITE_PX = 8192
     }
 }

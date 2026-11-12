@@ -40,8 +40,8 @@ class TileRenderer(
      * Renders tile (`zoom`, `x`, `y`) into `target`, whose width is the tile size; the style's
      * pixel sizes apply 1:1 at 512 px tiles, as MapLibre's.
      *
-     * @param hillshade the host's elevation drawing, called once where the style's first visible
-     *  hillshade or colour-relief layer is, which the renderer leaves to the host
+     * @param hillshade the host's elevation drawing, called at each active hillshade and
+     *  colour-relief layer, which the renderer leaves to the host
      * @return false when there is no data for the tile
      */
     fun render(
@@ -50,12 +50,11 @@ class TileRenderer(
         y: Int,
         target: MvtRenderTarget,
         isCancelled: () -> Boolean,
-        hillshade: (() -> Unit)? = null,
+        hillshade: ((StyleLayer) -> Unit)? = null,
     ): Boolean {
         val frame = DataTileFrame(zoom, x, y, target.widthPx, target.heightPx, maxDataZoom)
         val tile = tileSource(frame.dataZoom, frame.dataX, frame.dataY) ?: return false
         val pixelScale = frame.pixelScale
-        var hillshadeDrawn = false
         val ctx = EvalContext(zoom.toDouble())
         for (layer in style.layers) {
             if (isCancelled()) {
@@ -67,10 +66,7 @@ class TileRenderer(
             if (layer.type == LayerType.HILLSHADE
                 || layer.type == LayerType.COLOR_RELIEF
             ) {
-                if (!hillshadeDrawn) {
-                    hillshadeDrawn = true
-                    hillshade?.invoke()
-                }
+                hillshade?.invoke(layer)
                 continue
             }
             if (layer.type == LayerType.BACKGROUND) {

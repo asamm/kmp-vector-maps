@@ -48,6 +48,10 @@ class AwtMvtRenderTarget(
 
     override fun withPlatformCanvas(block: (Any) -> Unit) {
         val copy = g.create() as Graphics2D
+        // not the last layer's pattern, dash or blending
+        copy.paint = java.awt.Color.BLACK
+        copy.stroke = BasicStroke()
+        copy.composite = AlphaComposite.SrcOver
         try {
             block(copy)
         } finally {

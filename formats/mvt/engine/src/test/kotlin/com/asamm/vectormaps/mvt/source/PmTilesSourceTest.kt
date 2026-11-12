@@ -41,8 +41,19 @@ class PmTilesSourceTest {
             }
             assertNull(source.tile(14, 8529, 5975))
             assertNull(source.tile(16, 0, 0))
+            // outside the zoom's grid, not another tile by wrapped bits
+            assertNull(source.tile(14, 8529 + (1 shl 14), 5974))
+            assertNull(source.tile(14, -1, 5974))
             val (west, south, east, north) = source.bounds.toList()
             assertTrue(west < 7.42 && east > 7.42 && south < 43.73 && north > 50.73, "bounds ${source.bounds.toList()}")
+        }
+    }
+
+    @Test
+    fun rejectsADirectoryWithMoreEntriesThanBytes() {
+        // a count of 2^20 in three bytes
+        assertFailsWith<IllegalArgumentException> {
+            PmTilesSource.parseDirectory(byteArrayOf(0x80.toByte(), 0x80.toByte(), 0x40))
         }
     }
 
