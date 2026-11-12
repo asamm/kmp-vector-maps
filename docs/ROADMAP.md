@@ -32,7 +32,7 @@ settles, labels before speed, the Locus-facing API last.
 | M7 | Performance and Skia desktop backend | L | ✅ PRs #47–#52, `6155c9d`; M7.1 ⏸ (Q15) |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⏸ libMapCore plan |
 | M9 | Locus integration | M | ⏸ libMapCore plan; needs Q14, Q16 |
-| M10 | Mapbox Vector Tiles | L | ⏸ |
+| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | ⏸ analysed 2026-11-12 |
 
 ## Done: M0–M6
 
