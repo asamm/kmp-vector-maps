@@ -4,7 +4,8 @@ Rendering Asamm's own vector tiles with their MapLibre styles in this library, o
 third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin renderer (size L).
 
 **Author:** Menion · **Analysed:** 2026-11-12 · **Milestone:** M10 (see [ROADMAP.md](ROADMAP.md)) ·
-**Status:** spike and M10.1 symbols done 2026-11-12; M10.2 driver 🔧, see [Driver](#driver)
+**Status:** spike, M10.1 symbols and M10.2 driver done 2026-11-12; M10.2b viewer online maps 🔧,
+see [Driver](#driver)
 
 ## Goal
 
@@ -138,7 +139,7 @@ formats; the desktop viewer opens `.pmtiles` maps with a `style.json`.
 | Part | What |
 |---|---|
 | Offline | `open(files)` reads PMTiles v3 (`PmTilesSource`: gzip or plain directories and tiles, leaf directories), files of one max zoom; MBTiles waits for V1 |
-| Online | `openSource(MvtTileSource)`: the host's downloader and cache; the library ships none, an HTTP source belongs to the desktop and Android samples |
+| Online | `openSource(MvtTileSource)`: the host's downloader and cache; the library ships none; the desktop viewer opens a TileJSON file (`tiles/planet.json`) through its own `HttpTileSource`, tiles cached in `~/.kmp-vector-maps/tiles` |
 | Style | `loadStyle(style.json)` with `sprite.json` and `sprite.png` beside it, or the name its `sprite` gives; every vector source reads the dataset |
 | Platform | `MvtGraphics` creates targets and decodes sprites; `AwtMvtGraphics` on the desktop, Android with M10.3 |
 | Renderer | tiles above the sources' max zoom cut from it, decoded data tiles cached for their children; the label store sized by the host; the hillshade hook at each active hillshade and colour-relief layer, with its source and paint (`HillshadeLayer`); labels stored per tile for the label pass |

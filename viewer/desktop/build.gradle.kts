@@ -4,7 +4,9 @@
  *
  * `./gradlew :viewer:desktop:run`. The first start opens the map and style from `local.properties`
  * (`viewer.mapFile`, `viewer.themeFile`), else the committed fixtures; later starts restore the last
- * session. Saved views go to `captures/` in the repo root.
+ * session. Saved views go to `captures/` in the repo root. A TileJSON file, such as
+ * `dev/fixtures/mvt/tiles/planet.json`, opens as an online MVT map, tiles cached in
+ * `~/.kmp-vector-maps/tiles`.
  */
 import java.util.Properties
 
@@ -29,6 +31,7 @@ dependencies {
     implementation(compose.desktop.currentOs)
     implementation(libs.composeMaterial3)
     implementation(libs.kotlinxCoroutinesSwing)
+    implementation(libs.kotlinxSerializationJson)
     testImplementation(kotlin("test-junit5"))
 }
 
