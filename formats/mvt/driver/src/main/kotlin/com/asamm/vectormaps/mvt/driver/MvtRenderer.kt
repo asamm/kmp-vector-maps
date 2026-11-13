@@ -76,13 +76,21 @@ class MvtRenderer internal constructor(
     // data tiles being read and decoded, by cache key
     private val loading = ConcurrentHashMap<Long, CompletableFuture<VectorTile?>>()
 
-    private val tiles = TileRenderer(style = style.style, maxDataZoom = maxDataZoom, tileSource = ::tile)
+    private val tiles = TileRenderer(
+        style = style.style,
+        maxDataZoom = maxDataZoom,
+        scale = config.deviceScale,
+        tileSource = ::tile,
+    )
 
     private val layout = SymbolLayout(
         style = style.style,
         sprite = style.spriteIndex,
         metrics = graphics.metrics,
         maxDataZoom = maxDataZoom,
+        scale = config.deviceScale,
+        textScale = config.textScale,
+        language = config.language,
         tileSource = ::tile,
     )
 

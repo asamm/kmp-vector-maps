@@ -80,7 +80,9 @@ class MvtDataset internal constructor(
 
     /**
      * Creates a renderer for an [MvtStyle] of this dataset's driver; the selection is unused, as
-     * MapLibre styles have no layer menu. Only [RenderConfig.tileSizePx] applies so far.
+     * MapLibre styles have no layer menu. Style pixels are [RenderConfig.deviceScale] screen pixels
+     * on a 512 px tile, as MapLibre's, and scale with the tile size; [RenderConfig.language] picks
+     * the `name:xx` field a style's labels read for `name`.
      */
     override fun createRenderer(
         style: MapStyle,
