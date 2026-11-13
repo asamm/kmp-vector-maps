@@ -21,11 +21,13 @@ import kotlin.math.abs
  * Draws the background, fill, line and circle layers of a [Style] for one tile; symbols are the
  * label pass's. Tiles above [maxDataZoom] are cut from their ancestor at that zoom (overzoom).
  *
+ * @param scale screen pixels per style pixel on a 512 px tile, the host's device scale
  * @param tileSource the decoded tile at (zoom, x, y), or null when there is none
  */
 class TileRenderer(
     private val style: Style,
     private val maxDataZoom: Int,
+    private val scale: Float = 1f,
     private val tileSource: (zoom: Int, x: Int, y: Int) -> VectorTile?,
 ) {
 
@@ -57,7 +59,7 @@ class TileRenderer(
         isCancelled: () -> Boolean,
         hillshade: ((StyleLayer) -> Unit)? = null,
     ): Boolean {
-        val frame = DataTileFrame(zoom, x, y, target.widthPx, target.heightPx, maxDataZoom)
+        val frame = DataTileFrame(zoom, x, y, target.widthPx, target.heightPx, maxDataZoom, scale)
         val tile = tileSource(frame.dataZoom, frame.dataX, frame.dataY) ?: return false
         val pixelScale = frame.pixelScale
         val ctx = EvalContext(zoom.toDouble())

@@ -14,6 +14,7 @@ import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
 import com.asamm.vectormaps.mvt.render.AwtFonts
 import com.asamm.vectormaps.mvt.render.AwtMvtGraphics
+import com.asamm.vectormaps.mvt.render.AwtMvtRenderTarget
 import com.asamm.vectormaps.mvt.source.MvtTileSource
 import java.awt.Font
 import java.io.File
@@ -104,6 +105,27 @@ class MvtDriverTest {
 
         assertEquals(1, reads.get())
         assertEquals(4, hillshades.get())
+    }
+
+    @Test
+    fun drawsStylePixelsAtTheDeviceScale() {
+        fun render(deviceScale: Float): IntArray {
+            val config = RenderConfig(tileSizePx = 256, deviceScale = deviceScale)
+            driver.open(listOf(pmtiles)).use { dataset ->
+                dataset.createRenderer(style, StyleSelection.DEFAULT, config).use { renderer ->
+                    val target = MvtTileTarget(256)
+                    val tile = TileRequest(x = 8529, y = 5974, zoom = 14)
+                    assertEquals(RenderResult.DRAWN, renderer.render(tile, target) { false })
+                    val image = (target.canvas as AwtMvtRenderTarget).image
+                    return image.getRGB(0, 0, 256, 256, null, 0, 256)
+                }
+            }
+        }
+
+        val plain = render(deviceScale = 1f)
+        val doubled = render(deviceScale = 2f)
+        // wider lines and bigger circles change a good share of the tile
+        assertTrue(plain.indices.count { plain[it] != doubled[it] } > plain.size / 20)
     }
 
     @Test

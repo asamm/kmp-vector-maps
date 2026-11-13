@@ -8,7 +8,8 @@ package com.asamm.vectormaps.core
  * Per-renderer settings that formats would otherwise keep in globals, such as Mapsforge's device
  * scale and tile size.
  *
- * @param deviceScale size of a style pixel in screen pixels
+ * @param deviceScale size of a style pixel in screen pixels; MVT counts it on a 512 px tile and
+ *  scales it with the tile size, as MapLibre does
  * @param textScale extra factor on label text, on top of `deviceScale`
  * @param language preferred label language; null for the map's default
  */

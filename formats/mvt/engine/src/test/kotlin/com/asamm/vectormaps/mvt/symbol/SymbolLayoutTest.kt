@@ -43,6 +43,49 @@ class SymbolLayoutTest {
     }
 
     @Test
+    fun readsNamesInTheHostLanguageAndScalesText() {
+        val style = Style.parse(
+            """{"layers": [{"id": "places", "type": "symbol", "source-layer": "place",
+                "layout": {"text-field": ["get", "name"], "text-size": 10}}]}""",
+        )
+        val tile = File(mvtDir, "tiles/planet/10/556/344.pbf")
+        fun layoutOf(language: String?, scale: Float, textScale: Float): List<MvtText> {
+            val layout = SymbolLayout(
+                style = style,
+                sprite = null,
+                metrics = { text, size, _, _ -> text.length * size * 0.6f },
+                maxDataZoom = 14,
+                scale = scale,
+                textScale = textScale,
+                language = language,
+            ) { _, _, _ -> VectorTile.decode(tile.readBytes()) }
+            return layout.labels(zoom = 10, x = 556, y = 344, tileSizePx = 512).mapNotNull { it.text }
+        }
+        // German names of Czech and Polish places, where the tile has them
+        val german = VectorTile.decode(tile.readBytes()).layers.getValue("place").features
+            .filter { it.property("name:de") != null && it.property("name:de") != it.property("name") }
+            .map { it.property("name:de") as String }
+        assertTrue(german.isNotEmpty(), "places with a German name")
+
+        val local = layoutOf(language = null, scale = 1f, textScale = 1f)
+        val inGerman = layoutOf(language = "de-AT", scale = 1f, textScale = 1f)
+        assertTrue(local.none { it.lines.joinToString(" ") in german })
+        assertTrue(inGerman.any { it.lines.joinToString(" ") in german })
+        // 10 px at a device scale of 2 and text scale of 1.5
+        assertEquals(30f, layoutOf(language = null, scale = 2f, textScale = 1.5f).first().sizePx)
+    }
+
+    @Test
+    fun readsLanguageTagsAsOpenMapTilesNamesThem() {
+        assertEquals(listOf("name:de"), SymbolLayout.localNamesOf("de_AT"))
+        assertEquals(listOf("name:zh-Hant", "name:zh"), SymbolLayout.localNamesOf("zh-hant-TW"))
+        assertEquals(listOf("name:he"), SymbolLayout.localNamesOf("iw"))
+        assertEquals(listOf("name:id"), SymbolLayout.localNamesOf(" in "))
+        assertEquals(emptyList(), SymbolLayout.localNamesOf(""))
+        assertEquals(emptyList(), SymbolLayout.localNamesOf(null))
+    }
+
+    @Test
     fun turnsLineIconsWithTheirLine() {
         val labels = layout.labels(zoom = 14, x = 8529, y = 5974, tileSizePx = 512)
 

@@ -5,7 +5,8 @@ third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin render
 
 **Author:** Menion · **Analysed:** 2026-11-12 · **Milestone:** M10 (see [ROADMAP.md](ROADMAP.md)) ·
 **Status:** spike, M10.1 symbols, M10.2 driver and M10.2b viewer online maps done 2026-11-12;
-M10.3a engine performance 🔧, see [performance.md](performance.md)
+M10.3a engine performance done 2026-11-13 ([performance.md](performance.md)); M10.3b render
+settings 🔧
 
 ## Goal
 
@@ -92,7 +93,7 @@ Why A fits:
   feature and tile, an overzoom bounding-box cull, feature-constant properties evaluated once per
   layer.
 - Left from its review (M10.3e): a tri-state render result for cancelling, patterns scaled for
-  non-512 px tiles and `@2x` sprites; expression details MapLibre handles differently and the
+  the tile size and `deviceScale`, and `@2x` sprites; expression details MapLibre handles differently and the
   Asamm styles do not use (`string`/`number` type assertions, `to-number` of null, negative
   `slice`, `round` of halves, uint64 ids).
 
@@ -149,5 +150,9 @@ formats; the desktop viewer opens `.pmtiles` maps with a `style.json`.
 - The fixture `dev/fixtures/mvt/tiles/fixtures.pmtiles` holds the 6 fixture tiles, written by
   `dev/mvt/pmtiles.py` from the spec, apart from the Kotlin reader; the goldens read it through
   the driver.
-- Only `RenderConfig.tileSizePx` applies so far: `deviceScale`, `textScale` and `language` with
-  M10.3b, the style's `text-field` choosing the language as on the web and iOS.
+- `RenderConfig` (M10.3b): a style pixel is `deviceScale` screen pixels on a 512 px tile and scales
+  with the tile size, as MapLibre's, fill patterns excepted (M10.3e); `textScale` multiplies
+  text and halos; `language` makes text fields read `name:xx` for `name` where a feature has it,
+  as the MapLibre language plugin does: `zh-Hant` reads `name:zh-Hant`, then `name:zh`, `de-AT`
+  reads `name:de`, Android's `iw` reads `name:he`; the style's other name fields (`name_en`,
+  `name:latin`) unchanged.

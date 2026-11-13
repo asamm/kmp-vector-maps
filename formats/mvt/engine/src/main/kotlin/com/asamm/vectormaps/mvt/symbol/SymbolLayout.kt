@@ -16,6 +16,7 @@ import com.asamm.vectormaps.mvt.style.Style
 import com.asamm.vectormaps.mvt.style.StyleLayer
 import com.asamm.vectormaps.mvt.tile.GeometryType
 import com.asamm.vectormaps.mvt.tile.VectorTile
+import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -26,6 +27,10 @@ import java.util.concurrent.ConcurrentHashMap
  * `line-center` once.
  *
  * @param sprite the sprite index icons are sized from; null lays out no icons
+ * @param scale screen pixels per style pixel on a 512 px tile, the host's device scale
+ * @param textScale an extra factor on text, on top of `scale`
+ * @param language the preferred label language, such as `de`: text fields read `name:de` for
+ *  `name` where a feature has it; null keeps the style's names
  * @param tileSource the decoded tile at (zoom, x, y), or null when there is none
  */
 class SymbolLayout(
@@ -33,8 +38,13 @@ class SymbolLayout(
     private val sprite: SpriteIndex?,
     private val metrics: TextMetrics,
     private val maxDataZoom: Int,
+    private val scale: Float = 1f,
+    private val textScale: Float = 1f,
+    language: String? = null,
     private val tileSource: (zoom: Int, x: Int, y: Int) -> VectorTile?,
 ) {
+
+    private val localNames = localNamesOf(language)
 
     /**
      * Ids of the symbol layers a layout skipped because evaluating them threw, such as a malformed
@@ -52,7 +62,7 @@ class SymbolLayout(
      * tile lays out the rest, so the label pass sees each anchor once.
      */
     fun labels(zoom: Int, x: Int, y: Int, tileSizePx: Int): List<MvtLabel> {
-        val frame = DataTileFrame(zoom, x, y, tileSizePx, tileSizePx, maxDataZoom)
+        val frame = DataTileFrame(zoom, x, y, tileSizePx, tileSizePx, maxDataZoom, scale)
         val tile = tileSource(frame.dataZoom, frame.dataX, frame.dataY) ?: return emptyList()
         val ctx = EvalContext(zoom.toDouble())
         val out = ArrayList<MvtLabel>()
@@ -321,7 +331,12 @@ class SymbolLayout(
     )
 
     private fun shapeText(layer: StyleLayer, ctx: EvalContext, pixelScale: Float, wrap: Boolean): MvtText? {
-        val raw = layer.layout["text-field"]?.eval(ctx) ?: return null
+        ctx.localNames = localNames
+        val raw = try {
+            layer.layout["text-field"]?.eval(ctx)
+        } finally {
+            ctx.localNames = emptyList()
+        } ?: return null
         var value = ExpressionCompiler.toText(raw).trim()
         if (value.isEmpty()) {
             return null
@@ -331,7 +346,7 @@ class SymbolLayout(
             "lowercase" -> value.lowercase()
             else -> value
         }
-        val size = number(layer.layout["text-size"], ctx, 16.0).toFloat() * pixelScale
+        val size = number(layer.layout["text-size"], ctx, 16.0).toFloat() * pixelScale * textScale
         if (!(size > 0f)
             || size.isInfinite()
         ) {
@@ -373,7 +388,7 @@ class SymbolLayout(
             color = color(layer.paint["text-color"], ctx) ?: Color(0xff000000.toInt()),
             haloColor = color(layer.paint["text-halo-color"], ctx) ?: Color(0),
             haloWidthPx = finite(number(layer.paint["text-halo-width"], ctx, 0.0).toFloat()).coerceAtLeast(0f) *
-                pixelScale,
+                pixelScale * textScale,
             letterSpacingPx = letterSpacing,
             lineHeightPx = lineHeight,
             width = width,
@@ -387,12 +402,12 @@ class SymbolLayout(
     private fun iconOf(layer: StyleLayer, ctx: EvalContext, pixelScale: Float): MvtIcon? {
         val name = layer.layout["icon-image"]?.eval(ctx) as? String ?: return null
         val image = sprite?.images?.get(name) ?: return null
-        val scale = number(layer.layout["icon-size"], ctx, 1.0).toFloat() * pixelScale
+        val iconScale = number(layer.layout["icon-size"], ctx, 1.0).toFloat() * pixelScale
         val width = (image.width / image.pixelRatio).toFloat()
         val height = (image.height / image.pixelRatio).toFloat()
         // a malformed sprite or style, which the core rejects
-        if (!(scale > 0f)
-            || scale.isInfinite()
+        if (!(iconScale > 0f)
+            || iconScale.isInfinite()
             || !(width > 0f)
             || !(height > 0f)
             || width.isInfinite()
@@ -407,11 +422,11 @@ class SymbolLayout(
             name = name,
             width = width,
             height = height,
-            centerX = finite(((offset?.getOrNull(0) as? Double) ?: 0.0).toFloat()) * scale,
-            centerY = finite(((offset?.getOrNull(1) as? Double) ?: 0.0).toFloat()) * scale,
+            centerX = finite(((offset?.getOrNull(0) as? Double) ?: 0.0).toFloat()) * iconScale,
+            centerY = finite(((offset?.getOrNull(1) as? Double) ?: 0.0).toFloat()) * iconScale,
             translateX = finite(((translate?.getOrNull(0) as? Double) ?: 0.0).toFloat()) * pixelScale,
             translateY = finite(((translate?.getOrNull(1) as? Double) ?: 0.0).toFloat()) * pixelScale,
-            scale = scale,
+            scale = iconScale,
             rotateDeg = finite(number(layer.layout["icon-rotate"], ctx, 0.0).toFloat()),
             paddingPx = finite(number(layer.layout["icon-padding"], ctx, 2.0).toFloat()).coerceAtLeast(0f) * pixelScale,
         )
@@ -425,6 +440,28 @@ class SymbolLayout(
     internal companion object {
 
         const val PRIORITY_PER_LAYER = 1000
+
+        // Java's and Android's old codes for Hebrew, Indonesian and Yiddish
+        private val LEGACY_LANGUAGES = mapOf("iw" to "he", "in" to "id", "ji" to "yi")
+
+        /**
+         * The `name:xx` properties a label reads for `language`, as OpenMapTiles names them: the
+         * language with its script first (`zh-Hant` reads `name:zh-Hant`, then `name:zh`), the
+         * region dropped (`de-AT` reads `name:de`).
+         */
+        fun localNamesOf(language: String?): List<String> {
+            val tag = language?.trim()?.replace('_', '-') ?: return emptyList()
+            val locale = Locale.forLanguageTag(tag)
+            val base = locale.language.lowercase().let { LEGACY_LANGUAGES[it] ?: it }
+            if (base.isEmpty()) {
+                return emptyList()
+            }
+            val script = locale.script
+            if (script.isEmpty()) {
+                return listOf("name:$base")
+            }
+            return listOf("name:$base-$script", "name:$base")
+        }
 
         // a word with the hyphen it may break after, or a lone hyphen
         private val WORDS = Regex("[^ -]+-?|-")

@@ -13,6 +13,8 @@ import com.asamm.vectormaps.mvt.tile.Geometry
 /**
  * Where tile (`zoom`, `x`, `y`) of `widthPx` by `heightPx` sits in the data tile it is drawn from:
  * itself up to `maxDataZoom`, its ancestor at that zoom above it (overzoom).
+ *
+ * @param scale screen pixels per style pixel on a 512 px tile, the host's device scale
  */
 internal class DataTileFrame(
     zoom: Int,
@@ -21,6 +23,7 @@ internal class DataTileFrame(
     private val widthPx: Int,
     private val heightPx: Int,
     maxDataZoom: Int,
+    scale: Float = 1f,
 ) {
 
     val dataZoom = minOf(zoom, maxDataZoom)
@@ -37,9 +40,9 @@ internal class DataTileFrame(
     private val offsetY = (y - (dataY shl dz)).toFloat() * heightPx
 
     /**
-     * Style pixel sizes apply 1:1 at 512 px tiles, as MapLibre's.
+     * Screen pixels per style pixel: 1:1 at 512 px tiles, as MapLibre's, times the device scale.
      */
-    val pixelScale = widthPx / 512f
+    val pixelScale = widthPx / 512f * scale
 
     /**
      * True when `geometry`, widened by `marginPx` on every side, meets the requested tile; above

@@ -25,6 +25,12 @@ class EvalContext(
     var feature: Feature? = null,
 ) {
 
+    /**
+     * The properties `get` reads for `name`, the first the feature has, such as `name:zh-Hant` and
+     * `name:zh` for a text field in the host's language; empty reads `name`.
+     */
+    internal var localNames: List<String> = emptyList()
+
     internal val bindings = HashMap<String, Any?>()
 }
 
@@ -228,7 +234,14 @@ internal object ExpressionCompiler {
                     "get with an object argument"
                 }
                 val key = (raw[0] as JsonPrimitive).content
-                feature { ctx -> ctx.feature?.property(key) }
+                if (key == "name") {
+                    feature { ctx ->
+                        val feature = ctx.feature
+                        ctx.localNames.firstNotNullOfOrNull { feature?.property(it) } ?: feature?.property(key)
+                    }
+                } else {
+                    feature { ctx -> ctx.feature?.property(key) }
+                }
             }
             "has" -> {
                 val key = (raw[0] as JsonPrimitive).content
