@@ -202,6 +202,9 @@ class ViewerState(
     @Volatile
     private var labelsPending = false
 
+    // the MVT pass's label target and the pass it draws for; UI thread only
+    private var mvtLabels: Pair<MvtLabelPass, AwtMvtRenderTarget>? = null
+
     // the last label image and the placement and view it shows; UI thread only
     private var labelImageCache: Pair<Pair<PreparedLabels, LabelViewport>, ImageBitmap>? = null
 
@@ -470,9 +473,9 @@ class ViewerState(
                 target.image.toComposeImageBitmap()
             }
             is MvtLabelPass -> {
-                val target = pass.newTarget(width, height) as AwtMvtRenderTarget
+                val target = mvtLabelTarget(pass = pass, width = width, height = height)
+                target.clear()
                 pass.draw(target = target, view = view, prepared = prepared)
-                target.dispose()
                 target.image.toComposeImageBitmap()
             }
             else -> {
@@ -481,6 +484,22 @@ class ViewerState(
         }
         labelImageCache = Pair(key, image)
         return image
+    }
+
+    // one target per pass and screen size, cleared each frame; the image above copies its pixels
+    private fun mvtLabelTarget(pass: MvtLabelPass, width: Int, height: Int): AwtMvtRenderTarget {
+        mvtLabels?.let { (owner, target) ->
+            if (owner === pass
+                && target.widthPx == width
+                && target.heightPx == height
+            ) {
+                return target
+            }
+            target.dispose()
+        }
+        val target = pass.newTarget(widthPx = width, heightPx = height) as AwtMvtRenderTarget
+        mvtLabels = pass to target
+        return target
     }
 
     private fun mapsforgeLabels(pass: MapsforgeLabelPass, view: LabelViewport, prepared: PreparedLabels): ImageBitmap {
@@ -774,6 +793,9 @@ class ViewerState(
         engine?.closeLater()
         engine = null
         labelPass = null
+        // the old pass's label target, not kept for the next map
+        mvtLabels?.second?.dispose()
+        mvtLabels = null
     }
 
     private fun startView() {

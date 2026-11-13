@@ -40,6 +40,12 @@ class AwtMvtRenderTarget(
 
     override val heightPx: Int = image.height
 
+    override fun clear() {
+        g.composite = AlphaComposite.Clear
+        g.fillRect(0, 0, widthPx, heightPx)
+        g.composite = AlphaComposite.SrcOver
+    }
+
     override fun drawBackground(color: Color) {
         g.composite = AlphaComposite.SrcOver
         g.color = awt(color)

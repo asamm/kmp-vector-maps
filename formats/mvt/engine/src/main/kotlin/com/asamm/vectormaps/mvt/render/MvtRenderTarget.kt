@@ -9,14 +9,19 @@ import com.asamm.vectormaps.mvt.symbol.MvtIcon
 import com.asamm.vectormaps.mvt.symbol.MvtText
 
 /**
- * Platform drawing surface of the MVT renderer, in screen pixels with a top-left origin. The AWT
- * target is in `formats/mvt/awt`; Android follows.
+ * Platform drawing surface of the MVT renderer, in screen pixels with a top-left origin; the
+ * targets are in `formats/mvt/awt` and `formats/mvt/android`.
  */
 interface MvtRenderTarget {
 
     val widthPx: Int
 
     val heightPx: Int
+
+    /**
+     * Makes every pixel transparent, so a label pass can draw each frame into one target.
+     */
+    fun clear()
 
     fun drawBackground(color: Color)
 
