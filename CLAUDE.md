@@ -35,16 +35,17 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `dev/mapsforge/golden-android`, `golden-android-upstream` | Android pixel test through `formats/mapsforge/android`, Robolectric; plain Mapsforge, not the driver; tiles with labels against `golden/labels/android` |
 | `dev/mapsforge/upstream` | upstream sync helpers: `upstream_diff.py` groups a tag's changes, `verify_upstream.py` runs both goldens against a tag built from source ([docs/upstream.md](docs/upstream.md)) |
 | `dev/garmin-img/golden` | Garmin pixel test of Monaco tiles (label-free) and the label pass through the driver against committed PNGs and dumps (bundled font, every system) and the dump comparison against the legacy Java parser libGarminImg |
-| `dev/mvt/golden`, `golden-android`, `reference` | MVT goldens through the driver: tiles against MapLibre GL JS renders, on the JVM and on Android (Robolectric native graphics), the label pass against committed `golden/labels` (bundled font); the MapLibre renders in headless Edge (Playwright, `node render.mjs`); `dev/mvt/pmtiles.py` writes the PMTiles fixture |
+| `dev/mvt/golden`, `golden-android`, `reference` | MVT goldens through the driver: tiles against MapLibre GL JS renders, on the JVM and on Android (Robolectric native graphics), the label pass against committed `golden/labels` (bundled font); the MapLibre renders in headless Edge (Playwright, `node render.mjs`); `dev/mvt/pmtiles.py` writes the PMTiles fixture, `dev/mvt/mbtiles2pmtiles.py` converts an MBTiles tileset for local tests |
 | `dev/fixtures/` | test maps, themes and the golden font, see [dev/fixtures/README.md](dev/fixtures/README.md) |
-| `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines M2.7 (Mapsforge) and M4.3c (Garmin), MVT engine M10.3a in [docs/performance.md](docs/performance.md) |
-| `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines M2.7b and M4.3c in docs/performance.md; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
+| `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines M2.7 (Mapsforge) and M4.3c (Garmin), MVT engine M10.3a and Czech M10.3d in [docs/performance.md](docs/performance.md) |
+| `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines M2.7b, M4.3c and MVT M10.3d in docs/performance.md; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
 | `core/` | driver interface, registry, styles, render configuration; Apache-2.0, see architecture.md |
 | `render/`, `android/` | `render/skia` parked (M7.1, Q15), `android/` from M8.1, other backends unscheduled; see architecture.md |
 
 - `dev/` holds development helpers (benchmarks, golden tests, test data); nothing in it ships;
   `formats/` holds only shipped code.
-- Large local maps stay outside the repo, referenced from `local.properties` (`viewer.mapFile`,
+- Large local maps stay out of git: in the git-ignored `local/` (such as `local/mvt/`, made by
+  `dev/mvt/mbtiles2pmtiles.py`) or referenced from `local.properties` (`viewer.mapFile`,
   read by the desktop viewer when no saved session map exists; see `dev/fixtures/README.md`).
 
 ## Hard rules

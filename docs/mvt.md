@@ -5,8 +5,8 @@ third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin render
 
 **Author:** Menion · **Analysed:** 2026-11-12 · **Milestone:** M10 (see [ROADMAP.md](ROADMAP.md)) ·
 **Status:** spike, M10.1 symbols, M10.2 driver and M10.2b viewer online maps done 2026-11-12;
-M10.3a engine performance and M10.3b render settings done 2026-11-13
-([performance.md](performance.md)); M10.3c Android target 🔧
+M10.3a engine performance, M10.3b render settings and M10.3c Android target done 2026-11-13
+([performance.md](performance.md)); M10.3d A54 and Czech benchmarks 🔧
 
 ## Goal
 

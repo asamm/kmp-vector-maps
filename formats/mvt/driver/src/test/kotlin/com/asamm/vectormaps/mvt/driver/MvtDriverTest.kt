@@ -165,6 +165,49 @@ class MvtDriverTest {
     }
 
     @Test
+    fun keepsADataTileOnlyForTilesAboveTheDataZoom() {
+        val reads = AtomicInteger()
+        val bytes = File(mvtDir, "tiles/planet/14/8529/5974.pbf").readBytes()
+        val source = object : MvtTileSource {
+            override val minZoom = 0
+            override val maxZoom = 14
+            override val bounds: DoubleArray? = null
+
+            override fun tile(zoom: Int, x: Int, y: Int): ByteArray {
+                reads.incrementAndGet()
+                // slow, so the child's miss overlaps the parent's read
+                Thread.sleep(200)
+                return bytes
+            }
+        }
+        val executor = Executors.newFixedThreadPool(2)
+        try {
+            driver.openSource(source).use { dataset ->
+                dataset.createRenderer(style, StyleSelection.DEFAULT, RenderConfig(tileSizePx = 256)).use { renderer ->
+                    val parent = TileRequest(x = 8529, y = 5974, zoom = 14)
+                    renderer.render(parent, MvtTileTarget(256)) { false }
+                    renderer.render(parent, MvtTileTarget(256)) { false }
+                    assertEquals(2, reads.get())
+
+                    // a child waiting for its parent's read keeps the tile for its siblings
+                    val first = executor.submit(Callable { renderer.render(parent, MvtTileTarget(256)) { false } })
+                    Thread.sleep(50)
+                    val child = executor.submit(Callable {
+                        renderer.render(TileRequest(x = 8529 * 2, y = 5974 * 2, zoom = 15), MvtTileTarget(256)) { false }
+                    })
+                    assertEquals(RenderResult.DRAWN, first.get())
+                    assertEquals(RenderResult.DRAWN, child.get())
+                    val sibling = TileRequest(x = 8529 * 2 + 1, y = 5974 * 2, zoom = 15)
+                    assertEquals(RenderResult.DRAWN, renderer.render(sibling, MvtTileTarget(256)) { false })
+                    assertEquals(3, reads.get())
+                }
+            }
+        } finally {
+            executor.shutdownNow()
+        }
+    }
+
+    @Test
     fun callsTheHillshadeHookAtEachElevationLayer() {
         val bytes = File(mvtDir, "tiles/planet/10/533/373.pbf").readBytes()
         // any tile's data, as only the elevation layers matter here

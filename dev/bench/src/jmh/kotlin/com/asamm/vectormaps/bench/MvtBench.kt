@@ -16,6 +16,7 @@ import com.asamm.vectormaps.mvt.render.AwtFonts
 import com.asamm.vectormaps.mvt.render.AwtMvtGraphics
 import com.asamm.vectormaps.mvt.render.AwtMvtRenderTarget
 import com.asamm.vectormaps.mvt.source.MvtTileSource
+import com.asamm.vectormaps.mvt.source.PmTilesSource
 import com.asamm.vectormaps.mvt.tile.VectorTile
 import org.openjdk.jmh.annotations.Benchmark
 import org.openjdk.jmh.annotations.BenchmarkMode
@@ -34,10 +35,15 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.ln
+import kotlin.math.tan
 
 /**
- * The MVT driver on the Asamm fixture tiles of Sněžka (`dev/fixtures/mvt`, PMTiles) with the
- * `hike_bike` style and 512 px tiles: decoding a data tile, rendering a tile at and above the data
+ * The MVT driver on the `bench.mvt.mapFile` tiles, else the Asamm fixture tiles of Sněžka
+ * (`dev/fixtures/mvt`, PMTiles), with the `hike_bike` style and 512 px tiles: decoding a data tile, rendering a tile at and above the data
  * zoom again (with its symbol layout), and a 4x4 block of z16 tiles cut from one z14 tile.
  */
 @State(Scope.Benchmark)
@@ -57,12 +63,7 @@ open class MvtBench {
     @Setup(Level.Trial)
     fun setUp() {
         scene = Scene()
-        val dz = zoom - DATA_ZOOM
-        tile = if (dz > 0) {
-            TileRequest(x = DATA_X shl dz, y = DATA_Y shl dz, zoom = zoom)
-        } else {
-            TileRequest(x = DATA_X shr -dz, y = DATA_Y shr -dz, zoom = zoom)
-        }
+        tile = tileAt(zoom)
     }
 
     @TearDown(Level.Trial)
@@ -71,8 +72,9 @@ open class MvtBench {
     }
 
     /**
-     * Rendering one tile again and laying out its symbols through a long-lived renderer: its data
-     * tile and the geometry of its features stay decoded after the first call.
+     * Rendering one tile again and laying out its symbols through a long-lived renderer: above
+     * the data zoom its data tile stays decoded after the first call, at or below it each call
+     * reads and decodes it anew.
      */
     @Benchmark
     fun renderTile(blackhole: Blackhole) {
@@ -80,7 +82,7 @@ open class MvtBench {
     }
 
     /**
-     * Decoding a fixture data tile, as the renderer does once per data tile.
+     * Decoding the data tile at the centre, as the renderer does once per data tile.
      */
     @State(Scope.Benchmark)
     @BenchmarkMode(Mode.SampleTime)
@@ -94,9 +96,12 @@ open class MvtBench {
 
         @Setup(Level.Trial)
         fun setUp() {
-            val dz = DATA_ZOOM - zoom
-            val file = File(fixturesDir(), "mvt/tiles/planet/$zoom/${DATA_X shr dz}/${DATA_Y shr dz}.pbf")
-            data = file.readBytes()
+            val tile = tileAt(zoom)
+            data = PmTilesSource(mapFile()).use { source ->
+                checkNotNull(source.tile(tile.zoom, tile.x, tile.y)) {
+                    "setUp(), no data tile $tile"
+                }
+            }
         }
 
         @Benchmark
@@ -121,7 +126,8 @@ open class MvtBench {
         private lateinit var executor: ExecutorService
         private val block = (0..3).flatMap { dy ->
             (0..3).map { dx ->
-                TileRequest(x = (DATA_X shl 2) + dx, y = (DATA_Y shl 2) + dy, zoom = DATA_ZOOM + 2)
+                val data = tileAt(DATA_ZOOM)
+                TileRequest(x = (data.x shl 2) + dx, y = (data.y shl 2) + dy, zoom = DATA_ZOOM + 2)
             }
         }
 
@@ -153,7 +159,7 @@ open class MvtBench {
     }
 
     /**
-     * The fixture dataset, its style and one long-lived renderer.
+     * The dataset, its style and one long-lived renderer.
      */
     private class Scene : AutoCloseable {
 
@@ -165,7 +171,7 @@ open class MvtBench {
 
         private val driver = MvtDriver(AwtMvtGraphics(AwtFonts(font)))
 
-        private val dataset = driver.open(listOf(File(fixturesDir(), "mvt/tiles/fixtures.pmtiles")))
+        private val dataset = driver.open(listOf(mapFile()))
 
         private val style: MvtStyle = driver.loadStyle(
             File(fixturesDir(), "mvt/styles/hike_bike/style.json"),
@@ -211,6 +217,41 @@ open class MvtBench {
         const val DATA_ZOOM = 14
         const val DATA_X = 8908
         const val DATA_Y = 5504
+
+        /**
+         * The `bench.mvt.mapFile` property, else the fixture tiles.
+         */
+        fun mapFile(): File {
+            return System.getProperty("bench.mvt.mapFile").orEmpty()
+                .takeIf { it.isNotBlank() }
+                ?.let(::File)
+                ?: File(fixturesDir(), "mvt/tiles/fixtures.pmtiles")
+        }
+
+        /**
+         * The tile at `zoom` holding the `bench.mvt.center` property (`<lat>,<lon>`), else the
+         * fixture's tile of Sněžka, or its top-left child above the data zoom.
+         */
+        fun tileAt(zoom: Int): TileRequest {
+            val center = System.getProperty("bench.mvt.center").orEmpty().takeIf { it.isNotBlank() }
+                ?.split(Regex("[,:]"))
+                ?.let { it[0].trim().toDouble() to it[1].trim().toDouble() }
+            if (center != null) {
+                val n = (1 shl zoom).toDouble()
+                val lat = Math.toRadians(center.first)
+                return TileRequest(
+                    x = floor((center.second + 180.0) / 360.0 * n).toInt(),
+                    y = floor((1.0 - ln(tan(lat) + 1.0 / cos(lat)) / PI) / 2.0 * n).toInt(),
+                    zoom = zoom,
+                )
+            }
+            val dz = zoom - DATA_ZOOM
+            return if (dz > 0) {
+                TileRequest(x = DATA_X shl dz, y = DATA_Y shl dz, zoom = zoom)
+            } else {
+                TileRequest(x = DATA_X shr -dz, y = DATA_Y shr -dz, zoom = zoom)
+            }
+        }
 
         fun fixturesDir(): File {
             return File(

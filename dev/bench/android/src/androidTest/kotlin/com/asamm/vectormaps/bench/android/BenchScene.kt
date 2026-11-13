@@ -150,6 +150,8 @@ class BenchScene : AutoCloseable {
             val target = File(app.cacheDir, "fixtures")
             copyAssets(assets = context.assets, path = "maps", target = File(target, "maps"))
             copyAssets(assets = context.assets, path = "themes", target = File(target, "themes"))
+            copyAssets(assets = context.assets, path = "mvt/tiles", target = File(target, "mvt/tiles"))
+            copyAssets(assets = context.assets, path = "mvt/styles", target = File(target, "mvt/styles"))
             return target
         }
 

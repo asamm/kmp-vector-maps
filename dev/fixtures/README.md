@@ -31,7 +31,9 @@ MVT renders also "© OpenMapTiles".
   Monaco map.
 - A Garmin IMG fixture is unencrypted (header magic `DSKIMG`), redistributable, about 2 MB at
   most (10 MB with a reason in its `NOTES.md`), and carries its own `NOTES.md` and `LICENCE`.
-- Large maps stay outside the repo: the desktop viewer reads them from `local.properties` when no
-  saved session map exists, the Android viewer from `--es map` / `--es theme` intent extras
-  (`am start -S`), the benchmarks from `-Pbench.mapFile` (JVM) or the `bench.mapFile`
-  instrumentation argument, Garmin ones from `bench.garmin.mapFile`.
+- Large maps stay out of git, in the git-ignored `local/` at the repo root (an MBTiles tileset
+  converted by `dev/mvt/mbtiles2pmtiles.py` into `local/mvt/`) or anywhere else: the desktop
+  viewer reads them from `local.properties` when no saved session map exists, the Android viewer
+  from `--es map` / `--es theme` intent extras (`am start -S`), the benchmarks from
+  `-Pbench.mapFile` (JVM) or the `bench.mapFile` instrumentation argument, Garmin ones from
+  `bench.garmin.mapFile`, MVT ones from `bench.mvt.mapFile`.

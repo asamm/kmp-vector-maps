@@ -7,12 +7,29 @@ package com.asamm.vectormaps.mvt.tile
 /**
  * One decoded Mapbox Vector Tile (spec 2.1): its layers by name. Feature geometry stays encoded
  * until [Feature.decodeGeometry] is called.
+ *
+ * @param encodedBytes the size of the protobuf it was decoded from, the base of [retainedBytes]
  */
 class VectorTile(
     val layers: Map<String, Layer>,
+    val encodedBytes: Int = 0,
 ) {
 
+    /**
+     * An estimate of the heap the tile keeps with every feature's geometry decoded: about 7 times
+     * its protobuf on the Asamm tiles, dense Prague and sparse fixture tiles alike
+     * (docs/performance.md M10.3d), plus a floor for the objects of even a tiny tile.
+     */
+    val retainedBytes: Long
+        get() {
+            return encodedBytes * RETAINED_PER_ENCODED + RETAINED_PER_TILE
+        }
+
     companion object {
+
+        private const val RETAINED_PER_ENCODED = 7L
+
+        private const val RETAINED_PER_TILE = 2048L
 
         /**
          * Decodes an uncompressed MVT protobuf.
@@ -29,7 +46,7 @@ class VectorTile(
                     reader.skip(tag)
                 }
             }
-            return VectorTile(layers)
+            return VectorTile(layers = layers, encodedBytes = bytes.size)
         }
 
         private fun decodeLayer(reader: PbfReader): Layer {

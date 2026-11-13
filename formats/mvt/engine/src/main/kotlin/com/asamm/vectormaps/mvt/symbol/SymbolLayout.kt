@@ -59,11 +59,12 @@ class SymbolLayout(
 
     /**
      * The labels whose anchors fall inside tile (`zoom`, `x`, `y`) of `tileSizePx`; a neighbour
-     * tile lays out the rest, so the label pass sees each anchor once.
+     * tile lays out the rest, so the label pass sees each anchor once; `data` is the tile's data
+     * tile when the caller has it, else read from the tile source.
      */
-    fun labels(zoom: Int, x: Int, y: Int, tileSizePx: Int): List<MvtLabel> {
+    fun labels(zoom: Int, x: Int, y: Int, tileSizePx: Int, data: VectorTile? = null): List<MvtLabel> {
         val frame = DataTileFrame(zoom, x, y, tileSizePx, tileSizePx, maxDataZoom, scale)
-        val tile = tileSource(frame.dataZoom, frame.dataX, frame.dataY) ?: return emptyList()
+        val tile = data ?: tileSource(frame.dataZoom, frame.dataX, frame.dataY) ?: return emptyList()
         val ctx = EvalContext(zoom.toDouble())
         val out = ArrayList<MvtLabel>()
         for ((index, layer) in style.layers.withIndex()) {
