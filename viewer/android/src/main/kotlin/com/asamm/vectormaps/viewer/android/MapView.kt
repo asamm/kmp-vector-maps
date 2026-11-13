@@ -40,6 +40,10 @@ import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.MapsforgeLabelPass
 import com.asamm.vectormaps.mapsforge.TileBitmapTarget
 import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
+import com.asamm.vectormaps.mvt.driver.MvtDriver
+import com.asamm.vectormaps.mvt.driver.MvtLabelPass
+import com.asamm.vectormaps.mvt.driver.MvtTileTarget
+import com.asamm.vectormaps.mvt.render.AndroidMvtRenderTarget
 import com.asamm.vectormaps.viewer.TileEngine
 import com.asamm.vectormaps.viewer.TileImages
 import com.asamm.vectormaps.viewer.Viewport
@@ -87,6 +91,13 @@ class MapView(
 
     // the placement and view the Garmin bitmap shows; UI thread only
     private var garminDrawn: Pair<PreparedLabels, LabelViewport>? = null
+
+    // the MVT pass draws into this bitmap, cleared and reused while the view keeps its size; UI
+    // thread only
+    private var mvtTarget: AndroidMvtRenderTarget? = null
+
+    // the placement and view the MVT bitmap shows; UI thread only
+    private var mvtDrawn: Pair<PreparedLabels, LabelViewport>? = null
 
     // the TYP and text scale of the Garmin tiles, for their labels
     private val renderScale = config.deviceScale
@@ -215,7 +226,11 @@ class MapView(
             renderer = renderer,
             images = images,
             threads = RENDER_THREADS,
-            capacity = keptTiles(renderer = renderer, garmin = probed.driver is GarminDriver, tileSize = config.tileSizePx),
+            capacity = keptTiles(
+                renderer = renderer,
+                argb = probed.driver is GarminDriver || probed.driver is MvtDriver,
+                tileSize = config.tileSizePx,
+            ),
         ) {
             // a new tile stored its labels
             labelsStale = true
@@ -227,9 +242,9 @@ class MapView(
     }
 
     // a tile shows its labels while the label store keeps it, so no more tiles than that
-    private fun keptTiles(renderer: MapRenderer, garmin: Boolean, tileSize: Int): Int {
-        // ARGB_8888 Garmin tiles take twice the RGB_565 Mapsforge ones
-        val byMemory = (KEPT_BYTES / ((if (garmin) 4L else 2L) * tileSize * tileSize)).toInt().coerceAtLeast(1)
+    private fun keptTiles(renderer: MapRenderer, argb: Boolean, tileSize: Int): Int {
+        // ARGB_8888 Garmin and MVT tiles take twice the RGB_565 Mapsforge ones
+        val byMemory = (KEPT_BYTES / ((if (argb) 4L else 2L) * tileSize * tileSize)).toInt().coerceAtLeast(1)
         val labelTiles = (renderer.labelPass as? TiledLabelPass<*>)?.storeCapacity ?: return byMemory
         return minOf(byMemory, labelTiles)
     }
@@ -309,7 +324,36 @@ class MapView(
             is GarminLabelPass -> {
                 canvas.drawBitmap(garminLabels(pass = pass, view = view) ?: return, 0f, 0f, null)
             }
+            is MvtLabelPass -> {
+                canvas.drawBitmap(mvtLabels(pass = pass, view = view) ?: return, 0f, 0f, null)
+            }
         }
+    }
+
+    // the MVT pass draws into its own bitmap, redrawn when the placement or view changes
+    private fun mvtLabels(pass: MvtLabelPass, view: LabelViewport): Bitmap? {
+        val prepared = pass.prepared ?: return null
+        val reused = mvtTarget
+        val target = if (reused != null
+            && reused.widthPx == view.widthPx
+            && reused.heightPx == view.heightPx
+        ) {
+            reused
+        } else {
+            (pass.newTarget(widthPx = view.widthPx, heightPx = view.heightPx) as AndroidMvtRenderTarget)
+                .also { mvtTarget = it }
+        }
+        val drawn = mvtDrawn
+        if (target !== reused
+            || drawn == null
+            || drawn.first !== prepared
+            || drawn.second != view
+        ) {
+            target.clear()
+            pass.draw(target = target, view = view, prepared = prepared)
+            mvtDrawn = Pair(prepared, view)
+        }
+        return target.bitmap
     }
 
     // the Garmin pass draws into its own bitmap, redrawn when the placement or view changes
@@ -416,6 +460,7 @@ class MapView(
         return when (driver) {
             is MapsforgeDriver -> MapsforgeImages
             is GarminDriver -> GarminImages
+            is MvtDriver -> MvtImages
             else -> throw IllegalArgumentException("imagesFor(), no images for driver ${driver.id}")
         }
     }
@@ -425,7 +470,7 @@ class MapView(
         // the A54 stops scaling above its 4 big cores (docs/performance.md M2.7b)
         const val RENDER_THREADS = 4
 
-        // 100 Mapsforge or 50 Garmin tiles at 512 px
+        // 100 Mapsforge or 50 Garmin or MVT tiles at 512 px
         const val KEPT_BYTES = 50L shl 20
 
         const val ERROR_LINES = 3
@@ -453,6 +498,25 @@ class MapView(
             return TileImage(bitmap = checkNotNull(AndroidGraphicFactory.getBitmap(tile))) {
                 tile.decrementRefCount()
             }
+        }
+
+        override fun release(image: TileImage) {
+            image.release()
+        }
+    }
+
+    /**
+     * Draws the MVT canvas's bitmap; dropping it frees the pixels, as a frame may still draw it.
+     */
+    private object MvtImages : TileImages<TileImage> {
+
+        override fun newTarget(sizePx: Int): RenderTarget {
+            return MvtTileTarget(sizePx)
+        }
+
+        override fun take(target: RenderTarget): TileImage {
+            val canvas = checkNotNull((target as MvtTileTarget).canvas) as AndroidMvtRenderTarget
+            return TileImage(bitmap = canvas.bitmap) {}
         }
 
         override fun release(image: TileImage) {
