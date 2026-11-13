@@ -6,12 +6,16 @@ package com.asamm.vectormaps.mvt.render
 
 import com.asamm.vectormaps.mvt.style.Color
 import com.asamm.vectormaps.mvt.style.EvalContext
+import com.asamm.vectormaps.mvt.style.Expression
+import com.asamm.vectormaps.mvt.style.ExpressionCompiler
 import com.asamm.vectormaps.mvt.style.LayerType
 import com.asamm.vectormaps.mvt.style.Style
 import com.asamm.vectormaps.mvt.style.StyleLayer
+import com.asamm.vectormaps.mvt.tile.Geometry
 import com.asamm.vectormaps.mvt.tile.GeometryType
 import com.asamm.vectormaps.mvt.tile.VectorTile
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.abs
 
 /**
  * Draws the background, fill, line and circle layers of a [Style] for one tile; symbols are the
@@ -27,7 +31,8 @@ class TileRenderer(
 
     /**
      * Ids of the layers a render skipped because evaluating them threw, such as a malformed
-     * expression meeting unexpected tile data; the rest of the tile still draws.
+     * expression meeting unexpected tile data of the features drawn; the rest of the tile still
+     * draws.
      */
     val failedLayers: Set<String>
         get() {
@@ -84,6 +89,7 @@ class TileRenderer(
             }
             val source = tile.layers[layer.sourceLayer] ?: continue
             try {
+                val paint = LayerPaint(layer)
                 for (feature in source.features) {
                     ctx.feature = feature
                     if (layer.filter != null
@@ -91,13 +97,16 @@ class TileRenderer(
                     ) {
                         continue
                     }
-                    val geometry = feature.decodeGeometry()
-                    val screen = frame.project(geometry, source.extent)
-                    val path = MvtPath(screen, geometry.partEnds, feature.type == GeometryType.POLYGON)
+                    val shape = Shape(
+                        geometry = feature.decodeGeometry(),
+                        type = feature.type,
+                        extent = source.extent,
+                        frame = frame,
+                    )
                     when (layer.type) {
-                        LayerType.FILL -> drawFill(layer, path, feature.type, ctx, target, x, y)
-                        LayerType.LINE -> drawLine(layer, path, feature.type, ctx, target, pixelScale)
-                        else -> drawCircles(layer, path, ctx, target, pixelScale)
+                        LayerType.FILL -> drawFill(paint, shape, ctx, target, x, y)
+                        LayerType.LINE -> drawLine(paint, shape, ctx, target, pixelScale)
+                        else -> drawCircles(paint, shape, ctx, target, pixelScale)
                     }
                 }
             } catch (e: RuntimeException) {
@@ -109,24 +118,24 @@ class TileRenderer(
     }
 
     private fun drawFill(
-        layer: StyleLayer,
-        path: MvtPath,
-        type: GeometryType,
+        paint: LayerPaint,
+        shape: Shape,
         ctx: EvalContext,
         target: MvtRenderTarget,
         x: Int,
         y: Int,
     ) {
-        if (type != GeometryType.POLYGON) {
+        if (shape.type != GeometryType.POLYGON
+            || !shape.meets(marginPx = 1f)
+        ) {
             return
         }
-        val opacity = number(layer.paint["fill-opacity"], ctx, 1.0)
-        val antialias = layer.paint["fill-antialias"]?.eval(ctx) != false
-        val pattern = layer.paint["fill-pattern"]
-        if (pattern != null) {
-            val name = pattern.eval(ctx) as? String ?: return
+        val opacity = paint.number("fill-opacity", ctx, 1.0)
+        val antialias = paint.value("fill-antialias", ctx) != false
+        if (paint.has("fill-pattern")) {
+            val name = paint.value("fill-pattern", ctx) as? String ?: return
             target.fillPathPattern(
-                path,
+                shape.path(),
                 name,
                 opacity.toFloat(),
                 antialias,
@@ -135,59 +144,68 @@ class TileRenderer(
             )
             return
         }
-        val color = color(layer.paint["fill-color"], ctx) ?: Color(0xff000000.toInt())
-        target.fillPath(path, color.withOpacity(opacity), antialias)
+        val color = paint.color("fill-color", ctx) ?: Color(0xff000000.toInt())
+        target.fillPath(shape.path(), color.withOpacity(opacity), antialias)
     }
 
     private fun drawLine(
-        layer: StyleLayer,
-        path: MvtPath,
-        type: GeometryType,
+        paint: LayerPaint,
+        shape: Shape,
         ctx: EvalContext,
         target: MvtRenderTarget,
         pixelScale: Float,
     ) {
-        if (type == GeometryType.POINT
-            || layer.paint.containsKey("line-pattern")
+        if (shape.type == GeometryType.POINT
+            || paint.has("line-pattern")
         ) {
             return
         }
-        val width = number(layer.paint["line-width"], ctx, 1.0).toFloat() * pixelScale
+        val width = paint.number("line-width", ctx, 1.0).toFloat() * pixelScale
         if (width <= 0f) {
             return
         }
-        val color = color(layer.paint["line-color"], ctx) ?: Color(0xff000000.toInt())
-        val opacity = number(layer.paint["line-opacity"], ctx, 1.0)
-        val cap = when (layer.layout["line-cap"]?.eval(ctx)) {
+        val offset = paint.number("line-offset", ctx, 0.0).toFloat() * pixelScale
+        // miter joins reach a width out at the default miter limit 2, an offset vertex up to
+        // MAX_MITER offsets
+        if (!shape.meets(marginPx = width + LineOffset.MAX_MITER * abs(offset) + 1f)) {
+            return
+        }
+        val color = paint.color("line-color", ctx) ?: Color(0xff000000.toInt())
+        val opacity = paint.number("line-opacity", ctx, 1.0)
+        val cap = when (paint.layoutValue("line-cap", ctx)) {
             "round" -> LineCap.ROUND
             "square" -> LineCap.SQUARE
             else -> LineCap.BUTT
         }
-        val join = when (layer.layout["line-join"]?.eval(ctx)) {
+        val join = when (paint.layoutValue("line-join", ctx)) {
             "round" -> LineJoin.ROUND
             "bevel" -> LineJoin.BEVEL
             else -> LineJoin.MITER
         }
         // dash lengths are in line widths
-        val dash = (layer.paint["line-dasharray"]?.eval(ctx) as? List<*>)
+        val dash = (paint.value("line-dasharray", ctx) as? List<*>)
             ?.map { ((it as? Double ?: 0.0) * width).toFloat().coerceAtLeast(0.01f) }
             ?.toFloatArray()
-        val offset = number(layer.paint["line-offset"], ctx, 0.0).toFloat() * pixelScale
+        val path = shape.path()
         val drawn = if (offset != 0f) LineOffset.offset(path, offset) else path
         target.strokePath(drawn, color.withOpacity(opacity), width, cap, join, dash)
     }
 
     private fun drawCircles(
-        layer: StyleLayer,
-        path: MvtPath,
+        paint: LayerPaint,
+        shape: Shape,
         ctx: EvalContext,
         target: MvtRenderTarget,
         pixelScale: Float,
     ) {
-        val radius = number(layer.paint["circle-radius"], ctx, 5.0).toFloat() * pixelScale
-        val color = color(layer.paint["circle-color"], ctx) ?: Color(0xff000000.toInt())
-        val strokeWidth = number(layer.paint["circle-stroke-width"], ctx, 0.0).toFloat() * pixelScale
-        val strokeColor = color(layer.paint["circle-stroke-color"], ctx) ?: Color(0xff000000.toInt())
+        val radius = paint.number("circle-radius", ctx, 5.0).toFloat() * pixelScale
+        val strokeWidth = paint.number("circle-stroke-width", ctx, 0.0).toFloat() * pixelScale
+        if (!shape.meets(marginPx = radius + strokeWidth + 1f)) {
+            return
+        }
+        val color = paint.color("circle-color", ctx) ?: Color(0xff000000.toInt())
+        val strokeColor = paint.color("circle-stroke-color", ctx) ?: Color(0xff000000.toInt())
+        val path = shape.path()
         var i = 0
         while (i + 1 < path.coords.size) {
             target.drawCircle(
@@ -199,6 +217,63 @@ class TileRenderer(
                 strokeColor,
             )
             i += 2
+        }
+    }
+
+    // a feature's geometry, projected into the tile only once it is drawn
+    private class Shape(
+        private val geometry: Geometry,
+        val type: GeometryType,
+        private val extent: Int,
+        private val frame: DataTileFrame,
+    ) {
+
+        fun meets(marginPx: Float): Boolean {
+            return frame.meets(geometry = geometry, extent = extent, marginPx = marginPx)
+        }
+
+        fun path(): MvtPath {
+            return MvtPath(frame.project(geometry, extent), geometry.partEnds, type == GeometryType.POLYGON)
+        }
+    }
+
+    // a layer's paint and layout for one render; values that do not depend on the feature are
+    // evaluated once
+    private class LayerPaint(private val layer: StyleLayer) {
+
+        private val constants = HashMap<String, Any?>()
+
+        fun has(name: String): Boolean {
+            return layer.paint.containsKey(name)
+        }
+
+        fun value(name: String, ctx: EvalContext): Any? {
+            return evaluate(name = name, expression = layer.paint[name], ctx = ctx)
+        }
+
+        fun layoutValue(name: String, ctx: EvalContext): Any? {
+            return evaluate(name = name, expression = layer.layout[name], ctx = ctx)
+        }
+
+        // paint and layout share no property name
+        private fun evaluate(name: String, expression: Expression?, ctx: EvalContext): Any? {
+            if (constants.containsKey(name)) {
+                return constants[name]
+            }
+            expression ?: return null
+            val value = expression.eval(ctx)
+            if (expression.isFeatureConstant) {
+                constants[name] = value
+            }
+            return value
+        }
+
+        fun number(name: String, ctx: EvalContext, default: Double): Double {
+            return value(name, ctx) as? Double ?: default
+        }
+
+        fun color(name: String, ctx: EvalContext): Color? {
+            return ExpressionCompiler.toColor(value(name, ctx))
         }
     }
 }

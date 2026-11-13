@@ -12,8 +12,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 desktop stays AWT (Q15). M8 and M9 ⏸ since 2026-11-12, while locus-core reworks the
 libMapCore plan (locus-core `docs/libraries/libMapCore/plan/`) around this library. M10 (vector
 tiles) started 2026-11-12 with a desktop spike on the umbrella branch `feature/m10-mvt`
-([mvt.md](mvt.md)).** Next action: M10.3, performance and the Android target; M8.0 (logging
-through kmp-logger) resumes when the libMapCore plan says so.
+([mvt.md](mvt.md)).** Next action: M10.3b, `RenderConfig` settings for MVT, then M10.3c, the
+Android target; M8.0 (logging through kmp-logger) resumes when the libMapCore plan says so.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -34,7 +34,7 @@ settles, labels before speed, the Locus-facing API last.
 | M7 | Performance and Skia desktop backend | L | ✅ PRs #47–#52, `6155c9d`; M7.1 ⏸ (Q15) |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⏸ libMapCore plan |
 | M9 | Locus integration | M | ⏸ libMapCore plan; needs Q14, Q16 |
-| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | 🔧 M10.2b on the umbrella `feature/m10-mvt` |
+| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | 🔧 M10.3a on the umbrella `feature/m10-mvt` |
 
 ## Done: M0–M6
 
@@ -190,8 +190,12 @@ the umbrella `feature/m10-mvt`, which merges into `main` when M10 is done.
 | M10.0 | Desktop spike: decoder, style subset, renderer for every layer type but symbols, MapLibre reference renders, golden | goldens within mean 4.0 / 6 % of MapLibre ✅ PR #53 |
 | M10.1 | Symbol layers: icons, text, along-line placement and collision, through the label pass | label goldens with the bundled font; MapLibre `labels` renders compared, reported ✅ PR #54 |
 | M10.2 | Driver behind `core/` (PMTiles files, the host's tile sources for online maps, `style.json` with its sprite), desktop viewer; MBTiles waits for V1; `MvtLabelPass` built by the driver only | goldens through the driver on a PMTiles fixture; driver and viewer tests ✅ PR #55 |
-| M10.2b | Online maps in the desktop viewer for UI testing: a TileJSON file (the server's `planet.json`) opens through `openSource` with a viewer-only HTTP source and disk cache | source test on cached tiles; a live tile from the Asamm server 🔧 |
-| M10.3 | Performance and spike leftovers (mvt.md Spike), Android target, JMH and A54 benchmarks; `RenderConfig.deviceScale`, `textScale` and `language`; PMTiles directories as `LongArray` columns, cached by entries (measured on a planet file); one decode per data tile and directory under concurrent misses; a reusable label-pass target (`clear()`) | baselines in performance.md ⬜ |
+| M10.2b | Online maps in the desktop viewer for UI testing: a TileJSON file (the server's `planet.json`) opens through `openSource` with a viewer-only HTTP source and disk cache | source test on cached tiles; a live tile from the Asamm server ✅ PR #56 |
+| M10.3a | Engine performance on the desktop: JMH `MvtBench`; geometry decoded once per feature, features outside an overzoomed tile skipped; feature-constant paint evaluated once per layer; one read and decode per data tile and PMTiles directory under concurrent misses; directories as `LongArray` columns, cached by entries; fewer decoded tiles kept (12) | JMH time and memory before/after; goldens byte-identical 🔧 |
+| M10.3b | `RenderConfig.deviceScale`, `textScale` and `language`, the style's `text-field` choosing the language | driver tests; label golden at scale 1 unchanged ⬜ |
+| M10.3c | Android target (`formats/mvt/android`, sprite size guard), a reusable label-pass target (`clear()`), Android viewer opens `.pmtiles` | Robolectric or A54 smoke ⬜ |
+| M10.3d | A54 benchmarks (`androidx.benchmark`); the PMTiles directory cache measured on a planet file | baselines in performance.md ⬜ |
+| M10.3e | Spike leftovers (mvt.md Spike and Symbols: a tri-state render result for cancelling, patterns for non-512 px tiles and `@2x` sprites, expression details, shaped text cached per layer); draw batching and other render costs the A54 profile shows | goldens; A54 before/after ⬜ |
 
 ## Decisions
 

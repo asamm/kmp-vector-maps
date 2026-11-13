@@ -13,7 +13,7 @@ import kotlin.math.sqrt
  */
 internal object LineOffset {
 
-    private const val MAX_MITER = 4f
+    const val MAX_MITER = 4f
 
     fun offset(path: MvtPath, offset: Float): MvtPath {
         val c = path.coords

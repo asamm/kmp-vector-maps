@@ -10,6 +10,9 @@ import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.channels.FileChannel
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Vector tiles from a PMTiles v3 file (protomaps/PMTiles spec): a 127-byte header, a root
@@ -23,12 +26,18 @@ class PmTilesSource(file: File) : MvtTileSource {
 
     private val header: Header
 
-    // directories by offset in the file; the root and the leaves a render has walked through
-    private val directories = object : LinkedHashMap<Long, List<Entry>>(16, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, List<Entry>>): Boolean {
-            return size > MAX_DIRECTORIES
-        }
-    }
+    // leaf directories by offset in the file, least recently used first, the ones renders have
+    // walked through, up to MAX_CACHED_ENTRIES entries in all
+    private val directories = LinkedHashMap<Long, Directory>(16, 0.75f, true)
+
+    private var cachedEntries = 0
+
+    // the root apart from the leaves, so a leaf larger than the cache never evicts it
+    @Volatile
+    private var root: Directory? = null
+
+    // directories being read and parsed, by offset
+    private val loading = ConcurrentHashMap<Long, CompletableFuture<Directory>>()
 
     init {
         try {
@@ -62,14 +71,17 @@ class PmTilesSource(file: File) : MvtTileSource {
         var length = header.rootLength
         // the spec bounds the depth; a damaged file must not loop
         repeat(MAX_DEPTH) {
-            val entries = directory(offset, length)
-            val entry = find(entries, id) ?: return null
-            if (entry.runLength > 0) {
-                val bytes = read(header.dataOffset + entry.offset, entry.length.toInt())
+            val directory = directory(offset, length)
+            val i = directory.find(id)
+            if (i < 0) {
+                return null
+            }
+            if (directory.runLengths[i] > 0) {
+                val bytes = read(header.dataOffset + directory.offsets[i], directory.lengths[i].toInt())
                 return if (header.tileCompression == COMPRESSION_GZIP) MvtTileSource.uncompressed(bytes) else bytes
             }
-            offset = header.leafOffset + entry.offset
-            length = entry.length
+            offset = header.leafOffset + directory.offsets[i]
+            length = directory.lengths[i]
         }
         return null
     }
@@ -78,12 +90,62 @@ class PmTilesSource(file: File) : MvtTileSource {
         channel.close()
     }
 
-    private fun directory(offset: Long, length: Long): List<Entry> {
-        synchronized(directories) {
-            directories[offset]?.let {
-                return it
+    // threads missing the same directory at once wait for one read
+    private fun directory(offset: Long, length: Long): Directory {
+        cached(offset)?.let {
+            return it
+        }
+        val mine = CompletableFuture<Directory>()
+        val running = loading.putIfAbsent(offset, mine)
+        if (running != null) {
+            try {
+                return running.join()
+            } catch (e: CompletionException) {
+                throw e.cause ?: e
             }
         }
+        try {
+            // another thread may have stored it since the miss
+            val directory = cached(offset) ?: readDirectory(offset = offset, length = length)
+            if (offset == header.rootOffset) {
+                root = directory
+            } else {
+                cache(offset = offset, directory = directory)
+            }
+            mine.complete(directory)
+            return directory
+        } catch (e: Throwable) {
+            mine.completeExceptionally(e)
+            throw e
+        } finally {
+            loading.remove(offset)
+        }
+    }
+
+    private fun cached(offset: Long): Directory? {
+        if (offset == header.rootOffset) {
+            return root
+        }
+        synchronized(directories) {
+            return directories[offset]
+        }
+    }
+
+    private fun cache(offset: Long, directory: Directory) {
+        synchronized(directories) {
+            directories.put(offset, directory)?.let { cachedEntries -= it.size }
+            cachedEntries += directory.size
+            val eldest = directories.entries.iterator()
+            while (cachedEntries > MAX_CACHED_ENTRIES
+                && directories.size > 1
+            ) {
+                cachedEntries -= eldest.next().value.size
+                eldest.remove()
+            }
+        }
+    }
+
+    private fun readDirectory(offset: Long, length: Long): Directory {
         require(length in 0..MAX_DIRECTORY_BYTES) {
             "directory(), $length bytes at $offset"
         }
@@ -92,11 +154,7 @@ class PmTilesSource(file: File) : MvtTileSource {
             COMPRESSION_GZIP -> MvtTileSource.uncompressed(raw, limit = MAX_DIRECTORY_BYTES)
             else -> raw
         }
-        val entries = parseDirectory(bytes)
-        synchronized(directories) {
-            directories[offset] = entries
-        }
-        return entries
+        return parseDirectory(bytes)
     }
 
     private fun read(offset: Long, length: Int): ByteArray {
@@ -118,12 +176,51 @@ class PmTilesSource(file: File) : MvtTileSource {
         return buffer.array()
     }
 
-    internal class Entry(
-        val tileId: Long,
-        val offset: Long,
-        val length: Long,
-        val runLength: Long,
-    )
+    /**
+     * A directory as the spec's columns: entry `i` is tile id `tileIds[i]` with its run length,
+     * length and offset; a run length of 0 marks a leaf directory.
+     */
+    internal class Directory(
+        val tileIds: LongArray,
+        val runLengths: LongArray,
+        val lengths: LongArray,
+        val offsets: LongArray,
+    ) {
+
+        val size: Int
+            get() {
+                return tileIds.size
+            }
+
+        /**
+         * The entry holding `id`, the last one at or before it, a tile run covering it or a leaf;
+         * -1 for none.
+         */
+        fun find(id: Long): Int {
+            var low = 0
+            var high = tileIds.size - 1
+            while (low <= high) {
+                val mid = (low + high) ushr 1
+                val c = tileIds[mid].compareTo(id)
+                if (c == 0) {
+                    return mid
+                }
+                if (c < 0) {
+                    low = mid + 1
+                } else {
+                    high = mid - 1
+                }
+            }
+            if (high < 0) {
+                return -1
+            }
+            return when {
+                runLengths[high] == 0L -> high
+                id - tileIds[high] < runLengths[high] -> high
+                else -> -1
+            }
+        }
+    }
 
     private class Header(
         val rootOffset: Long,
@@ -201,7 +298,8 @@ class PmTilesSource(file: File) : MvtTileSource {
 
         private const val MAX_DEPTH = 4
 
-        private const val MAX_DIRECTORIES = 64
+        // ~3 MB of columns, 32 B per entry
+        private const val MAX_CACHED_ENTRIES = 100_000
 
         private const val ROOT_SPACE = 16384
 
@@ -251,7 +349,7 @@ class PmTilesSource(file: File) : MvtTileSource {
          * The spec's directory: entry count, then tile id deltas, run lengths, lengths and offsets
          * as varint columns; an offset of 0 after the first entry continues the previous entry.
          */
-        fun parseDirectory(bytes: ByteArray): List<Entry> {
+        fun parseDirectory(bytes: ByteArray): Directory {
             val reader = PbfReader(bytes, 0, bytes.size)
             val count = reader.readVarint()
             // each entry takes at least four bytes, one per column
@@ -271,34 +369,7 @@ class PmTilesSource(file: File) : MvtTileSource {
                 val value = reader.readVarint()
                 offsets[i] = if (value == 0L && i > 0) offsets[i - 1] + lengths[i - 1] else value - 1
             }
-            return List(ids.size) { Entry(ids[it], offsets[it], lengths[it], runs[it]) }
-        }
-
-        // the entry holding `id`: the last one at or before it, a tile run covering it or a leaf
-        fun find(entries: List<Entry>, id: Long): Entry? {
-            var low = 0
-            var high = entries.size - 1
-            while (low <= high) {
-                val mid = (low + high) ushr 1
-                val c = entries[mid].tileId.compareTo(id)
-                if (c == 0) {
-                    return entries[mid]
-                }
-                if (c < 0) {
-                    low = mid + 1
-                } else {
-                    high = mid - 1
-                }
-            }
-            if (high < 0) {
-                return null
-            }
-            val entry = entries[high]
-            return when {
-                entry.runLength == 0L -> entry
-                id - entry.tileId < entry.runLength -> entry
-                else -> null
-            }
+            return Directory(tileIds = ids, runLengths = runs, lengths = lengths, offsets = offsets)
         }
     }
 }

@@ -17,6 +17,8 @@ import com.asamm.vectormaps.mvt.render.AwtMvtGraphics
 import com.asamm.vectormaps.mvt.source.MvtTileSource
 import java.awt.Font
 import java.io.File
+import java.util.concurrent.Callable
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
@@ -102,6 +104,42 @@ class MvtDriverTest {
 
         assertEquals(1, reads.get())
         assertEquals(4, hillshades.get())
+    }
+
+    @Test
+    fun readsADataTileOnceForConcurrentChildren() {
+        val reads = AtomicInteger()
+        val bytes = File(mvtDir, "tiles/planet/14/8529/5974.pbf").readBytes()
+        val source = object : MvtTileSource {
+            override val minZoom = 0
+            override val maxZoom = 14
+            override val bounds: DoubleArray? = null
+
+            override fun tile(zoom: Int, x: Int, y: Int): ByteArray {
+                reads.incrementAndGet()
+                // slow, as a download, so the children's misses overlap
+                Thread.sleep(200)
+                return bytes
+            }
+        }
+        val executor = Executors.newFixedThreadPool(4)
+        try {
+            driver.openSource(source).use { dataset ->
+                dataset.createRenderer(style, StyleSelection.DEFAULT, RenderConfig(tileSizePx = 256)).use { renderer ->
+                    val tasks = (0..3).map { i ->
+                        Callable {
+                            val tile = TileRequest(x = 8529 * 2 + i % 2, y = 5974 * 2 + i / 2, zoom = 15)
+                            renderer.render(tile, MvtTileTarget(256)) { false }
+                        }
+                    }
+                    assertEquals(List(4) { RenderResult.DRAWN }, executor.invokeAll(tasks).map { it.get() })
+                }
+            }
+        } finally {
+            executor.shutdownNow()
+        }
+
+        assertEquals(1, reads.get())
     }
 
     @Test

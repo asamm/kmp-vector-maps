@@ -24,6 +24,9 @@ import com.asamm.vectormaps.mvt.style.StyleLayer
 import com.asamm.vectormaps.mvt.symbol.MvtLabel
 import com.asamm.vectormaps.mvt.symbol.SymbolLayout
 import com.asamm.vectormaps.mvt.tile.VectorTile
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionException
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.logging.Level
@@ -59,12 +62,18 @@ class MvtRenderer internal constructor(
 
     private val closed = AtomicBoolean()
 
+    // the renders in flight and a few neighbours, so a render's draw and layout find its tile
+    private val decodedTiles = maxOf(DECODED_TILES, maxParallelism + 4)
+
     // the data tiles decoded last; tiles above the data zoom share their ancestor
-    private val decoded = object : LinkedHashMap<Long, VectorTile>(32, 0.75f, true) {
+    private val decoded = object : LinkedHashMap<Long, VectorTile>(decodedTiles, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, VectorTile>): Boolean {
-            return size > DECODED_TILES
+            return size > decodedTiles
         }
     }
+
+    // data tiles being read and decoded, by cache key
+    private val loading = ConcurrentHashMap<Long, CompletableFuture<VectorTile?>>()
 
     private val tiles = TileRenderer(style = style.style, maxDataZoom = maxDataZoom, tileSource = ::tile)
 
@@ -191,25 +200,51 @@ class MvtRenderer internal constructor(
         )
     }
 
-    // the decoded tile of the first source that has it
+    // the decoded tile of the first source that has it; threads missing the same tile at once
+    // wait for one read and decode
     private fun tile(zoom: Int, x: Int, y: Int): VectorTile? {
-        // zooms up to TileRequest.MAX_ZOOM (30) keep x and y below 2^30
-        val key = (zoom.toLong() shl 60) or (x.toLong() shl 30) or y.toLong()
+        // the tiles of all lower zooms, then the tile's row-major index; unique up to
+        // TileRequest.MAX_ZOOM (30), below 2^61
+        val key = ((1L shl 2 * zoom) - 1) / 3 + (y.toLong() shl zoom) + x
         synchronized(decoded) {
             decoded[key]?.let {
                 return it
             }
         }
+        val mine = CompletableFuture<VectorTile?>()
+        val running = loading.putIfAbsent(key, mine)
+        if (running != null) {
+            try {
+                return running.join()
+            } catch (e: CompletionException) {
+                throw e.cause ?: e
+            }
+        }
+        try {
+            // another thread may have stored it since the miss
+            val tile = synchronized(decoded) { decoded[key] } ?: read(zoom = zoom, x = x, y = y)
+            if (tile != null) {
+                synchronized(decoded) {
+                    decoded[key] = tile
+                }
+            }
+            mine.complete(tile)
+            return tile
+        } catch (e: Throwable) {
+            mine.completeExceptionally(e)
+            throw e
+        } finally {
+            loading.remove(key)
+        }
+    }
+
+    private fun read(zoom: Int, x: Int, y: Int): VectorTile? {
         for (source in sources) {
             if (zoom !in source.minZoom..source.maxZoom) {
                 continue
             }
             val bytes = source.tile(zoom, x, y) ?: continue
-            val tile = VectorTile.decode(MvtTileSource.uncompressed(bytes))
-            synchronized(decoded) {
-                decoded[key] = tile
-            }
-            return tile
+            return VectorTile.decode(MvtTileSource.uncompressed(bytes))
         }
         return null
     }
@@ -218,7 +253,8 @@ class MvtRenderer internal constructor(
 
         val LOGGER: Logger = Logger.getLogger(MvtRenderer::class.java.name)
 
-        const val DECODED_TILES = 32
+        // a dense data tile keeps ~2 MB with its geometry (docs/performance.md M10.3a)
+        const val DECODED_TILES = 12
 
         // colours as ARGB, the colour-relief stops as metres to ARGB
         fun hostValue(name: String, value: Any?): Any? {

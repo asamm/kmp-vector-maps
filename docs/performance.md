@@ -1,6 +1,6 @@
 # Performance
 
-Benchmark baselines and how M7 measures against them; M7's steps and status are in
+Benchmark baselines and how M7 and M10.3 measure against them; their steps and status are in
 [ROADMAP.md](ROADMAP.md).
 
 **Author:** Menion · **Started:** 2026-11-06, split from the roadmap · **Baselines:** M2.7, M2.7b
@@ -9,7 +9,8 @@ Benchmark baselines and how M7 measures against them; M7's steps and status are 
 **Status:** M7 done (2026-11-10). Against the baselines: no regression (M7.0); the 8-thread block
 up to 32 % faster on the JVM and 29 % on the A54 (M7.2b); up to 43 % less allocated per render
 (M7.3, M7.5) at the same single-tile time; a style's renderers share one compiled theme (M7.4).
-**Next action:** none in M7; M7.1 ⏸ (Q15). The open costs are below.
+MVT engine on the JVM measured in M10.3a. **Next action:** MVT on the A54 (M10.3d); none in M7,
+M7.1 ⏸ (Q15). The open costs are below.
 
 ## How to measure
 
@@ -19,6 +20,7 @@ up to 32 % faster on the JVM and 29 % on the A54 (M7.2b); up to 43 % less alloca
 | JVM, Czech map | `-Pbench.mapFile=<path> -Pbench.center=50.0875,14.4214` | `czech_republic.osm.map`, LoMaps of 2026-10-08, local |
 | JVM, Garmin | `-Pbench.includes=GarminBench` | Monaco fixture at the harbour |
 | JVM, Garmin Czech | `-Pbench.garmin.mapFile=<path> -Pbench.garmin.center=50.0875,14.4214` | `CzechRep_by_Dave_Luv.img` at Prague, local |
+| JVM, MVT | `-Pbench.includes=MvtBench` | fixture tiles of Sněžka (`fixtures.pmtiles`), `hike_bike`, bundled font |
 | A54 | `./gradlew :dev:bench:android:connectedReleaseAndroidTest` | SM-A546B, Android 16, clocks locked |
 | A54, map in shared storage | install, `appops set … MANAGE_EXTERNAL_STORAGE allow`, `cmd package compile -m speed -f …`, `am instrument -w -e bench.mapFile …` | the connected run reinstalls the test package and drops the grant |
 
@@ -130,6 +132,43 @@ allocated and median time, one run each, clocks locked.
 
 Allocated per operation (JMH `-prof gc`) level with `main`: Mapsforge read and render within
 ±0.2 %, Garmin within the spread of 3 forks.
+
+## M10.3a — MVT engine, 2026-11-13
+
+JMH `MvtBench`, p50 ms, idle desktop, JDK 17, before and after builds interleaved, median of 3
+rounds. Java2D rasterising takes 63–83 % of a render (JFR), so the engine changes gain little
+below the data zoom; above it, features outside the tile are now skipped. Golden renders are
+byte-identical.
+
+| Benchmark | Before | After |
+|---|---|---|
+| render tile again z10 / z12 / z14 / z16 | 12.9 / 12.7 / 9.1 / 8.0 | 12.6 / 9.8 / 8.9 / 7.3 |
+| 4×4 block at z16 (one z14 data tile), 1 / 4 / 8 threads | 60.5 / 20.7 / 14.0 | 58.5 / 19.3 / 13.0 |
+
+- Render tile again: one tile through a long-lived renderer, its data tile cached, and after M10.3a
+  its geometry too; before, each style layer drawing a feature decoded it again. A first render
+  saves fewer of those decodes; the block is the cold case.
+- z12 before: rounds of 9.8, 19.2 and 12.7, after 9.6, 9.8 and 12.7; the builds are level there
+  in the clean rounds.
+- The block builds a new renderer per block, so it includes one PMTiles read and decode; z16 tiles
+  of one data tile now skip what lies outside them.
+- Decoding a data tile takes 0.6 / 0.2 / 0.13 ms at z10 / z12 / z14 (one busy-desktop run).
+
+Memory (JMH `-prof gc`, and heap after GC for the retained sizes):
+
+| Measure | Before | After |
+|---|---|---|
+| allocated per tile render again z10 / z12 / z14 / z16 | 2.50 / 1.96 / 1.90 / 1.99 MB | 1.93 / 1.70 / 1.63 / 1.62 MB |
+| allocated per 4×4 block, 1 / 8 threads | 30.0 / 33.8 MB | 23.0 / 23.3 MB |
+| decoded data tile kept, densest fixture (z14 Monaco, 277 KB, 4,877 features) | 1.2 MB | 1.9 MB with its geometry |
+| decoded tiles a renderer keeps, worst case | 32 tiles, ~39 MB | 12 tiles (more on hosts of more than 8 cores), ~23 MB |
+| PMTiles directories kept per file | 64 directories, one object per entry | the root and leaves of 100,000 entries, ~3 MB of columns |
+
+- About 1 MB of each tile render is its 512 px canvas.
+- Keeping decoded geometry costs ~60 % on a decoded tile, so the renderer keeps 12 instead of 32:
+  the renders in flight (8 cores on the A54) and a few neighbours, at least 4 more than its
+  threads; tiles at or below the data zoom each have their own data tile, so a larger cache rarely
+  hits.
 
 ## Baselines
 

@@ -42,6 +42,19 @@ internal class DataTileFrame(
     val pixelScale = widthPx / 512f
 
     /**
+     * True when `geometry`, widened by `marginPx` on every side, meets the requested tile; above
+     * the data zoom most of the data tile's features lie outside it.
+     */
+    fun meets(geometry: Geometry, extent: Int, marginPx: Float): Boolean {
+        val sx = widthPx * (1 shl dz).toFloat() / extent
+        val sy = heightPx * (1 shl dz).toFloat() / extent
+        return geometry.maxX * sx - offsetX >= -marginPx
+            && geometry.minX * sx - offsetX <= widthPx + marginPx
+            && geometry.maxY * sy - offsetY >= -marginPx
+            && geometry.minY * sy - offsetY <= heightPx + marginPx
+    }
+
+    /**
      * `geometry` in the requested tile's pixels, for a layer of `extent`.
      */
     fun project(geometry: Geometry, extent: Int): FloatArray {
