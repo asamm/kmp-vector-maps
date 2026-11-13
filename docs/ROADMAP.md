@@ -301,7 +301,7 @@ changes output against upstream.
 | Q5 | SVG outside Android: pre-rasterise at theme build, or Skia SVG? | — (answered 2026-11-09: AndroidSVG 1.4 on Android, as locus-core; svg-salamander on the AWT desktop) |
 | Q14 | Does the Mapsforge README waiver cover pre-2018 contributors? (locus-core Q1) | M9 |
 | Q15 | Desktop backend Skia via Skiko (recommended) or AWT only? | — (answered 2026-11-09: AWT only for now; the desktop serves tests and benchmarks, not production; M7.1 ⏸) |
-| Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? | M9 |
+| Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? MVT counts `deviceScale` per 512 px tile (M10.3b), so 256 px × density tiles pass 2 | M9 |
 | Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed; none recurred through the M6.1b and M6.1c A54 soaks. | M7 |
 | Q18 | F1: the Paints' native heap explains ~15–22 MB of the native +93–170 MB zoom growth (M5.3 fixes); what holds the rest? A phone zoom soak after M5.6 shows how much the cache bound removes. | M7 |
 | Q19 | C7's matching-cache keys hold copied tag lists (house numbers, `ele`, `ref`); upstream keyed on an `Integer`. How much heap do both caches retain on the corpus, against C7's Paint saving? | M7 |

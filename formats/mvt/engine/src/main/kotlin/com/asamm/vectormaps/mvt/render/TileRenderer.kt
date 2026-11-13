@@ -45,7 +45,7 @@ class TileRenderer(
 
     /**
      * Renders tile (`zoom`, `x`, `y`) into `target`, whose width is the tile size; the style's
-     * pixel sizes apply 1:1 at 512 px tiles, as MapLibre's.
+     * pixel sizes apply 1:1 at 512 px tiles, as MapLibre's, times the device scale.
      *
      * @param hillshade the host's elevation drawing, called at each active hillshade and
      *  colour-relief layer, which the renderer leaves to the host

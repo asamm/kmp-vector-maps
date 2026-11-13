@@ -151,7 +151,8 @@ formats; the desktop viewer opens `.pmtiles` maps with a `style.json`.
   `dev/mvt/pmtiles.py` from the spec, apart from the Kotlin reader; the goldens read it through
   the driver.
 - `RenderConfig` (M10.3b): a style pixel is `deviceScale` screen pixels on a 512 px tile and scales
-  with the tile size, as MapLibre's, fill patterns excepted (M10.3e); `textScale` multiplies
+  with the tile size, as MapLibre's, fill patterns excepted (M10.3e); a host with tiles of
+  256 px × density (D20) passes 2 for Mapsforge's sizes at `deviceScale` = density; `textScale` multiplies
   text and halos; `language` makes text fields read `name:xx` for `name` where a feature has it,
   as the MapLibre language plugin does: `zh-Hant` reads `name:zh-Hant`, then `name:zh`, `de-AT`
   reads `name:de`, Android's `iw` reads `name:he`; the style's other name fields (`name_en`,
