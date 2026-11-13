@@ -11,6 +11,7 @@ import android.graphics.DashPathEffect
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.RectF
 import android.graphics.Shader
 import com.asamm.vectormaps.mvt.style.Color
 import com.asamm.vectormaps.mvt.symbol.MvtIcon
@@ -52,6 +53,11 @@ class AndroidMvtRenderTarget(
 
     private val metrics = Paint.FontMetrics()
 
+    private val iconBox = RectF()
+
+    // a tile's pattern fills share their pattern's shader
+    private val shaders = HashMap<String, BitmapShader>()
+
     override val widthPx: Int = bitmap.width
 
     override val heightPx: Int = bitmap.height
@@ -89,8 +95,10 @@ class AndroidMvtRenderTarget(
         tileOriginX: Long,
         tileOriginY: Long,
     ) {
-        val tile = sprite?.image(pattern) ?: return
-        val shader = BitmapShader(tile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+        val tile = sprite?.pattern(pattern) ?: return
+        val shader = shaders.getOrPut(pattern) {
+            BitmapShader(tile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
+        }
         matrix.setTranslate(
             -Math.floorMod(tileOriginX, tile.width.toLong()).toFloat(),
             -Math.floorMod(tileOriginY, tile.height.toLong()).toFloat(),
@@ -212,15 +220,17 @@ class AndroidMvtRenderTarget(
     }
 
     override fun drawIcon(icon: MvtIcon, x: Float, y: Float, rotateDeg: Float) {
-        val tile = sprite?.image(icon.name) ?: return
+        val sprite = sprite ?: return
+        val place = sprite.place(icon.name) ?: return
         val w = icon.width * icon.scale
         val h = icon.height * icon.scale
-        matrix.reset()
-        matrix.postScale(w / tile.width, h / tile.height)
-        matrix.postTranslate(-w / 2f, -h / 2f)
-        matrix.postRotate(rotateDeg)
-        matrix.postTranslate(x, y)
-        canvas.drawBitmap(tile, matrix, image)
+        val saved = canvas.save()
+        canvas.translate(x, y)
+        canvas.rotate(rotateDeg)
+        iconBox.set(-w / 2f, -h / 2f, w / 2f, h / 2f)
+        // straight from the sheet, so no icon is copied
+        canvas.drawBitmap(sprite.sheet, place, iconBox, image)
+        canvas.restoreToCount(saved)
     }
 
     private fun hasHalo(text: MvtText): Boolean {

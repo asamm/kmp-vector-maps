@@ -144,7 +144,7 @@ formats; the desktop viewer opens `.pmtiles` maps with a `style.json`.
 | Offline | `open(files)` reads PMTiles v3 (`PmTilesSource`: gzip or plain directories and tiles, leaf directories), files of one max zoom; MBTiles waits for V1 |
 | Online | `openSource(MvtTileSource)`: the host's downloader and cache; the library ships none; the desktop viewer opens a TileJSON file (`tiles/planet.json`) through its own `HttpTileSource`, tiles cached in `~/.kmp-vector-maps/tiles` |
 | Style | `loadStyle(style.json)` with `sprite.json` and `sprite.png` beside it, or the name its `sprite` gives; every vector source reads the dataset |
-| Platform | `MvtGraphics` creates targets and decodes sprites; `AwtMvtGraphics` on the desktop, `AndroidMvtGraphics` (`formats/mvt/android`, `Canvas`, Android's own text shaping) on Android |
+| Platform | `MvtGraphics` creates targets and decodes sprites; `AwtMvtGraphics` on the desktop, `AndroidMvtGraphics` (`formats/mvt/android`, `Canvas`, Android's own text shaping) on Android; sprite sheets up to 8192 px a side on the desktop, 4096 × 4096 pixels in all on Android, a larger one leaves the style without icons |
 | Renderer | tiles above the sources' max zoom cut from it, decoded data tiles cached for their children; the label store sized by the host; the hillshade hook at each active hillshade and colour-relief layer, with its source and paint (`HillshadeLayer`); labels stored per tile for the label pass |
 
 - The fixture `dev/fixtures/mvt/tiles/fixtures.pmtiles` holds the 6 fixture tiles, written by

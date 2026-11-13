@@ -66,10 +66,21 @@ class AndroidMvtGoldenTest {
                     val name = "${z}_${x}_$y"
                     val target = MvtTileTarget(SIZE)
                     val result = renderer.render(TileRequest(x = x, y = y, zoom = z), target) { false }
-                    assertEquals(name, RenderResult.DRAWN, result)
+                    // the other tiles still render and land in build/renders
+                    if (result != RenderResult.DRAWN) {
+                        failures.add("$name: $result")
+                        continue
+                    }
                     val tile = (target.canvas as AndroidMvtRenderTarget).bitmap
                     write(tile, name)
-                    val (mean, off) = difference(tile, decode(file))
+                    val reference = decode(file)
+                    if (reference.width != SIZE
+                        || reference.height != SIZE
+                    ) {
+                        failures.add("$name: MapLibre reference ${reference.width}x${reference.height}")
+                        continue
+                    }
+                    val (mean, off) = difference(tile, reference)
                     println("android $name vs MapLibre mean %.1f, %.1f %% off".format(mean, off))
                     if (mean > MAX_MEAN
                         || off > MAX_OFF_PERCENT

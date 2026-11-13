@@ -46,6 +46,11 @@ val rendersDir = layout.buildDirectory.dir("renders").get().asFile
 tasks.withType<Test>().configureEach {
     inputs.dir(fixturesDir)
     outputs.dir(rendersDir)
+    // a task-local copy: the configuration cache cannot capture script values
+    val staleRenders = rendersDir
+    doFirst {
+        staleRenders.deleteRecursively()
+    }
     systemProperty("golden.fixturesDir", fixturesDir.absolutePath)
     systemProperty("golden.rendersDir", rendersDir.absolutePath)
 }
