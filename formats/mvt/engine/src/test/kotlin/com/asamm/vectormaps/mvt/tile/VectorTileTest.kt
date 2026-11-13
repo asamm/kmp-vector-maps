@@ -7,6 +7,7 @@ package com.asamm.vectormaps.mvt.tile
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class VectorTileTest {
@@ -38,6 +39,12 @@ class VectorTileTest {
                     assertEquals(0, geometry.coords.size % 2)
                     assertTrue(geometry.partEnds.isNotEmpty(), "${file.path} ${layer.name} ${feature.id}")
                     assertEquals(geometry.coords.size, geometry.partEnds.last())
+                    // decoded once, its box around every coordinate
+                    assertSame(geometry, feature.decodeGeometry())
+                    for (i in geometry.coords.indices step 2) {
+                        assertTrue(geometry.coords[i] in geometry.minX..geometry.maxX)
+                        assertTrue(geometry.coords[i + 1] in geometry.minY..geometry.maxY)
+                    }
                     if (feature.type == GeometryType.POLYGON) {
                         // a ring has at least 3 vertices
                         var start = 0

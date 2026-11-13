@@ -166,6 +166,10 @@ class Feature(
     private val geometry: IntArray,
 ) {
 
+    // decoded once, as the layers of a tile and the tiles cut from it share it
+    @Volatile
+    private var decoded: Geometry? = null
+
     /**
      * The value of property `key`, or null.
      */
@@ -185,10 +189,17 @@ class Feature(
     }
 
     /**
-     * Decodes the geometry command stream into tile coordinates (0 to [Layer.extent], may reach
-     * beyond for the tile buffer).
+     * The geometry command stream in tile coordinates (0 to [Layer.extent], may reach beyond for
+     * the tile buffer), decoded on the first call; callers must not change it.
      */
     fun decodeGeometry(): Geometry {
+        decoded?.let {
+            return it
+        }
+        return decode().also { decoded = it }
+    }
+
+    private fun decode(): Geometry {
         val coords = FloatArray(geometry.size)
         val parts = ArrayList<Int>()
         var n = 0
@@ -247,9 +258,38 @@ class Feature(
 /**
  * Decoded geometry: x, y pairs in [coords]; part `i` ends before `partEnds[i]` (an index into
  * [coords]). Points are one coordinate per part, polygons one ring per part, outer rings
- * clockwise in screen coordinates and holes counter-clockwise.
+ * clockwise in screen coordinates and holes counter-clockwise. [minX] to [maxY] bound [coords],
+ * empty (min above max) without coordinates.
  */
 class Geometry(
     val coords: FloatArray,
     val partEnds: IntArray,
-)
+) {
+
+    val minX: Float
+
+    val minY: Float
+
+    val maxX: Float
+
+    val maxY: Float
+
+    init {
+        var x0 = Float.POSITIVE_INFINITY
+        var y0 = Float.POSITIVE_INFINITY
+        var x1 = Float.NEGATIVE_INFINITY
+        var y1 = Float.NEGATIVE_INFINITY
+        var i = 0
+        while (i + 1 < coords.size) {
+            x0 = minOf(x0, coords[i])
+            x1 = maxOf(x1, coords[i])
+            y0 = minOf(y0, coords[i + 1])
+            y1 = maxOf(y1, coords[i + 1])
+            i += 2
+        }
+        minX = x0
+        minY = y0
+        maxX = x1
+        maxY = y1
+    }
+}

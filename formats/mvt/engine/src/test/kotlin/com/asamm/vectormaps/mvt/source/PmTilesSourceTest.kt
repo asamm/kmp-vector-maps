@@ -50,6 +50,25 @@ class PmTilesSourceTest {
     }
 
     @Test
+    fun findsTileRunsAndLeaves() {
+        val directory = PmTilesSource.Directory(
+            tileIds = longArrayOf(5, 10, 20),
+            runLengths = longArrayOf(1, 3, 0),
+            lengths = longArrayOf(1, 1, 1),
+            offsets = longArrayOf(0, 1, 2),
+        )
+
+        assertEquals(-1, directory.find(4))
+        assertEquals(0, directory.find(5))
+        assertEquals(-1, directory.find(6))
+        // a run of 3 from 10
+        assertEquals(1, directory.find(12))
+        assertEquals(-1, directory.find(13))
+        // a leaf holds every id from its first on
+        assertEquals(2, directory.find(1000))
+    }
+
+    @Test
     fun rejectsADirectoryWithMoreEntriesThanBytes() {
         // a count of 2^20 in three bytes
         assertFailsWith<IllegalArgumentException> {

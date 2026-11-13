@@ -37,7 +37,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `dev/garmin-img/golden` | Garmin pixel test of Monaco tiles (label-free) and the label pass through the driver against committed PNGs and dumps (bundled font, every system) and the dump comparison against the legacy Java parser libGarminImg |
 | `dev/mvt/golden`, `reference` | MVT goldens through the driver: tiles against MapLibre GL JS renders, the label pass against committed `golden/labels` (bundled font); the MapLibre renders in headless Edge (Playwright, `node render.mjs`); `dev/mvt/pmtiles.py` writes the PMTiles fixture |
 | `dev/fixtures/` | test maps, themes and the golden font, see [dev/fixtures/README.md](dev/fixtures/README.md) |
-| `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines M2.7 (Mapsforge) and M4.3c (Garmin) in [docs/performance.md](docs/performance.md) |
+| `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines M2.7 (Mapsforge) and M4.3c (Garmin), MVT engine M10.3a in [docs/performance.md](docs/performance.md) |
 | `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines M2.7b and M4.3c in docs/performance.md; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
 | `core/` | driver interface, registry, styles, render configuration; Apache-2.0, see architecture.md |
 | `render/`, `android/` | `render/skia` parked (M7.1, Q15), `android/` from M8.1, other backends unscheduled; see architecture.md |

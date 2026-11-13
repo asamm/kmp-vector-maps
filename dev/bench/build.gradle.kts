@@ -3,7 +3,8 @@
  * build/results/jmh/results.json. Another map: `-Pbench.mapFile=<path>`, another centre than the
  * map's start position: `-Pbench.center=<lat>,<lon>` (or `<lat>:<lon>`, as on the A54); for Garmin
  * `-Pbench.garmin.mapFile` and `-Pbench.garmin.center` (default: the fixture's harbour, with another
- * map its bounds' centre). One renderer only: `-Pbench.includes=GarminBench`. Not published.
+ * map its bounds' centre); MVT on the fixture tiles only. One renderer only:
+ * `-Pbench.includes=GarminBench`. Not published.
  */
 plugins {
     alias(libs.plugins.kotlinJvm)
@@ -18,6 +19,8 @@ dependencies {
     jmh(project(":formats:mapsforge:awt"))
     jmh(project(":formats:garmin-img:driver"))
     jmh(project(":formats:garmin-img:awt"))
+    jmh(project(":formats:mvt:driver"))
+    jmh(project(":formats:mvt:awt"))
 }
 
 val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures").asFile
