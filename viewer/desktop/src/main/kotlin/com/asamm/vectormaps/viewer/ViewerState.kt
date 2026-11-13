@@ -637,7 +637,8 @@ class ViewerState(
      * Closes the engine and dataset and waits for renders in progress; for the end of the session.
      */
     override fun close() {
-        engine?.close()
+        // renders waiting on downloads must not hold the window's close
+        engine?.closeLater()
         engine = null
         replaceLoadedStyle(null)
         dataset?.close()

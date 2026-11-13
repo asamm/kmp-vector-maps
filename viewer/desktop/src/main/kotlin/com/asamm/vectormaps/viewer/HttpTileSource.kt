@@ -5,6 +5,7 @@
 package com.asamm.vectormaps.viewer
 
 import com.asamm.vectormaps.mvt.source.MvtTileSource
+import com.asamm.vectormaps.mvt.tile.VectorTile
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -21,47 +22,57 @@ import java.net.http.HttpResponse
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.time.Duration
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /**
  * Online vector tiles for the viewer, from the first URL template of a TileJSON file such as the
  * Asamm server's `planet.json`; downloaded tiles stay in [cacheDir], tiles the server lacks as
- * empty files. For UI testing only: no expiry, retries or size limit.
+ * empty files. For UI testing only: no expiry, retries or size limit, and a tile that fails to
+ * download stays blank until Rerender or Reload.
  */
 class HttpTileSource private constructor(
     private val template: String,
     override val minZoom: Int,
     override val maxZoom: Int,
     override val bounds: DoubleArray?,
-    private val cacheDir: File,
+    internal val cacheDir: File,
 ) : MvtTileSource {
-
-    private val client = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(10))
-        .followRedirects(HttpClient.Redirect.NORMAL)
-        .build()
 
     override fun tile(zoom: Int, x: Int, y: Int): ByteArray? {
         val cached = File(cacheDir, "$zoom/$x/$y.pbf")
         if (cached.isFile) {
             return cached.readBytes().takeIf { it.isNotEmpty() }
         }
-        val url = template.replace("{z}", "$zoom").replace("{x}", "$x").replace("{y}", "$y")
-        val request = HttpRequest.newBuilder(URI(url))
+        val uri = URI(template.replace("{z}", "$zoom").replace("{x}", "$x").replace("{y}", "$y"))
+        // without the query, which may hold a key
+        val where = "${uri.host}${uri.rawPath}"
+        val request = HttpRequest.newBuilder(uri)
             .timeout(Duration.ofSeconds(TIMEOUT_S))
             .header("Accept-Encoding", "gzip")
             .header("User-Agent", "kmp-vector-maps-viewer")
             .build()
+        val future = CLIENT.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
         // the request timeout ends at the headers; this one also bounds the body
-        val response = client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-            .get(TIMEOUT_S, TimeUnit.SECONDS)
+        val response = try {
+            future.get(TIMEOUT_S, TimeUnit.SECONDS)
+        } catch (e: TimeoutException) {
+            future.cancel(true)
+            throw IOException("tile($zoom, $x, $y), no answer in $TIMEOUT_S s from $where", e)
+        } catch (e: ExecutionException) {
+            throw IOException("tile($zoom, $x, $y), ${e.cause} from $where", e.cause)
+        }
         val type = response.headers().firstValue("Content-Type").orElse("")
         val bytes = when {
             response.statusCode() == 200
-                && !type.startsWith("text/") -> response.body()
+                && !type.startsWith("text/") -> {
+                // only a tile is cached, not an error page
+                response.body().also { VectorTile.decode(MvtTileSource.uncompressed(it)) }
+            }
             response.statusCode() == 204
                 || response.statusCode() == 404 -> ByteArray(0)
-            else -> throw IOException("tile($zoom, $x, $y), HTTP ${response.statusCode()} $type from $url")
+            else -> throw IOException("tile($zoom, $x, $y), HTTP ${response.statusCode()} $type from $where")
         }
         try {
             store(file = cached, bytes = bytes)
@@ -87,6 +98,13 @@ class HttpTileSource private constructor(
     companion object {
 
         private const val TIMEOUT_S = 30L
+
+        private val CLIENT: HttpClient = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .followRedirects(HttpClient.Redirect.NORMAL)
+            .build()
+
+        private val NOT_PLAIN = Regex("[^A-Za-z0-9._-]")
 
         /**
          * `~/.kmp-vector-maps/tiles`, shared by every checkout.
@@ -114,10 +132,10 @@ class HttpTileSource private constructor(
             val template = requireNotNull(templateOf(json)) {
                 "open($file), no http(s) tile template"
             }
-            // the path up to the first placeholder names the tileset; only plain characters, so a
-            // crafted template cannot leave the cache
+            // the host and port, then the path up to the first placeholder and a hash of the whole
+            // template, so templates differing in port, query or suffix keep apart
             val uri = URI(template.substringBefore("{"))
-            val tileset = uri.rawPath.trim('/').replace(Regex("[^A-Za-z0-9._-]"), "_")
+            val tileset = uri.rawPath.trim('/') + "-" + "%08x".format(template.hashCode())
             val bounds = (json["bounds"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.doubleOrNull }
                 ?.takeIf { it.size == 4 }
             return HttpTileSource(
@@ -125,8 +143,13 @@ class HttpTileSource private constructor(
                 minZoom = (json["minzoom"] as? JsonPrimitive)?.intOrNull ?: 0,
                 maxZoom = (json["maxzoom"] as? JsonPrimitive)?.intOrNull ?: 14,
                 bounds = bounds?.toDoubleArray(),
-                cacheDir = File(cacheRoot, "${uri.host}/$tileset"),
+                cacheDir = File(cacheRoot, "${plain(uri.rawAuthority)}/${plain(tileset)}"),
             )
+        }
+
+        // plain characters only and no `..`, so a crafted template cannot leave the cache
+        private fun plain(name: String): String {
+            return name.replace(NOT_PLAIN, "_").replace("..", "__")
         }
 
         private fun read(file: File): JsonObject {
