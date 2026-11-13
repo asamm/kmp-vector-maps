@@ -62,7 +62,8 @@ class MvtRenderer internal constructor(
 
     private val closed = AtomicBoolean()
 
-    // the renders in flight and a few neighbours, so a render's draw and layout find its tile
+    // the renders in flight and a few neighbours, so a render's draw and layout usually find its
+    // tile; nothing pins it
     private val decodedTiles = maxOf(DECODED_TILES, maxParallelism + 4)
 
     // the data tiles decoded last; tiles above the data zoom share their ancestor
@@ -96,7 +97,7 @@ class MvtRenderer internal constructor(
 
     /**
      * Ids of the style layers renders and layouts skipped because evaluating them threw, such as
-     * a malformed expression meeting unexpected tile data.
+     * a malformed expression meeting unexpected tile data of the features drawn.
      */
     val failedLayers: Set<String>
         get() {

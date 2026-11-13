@@ -53,7 +53,7 @@ Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
   parser. `./gradlew :dev:garmin-img:golden:test`; the benchmark with `-Pbench.garmin=true`.
 - **`:dev:bench`** — JMH benchmarks per render stage. `./gradlew :dev:bench:jmh`, another map with
   `-Pbench.mapFile=<path>`, for Garmin `-Pbench.garmin.mapFile=<path>`; one renderer with
-  `-Pbench.includes=GarminBench`.
+  `-Pbench.includes=GarminBench` (or `MapsforgeBench`, `MvtBench` on the MVT fixture tiles).
 - **`:dev:bench:android`** — the same on a device (`androidx.benchmark`),
   `./gradlew :dev:bench:android:connectedReleaseAndroidTest`; also the M5 soak `SoakTest`, skipped
   unless run alone with

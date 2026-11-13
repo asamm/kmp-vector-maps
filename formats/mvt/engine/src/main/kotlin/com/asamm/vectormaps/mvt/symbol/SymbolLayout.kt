@@ -74,6 +74,10 @@ class SymbolLayout(
                         continue
                     }
                     val geometry = feature.decodeGeometry()
+                    // the widest margin layoutFeature allows, before projecting
+                    if (!frame.meets(geometry = geometry, extent = source.extent, marginPx = tileSizePx.toFloat())) {
+                        continue
+                    }
                     layoutFeature(
                         layer = layer,
                         index = index,

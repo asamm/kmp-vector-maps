@@ -4,8 +4,8 @@ Rendering Asamm's own vector tiles with their MapLibre styles in this library, o
 third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin renderer (size L).
 
 **Author:** Menion · **Analysed:** 2026-11-12 · **Milestone:** M10 (see [ROADMAP.md](ROADMAP.md)) ·
-**Status:** spike, M10.1 symbols and M10.2 driver done 2026-11-12; M10.2b viewer online maps 🔧,
-see [Driver](#driver)
+**Status:** spike, M10.1 symbols, M10.2 driver and M10.2b viewer online maps done 2026-11-12;
+M10.3a engine performance 🔧, see [performance.md](performance.md)
 
 ## Goal
 
@@ -88,10 +88,11 @@ Why A fits:
   difference 0.6–2.6 of 255, 0.2–4.1 % of pixels off by more than 32, on 8 tiles z10–16.
 - 7–160 ms per 512 px tile on the JVM, untuned.
 - Not yet: the driver, the viewer, MBTiles / PMTiles / HTTP sources.
-- Left from its review (M10.3e): geometry decoded once per feature and tile, an overzoom
-  bounding-box cull, feature-constant properties evaluated once per layer (done in M10.3a,
-  [performance.md](performance.md)), a tri-state render result for cancelling, patterns scaled
-  for non-512 px tiles and `@2x` sprites; expression details MapLibre handles differently and the
+- Done from its review in M10.3a ([performance.md](performance.md)): geometry decoded once per
+  feature and tile, an overzoom bounding-box cull, feature-constant properties evaluated once per
+  layer.
+- Left from its review (M10.3e): a tri-state render result for cancelling, patterns scaled for
+  non-512 px tiles and `@2x` sprites; expression details MapLibre handles differently and the
   Asamm styles do not use (`string`/`number` type assertions, `to-number` of null, negative
   `slice`, `round` of halves, uint64 ids).
 

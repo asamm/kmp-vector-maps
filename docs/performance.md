@@ -142,14 +142,14 @@ byte-identical.
 
 | Benchmark | Before | After |
 |---|---|---|
-| render tile again z10 / z12 / z14 / z16 | 12.9 / 12.7 / 9.1 / 8.0 | 12.6 / 9.8 / 8.9 / 7.3 |
+| render tile again z10 / z12 / z14 / z16 | 12.9 / 12.7¹ / 9.1 / 8.0 | 12.6 / 9.8¹ / 8.9 / 7.3 |
 | 4×4 block at z16 (one z14 data tile), 1 / 4 / 8 threads | 60.5 / 20.7 / 14.0 | 58.5 / 19.3 / 13.0 |
 
 - Render tile again: one tile through a long-lived renderer, its data tile cached, and after M10.3a
   its geometry too; before, each style layer drawing a feature decoded it again. A first render
   saves fewer of those decodes; the block is the cold case.
-- z12 before: rounds of 9.8, 19.2 and 12.7, after 9.6, 9.8 and 12.7; the builds are level there
-  in the clean rounds.
+- ¹ z12: level, the medians differ by noise; before rounds 9.8, 19.2 and 12.7, after 9.6, 9.8
+  and 12.7.
 - The block builds a new renderer per block, so it includes one PMTiles read and decode; z16 tiles
   of one data tile now skip what lies outside them.
 - Decoding a data tile takes 0.6 / 0.2 / 0.13 ms at z10 / z12 / z14 (one busy-desktop run).
@@ -161,7 +161,7 @@ Memory (JMH `-prof gc`, and heap after GC for the retained sizes):
 | allocated per tile render again z10 / z12 / z14 / z16 | 2.50 / 1.96 / 1.90 / 1.99 MB | 1.93 / 1.70 / 1.63 / 1.62 MB |
 | allocated per 4×4 block, 1 / 8 threads | 30.0 / 33.8 MB | 23.0 / 23.3 MB |
 | decoded data tile kept, densest fixture (z14 Monaco, 277 KB, 4,877 features) | 1.2 MB | 1.9 MB with its geometry |
-| decoded tiles a renderer keeps, worst case | 32 tiles, ~39 MB | 12 tiles (more on hosts of more than 8 cores), ~23 MB |
+| decoded tiles a renderer keeps, worst case (densest fixture tile) | 32 tiles, ~39 MB | max(12, cores + 4) tiles: ~23 MB on 8 cores, ~53 MB on 24 |
 | PMTiles directories kept per file | 64 directories, one object per entry | the root and leaves of 100,000 entries, ~3 MB of columns |
 
 - About 1 MB of each tile render is its 512 px canvas.
