@@ -220,9 +220,16 @@ class ViewerState(
     private var startPlace: Pair<String, Session.Place>? =
         session.mapPath?.let { path -> session.place?.let { path to it } }
 
+    /**
+     * The drivers' map extensions, and `json` for TileJSON online maps with the MVT driver.
+     */
     val mapExtensions: Set<String>
         get() {
-            return formats.drivers.flatMapTo(HashSet()) { it.extensions }
+            val extensions = formats.drivers.flatMapTo(HashSet()) { it.extensions }
+            if (formats.drivers.any { it is MvtDriver }) {
+                extensions += "json"
+            }
+            return extensions
         }
 
     /**
@@ -248,17 +255,27 @@ class ViewerState(
      * Opens `file` with the first driver that reads it; keeps the current style file when that
      * driver reads it too. Else a map without styles of its own (Mapsforge) takes the driver's last
      * style file, any other its own first style. Opening the same map again keeps its own style and
-     * the Garmin settings; a style file that fails leaves the error, not another style.
+     * the Garmin settings; a style file that fails leaves the error, not another style. A TileJSON
+     * file opens as an online MVT map ([HttpTileSource]).
      */
     fun openMap(file: File) {
-        val probed = formats.probe(file)
-        if (probed == null) {
-            fail("openMap(), no driver reads ${file.name}", formats.unreadableReason(file))
+        // a TileJSON opens as an online MVT map
+        val mvt = formats.drivers.filterIsInstance<MvtDriver>().firstOrNull()
+            ?.takeIf { HttpTileSource.isTileJson(file) }
+        val mapDriver = mvt ?: formats.probe(file)?.driver
+        if (mapDriver == null) {
+            // the map dialog offers .json for online maps only
+            val reason = if (file.extension.lowercase() == "json") {
+                "not a TileJSON with an http(s) tile template"
+            } else {
+                formats.unreadableReason(file)
+            }
+            fail("openMap(), no driver reads ${file.name}", reason)
             return
         }
         onOpen()
         val opened = try {
-            probed.driver.open(listOf(file))
+            if (mvt != null) mvt.openSource(HttpTileSource.open(file)) else mapDriver.open(listOf(file))
         } catch (e: Exception) {
             fail("openMap(${file.name}), ${e.message}", causesOf(e))
             return
@@ -274,15 +291,15 @@ class ViewerState(
         val previousStyle = style
         val previousIndex = mapStyles.indexOf(previousStyle)
         // a style file the new map cannot read stays the one for its own format
-        styleFile?.takeUnless(probed.driver::readsStyle)?.let { rememberStyle(file = it, layerId = layerId) }
+        styleFile?.takeUnless(mapDriver::readsStyle)?.let { rememberStyle(file = it, layerId = layerId) }
         // a map with its own styles starts with them, not with a file remembered from another map
-        val remembered = lastStyleFiles[probed.driver.id]?.takeIf { opened.styles.isEmpty() }
+        val remembered = lastStyleFiles[mapDriver.id]?.takeIf { opened.styles.isEmpty() }
         if (remembered != null
-            && styleFile?.let(probed.driver::readsStyle) != true
+            && styleFile?.let(mapDriver::readsStyle) != true
         ) {
             layerId = remembered.second
         }
-        val keptStyle = styleFile?.takeIf(probed.driver::readsStyle) ?: remembered?.first
+        val keptStyle = styleFile?.takeIf(mapDriver::readsStyle) ?: remembered?.first
         style = null
         styleFile = keptStyle
         mapStyles = opened.styles
@@ -300,7 +317,7 @@ class ViewerState(
             GarminOptions()
         }
         mapFile = file
-        driver = probed.driver
+        driver = mapDriver
         clearError()
         if (viewport == null) {
             startView()
@@ -620,7 +637,8 @@ class ViewerState(
      * Closes the engine and dataset and waits for renders in progress; for the end of the session.
      */
     override fun close() {
-        engine?.close()
+        // renders waiting on downloads must not hold the window's close
+        engine?.closeLater()
         engine = null
         replaceLoadedStyle(null)
         dataset?.close()
