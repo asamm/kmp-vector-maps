@@ -77,6 +77,7 @@ class MvtRenderer internal constructor(
     // data tiles being read and decoded, by cache key
     private val loading = ConcurrentHashMap<Long, CompletableFuture<VectorTile?>>()
 
+    // the tileSource lambdas are a fallback only: renderTile always passes its data tile
     private val tiles = TileRenderer(
         style = style.style,
         maxDataZoom = maxDataZoom,
@@ -234,7 +235,7 @@ class MvtRenderer internal constructor(
             } catch (e: CompletionException) {
                 throw e.cause ?: e
             }
-            // the owner may not share it
+            // the owner may not share it; a sibling arriving before this keep reads it again
             if (tile != null
                 && shared
             ) {
@@ -287,9 +288,9 @@ class MvtRenderer internal constructor(
                 val (evictedKey, evictedTile) = eldest.next()
                 eldest.remove()
                 decodedBytes -= evictedTile.retainedBytes
-                evicted.values.removeIf { it.get() == null }
                 evicted[evictedKey] = WeakReference(evictedTile)
             }
+            evicted.values.removeIf { it.get() == null }
         }
     }
 

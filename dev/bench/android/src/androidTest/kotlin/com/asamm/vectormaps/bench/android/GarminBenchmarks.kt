@@ -33,11 +33,7 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlin.math.PI
 import kotlin.math.atan
-import kotlin.math.cos
-import kotlin.math.floor
-import kotlin.math.ln
 import kotlin.math.sinh
-import kotlin.math.tan
 
 /**
  * Opening the Garmin map: the dataset reads and parses every map of the file.
@@ -270,13 +266,7 @@ class GarminScene : AutoCloseable {
             ) {
                 "centerTile($lat, $lon), outside the map $bounds"
             }
-            val n = (1 shl zoom).toDouble()
-            val latRad = lat * PI / 180.0
-            return TileRequest(
-                x = floor((lon + 180.0) / 360.0 * n).toInt(),
-                y = floor((1.0 - ln(tan(latRad) + 1.0 / cos(latRad)) / PI) / 2.0 * n).toInt(),
-                zoom = zoom,
-            )
+            return BenchScene.tileOf(lat = lat, lon = lon, zoom = zoom)
         }
 
         // as `GarminRenderer` projects a tile

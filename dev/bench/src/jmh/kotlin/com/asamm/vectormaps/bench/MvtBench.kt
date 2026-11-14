@@ -237,6 +237,12 @@ open class MvtBench {
                 ?.split(Regex("[,:]"))
                 ?.let { it[0].trim().toDouble() to it[1].trim().toDouble() }
             if (center != null) {
+                val (west, south, east, north) = PmTilesSource(mapFile()).use { it.bounds }
+                check(center.first in south..north
+                    && center.second in west..east
+                ) {
+                    "tileAt($center), outside the map ${listOf(west, south, east, north)}"
+                }
                 val n = (1 shl zoom).toDouble()
                 val lat = Math.toRadians(center.first)
                 return TileRequest(

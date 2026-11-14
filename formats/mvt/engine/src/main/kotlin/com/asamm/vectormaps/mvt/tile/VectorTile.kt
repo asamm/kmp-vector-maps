@@ -18,16 +18,19 @@ class VectorTile(
     /**
      * An estimate of the heap the tile keeps with every feature's geometry decoded: about 7 times
      * its protobuf on the Asamm tiles, dense Prague and sparse fixture tiles alike
-     * (docs/performance.md M10.3d), plus a floor for the objects of even a tiny tile.
+     * (docs/performance.md M10.3d), at least the objects of its features, plus those of the tile.
      */
-    val retainedBytes: Long
-        get() {
-            return encodedBytes * RETAINED_PER_ENCODED + RETAINED_PER_TILE
-        }
+    val retainedBytes: Long = maxOf(
+        encodedBytes * RETAINED_PER_ENCODED,
+        layers.values.sumOf { it.features.size } * RETAINED_PER_FEATURE,
+    ) + RETAINED_PER_TILE
 
     companion object {
 
         private const val RETAINED_PER_ENCODED = 7L
+
+        // a Feature with its tag and geometry arrays, for tiles of many tiny features
+        private const val RETAINED_PER_FEATURE = 96L
 
         private const val RETAINED_PER_TILE = 2048L
 

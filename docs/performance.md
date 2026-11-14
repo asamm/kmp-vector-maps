@@ -186,8 +186,8 @@ committed). "Again" renders one tile through a long-lived renderer, "cold" throu
 | render tile again z10 / z12 / z14 / z16 | 12.6 / 9.8 / 8.9 / 7.3 | 31.8 / 25.3 / 17.3 / 12.5 | 18.5 / 56.8 / 50.0 / 37.1 | 58 / 246 / 205 / 119 |
 | 4×4 block at z16 (one z14 data tile), 1 / 2 / 4 / 8 threads | 58.5 / – / 19.3 / 13.0 | 127 / 69 / 43 / 41 | 384 / – / 184 / 115 | 1886 / 1028 / 585 / 502 |
 
-- The A54 takes 2.5× the JVM on the sparse fixture, about 4× on Prague; the block stops scaling
-  above 4 threads (4 big cores), as Mapsforge's (M2.7b).
+- The A54 takes 1.7–2.6× the JVM to render the sparse fixture (about 4× to decode it), 3–4× on
+  Prague; the block stops scaling above 4 threads (4 big cores), as Mapsforge's (M2.7b).
 - MVT at Prague is level with Mapsforge's Czech map on the A54 (M7.5: z12 256, z15 132 ms).
 - The fixture columns (the JVM one is the M10.3a run) and JVM Prague ran before the cache change
   below, A54 Prague "again" after it: at or below the data zoom a render now reads its data tile

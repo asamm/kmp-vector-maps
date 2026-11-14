@@ -19,8 +19,12 @@ import com.asamm.vectormaps.mvt.source.MvtTileSource
 import java.awt.Font
 import java.io.File
 import java.util.concurrent.Callable
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.io.TempDir
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -131,19 +135,8 @@ class MvtDriverTest {
     @Test
     fun readsADataTileOnceForConcurrentChildren() {
         val reads = AtomicInteger()
-        val bytes = File(mvtDir, "tiles/planet/14/8529/5974.pbf").readBytes()
-        val source = object : MvtTileSource {
-            override val minZoom = 0
-            override val maxZoom = 14
-            override val bounds: DoubleArray? = null
-
-            override fun tile(zoom: Int, x: Int, y: Int): ByteArray {
-                reads.incrementAndGet()
-                // slow, as a download, so the children's misses overlap
-                Thread.sleep(200)
-                return bytes
-            }
-        }
+        // slow, as a download, so the children's misses overlap
+        val source = countingSource(reads = reads) { Thread.sleep(200) }
         val executor = Executors.newFixedThreadPool(4)
         try {
             driver.openSource(source).use { dataset ->
@@ -167,23 +160,20 @@ class MvtDriverTest {
     @Test
     fun keepsADataTileOnlyForTilesAboveTheDataZoom() {
         val reads = AtomicInteger()
-        val bytes = File(mvtDir, "tiles/planet/14/8529/5974.pbf").readBytes()
-        val source = object : MvtTileSource {
-            override val minZoom = 0
-            override val maxZoom = 14
-            override val bounds: DoubleArray? = null
-
-            override fun tile(zoom: Int, x: Int, y: Int): ByteArray {
-                reads.incrementAndGet()
-                // slow, so the child's miss overlaps the parent's read
-                Thread.sleep(200)
-                return bytes
+        val readStarted = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        // the parent's third read waits until the child waits for it
+        val source = countingSource(reads = reads) {
+            if (reads.get() == 3) {
+                readStarted.countDown()
+                check(release.await(10, TimeUnit.SECONDS))
             }
         }
         val executor = Executors.newFixedThreadPool(2)
         try {
             driver.openSource(source).use { dataset ->
                 dataset.createRenderer(style, StyleSelection.DEFAULT, RenderConfig(tileSizePx = 256)).use { renderer ->
+                    assumeTrue(renderer.maxParallelism >= 2)
                     val parent = TileRequest(x = 8529, y = 5974, zoom = 14)
                     renderer.render(parent, MvtTileTarget(256)) { false }
                     renderer.render(parent, MvtTileTarget(256)) { false }
@@ -191,10 +181,18 @@ class MvtDriverTest {
 
                     // a child waiting for its parent's read keeps the tile for its siblings
                     val first = executor.submit(Callable { renderer.render(parent, MvtTileTarget(256)) { false } })
-                    Thread.sleep(50)
+                    assertTrue(readStarted.await(10, TimeUnit.SECONDS))
+                    val childThread = AtomicReference<Thread>()
                     val child = executor.submit(Callable {
+                        childThread.set(Thread.currentThread())
                         renderer.render(TileRequest(x = 8529 * 2, y = 5974 * 2, zoom = 15), MvtTileTarget(256)) { false }
                     })
+                    val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
+                    while (childThread.get()?.state != Thread.State.WAITING) {
+                        check(System.nanoTime() < deadline) { "child never waited" }
+                        Thread.sleep(5)
+                    }
+                    release.countDown()
                     assertEquals(RenderResult.DRAWN, first.get())
                     assertEquals(RenderResult.DRAWN, child.get())
                     val sibling = TileRequest(x = 8529 * 2 + 1, y = 5974 * 2, zoom = 15)
@@ -203,7 +201,24 @@ class MvtDriverTest {
                 }
             }
         } finally {
+            release.countDown()
             executor.shutdownNow()
+        }
+    }
+
+    // one fixture data tile up to z14, its reads counted and passed through `onRead`
+    private fun countingSource(reads: AtomicInteger, onRead: () -> Unit): MvtTileSource {
+        val bytes = File(mvtDir, "tiles/planet/14/8529/5974.pbf").readBytes()
+        return object : MvtTileSource {
+            override val minZoom = 0
+            override val maxZoom = 14
+            override val bounds: DoubleArray? = null
+
+            override fun tile(zoom: Int, x: Int, y: Int): ByteArray {
+                reads.incrementAndGet()
+                onRead()
+                return bytes
+            }
         }
     }
 

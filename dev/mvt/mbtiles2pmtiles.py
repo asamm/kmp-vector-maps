@@ -9,16 +9,14 @@ their data, consecutive ones as runs; entries go to leaf directories once the ro
 
     python dev/mvt/mbtiles2pmtiles.py local/mvt/czech_republic.mbtiles local/mvt/czech_republic.pmtiles
 """
-import gzip
 import hashlib
-import io
 import json
 import os
 import sqlite3
 import struct
 import sys
 
-from pmtiles import tile_id, varint
+from pmtiles import directory, gzipped, tile_id
 
 HEADER_SIZE = 127
 
@@ -26,31 +24,8 @@ HEADER_SIZE = 127
 ROOT_SPACE = 16384
 
 
-def gzipped(data):
-    buffer = io.BytesIO()
-    with gzip.GzipFile(fileobj=buffer, mode='wb', compresslevel=6, mtime=0) as f:
-        f.write(data)
-    return buffer.getvalue()
-
-
-def directory(entries):
-    # columns: count, id deltas, run lengths, lengths, offsets + 1 (0 would mean "continues")
-    out = bytearray(varint(len(entries)))
-    last = 0
-    for tid, _, _, _ in entries:
-        out += varint(tid - last)
-        last = tid
-    for _, _, _, run in entries:
-        out += varint(run)
-    for _, _, length, _ in entries:
-        out += varint(length)
-    for _, offset, _, _ in entries:
-        out += varint(offset + 1)
-    return gzipped(bytes(out))
-
-
 def directories(entries):
-    root = directory(entries)
+    root = gzipped(directory(entries))
     if len(root) <= ROOT_SPACE - HEADER_SIZE:
         return root, b''
     leaf_size = 4096
@@ -59,17 +34,17 @@ def directories(entries):
         root_entries = []
         for start in range(0, len(entries), leaf_size):
             chunk = entries[start:start + leaf_size]
-            leaf = directory(chunk)
+            leaf = gzipped(directory(chunk))
             # a run length of 0 points to a leaf directory
             root_entries.append((chunk[0][0], len(leaves), len(leaf), 0))
             leaves += leaf
-        root = directory(root_entries)
+        root = gzipped(directory(root_entries))
         if len(root) <= ROOT_SPACE - HEADER_SIZE:
             return root, bytes(leaves)
         leaf_size = int(leaf_size * 1.2)
 
 
-def main(source, target):
+def convert(source, target, data_path):
     db = sqlite3.connect(f'file:{source}?mode=ro', uri=True)
     meta = dict(db.execute('SELECT name, value FROM metadata'))
     keys = []
@@ -79,10 +54,11 @@ def main(source, target):
         keys.append((tile_id(z, x, y), z, x, row))
     keys.sort()
     print(source, len(keys), 'tiles')
+    if not keys:
+        sys.exit(f'{source}: no tiles')
 
     entries = []
     offsets = {}
-    data_path = target + '.data'
     with open(data_path, 'wb') as data:
         length = 0
         # the header names one compression for all tiles
@@ -92,7 +68,9 @@ def main(source, target):
                 'SELECT tile_data FROM tiles WHERE zoom_level = ? AND tile_column = ? AND tile_row = ?',
                 (z, x, row),
             ).fetchone()[0]
-            compressions.add(blob[:2] == b'\x1f\x8b')
+            # an empty tile is neither
+            if blob:
+                compressions.add(blob[:2] == b'\x1f\x8b')
             if len(compressions) > 1:
                 sys.exit(f'{source}: gzip and plain tiles mixed')
             digest = hashlib.sha1(blob).digest()
@@ -140,9 +118,18 @@ def main(source, target):
                 if not chunk:
                     break
                 out.write(chunk)
-    os.remove(data_path)
     print(target, len(entries), 'entries,', len(offsets), 'contents,', len(leaves) // 1024, 'KB of leaves,',
           os.path.getsize(target) // (1 << 20), 'MB')
+
+
+def main(source, target):
+    data_path = target + '.data'
+    try:
+        convert(source, target, data_path)
+    finally:
+        # a failed run leaves no tile data behind
+        if os.path.exists(data_path):
+            os.remove(data_path)
 
 
 if __name__ == '__main__':

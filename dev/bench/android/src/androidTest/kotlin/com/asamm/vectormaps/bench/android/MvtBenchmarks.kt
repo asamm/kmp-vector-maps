@@ -30,11 +30,6 @@ import java.io.File
 import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.floor
-import kotlin.math.ln
-import kotlin.math.tan
 
 /**
  * Decoding the data tile at the centre, as the renderer does once per data tile; as the JVM
@@ -270,13 +265,13 @@ class MvtScene : AutoCloseable {
                 ?.split(BenchScene.CENTER_SEPARATOR)
                 ?.let { it[0].trim().toDouble() to it[1].trim().toDouble() }
             if (center != null) {
-                val n = (1 shl zoom).toDouble()
-                val lat = Math.toRadians(center.first)
-                return TileRequest(
-                    x = floor((center.second + 180.0) / 360.0 * n).toInt(),
-                    y = floor((1.0 - ln(tan(lat) + 1.0 / cos(lat)) / PI) / 2.0 * n).toInt(),
-                    zoom = zoom,
-                )
+                val (west, south, east, north) = PmTilesSource(mapFile()).use { it.bounds }
+                check(center.first in south..north
+                    && center.second in west..east
+                ) {
+                    "tileAt($center), outside the map ${listOf(west, south, east, north)}"
+                }
+                return BenchScene.tileOf(lat = center.first, lon = center.second, zoom = zoom)
             }
             val dz = zoom - DATA_ZOOM
             return if (dz > 0) {
