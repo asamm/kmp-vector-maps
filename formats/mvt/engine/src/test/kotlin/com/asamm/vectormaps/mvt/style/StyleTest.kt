@@ -4,9 +4,11 @@
  */
 package com.asamm.vectormaps.mvt.style
 
+import com.asamm.vectormaps.mvt.tile.Layer
 import com.asamm.vectormaps.mvt.tile.VectorTile
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.lang.ref.WeakReference
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -52,6 +54,34 @@ class StyleTest {
             }
         }
         assertTrue(matched > 1000, "matched $matched")
+    }
+
+    @Test
+    fun keepsNoTileItEvaluated() {
+        val style = Style.parse(File(mvtDir, "styles/hike_bike/style.json").readText())
+        val layers = evaluateFilters(style)
+
+        repeat(10) {
+            if (layers.any { it.get() != null }) {
+                System.gc()
+                Thread.sleep(20)
+            }
+        }
+        assertEquals(emptyList(), layers.mapNotNull { it.get()?.name }, "layers the style keeps")
+    }
+
+    // the tile's layers, weakly, after every filter of `style` read them; the tile is local here,
+    // so only the style can keep it
+    private fun evaluateFilters(style: Style): List<WeakReference<Layer>> {
+        val tile = VectorTile.decode(File(mvtDir, "tiles/planet/14/8529/5974.pbf").readBytes())
+        val ctx = EvalContext(14.0)
+        for (layer in style.layers) {
+            for (feature in tile.layers[layer.sourceLayer]?.features.orEmpty()) {
+                ctx.feature = feature
+                layer.filter?.eval(ctx)
+            }
+        }
+        return tile.layers.values.map { WeakReference(it) }
     }
 
     @Test

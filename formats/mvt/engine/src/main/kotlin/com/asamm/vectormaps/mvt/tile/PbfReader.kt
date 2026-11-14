@@ -72,12 +72,16 @@ internal class PbfReader(
     fun readPackedVarints(): IntArray {
         val length = readLength()
         val stop = pos + length
-        var out = IntArray(length)
+        // a varint ends at each byte without the continuation bit
+        var count = 0
+        for (i in pos until stop) {
+            if (bytes[i].toInt() and 0x80 == 0) {
+                count++
+            }
+        }
+        val out = IntArray(count)
         var n = 0
         while (pos < stop) {
-            if (n == out.size) {
-                out = out.copyOf(out.size * 2 + 1)
-            }
             var result = 0
             var shift = 0
             while (true) {
@@ -97,14 +101,18 @@ internal class PbfReader(
             }
             out[n++] = result
         }
-        return if (n == out.size) out else out.copyOf(n)
+        return out
     }
 
     fun skip(tag: Int) {
         when (tag and 0x7) {
             WIRE_VARINT -> readVarint()
             WIRE_FIXED64 -> advance(8)
-            WIRE_LENGTH -> pos += readLength()
+            WIRE_LENGTH -> {
+                // `pos += readLength()` would add the length to the position before the length
+                val length = readLength()
+                pos += length
+            }
             WIRE_FIXED32 -> advance(4)
             else -> throw IllegalArgumentException("skip(), wire type ${tag and 0x7} at $pos")
         }

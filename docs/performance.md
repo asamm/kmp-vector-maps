@@ -9,9 +9,9 @@ Benchmark baselines and how M7 and M10.3 measure against them; their steps and s
 **Status:** M7 done (2026-11-10). Against the baselines: no regression (M7.0); the 8-thread block
 up to 32 % faster on the JVM and 29 % on the A54 (M7.2b); up to 43 % less allocated per render
 (M7.3, M7.5) at the same single-tile time; a style's renderers share one compiled theme (M7.4).
-MVT engine on the JVM measured in M10.3a, on the A54 and on Czech data in M10.3d. **Next
-action:** the MVT render costs of the A54 profile (M10.3e); none in M7, M7.1 ⏸ (Q15). The open
-costs are below.
+MVT engine on the JVM measured in M10.3a, on the A54 and on Czech data in M10.3d; the A54
+profile's render costs cut in M10.3e (Prague up to 47 % faster). **Next action:** none in M7,
+M7.1 ⏸ (Q15); MVT continues with M10.3f. The open costs are below.
 
 ## How to measure
 
@@ -24,6 +24,7 @@ costs are below.
 | JVM, MVT | `-Pbench.includes=MvtBench` | fixture tiles of Sněžka (`fixtures.pmtiles`), `hike_bike`, bundled font |
 | JVM, MVT Czech | `-Pbench.mvt.mapFile=<path> -Pbench.mvt.center=50.0875,14.4214` | LoMaps Czech MBTiles of 2026-10-02 (54,100 tiles, z1–14) converted by `dev/mvt/mbtiles2pmtiles.py` into the git-ignored `local/mvt/`, at Prague |
 | A54, MVT | `am instrument -w -e class …MvtTileBenchmark -e bench.mvt.mapFile … -e bench.mvt.center 50.0875:14.4214 …` after install and the storage grant (row below) | system fonts; the connected run reports failing tests on the A54 over Wi-Fi though every test passes |
+| A54, MVT profile | during a run, `adb shell simpleperf record --app <test package> -g --duration 15`, then `simpleperf report --children` on the device | the test package is `profileable`; Java frames named after `compile -m speed` |
 | A54 | `./gradlew :dev:bench:android:connectedReleaseAndroidTest` | SM-A546B, Android 16, clocks locked |
 | A54, map in shared storage | install, `appops set … MANAGE_EXTERNAL_STORAGE allow`, `cmd package compile -m speed -f …`, `am instrument -w -e bench.mapFile …` | the connected run reinstalls the test package and drops the grant |
 
@@ -249,6 +250,40 @@ the JVM: open 2,729 → 198 ms, dataset heap after open 665 → 81 MB.
 | render tile z12 / z15 / z17 | 18 / 15 / 20 → 18 / 11 / 5.8 | 64 / 43 / 54 → 48 / 21 / 22 | 33 / 30 / 42 → 29 / 27 / 20 | 181 / 141 / 210 → 106 / 62 / 65 |
 | 4×4 block at z16, 1 / 2 / 4 / 8 threads | 493 / 291 / 172 / 107 → 302 / 166 / 88 / 53 | 940 / 493 / 292 / 261 → 409 / 205 / 106 / 69 | 1007 / 546 / 310 / 286 → 560 / 309 / 180 / 191 | 3354 / 1798 / 1005 / 857 → 1123 / 617 / 358 / 313 |
 | allocated per Czech render at z12 | | 8.4 → 6.3 MB | | |
+
+## M10.3e — MVT render costs, 2026-11-14
+
+Before → after, p50 ms; A54 as in M10.3d (Prague and fixture), JVM `MvtBench` of
+`feature/m10-mvt` and of this step run back to back on an idle desktop.
+
+| Benchmark | A54 Prague | A54 fixture | JVM Prague |
+|---|---|---|---|
+| render tile cold z10 / z12 / z14 / z16 | 58 / 248 / 202 / 146 → 54 / 148 / 150 / 86 | 37.6 / 27.8 / 19.1 / 14.3 → 34.9 / 25.2 / 17.5 / 12.6 | |
+| render tile again z10 / z12 / z14 / z16 | 58 / 246 / 205 / 119 → 56 / 148 / 150 / 64 | 31.8 / 25.3 / 17.3 / 12.5 → 34.8 / 25.2 / 17.5 / 11.2 | 17.1 / 53.9 / 53.2 / 22.6 → 16.8 / 40.0 / 43.7 / 13.5 |
+| 4×4 block at z16, 1 / 2 / 4 / 8 threads | 1886 / 1028 / 585 / 502 → 1000 / 558 / 327 / 300 | 127 / 69 / 43 / 41 → 105 / 57 / 37 / 35 | 346 / – / 177 / 98 → 209 / – / 106 / 64 |
+| decode a data tile z10 / z12 / z14 | 3.3 / 4.5 / 11.2 → 3.0 / 4.2 / 10.2 | 2.2 / 0.9 / 0.54 → 1.8 / 0.8 / 0.5 | 0.41 / 0.62 / 1.65 → 0.40 / 0.58 / 1.51 |
+
+- The A54 profile at Prague z14 (`simpleperf`) before: Skia `drawPath` 40 % (strokes 31 %),
+  expression evaluation 24 %, label layout 14 %, GC 8 %, read and decode 7.5 %. After: Skia 54 %,
+  expressions 6 %, label layout 14 %, GC 7 %, read and decode 10 %.
+- Each style layer evaluated its filter on every feature of its source layer. A render now
+  sorts a source layer's features by the value of the property a filter selects on (`==`, `in`,
+  or one of them under `all`), once per render, and evaluates each filter only on the features
+  with a selected value (z12 −28 %).
+- `in` over a literal list and `match` look values up in a hash set or map.
+- Allocated per render on the JVM at Prague: z10 / z12 / z14 6.0 / 11.9 / 19.8 →
+  4.5 / 10.0 / 15.1 MB (gzip inflated into an array of the trailer's size, packed varints and
+  geometry in arrays of their exact size); above the data zoom +6 %, each child render's feature
+  index. The A54 fixture "again" values before are M10.3d's, from before its cache change: below
+  the data zoom "again" now equals "cold", so compare with "cold" there (z10 31.8 → 34.8 is that
+  change).
+- Tried and dropped: thinning vertices closer than 0.25 or 0.5 px (no gain, the tiles are
+  simplified already); one path for consecutive opaque strokes of one paint (−11 % at z12, none
+  at z14 and z16, shared outlines lighter than MapLibre's); decoding a source layer on first use
+  (no gain, the style reads POIs at z14); `get` caching its key's index in the shared style
+  (1–2 %, but parallel renders of different tiles overwrite it; the fixture and JVM columns ran
+  with it).
+- The rest is Skia rasterising strokes and fills, which follows from the style.
 
 ## Known costs to measure
 

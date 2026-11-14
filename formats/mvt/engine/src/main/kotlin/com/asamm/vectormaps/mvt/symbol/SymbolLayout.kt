@@ -5,6 +5,7 @@
 package com.asamm.vectormaps.mvt.symbol
 
 import com.asamm.vectormaps.mvt.render.DataTileFrame
+import com.asamm.vectormaps.mvt.render.FeatureIndex
 import com.asamm.vectormaps.mvt.render.color
 import com.asamm.vectormaps.mvt.render.number
 import com.asamm.vectormaps.mvt.style.Color
@@ -67,6 +68,7 @@ class SymbolLayout(
         val tile = data ?: tileSource(frame.dataZoom, frame.dataX, frame.dataY) ?: return emptyList()
         val ctx = EvalContext(zoom.toDouble())
         val out = ArrayList<MvtLabel>()
+        val features = FeatureIndex()
         for ((index, layer) in style.layers.withIndex()) {
             if (layer.type != LayerType.SYMBOL
                 || !layer.isActive(ctx.zoom)
@@ -77,7 +79,7 @@ class SymbolLayout(
             val pieces = ArrayList<LinePiece>()
             val mark = out.size
             try {
-                for (feature in source.features) {
+                for (feature in features.candidates(layer = source, filter = layer.filter)) {
                     ctx.feature = feature
                     if (layer.filter != null
                         && layer.filter.eval(ctx) != true
@@ -358,8 +360,10 @@ class SymbolLayout(
         val lineHeight = finite(number(layer.layout["text-line-height"], ctx, 1.2).toFloat(), 1.2f)
             .coerceAtLeast(0f) * size
         val maxWidth = finite(number(layer.layout["text-max-width"], ctx, 10.0).toFloat(), 10f) * size
+        // wrapping and the label's width measure the same lines
+        val widths = HashMap<String, Float>()
         fun widthOf(line: String): Float {
-            return metrics.width(line, size, font, letterSpacing).coerceAtLeast(0f)
+            return widths.getOrPut(line) { metrics.width(line, size, font, letterSpacing).coerceAtLeast(0f) }
         }
         val lines = if (wrap) {
             value.split('\n').flatMap { wrapLine(it, maxWidth, ::widthOf) }

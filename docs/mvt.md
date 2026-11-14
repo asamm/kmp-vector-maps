@@ -5,8 +5,8 @@ third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin render
 
 **Author:** Menion · **Analysed:** 2026-11-12 · **Milestone:** M10 (see [ROADMAP.md](ROADMAP.md)) ·
 **Status:** spike, M10.1 symbols, M10.2 driver and M10.2b viewer online maps done 2026-11-12;
-M10.3a engine performance, M10.3b render settings and M10.3c Android target done 2026-11-13
-([performance.md](performance.md)); M10.3d A54 and Czech benchmarks 🔧
+M10.3a engine performance, M10.3b render settings and M10.3c Android target done 2026-11-13, M10.3d
+A54 and Czech benchmarks 2026-11-14 ([performance.md](performance.md)); M10.3e render costs 🔧
 
 ## Goal
 
@@ -92,7 +92,7 @@ Why A fits:
 - Done from its review in M10.3a ([performance.md](performance.md)): geometry decoded once per
   feature and tile, an overzoom bounding-box cull, feature-constant properties evaluated once per
   layer.
-- Left from its review (M10.3e): a tri-state render result for cancelling, patterns scaled for
+- Left from its review (M10.3f): a tri-state render result for cancelling, patterns scaled for
   the tile size and `deviceScale`, and `@2x` sprites; expression details MapLibre handles differently and the
   Asamm styles do not use (`string`/`number` type assertions, `to-number` of null, negative
   `slice`, `round` of halves, uint64 ids).
@@ -131,7 +131,7 @@ draws them on the target (D39).
   text placed along the line by `text-anchor` or `text-offset[0]` (centred here), an icon beside a
   path text (no Asamm style has one), `symbol-sort-key` beyond 0–999, mixed-direction text runs
   (one base direction per line); the label golden on a four-tile corner with a placement dump
-  and `isCancelled` for the layout, with neighbouring fixture tiles; with M10.3e shaped text cached
+  and `isCancelled` for the layout, with neighbouring fixture tiles; with M10.3f shaped text cached
   per layer.
 
 ## Driver
@@ -151,7 +151,7 @@ formats; the desktop viewer opens `.pmtiles` maps with a `style.json`.
   `dev/mvt/pmtiles.py` from the spec, apart from the Kotlin reader; the goldens read it through
   the driver.
 - `RenderConfig` (M10.3b): a style pixel is `deviceScale` screen pixels on a 512 px tile and scales
-  with the tile size, as MapLibre's, fill patterns excepted (M10.3e); a host with tiles of
+  with the tile size, as MapLibre's, fill patterns excepted (M10.3f); a host with tiles of
   256 px × density (D20) passes 2 for Mapsforge's sizes at `deviceScale` = density; `textScale` multiplies
   text and halos; `language` makes text fields read `name:xx` for `name` where a feature has it,
   as the MapLibre language plugin does: `zh-Hant` reads `name:zh-Hant`, then `name:zh`, `de-AT`
