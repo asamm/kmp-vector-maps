@@ -5,6 +5,7 @@
 package com.asamm.vectormaps.mvt.tile
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class PbfReaderTest {
@@ -27,5 +28,17 @@ class PbfReaderTest {
         assertFailsWith<IllegalArgumentException> {
             PbfReader(bytes, 0, bytes.size).readString()
         }
+    }
+
+    @Test
+    fun skipsALengthDelimitedField() {
+        // field 1 of 2 bytes, then field 2 = varint 7
+        val bytes = byteArrayOf(0x0a, 2, 0x55, 0x55, 0x10, 7)
+        val reader = PbfReader(bytes, 0, bytes.size)
+
+        reader.skip(reader.readTag())
+
+        assertEquals(0x10, reader.readTag())
+        assertEquals(7L, reader.readVarint())
     }
 }

@@ -38,7 +38,7 @@ not relitigate a decision without asking. Update the roadmap status in the same 
 | `dev/mvt/golden`, `golden-android`, `reference` | MVT goldens through the driver: tiles against MapLibre GL JS renders, on the JVM and on Android (Robolectric native graphics), the label pass against committed `golden/labels` (bundled font); the MapLibre renders in headless Edge (Playwright, `node render.mjs`); `dev/mvt/pmtiles.py` writes the PMTiles fixture, `dev/mvt/mbtiles2pmtiles.py` converts an MBTiles tileset for local tests |
 | `dev/fixtures/` | test maps, themes and the golden font, see [dev/fixtures/README.md](dev/fixtures/README.md) |
 | `dev/bench/` | JMH benchmarks, `./gradlew :dev:bench:jmh`; baselines M2.7 (Mapsforge) and M4.3c (Garmin), MVT engine M10.3a and Czech M10.3d in [docs/performance.md](docs/performance.md) |
-| `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines M2.7b, M4.3c and MVT M10.3d in docs/performance.md; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
+| `dev/bench/android/` | device benchmarks, `androidx.benchmark`; A54 baselines M2.7b, M4.3c and MVT M10.3d and M10.3e in docs/performance.md; M5 soak `SoakTest` (D25, D31); Paint cost `PaintCostTest` |
 | `core/` | driver interface, registry, styles, render configuration; Apache-2.0, see architecture.md |
 | `render/`, `android/` | `render/skia` parked (M7.1, Q15), `android/` from M8.1, other backends unscheduled; see architecture.md |
 

@@ -194,7 +194,13 @@ class Feature(
      * The value of property `key`, or null.
      */
     fun property(key: String): Any? {
-        val keyIndex = layer.keyIndex(key)
+        return propertyAt(layer.keyIndex(key))
+    }
+
+    /**
+     * The value of the property at `keyIndex` in its layer's [Layer.keys], or null; -1 is none.
+     */
+    fun propertyAt(keyIndex: Int): Any? {
         if (keyIndex < 0) {
             return null
         }
@@ -220,12 +226,36 @@ class Feature(
     }
 
     private fun decode(): Geometry {
-        val coords = FloatArray(geometry.size)
-        val parts = ArrayList<Int>()
+        // sized by a first pass over the commands, so the geometry is allocated once
+        var points = 0
+        var moves = 0
+        var i = 0
+        while (i < geometry.size) {
+            val command = geometry[i] and 0x7
+            val count = geometry[i] ushr 3
+            i++
+            if (command != CMD_MOVE_TO
+                && command != CMD_LINE_TO
+            ) {
+                if (command == CMD_CLOSE_PATH) {
+                    continue
+                }
+                break
+            }
+            val pairs = minOf(count, (geometry.size - i) / 2)
+            points += pairs
+            if (command == CMD_MOVE_TO) {
+                moves += pairs
+            }
+            i += pairs * 2
+        }
+        val coords = FloatArray(points * 2)
+        var parts = IntArray(moves + 1)
+        var partCount = 0
         var n = 0
         var x = 0
         var y = 0
-        var i = 0
+        i = 0
         var partStart = 0
         while (i < geometry.size) {
             val command = geometry[i] and 0x7
@@ -241,7 +271,7 @@ class Feature(
                         if (command == CMD_MOVE_TO
                             && n > partStart
                         ) {
-                            parts.add(n)
+                            parts[partCount++] = n
                             partStart = n
                         }
                         x += zigzag(geometry[i])
@@ -258,9 +288,12 @@ class Feature(
             }
         }
         if (n > partStart) {
-            parts.add(n)
+            parts[partCount++] = n
         }
-        return Geometry(coords.copyOf(n), parts.toIntArray())
+        if (partCount < parts.size) {
+            parts = parts.copyOf(partCount)
+        }
+        return Geometry(coords, parts)
     }
 
     private fun zigzag(value: Int): Int {

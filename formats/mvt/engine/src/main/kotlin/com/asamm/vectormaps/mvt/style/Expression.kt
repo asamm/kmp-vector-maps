@@ -52,6 +52,12 @@ abstract class Expression {
      */
     open val isZoomConstant: Boolean = true
 
+    /**
+     * For a filter: a condition every feature it passes meets, so a layer can skip the rest
+     * unevaluated; null when there is none.
+     */
+    internal open val selector: Selector? = null
+
     companion object {
 
         /**
@@ -77,6 +83,11 @@ abstract class Expression {
 }
 
 class UnsupportedExpressionException(message: String) : IllegalArgumentException(message)
+
+/**
+ * Property [key] holds one of [values]; a feature without it holds null.
+ */
+internal class Selector(val key: String, val values: Set<Any?>)
 
 /**
  * An ARGB colour, not premultiplied.
@@ -109,6 +120,9 @@ private class Op(
     private val args: Array<Expression>,
     private val readsFeature: Boolean,
     private val readsZoom: Boolean,
+    override val selector: Selector? = null,
+    // the property a plain `get` reads, for the selectors of comparisons over it
+    val propertyKey: String? = null,
     private val fn: (EvalContext, Array<Expression>) -> Any?,
 ) : Expression() {
 
@@ -180,9 +194,14 @@ internal object ExpressionCompiler {
             "legacy filter $name without a value"
         }
         val read = legacyGetter(key)
+        val selects = key != "\$type"
+            && key != "\$id"
         return when (name) {
-            "all" -> op(json.drop(1).map { compileLegacyFilter(it) }) { ctx, a ->
-                a.all { it.eval(ctx) == true }
+            "all" -> {
+                val args = json.drop(1).map { compileLegacyFilter(it) }
+                op(args, selector = args.firstNotNullOfOrNull { it.selector }) { ctx, a ->
+                    a.all { it.eval(ctx) == true }
+                }
             }
             "any" -> op(json.drop(1).map { compileLegacyFilter(it) }) { ctx, a ->
                 a.any { it.eval(ctx) == true }
@@ -192,9 +211,17 @@ internal object ExpressionCompiler {
             }
             "has" -> feature { ctx -> read(ctx) != null }
             "!has" -> feature { ctx -> read(ctx) == null }
-            "in" -> feature { ctx -> values.any { looseEquals(read(ctx), it) } }
-            "!in" -> feature { ctx -> values.none { looseEquals(read(ctx), it) } }
-            "==" -> feature { ctx -> looseEquals(read(ctx), values[0]) }
+            "in" -> {
+                val set = values.toHashSet()
+                feature(selector = Selector(key = key, values = set).takeIf { selects }) { ctx -> read(ctx) in set }
+            }
+            "!in" -> {
+                val set = values.toHashSet()
+                feature { ctx -> read(ctx) !in set }
+            }
+            "==" -> feature(selector = Selector(key = key, values = setOf(values[0])).takeIf { selects }) { ctx ->
+                looseEquals(read(ctx), values[0])
+            }
             "!=" -> feature { ctx -> !looseEquals(read(ctx), values[0]) }
             "<", "<=", ">", ">=" -> feature { ctx -> compareValues(name, read(ctx), values[0]) }
             else -> throw UnsupportedExpressionException("legacy filter $name")
@@ -209,12 +236,31 @@ internal object ExpressionCompiler {
         }
     }
 
-    private fun feature(fn: (EvalContext) -> Any?): Expression {
-        return Op(emptyArray(), readsFeature = true, readsZoom = false) { ctx, _ -> fn(ctx) }
+    private fun feature(
+        selector: Selector? = null,
+        propertyKey: String? = null,
+        fn: (EvalContext) -> Any?,
+    ): Expression {
+        return Op(
+            args = emptyArray(),
+            readsFeature = true,
+            readsZoom = false,
+            selector = selector,
+            propertyKey = propertyKey,
+        ) { ctx, _ -> fn(ctx) }
     }
 
-    private fun op(args: List<Expression>, fn: (EvalContext, Array<Expression>) -> Any?): Expression {
-        return Op(args.toTypedArray(), readsFeature = false, readsZoom = false, fn)
+    private fun op(
+        args: List<Expression>,
+        selector: Selector? = null,
+        fn: (EvalContext, Array<Expression>) -> Any?,
+    ): Expression {
+        return Op(args = args.toTypedArray(), readsFeature = false, readsZoom = false, selector = selector, fn = fn)
+    }
+
+    // the key of a plain `get`; `name` reads the host's language first
+    private fun propertyKeyOf(e: Expression): String? {
+        return (e as? Op)?.propertyKey
     }
 
     private fun compileArray(json: JsonArray): Expression {
@@ -240,7 +286,7 @@ internal object ExpressionCompiler {
                         ctx.localNames.firstNotNullOfOrNull { feature?.property(it) } ?: feature?.property(key)
                     }
                 } else {
-                    feature { ctx -> ctx.feature?.property(key) }
+                    feature(propertyKey = key) { ctx -> ctx.feature?.property(key) }
                 }
             }
             "has" -> {
@@ -249,7 +295,7 @@ internal object ExpressionCompiler {
             }
             "geometry-type" -> feature { ctx -> ctx.feature?.type?.let { geometryTypeName(it) } }
             "id" -> feature { ctx -> ctx.feature?.id?.toDouble() }
-            "zoom" -> Op(emptyArray(), readsFeature = false, readsZoom = true) { ctx, _ -> ctx.zoom }
+            "zoom" -> Op(args = emptyArray(), readsFeature = false, readsZoom = true) { ctx, _ -> ctx.zoom }
             "let" -> {
                 // name, value pairs and a body
                 require(raw.size >= 3
@@ -276,7 +322,7 @@ internal object ExpressionCompiler {
             "var" -> {
                 val key = (raw[0] as JsonPrimitive).content
                 // a binding may hold feature or zoom data
-                Op(emptyArray(), readsFeature = true, readsZoom = true) { ctx, _ -> ctx.bindings[key] }
+                Op(args = emptyArray(), readsFeature = true, readsZoom = true) { ctx, _ -> ctx.bindings[key] }
             }
             "interpolate" -> compileInterpolate(raw)
             "step" -> compileStep(raw)
@@ -293,18 +339,34 @@ internal object ExpressionCompiler {
 
     private fun compileCall(name: String, args: List<Expression>): Expression {
         return when (name) {
-            "all" -> op(args) { ctx, a -> a.all { it.eval(ctx) == true } }
+            "all" -> op(args, selector = args.firstNotNullOfOrNull { it.selector }) { ctx, a ->
+                a.all { it.eval(ctx) == true }
+            }
             "any" -> op(args) { ctx, a -> a.any { it.eval(ctx) == true } }
             "!" -> op(args) { ctx, a -> a[0].eval(ctx) != true }
-            "==" -> op(args) { ctx, a -> looseEquals(a[0].eval(ctx), a[1].eval(ctx)) }
+            "==" -> {
+                val key = propertyKeyOf(args[0])
+                val value = args[1] as? Constant
+                val selector = if (key != null && value != null) Selector(key, setOf(value.eval(EvalContext()))) else null
+                op(args, selector = selector) { ctx, a -> looseEquals(a[0].eval(ctx), a[1].eval(ctx)) }
+            }
             "!=" -> op(args) { ctx, a -> !looseEquals(a[0].eval(ctx), a[1].eval(ctx)) }
             "<", "<=", ">", ">=" -> op(args) { ctx, a -> compareValues(name, a[0].eval(ctx), a[1].eval(ctx)) }
-            "in" -> op(args) { ctx, a ->
-                val needle = a[0].eval(ctx)
-                when (val haystack = a[1].eval(ctx)) {
-                    is List<*> -> haystack.any { looseEquals(needle, it) }
-                    is String -> needle != null && haystack.contains(toText(needle))
-                    else -> false
+            "in" -> {
+                // a literal list, as filters write it, becomes a set
+                val set = (args[1] as? Constant)?.eval(EvalContext()).let { it as? List<*> }?.toHashSet()
+                if (set != null) {
+                    val selector = propertyKeyOf(args[0])?.let { Selector(key = it, values = set) }
+                    op(args, selector = selector) { ctx, a -> a[0].eval(ctx) in set }
+                } else {
+                    op(args) { ctx, a ->
+                        val needle = a[0].eval(ctx)
+                        when (val haystack = a[1].eval(ctx)) {
+                            is List<*> -> haystack.any { looseEquals(needle, it) }
+                            is String -> needle != null && haystack.contains(toText(needle))
+                            else -> false
+                        }
+                    }
                 }
             }
             "index-of" -> op(args) { ctx, a ->
@@ -410,14 +472,15 @@ internal object ExpressionCompiler {
             i += 2
         }
         val fallback = args.last()
-        return op(listOf(input) + outputs + fallback) { ctx, _ ->
-            val v = input.eval(ctx)
-            for (j in labels.indices) {
-                if (labels[j].any { looseEquals(v, it) }) {
-                    return@op outputs[j].eval(ctx)
-                }
+        // the first output of each label value
+        val outputOf = HashMap<Any?, Expression>()
+        for (j in labels.indices) {
+            for (label in labels[j]) {
+                outputOf.putIfAbsent(label, outputs[j])
             }
-            fallback.eval(ctx)
+        }
+        return op(listOf(input) + outputs + fallback) { ctx, _ ->
+            (outputOf[input.eval(ctx)] ?: fallback).eval(ctx)
         }
     }
 
@@ -523,6 +586,7 @@ internal object ExpressionCompiler {
         }
     }
 
+    // plain equality: the sets and maps of `in`, `match` and selectors compare the same way
     fun looseEquals(a: Any?, b: Any?): Boolean {
         return a == b
     }
