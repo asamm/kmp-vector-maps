@@ -229,6 +229,7 @@ class Feature(
         // sized by a first pass over the commands, so the geometry is allocated once
         var points = 0
         var moves = 0
+        var startsWithMove = false
         var i = 0
         while (i < geometry.size) {
             val command = geometry[i] and 0x7
@@ -243,6 +244,11 @@ class Feature(
                 break
             }
             val pairs = minOf(count, (geometry.size - i) / 2)
+            if (points == 0
+                && pairs > 0
+            ) {
+                startsWithMove = command == CMD_MOVE_TO
+            }
             points += pairs
             if (command == CMD_MOVE_TO) {
                 moves += pairs
@@ -250,7 +256,9 @@ class Feature(
             i += pairs * 2
         }
         val coords = FloatArray(points * 2)
-        var parts = IntArray(moves + 1)
+        // a part ends at each move but the first point, and at the end
+        val partSize = moves - (if (startsWithMove) 1 else 0) + (if (points > 0) 1 else 0)
+        var parts = IntArray(partSize)
         var partCount = 0
         var n = 0
         var x = 0

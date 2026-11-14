@@ -347,7 +347,11 @@ internal object ExpressionCompiler {
             "==" -> {
                 val key = propertyKeyOf(args[0])
                 val value = args[1] as? Constant
-                val selector = if (key != null && value != null) Selector(key, setOf(value.eval(EvalContext()))) else null
+                val selector = if (key != null && value != null) {
+                    Selector(key = key, values = setOf(value.eval(EvalContext())))
+                } else {
+                    null
+                }
                 op(args, selector = selector) { ctx, a -> looseEquals(a[0].eval(ctx), a[1].eval(ctx)) }
             }
             "!=" -> op(args) { ctx, a -> !looseEquals(a[0].eval(ctx), a[1].eval(ctx)) }
