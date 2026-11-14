@@ -65,6 +65,7 @@ class TileRenderer(
         val tile = data ?: tileSource(frame.dataZoom, frame.dataX, frame.dataY) ?: return false
         val pixelScale = frame.pixelScale
         val ctx = EvalContext(zoom.toDouble())
+        val index = FeatureIndex()
         for (layer in style.layers) {
             if (isCancelled()) {
                 return true
@@ -94,7 +95,7 @@ class TileRenderer(
             val source = tile.layers[layer.sourceLayer] ?: continue
             try {
                 val paint = LayerPaint(layer)
-                for (feature in source.features) {
+                for (feature in index.candidates(layer = source, filter = layer.filter)) {
                     ctx.feature = feature
                     if (layer.filter != null
                         && layer.filter.eval(ctx) != true
