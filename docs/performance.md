@@ -9,8 +9,9 @@ Benchmark baselines and how M7 and M10.3 measure against them; their steps and s
 **Status:** M7 done (2026-11-10). Against the baselines: no regression (M7.0); the 8-thread block
 up to 32 % faster on the JVM and 29 % on the A54 (M7.2b); up to 43 % less allocated per render
 (M7.3, M7.5) at the same single-tile time; a style's renderers share one compiled theme (M7.4).
-MVT engine on the JVM measured in M10.3a. **Next action:** MVT on the A54 (M10.3d); none in M7,
-M7.1 ⏸ (Q15). The open costs are below.
+MVT engine on the JVM measured in M10.3a, on the A54 and on Czech data in M10.3d. **Next
+action:** the MVT render costs of the A54 profile (M10.3e); none in M7, M7.1 ⏸ (Q15). The open
+costs are below.
 
 ## How to measure
 
@@ -21,6 +22,8 @@ M7.1 ⏸ (Q15). The open costs are below.
 | JVM, Garmin | `-Pbench.includes=GarminBench` | Monaco fixture at the harbour |
 | JVM, Garmin Czech | `-Pbench.garmin.mapFile=<path> -Pbench.garmin.center=50.0875,14.4214` | `CzechRep_by_Dave_Luv.img` at Prague, local |
 | JVM, MVT | `-Pbench.includes=MvtBench` | fixture tiles of Sněžka (`fixtures.pmtiles`), `hike_bike`, bundled font |
+| JVM, MVT Czech | `-Pbench.mvt.mapFile=<path> -Pbench.mvt.center=50.0875,14.4214` | LoMaps Czech MBTiles of 2026-10-02 (54,100 tiles, z1–14) converted by `dev/mvt/mbtiles2pmtiles.py` into the git-ignored `local/mvt/`, at Prague |
+| A54, MVT | `am instrument -w -e class …MvtTileBenchmark -e bench.mvt.mapFile … -e bench.mvt.center 50.0875:14.4214 …` after install and the storage grant (row below) | system fonts; the connected run reports failing tests on the A54 over Wi-Fi though every test passes |
 | A54 | `./gradlew :dev:bench:android:connectedReleaseAndroidTest` | SM-A546B, Android 16, clocks locked |
 | A54, map in shared storage | install, `appops set … MANAGE_EXTERNAL_STORAGE allow`, `cmd package compile -m speed -f …`, `am instrument -w -e bench.mapFile …` | the connected run reinstalls the test package and drops the grant |
 
@@ -168,7 +171,49 @@ Memory (JMH `-prof gc`, and heap after GC for the retained sizes):
 - Keeping decoded geometry costs ~60 % on a decoded tile, so the renderer keeps 12 instead of 32:
   the renders in flight (8 cores on the A54) and a few neighbours, at least 4 more than its
   threads; tiles at or below the data zoom each have their own data tile, so a larger cache rarely
-  hits.
+  hits. The densest fixture tile understates real data: M10.3d replaces the count by a byte budget.
+
+## M10.3d — MVT on the A54 and on Czech data, 2026-11-13
+
+`MvtBench` on the JVM and `MvtBenchmarks` on the A54 (`androidx.benchmark`, release, compiled for
+speed), p50 ms; the fixture tiles of Sněžka and the LoMaps Czech tiles at Prague (`local/`, not
+committed). "Again" renders one tile through a long-lived renderer, "cold" through a fresh one.
+
+| Benchmark | JVM fixture | A54 fixture | JVM Prague | A54 Prague |
+|---|---|---|---|---|
+| decode a data tile z10 / z12 / z14 | 0.6 / 0.2 / 0.13 | 2.2 / 0.9 / 0.54 | 0.45 / 0.99 / 1.7 | 3.3 / 4.5 / 11.2 |
+| render tile cold z10 / z12 / z14 / z16 | | 37.6 / 27.8 / 19.1 / 14.3 | | 58 / 248 / 202 / 146 |
+| render tile again z10 / z12 / z14 / z16 | 12.6 / 9.8 / 8.9 / 7.3 | 31.8 / 25.3 / 17.3 / 12.5 | 18.5 / 56.8 / 50.0 / 37.1 | 58 / 246 / 205 / 119 |
+| 4×4 block at z16 (one z14 data tile), 1 / 2 / 4 / 8 threads | 58.5 / – / 19.3 / 13.0 | 127 / 69 / 43 / 41 | 384 / – / 184 / 115 | 1886 / 1028 / 585 / 502 |
+
+- The A54 takes 1.7–2.6× the JVM to render the sparse fixture (about 4× to decode it), 3–4× on
+  Prague; the block stops scaling above 4 threads (4 big cores), as Mapsforge's (M2.7b).
+- MVT at Prague is level with Mapsforge's Czech map on the A54 (M7.5: z12 256, z15 132 ms).
+- The fixture columns (the JVM one is the M10.3a run) and JVM Prague ran before the cache change
+  below, A54 Prague "again" after it: at or below the data zoom a render now reads its data tile
+  anew, so "again" equals "cold" there; the read and decode are a few per cent of a render.
+
+Memory: a decoded Prague tile keeps far more than a fixture tile, about 7 times its protobuf.
+
+| Prague data tile | Protobuf | Features | Decoded | + geometry |
+|---|---|---|---|---|
+| z14 8848/5550 | 802 KB | 16,414 | 3.5 MB | +1.9 MB |
+| z12 2212/1387 | 307 KB | 8,225 | 1.5 MB | +1.0 MB |
+| z10 553/346 | 234 KB | 4,742 | 1.1 MB | +0.7 MB |
+
+- The 12-tile cache of M10.3a could keep about 65 MB over Prague at z14. Now a render passes its
+  data tile to the draw and the label layout, and only data tiles above the data zoom, shared by
+  their children, are kept: up to 16 MB estimated (7 × protobuf), the newest kept even alone.
+- A renderer over Prague keeps no data tile after 16 z14 tiles, 3.8 MB after a z16 block (its
+  one z14 data tile), 12 MB after an 8×8 z16 area over four data tiles (two within the budget, the
+  rest until collected), and nothing once closed (JVM heap after GC, against a closed renderer).
+- Data tiles evicted while renders still hold them are reused until collected, so a sibling does
+  not decode a second copy; each tile counts 2 KB on top, so tiny tiles cannot crowd the budget.
+- PMTiles directories of the Czech file: a 144 B root over 14 leaves of 4,096 entries (337 KB
+  compressed), 1.7 MB as columns, all within the 100,000-entry cache; a planet file is not at
+  hand to measure.
+- Heap readings on the A54 (`Runtime` after GC) did not register a renderer's caches, so device
+  memory is not measured here.
 
 ## Baselines
 

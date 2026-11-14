@@ -54,6 +54,22 @@ def gzipped(data):
     return buffer.getvalue()
 
 
+def directory(entries):
+    # columns: count, id deltas, run lengths, lengths, offsets + 1 (0 would mean "continues")
+    out = bytearray(varint(len(entries)))
+    last = 0
+    for tid, _, _, _ in entries:
+        out += varint(tid - last)
+        last = tid
+    for _, _, _, run in entries:
+        out += varint(run)
+    for _, _, length, _ in entries:
+        out += varint(length)
+    for _, offset, _, _ in entries:
+        out += varint(offset + 1)
+    return bytes(out)
+
+
 def lon_lat(z, x, y):
     n = 2 ** z
     lon = x / n * 360 - 180
@@ -76,19 +92,7 @@ def main(folder, target):
     for tid, z, x, y, data in tiles:
         entries.append((tid, len(blob), len(data), 1))
         blob += data
-    # columns: count, id deltas, run lengths, lengths, offsets + 1 (0 would mean "continues")
-    directory = varint(len(entries))
-    last = 0
-    for tid, _, _, _ in entries:
-        directory += varint(tid - last)
-        last = tid
-    for _, _, _, run in entries:
-        directory += varint(run)
-    for _, _, length, _ in entries:
-        directory += varint(length)
-    for _, offset, _, _ in entries:
-        directory += varint(offset + 1)
-    root = gzipped(bytes(directory))
+    root = gzipped(directory(entries))
     metadata = gzipped(b'{"name":"kmp-vector-maps fixtures"}')
     root_offset = 127
     metadata_offset = root_offset + len(root)

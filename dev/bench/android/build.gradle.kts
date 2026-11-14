@@ -3,8 +3,9 @@
  * `./gradlew :dev:bench:android:connectedReleaseAndroidTest`. Another map on the device:
  * `-Pandroid.testInstrumentationRunnerArguments.bench.mapFile=<device path>`, a centre:
  * `...bench.center=<lat>:<lon>` (Gradle cuts the argument at a comma); for Garmin
- * `...bench.garmin.mapFile` and `...bench.garmin.center`
- * (`GarminBenchmarks`); one class: `...class=<fully qualified name>`; a map in shared storage needs
+ * `...bench.garmin.mapFile` and `...bench.garmin.center` (`GarminBenchmarks`), for MVT
+ * `...bench.mvt.mapFile` (a .pmtiles) and `...bench.mvt.center` (`MvtBenchmarks`); one class:
+ * `...class=<fully qualified name>`; a map in shared storage needs
  * `adb shell appops set com.asamm.vectormaps.bench.android.test MANAGE_EXTERNAL_STORAGE allow`.
  * Results in build/outputs/connected_android_test_additional_output. The M5 soak, skipped
  * without `soak.minutes`: see `SoakTest`; native and Java heap per Paint, skipped without
@@ -38,7 +39,7 @@ android {
     }
 
     androidResources {
-        noCompress += listOf("map", "img")
+        noCompress += listOf("map", "img", "pmtiles")
         // the golden font folder stays out. A set list replaces aapt's default ignores, so they are
         // repeated first
         ignoreAssetsPatterns += listOf("!.svn", "!.git", "!.ds_store", "!*.scc", ".*", "<dir>_*", "!CVS", "!thumbs.db", "!picasa.ini", "!*~", "<dir>fonts")
@@ -67,6 +68,8 @@ dependencies {
     androidTestImplementation(project(":formats:mapsforge:driver"))
     androidTestImplementation(project(":formats:garmin-img:android"))
     androidTestImplementation(project(":formats:garmin-img:driver"))
+    androidTestImplementation(project(":formats:mvt:android"))
+    androidTestImplementation(project(":formats:mvt:driver"))
     androidTestImplementation(project(":viewer:common"))
     androidTestImplementation(libs.androidxBenchmarkJunit4)
     androidTestImplementation(libs.androidxTestExtJunit)

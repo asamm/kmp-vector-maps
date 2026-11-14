@@ -24,6 +24,7 @@ import com.asamm.vectormaps.mvt.style.StyleLayer
 import com.asamm.vectormaps.mvt.symbol.MvtLabel
 import com.asamm.vectormaps.mvt.symbol.SymbolLayout
 import com.asamm.vectormaps.mvt.tile.VectorTile
+import java.lang.ref.WeakReference
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionException
 import java.util.concurrent.ConcurrentHashMap
@@ -62,25 +63,26 @@ class MvtRenderer internal constructor(
 
     private val closed = AtomicBoolean()
 
-    // the renders in flight and a few neighbours, so a render's draw and layout usually find its
-    // tile; nothing pins it
-    private val decodedTiles = maxOf(DECODED_TILES, maxParallelism + 4)
+    // data tiles decoded for tiles above the data zoom, which share them, least recently used
+    // first, up to DECODED_BYTES estimated; a render holds its own tile, so eviction never takes
+    // it from under a draw
+    private val decoded = LinkedHashMap<Long, VectorTile>(16, 0.75f, true)
 
-    // the data tiles decoded last; tiles above the data zoom share their ancestor
-    private val decoded = object : LinkedHashMap<Long, VectorTile>(decodedTiles, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Long, VectorTile>): Boolean {
-            return size > decodedTiles
-        }
-    }
+    private var decodedBytes = 0L
+
+    // tiles evicted from `decoded` that renders may still hold, reused until collected, so a
+    // sibling does not decode a second copy
+    private val evicted = HashMap<Long, WeakReference<VectorTile>>()
 
     // data tiles being read and decoded, by cache key
     private val loading = ConcurrentHashMap<Long, CompletableFuture<VectorTile?>>()
 
+    // the tileSource lambdas are a fallback only: renderTile always passes its data tile
     private val tiles = TileRenderer(
         style = style.style,
         maxDataZoom = maxDataZoom,
         scale = config.deviceScale,
-        tileSource = ::tile,
+        tileSource = { zoom, x, y -> tile(zoom = zoom, x = x, y = y, shared = false) },
     )
 
     private val layout = SymbolLayout(
@@ -91,7 +93,7 @@ class MvtRenderer internal constructor(
         scale = config.deviceScale,
         textScale = config.textScale,
         language = config.language,
-        tileSource = ::tile,
+        tileSource = { zoom, x, y -> tile(zoom = zoom, x = x, y = y, shared = false) },
     )
 
     private val labelStore = TileLabelStore<MvtLabel>(capacity = labelStoreTiles)
@@ -139,6 +141,11 @@ class MvtRenderer internal constructor(
         // waits for running renders; later ones fail the closed check
         permits.acquireUninterruptibly(maxParallelism)
         try {
+            synchronized(decoded) {
+                decoded.clear()
+                evicted.clear()
+                decodedBytes = 0
+            }
             dataset.release()
         } finally {
             permits.release(maxParallelism)
@@ -149,11 +156,11 @@ class MvtRenderer internal constructor(
         if (isCancelled()) {
             return RenderResult.CANCELLED
         }
-        // the data tile first, so a tile without data allocates no canvas
+        // the data tile first, so a tile without data allocates no canvas; drawing and layout
+        // share it, and only tiles above the data zoom keep it for their neighbours
         val dz = maxOf(0, tile.zoom - maxDataZoom)
-        if (tile(zoom = tile.zoom - dz, x = tile.x shr dz, y = tile.y shr dz) == null) {
-            return RenderResult.EMPTY
-        }
+        val data = tile(zoom = tile.zoom - dz, x = tile.x shr dz, y = tile.y shr dz, shared = dz > 0)
+            ?: return RenderResult.EMPTY
         val tileSize = key.config.tileSizePx
         val canvas = graphics.createTarget(widthPx = tileSize, heightPx = tileSize, sprite = style.sprite)
         val drawn = tiles.render(
@@ -162,6 +169,7 @@ class MvtRenderer internal constructor(
             y = tile.y,
             target = canvas,
             isCancelled = isCancelled,
+            data = data,
         ) { layer ->
             val hook = hooks.hillshade ?: return@render
             try {
@@ -180,7 +188,8 @@ class MvtRenderer internal constructor(
         if (isCancelled()) {
             return RenderResult.CANCELLED
         }
-        labelStore.store(tile = tile, labels = layout.labels(tile.zoom, tile.x, tile.y, tileSize))
+        val labels = layout.labels(zoom = tile.zoom, x = tile.x, y = tile.y, tileSizePx = tileSize, data = data)
+        labelStore.store(tile = tile, labels = labels)
         target.canvas = canvas
         return RenderResult.DRAWN
     }
@@ -209,33 +218,38 @@ class MvtRenderer internal constructor(
         )
     }
 
-    // the decoded tile of the first source that has it; threads missing the same tile at once
-    // wait for one read and decode
-    private fun tile(zoom: Int, x: Int, y: Int): VectorTile? {
+    // the decoded tile of the first source that has it, kept for later renders when `shared`;
+    // threads missing the same tile at once wait for one read and decode
+    private fun tile(zoom: Int, x: Int, y: Int, shared: Boolean): VectorTile? {
         // the tiles of all lower zooms, then the tile's row-major index; unique up to
         // TileRequest.MAX_ZOOM (30), below 2^61
         val key = ((1L shl 2 * zoom) - 1) / 3 + (y.toLong() shl zoom) + x
-        synchronized(decoded) {
-            decoded[key]?.let {
-                return it
-            }
+        cached(key = key, shared = shared)?.let {
+            return it
         }
         val mine = CompletableFuture<VectorTile?>()
         val running = loading.putIfAbsent(key, mine)
         if (running != null) {
-            try {
-                return running.join()
+            val tile = try {
+                running.join()
             } catch (e: CompletionException) {
                 throw e.cause ?: e
             }
+            // the owner may not share it; a sibling arriving before this keep reads it again
+            if (tile != null
+                && shared
+            ) {
+                keep(key = key, tile = tile)
+            }
+            return tile
         }
         try {
             // another thread may have stored it since the miss
-            val tile = synchronized(decoded) { decoded[key] } ?: read(zoom = zoom, x = x, y = y)
-            if (tile != null) {
-                synchronized(decoded) {
-                    decoded[key] = tile
-                }
+            val tile = cached(key = key, shared = shared) ?: read(zoom = zoom, x = x, y = y)
+            if (tile != null
+                && shared
+            ) {
+                keep(key = key, tile = tile)
             }
             mine.complete(tile)
             return tile
@@ -244,6 +258,39 @@ class MvtRenderer internal constructor(
             throw e
         } finally {
             loading.remove(key)
+        }
+    }
+
+    // the kept tile, else an evicted one still alive, kept again when `shared`
+    private fun cached(key: Long, shared: Boolean): VectorTile? {
+        synchronized(decoded) {
+            decoded[key]?.let {
+                return it
+            }
+            val tile = evicted[key]?.get() ?: return null
+            if (shared) {
+                keep(key = key, tile = tile)
+            }
+            return tile
+        }
+    }
+
+    private fun keep(key: Long, tile: VectorTile) {
+        synchronized(decoded) {
+            evicted.remove(key)
+            decoded.put(key, tile)?.let { decodedBytes -= it.retainedBytes }
+            decodedBytes += tile.retainedBytes
+            val eldest = decoded.entries.iterator()
+            // the newest stays even when it alone is over the budget
+            while (decodedBytes > DECODED_BYTES
+                && decoded.size > 1
+            ) {
+                val (evictedKey, evictedTile) = eldest.next()
+                eldest.remove()
+                decodedBytes -= evictedTile.retainedBytes
+                evicted[evictedKey] = WeakReference(evictedTile)
+            }
+            evicted.values.removeIf { it.get() == null }
         }
     }
 
@@ -262,8 +309,8 @@ class MvtRenderer internal constructor(
 
         val LOGGER: Logger = Logger.getLogger(MvtRenderer::class.java.name)
 
-        // a dense data tile keeps ~2 MB with its geometry (docs/performance.md M10.3a)
-        const val DECODED_TILES = 12
+        // a dense Prague z14 tile keeps ~5.4 MB with its geometry (docs/performance.md M10.3d)
+        const val DECODED_BYTES = 16L shl 20
 
         // colours as ARGB, the colour-relief stops as metres to ARGB
         fun hostValue(name: String, value: Any?): Any? {
