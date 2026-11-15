@@ -96,7 +96,8 @@ Why A fits:
 - Done from its review in M10.3f: a render result telling a cancelled tile from an empty one,
   fill patterns scaled with the tile size and `deviceScale`, the `@2x` sprite above a style pixel
   per screen pixel, and expression details as MapLibre (`string`/`number`/`boolean` assertions,
-  `to-number` of null, negative `slice`, `round` of halves away from zero, uint64 ids).
+  `to-number` of null, negative `slice`, `round` of halves away from zero, -0 equal to 0, uint64
+  ids and values), and each text shaped once per tile layout.
 
 ## Symbols
 
@@ -132,8 +133,7 @@ draws them on the target (D39).
   text placed along the line by `text-anchor` or `text-offset[0]` (centred here), an icon beside a
   path text (no Asamm style has one), `symbol-sort-key` beyond 0–999, mixed-direction text runs
   (one base direction per line); the label golden on a four-tile corner with a placement dump
-  and `isCancelled` for the layout, with neighbouring fixture tiles. A tile's layout shapes each
-  text once (M10.3f).
+  and `isCancelled` for the layout, with neighbouring fixture tiles.
 
 ## Driver
 

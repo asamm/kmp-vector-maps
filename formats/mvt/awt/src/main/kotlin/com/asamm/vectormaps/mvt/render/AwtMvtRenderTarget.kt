@@ -97,9 +97,12 @@ class AwtMvtRenderTarget(
         )
         g.paint = TexturePaint(tile, anchor)
         // a scaled pattern samples between its pixels, as icons do
+        // a fresh Graphics2D reports no hint; its default is nearest neighbour
+        val interpolation = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION)
+            ?: RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
         g.fill(toPath(path, Path2D.WIND_NON_ZERO))
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR)
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interpolation)
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         g.composite = saved
     }

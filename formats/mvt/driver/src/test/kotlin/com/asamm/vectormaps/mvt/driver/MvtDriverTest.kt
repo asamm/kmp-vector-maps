@@ -56,7 +56,7 @@ class MvtDriverTest {
 
     @Test
     fun loadsTheStyleWithItsSprite() {
-        assertTrue(style.id.endsWith("@${File(mvtDir, "styles/hike_bike/style.json").lastModified()}"))
+        assertTrue(style.id.contains("@${File(mvtDir, "styles/hike_bike/style.json").lastModified()},"))
         assertNotNull(style.spriteFor(pixelScale = 1f))
         assertEquals(455, style.style.layers.size)
         // above a style pixel per screen pixel the @2x sheet, its images at their pixel ratio

@@ -150,7 +150,7 @@ internal object ExpressionCompiler {
             JsonNull -> null
             is JsonPrimitive -> when {
                 json.isString -> json.content
-                else -> json.booleanOrNull ?: json.doubleOrNull
+                else -> json.booleanOrNull ?: json.doubleOrNull?.let { it + 0.0 }
             }
             is JsonArray -> json.map { toValue(it) }
             is JsonObject -> json.mapValues { toValue(it.value) }
@@ -213,11 +213,11 @@ internal object ExpressionCompiler {
             "!has" -> feature { ctx -> read(ctx) == null }
             "in" -> {
                 val set = values.toHashSet()
-                feature(selector = Selector(key = key, values = set).takeIf { selects }) { ctx -> read(ctx) in set }
+                feature(selector = Selector(key = key, values = set).takeIf { selects }) { ctx -> canonical(read(ctx)) in set }
             }
             "!in" -> {
                 val set = values.toHashSet()
-                feature { ctx -> read(ctx) !in set }
+                feature { ctx -> canonical(read(ctx)) !in set }
             }
             "==" -> feature(selector = Selector(key = key, values = setOf(values[0])).takeIf { selects }) { ctx ->
                 looseEquals(read(ctx), values[0])
@@ -361,7 +361,7 @@ internal object ExpressionCompiler {
                 val set = (args[1] as? Constant)?.eval(EvalContext()).let { it as? List<*> }?.toHashSet()
                 if (set != null) {
                     val selector = propertyKeyOf(args[0])?.let { Selector(key = it, values = set) }
-                    op(args, selector = selector) { ctx, a -> a[0].eval(ctx) in set }
+                    op(args, selector = selector) { ctx, a -> canonical(a[0].eval(ctx)) in set }
                 } else {
                     op(args) { ctx, a ->
                         val needle = a[0].eval(ctx)
@@ -463,8 +463,10 @@ internal object ExpressionCompiler {
             // halves away from zero, as MapLibre
             "round" -> op(args) { ctx, a ->
                 val v = num(a[0].eval(ctx))
-                // + 0.0 turns -0.0 into 0.0, which `==`, sets and comparisons tell apart
-                kotlin.math.sign(v) * floor(kotlin.math.abs(v) + 0.5) + 0.0
+                // the fraction compared, not abs(v) + 0.5, which itself rounds next to a half
+                val whole = floor(kotlin.math.abs(v))
+                val rounded = if (kotlin.math.abs(v) - whole >= 0.5) whole + 1.0 else whole
+                kotlin.math.sign(v) * rounded
             }
             "abs" -> op(args) { ctx, a -> kotlin.math.abs(num(a[0].eval(ctx))) }
             else -> throw UnsupportedExpressionException(name)
@@ -492,7 +494,7 @@ internal object ExpressionCompiler {
             }
         }
         return op(listOf(input) + outputs + fallback) { ctx, _ ->
-            (outputOf[input.eval(ctx)] ?: fallback).eval(ctx)
+            (outputOf[canonical(input.eval(ctx))] ?: fallback).eval(ctx)
         }
     }
 
@@ -598,14 +600,22 @@ internal object ExpressionCompiler {
         }
     }
 
-    // plain equality: the sets and maps of `in`, `match` and selectors compare the same way
+    // plain equality but for -0.0, which equals 0 as in MapLibre; the sets and maps of `in`,
+    // `match` and selectors compare the same way, as values reach them through canonical
     fun looseEquals(a: Any?, b: Any?): Boolean {
-        return a == b
+        return canonical(a) == canonical(b)
+    }
+
+    /**
+     * `v` with -0.0 as 0.0, the key the sets and maps of `in`, `match` and selectors hold.
+     */
+    fun canonical(v: Any?): Any? {
+        return if (v is Double) v + 0.0 else v
     }
 
     private fun compareValues(op: String, a: Any?, b: Any?): Boolean {
         val c = when {
-            a is Double && b is Double -> a.compareTo(b)
+            a is Double && b is Double -> (a + 0.0).compareTo(b + 0.0)
             a is String && b is String -> a.compareTo(b)
             else -> return false
         }
