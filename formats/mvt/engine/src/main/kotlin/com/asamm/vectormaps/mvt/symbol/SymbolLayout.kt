@@ -438,6 +438,9 @@ class SymbolLayout(
             centerY = cy,
             paddingPx = finite(number(layer.layout["text-padding"], ctx, 2.0).toFloat()).coerceAtLeast(0f) * pixelScale,
             justify = justify,
+            rotateDeg = finite(number(layer.layout["text-rotate"], ctx, 0.0).toFloat()),
+            haloBlurPx = finite(number(layer.paint["text-halo-blur"], ctx, 0.0).toFloat()).coerceAtLeast(0f) *
+                pixelScale * textScale,
         )
     }
 

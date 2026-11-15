@@ -65,14 +65,14 @@ interface MvtRenderTarget {
     )
 
     /**
-     * Draws the lines of `text` centred on (`x`, `y`), a shorter line placed by `text.justify`,
-     * halo below the fill.
+     * Draws the lines of `text` centred on (`x`, `y`) and turned about it by `text.rotateDeg`, a
+     * shorter line placed by `text.justify`, the halo rings below the fill.
      */
     fun drawText(text: MvtText, x: Float, y: Float)
 
     /**
      * Draws `text` along `path` (x, y pairs, from its first point), centred on its length and on
-     * the line, each glyph turned with the path.
+     * the line, each glyph turned with the path and by `text.rotateDeg` about its centre.
      */
     fun drawTextAlongPath(text: MvtText, path: FloatArray)
 

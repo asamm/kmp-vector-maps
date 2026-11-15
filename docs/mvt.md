@@ -7,7 +7,8 @@ third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin render
 **Status:** spike, M10.1 symbols, M10.2 driver and M10.2b viewer online maps done 2026-11-12;
 M10.3a engine performance, M10.3b render settings and M10.3c Android target done 2026-11-13, M10.3d
 A54 and Czech benchmarks and M10.3e render costs 2026-11-14 ([performance.md](performance.md));
-M10.3f spike leftovers 2026-11-15; M10.4 label robustness and spec coverage 🔧
+M10.3f spike leftovers 2026-11-15; M10.4 label robustness and spec coverage 2026-11-15 (PR #63);
+M10.5 `text-rotate` and `text-halo-blur` 🔧
 
 ## Goal
 
@@ -115,7 +116,7 @@ draws them on the target (D39).
 | Icons on lines turn with them (`icon-rotation-alignment` `auto` = `map`), `icon-offset` with `icon-rotate`, `icon-translate` in the map's frame | same |
 | Later layers place first, then lower `symbol-sort-key` | label priority |
 | `allow-overlap` | `ALWAYS`, which also never blocks others |
-| Text: `text-field`, `-transform`, `-size`, `-font` face, `-max-width` wrapping at spaces and hyphens, `-line-height`, `-letter-spacing`, `-anchor`, `-offset`, `-padding`, halo | same; lines wrap greedily, not balanced |
+| Text: `text-field`, `-transform`, `-size`, `-font` face, `-max-width` wrapping at spaces and hyphens, `-line-height`, `-letter-spacing`, `-anchor`, `-offset`, `-padding`, `-justify`, `-rotate`, `-opacity`, halo with blur | same; lines wrap greedily, not balanced |
 | Icons: `icon-image`, `-size`, `-offset`, `-rotate`, `-padding`, `icon-translate` | same |
 | SDF glyphs from the font server | platform fonts, shaped (joining, bidi base direction) for measuring and drawing; goldens use the bundled DejaVu Sans |
 
@@ -139,11 +140,14 @@ draws them on the target (D39).
 
 ## Spec coverage
 
-2026-11-15, M10.4: the [MapLibre style spec](https://maplibre.org/maplibre-style-spec/) against
-the engine. The Asamm `hike_bike` style uses nothing outside "Supported" but `text-halo-blur` (7
-layers), `text-rotate` (1) and the hillshade and colour-relief paint, which is the host's. Its
-contour labels show the gap: `text-keep-upright: false` puts their reversed digits in MapLibre's
-order, but without `text-rotate: 180` each glyph stays upside down.
+2026-11-15, M10.5: the [MapLibre style spec](https://maplibre.org/maplibre-style-spec/) against
+the engine. The Asamm `hike_bike` style uses nothing outside "Supported" but the hillshade and
+colour-relief paint, which is the host's. Its contour labels use `text-keep-upright: false` with
+`text-rotate: 180`: the digits run against the line, each turned about its centre, as MapLibre.
+A blurred halo fades its edge in up to 6 strokes of stepped alpha, over 1.19 × `text-halo-blur`
+on either side of the halo width, as MapLibre's SDF shader, but not clipped to its glyph buffer.
+On Android a turned path text is drawn a character at a time, unshaped, and a translucent halo
+ring blends twice where neighbouring glyphs' rings overlap.
 
 | Layer | Supported | Not yet |
 |---|---|---|
@@ -152,7 +156,7 @@ order, but without `text-rotate: 180` each glyph stays upside down.
 | line | `line-color`, `-width`, `-opacity`, `-dasharray`, `-offset`, `-cap`, `-join` (miter limit 2) | `-pattern`, `-gap-width`, `-blur`, `-translate`, `-gradient`, `-miter-limit`, `-round-limit`, `-sort-key` |
 | circle | `circle-radius`, `-color`, `-stroke-width`, `-stroke-color`, `-opacity`, `-stroke-opacity` (M10.4) | `-blur`, `-translate`, `-pitch-*`, `-sort-key` |
 | symbol, placement | `symbol-placement` (`point`, `line`, `line-center`), `-spacing`, `-sort-key` (0–999), `text-`/`icon-allow-overlap`, `-rotation-alignment`, `text-max-angle`, `text-keep-upright` (M10.4) | `text-variable-anchor`, `-radial-offset`, `-ignore-placement`, `-optional`, `icon-text-fit`, `icon-keep-upright`, `symbol-avoid-edges`, `-z-order`, `-pitch-alignment`, `text-writing-mode` |
-| symbol, text | `text-field`, `-font` (face), `-size`, `-max-width`, `-line-height`, `-letter-spacing`, `-justify` (M10.4), `-anchor`, `-offset`, `-transform`, `-padding`, `-color`, `-halo-color`, `-halo-width`, `-opacity` (M10.4) | `-rotate`, `-halo-blur`, `-translate`, `formatted` text |
+| symbol, text | `text-field`, `-font` (face), `-size`, `-max-width`, `-line-height`, `-letter-spacing`, `-justify` (M10.4), `-anchor`, `-offset`, `-transform`, `-padding`, `-color`, `-halo-color`, `-halo-width`, `-opacity` (M10.4), `-rotate`, `-halo-blur` (M10.5) | `-translate`, `formatted` text |
 | symbol, icon | `icon-image`, `-size`, `-offset`, `-rotate`, `-padding`, `-translate`, `-anchor`, `-opacity` (M10.4) | SDF `icon-color`, `-halo-*` |
 | hillshade, color-relief | the host's hook, with source and paint | drawn by the engine |
 | raster, fill-extrusion, heatmap | — | all |
@@ -177,7 +181,7 @@ order, but without `text-rotate: 180` each glyph stays upside down.
   zoom and property function in one. A style using one compiles without that property and lists
   it in `Style.problems`; a layer whose filter it is draws unfiltered.
 - Next candidates, small and checkable: `line-gap-width` (two offset strokes), `text-translate`
-  and `fill-translate` (a shift), `text-halo-blur` (a blur filter), `text-rotate`.
+  and `fill-translate` (a shift).
 
 ## Driver
 
