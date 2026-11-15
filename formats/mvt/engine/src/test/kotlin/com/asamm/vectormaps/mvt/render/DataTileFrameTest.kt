@@ -6,6 +6,7 @@ package com.asamm.vectormaps.mvt.render
 
 import com.asamm.vectormaps.mvt.tile.Geometry
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -25,5 +26,14 @@ class DataTileFrameTest {
         assertFalse(frame.meets(outside, extent = 4096, marginPx = 0f))
         assertFalse(frame.meets(beside, extent = 4096, marginPx = 4f))
         assertTrue(frame.meets(beside, extent = 4096, marginPx = 10f))
+    }
+
+    @Test
+    fun startsPatternsAtTheWorldOrigin() {
+        assertEquals(0f, patternOffset(origin = 1024, period = 32f))
+        assertEquals(16f, patternOffset(origin = 1040, period = 32f))
+        // a scaled period need not divide the tile origin
+        assertEquals(12f, patternOffset(origin = 100, period = 22f))
+        assertEquals(10f, patternOffset(origin = -12, period = 22f))
     }
 }

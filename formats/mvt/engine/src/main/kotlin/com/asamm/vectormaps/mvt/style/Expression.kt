@@ -231,7 +231,7 @@ internal object ExpressionCompiler {
     private fun legacyGetter(key: String): (EvalContext) -> Any? {
         return when (key) {
             "\$type" -> { ctx -> ctx.feature?.type?.let { geometryTypeName(it) } }
-            "\$id" -> { ctx -> ctx.feature?.id?.toDouble() }
+            "\$id" -> { ctx -> ctx.feature?.id?.let { idValue(it) } }
             else -> { ctx -> ctx.feature?.property(key) }
         }
     }
@@ -294,7 +294,7 @@ internal object ExpressionCompiler {
                 feature { ctx -> ctx.feature?.property(key) != null }
             }
             "geometry-type" -> feature { ctx -> ctx.feature?.type?.let { geometryTypeName(it) } }
-            "id" -> feature { ctx -> ctx.feature?.id?.toDouble() }
+            "id" -> feature { ctx -> ctx.feature?.id?.let { idValue(it) } }
             "zoom" -> Op(args = emptyArray(), readsFeature = false, readsZoom = true) { ctx, _ -> ctx.zoom }
             "let" -> {
                 // name, value pairs and a body
@@ -386,12 +386,12 @@ internal object ExpressionCompiler {
                 val end = if (a.size > 2) (a[2].eval(ctx) as? Double)?.toInt() else null
                 when (val v = a[0].eval(ctx)) {
                     is String -> {
-                        val from = start.coerceIn(0, v.length)
-                        v.substring(from, (end ?: v.length).coerceIn(from, v.length))
+                        val from = sliceIndex(start, v.length)
+                        v.substring(from, sliceIndex(end ?: v.length, v.length).coerceAtLeast(from))
                     }
                     is List<*> -> {
-                        val from = start.coerceIn(0, v.size)
-                        v.subList(from, (end ?: v.size).coerceIn(from, v.size))
+                        val from = sliceIndex(start, v.size)
+                        v.subList(from, sliceIndex(end ?: v.size, v.size).coerceAtLeast(from))
                     }
                     else -> null
                 }
@@ -437,7 +437,10 @@ internal object ExpressionCompiler {
                 }
             }
             "to-color" -> op(args) { ctx, a -> toColor(a[0].eval(ctx)) }
-            "string", "number", "boolean" -> op(args) { ctx, a -> a[0].eval(ctx) }
+            // the first value of the type; none is an error, which leaves the property's default
+            "string" -> op(args) { ctx, a -> a.firstNotNullOfOrNull { it.eval(ctx) as? String } }
+            "number" -> op(args) { ctx, a -> a.firstNotNullOfOrNull { it.eval(ctx) as? Double } }
+            "boolean" -> op(args) { ctx, a -> a.firstNotNullOfOrNull { it.eval(ctx) as? Boolean } }
             "length" -> op(args) { ctx, a ->
                 when (val v = a[0].eval(ctx)) {
                     is String -> v.length.toDouble()
@@ -457,7 +460,12 @@ internal object ExpressionCompiler {
             "max" -> op(args) { ctx, a -> a.maxOf { num(it.eval(ctx)) } }
             "ceil" -> op(args) { ctx, a -> ceil(num(a[0].eval(ctx))) }
             "floor" -> op(args) { ctx, a -> floor(num(a[0].eval(ctx))) }
-            "round" -> op(args) { ctx, a -> Math.round(num(a[0].eval(ctx))).toDouble() }
+            // halves away from zero, as MapLibre
+            "round" -> op(args) { ctx, a ->
+                val v = num(a[0].eval(ctx))
+                // + 0.0 turns -0.0 into 0.0, which `==`, sets and comparisons tell apart
+                kotlin.math.sign(v) * floor(kotlin.math.abs(v) + 0.5) + 0.0
+            }
             "abs" -> op(args) { ctx, a -> kotlin.math.abs(num(a[0].eval(ctx))) }
             else -> throw UnsupportedExpressionException(name)
         }
@@ -613,13 +621,25 @@ internal object ExpressionCompiler {
         return v as? Double ?: 0.0
     }
 
+    // null converts to 0, as MapLibre
     private fun toNumberOrNull(v: Any?): Double? {
         return when (v) {
+            null -> 0.0
             is Double -> v
             is String -> v.toDoubleOrNull()
             is Boolean -> if (v) 1.0 else 0.0
             else -> null
         }
+    }
+
+    // a negative index counts from the end, as JavaScript's slice
+    private fun sliceIndex(index: Int, length: Int): Int {
+        return if (index < 0) maxOf(length + index, 0) else minOf(index, length)
+    }
+
+    // the spec's ids are uint64
+    private fun idValue(id: Long): Double {
+        return id.toULong().toDouble()
     }
 
     fun toText(v: Any?): String {

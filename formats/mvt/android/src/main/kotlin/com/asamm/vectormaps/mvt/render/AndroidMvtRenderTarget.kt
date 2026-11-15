@@ -94,22 +94,28 @@ class AndroidMvtRenderTarget(
         antialias: Boolean,
         tileOriginX: Long,
         tileOriginY: Long,
+        scale: Float,
     ) {
         val tile = sprite?.pattern(pattern) ?: return
         val shader = shaders.getOrPut(pattern) {
             BitmapShader(tile, Shader.TileMode.REPEAT, Shader.TileMode.REPEAT)
         }
-        matrix.setTranslate(
-            -Math.floorMod(tileOriginX, tile.width.toLong()).toFloat(),
-            -Math.floorMod(tileOriginY, tile.height.toLong()).toFloat(),
+        val factor = scale / sprite.pixelRatio(pattern)
+        matrix.setScale(factor, factor)
+        matrix.postTranslate(
+            -patternOffset(tileOriginX, tile.width * factor),
+            -patternOffset(tileOriginY, tile.height * factor),
         )
         shader.setLocalMatrix(matrix)
         fill.shader = shader
         fill.isAntiAlias = antialias
+        // a scaled pattern samples between its pixels, as icons do
+        fill.isFilterBitmap = true
         fill.color = android.graphics.Color.BLACK
         fill.alpha = (opacity.coerceIn(0f, 1f) * 255f).toInt()
         canvas.drawPath(toPath(path), fill)
         fill.shader = null
+        fill.isFilterBitmap = false
         fill.isAntiAlias = true
     }
 

@@ -57,8 +57,12 @@ class MvtDriverTest {
     @Test
     fun loadsTheStyleWithItsSprite() {
         assertTrue(style.id.endsWith("@${File(mvtDir, "styles/hike_bike/style.json").lastModified()}"))
-        assertNotNull(style.sprite)
+        assertNotNull(style.spriteFor(pixelScale = 1f))
         assertEquals(455, style.style.layers.size)
+        // above a style pixel per screen pixel the @2x sheet, its images at their pixel ratio
+        val hiDpi = assertNotNull(style.spriteFor(pixelScale = 2f))
+        assertTrue(hiDpi.index.images.values.all { it.pixelRatio == 2.0 })
+        assertTrue(assertNotNull(style.spriteFor(pixelScale = 1f)).index.images.values.all { it.pixelRatio == 1.0 })
     }
 
     @Test
@@ -300,7 +304,7 @@ class MvtDriverTest {
         File(dir, "sprite.json").writeText("[")
         File(dir, "sprite.png").writeText("not a png")
         val loaded = driver.loadStyle(File(dir, "style.json"))
-        assertNull(loaded.sprite)
+        assertNull(loaded.spriteFor(pixelScale = 1f))
         assertEquals(455, loaded.style.layers.size)
     }
 }

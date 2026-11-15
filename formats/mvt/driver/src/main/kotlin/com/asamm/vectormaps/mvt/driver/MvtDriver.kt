@@ -68,10 +68,11 @@ class MvtDriver(
     }
 
     /**
-     * Reads a MapLibre `style.json` and its sprite (`sprite.json` and `sprite.png` beside it, or
-     * the files its `sprite` names there); a style without a readable sprite draws no icons or
-     * patterns. Its vector sources all read from the dataset it renders. Throws for a file with no
-     * style layers, such as a sprite index.
+     * Reads a MapLibre `style.json`; its sprite (`sprite.json` and `sprite.png` beside it, or the
+     * files its `sprite` names there, and the `@2x` pair for renderers above a style pixel per
+     * screen pixel) is decoded on a renderer's first use, and a style without a readable one draws
+     * no icons or patterns. The style's id covers `style.json` only. Its vector sources all read
+     * from the dataset it renders. Throws for a file with no style layers, such as a sprite index.
      */
     override fun loadStyle(file: File): MvtStyle {
         val lastModified = file.lastModified()
@@ -83,27 +84,31 @@ class MvtDriver(
         val spriteName = style.sprite?.substringAfterLast('/')?.substringAfterLast('\\')
             ?.takeIf { it.isNotBlank() && it != ".." }
             ?: "sprite"
-        val indexFile = File(file.parentFile, "$spriteName.json")
-        val pngFile = File(file.parentFile, "$spriteName.png")
-        val (index, sprite) = if (indexFile.isFile
-            && pngFile.isFile
-        ) {
-            try {
-                val index = SpriteIndex.parse(indexFile.readText())
-                index to graphics.loadSprite(index, pngFile.readBytes())
-            } catch (e: Exception) {
-                LOGGER.log(Level.WARNING, "loadStyle($file), sprite $spriteName", e)
-                null to null
-            }
-        } else {
-            null to null
-        }
+        val dir = file.parentFile
         return MvtStyle(
             id = "${file.absolutePath}@$lastModified",
             style = style,
-            spriteIndex = index,
-            sprite = sprite,
-        )
+        ) { hiDpi ->
+            loadSprite(dir = dir, name = if (hiDpi) "$spriteName@2x" else spriteName, style = file)
+        }
+    }
+
+    // `name`.json and `name`.png in `dir`, decoded; null when missing or unreadable
+    private fun loadSprite(dir: File, name: String, style: File): SpriteSheet? {
+        val indexFile = File(dir, "$name.json")
+        val pngFile = File(dir, "$name.png")
+        if (!indexFile.isFile
+            || !pngFile.isFile
+        ) {
+            return null
+        }
+        return try {
+            val index = SpriteIndex.parse(indexFile.readText())
+            SpriteSheet(index = index, sheet = graphics.loadSprite(index, pngFile.readBytes()))
+        } catch (e: Exception) {
+            LOGGER.log(Level.WARNING, "loadSprite($style), $name", e)
+            null
+        }
     }
 
     internal companion object {

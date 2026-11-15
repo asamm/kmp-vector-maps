@@ -39,7 +39,8 @@ interface MvtRenderTarget {
     /**
      * Fills the rings of `path` with the sprite image `pattern`, repeated from the world pixel
      * origin, so neighbouring tiles join; `tileOriginX`, `tileOriginY` are this tile's top-left
-     * world pixel. Does nothing for an unknown pattern.
+     * world pixel, `scale` the screen pixels per style pixel, as the image's pixel ratio divides
+     * it. Does nothing for an unknown pattern.
      */
     fun fillPathPattern(
         path: MvtPath,
@@ -48,6 +49,7 @@ interface MvtRenderTarget {
         antialias: Boolean,
         tileOriginX: Long,
         tileOriginY: Long,
+        scale: Float,
     )
 
     /**
@@ -111,4 +113,13 @@ enum class LineJoin {
     MITER,
     ROUND,
     BEVEL,
+}
+
+/**
+ * `origin` modulo `period`, in 0 until `period`: where a pattern repeating from the world origin
+ * starts in a tile at world pixel `origin`.
+ */
+fun patternOffset(origin: Long, period: Float): Float {
+    val p = period.toDouble()
+    return (origin.toDouble() - kotlin.math.floor(origin / p) * p).toFloat()
 }

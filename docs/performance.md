@@ -11,7 +11,7 @@ up to 32 % faster on the JVM and 29 % on the A54 (M7.2b); up to 43 % less alloca
 (M7.3, M7.5) at the same single-tile time; a style's renderers share one compiled theme (M7.4).
 MVT engine on the JVM measured in M10.3a, on the A54 and on Czech data in M10.3d; the A54
 profile's render costs cut in M10.3e (Prague up to 47 % faster). **Next action:** none in M7,
-M7.1 ⏸ (Q15); MVT continues with M10.3f. The open costs are below.
+M7.1 ⏸ (Q15). The open costs are below.
 
 ## How to measure
 
