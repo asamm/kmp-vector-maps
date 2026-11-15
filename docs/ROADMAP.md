@@ -11,8 +11,8 @@ driver interface, with desktop JVM for benchmarks and tools.
 **Status: M0–M7 done (PRs #1–#52, the last merged as `6155c9d` on 2026-11-10); M7.1 ⏸, the
 desktop stays AWT (Q15). M8 and M9 ⏸ since 2026-11-12, while locus-core reworks the
 libMapCore plan (locus-core `docs/libraries/libMapCore/plan/`) around this library. M10 (vector
-tiles) started 2026-11-12 with a desktop spike on the umbrella branch `feature/m10-mvt`
-([mvt.md](mvt.md)).** Next action: M10 into `main` after M10.5; MBTiles waits for V1;
+tiles, [mvt.md](mvt.md)) done 2026-11-16 on the umbrella branch `feature/m10-mvt` (PRs #53–#64),
+merging into `main`.** Next action: MVT in Locus with M8 and M9; MBTiles waits for V1;
 M8.0 (logging through kmp-logger) resumes when the libMapCore plan says so.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
@@ -34,7 +34,7 @@ settles, labels before speed, the Locus-facing API last.
 | M7 | Performance and Skia desktop backend | L | ✅ PRs #47–#52, `6155c9d`; M7.1 ⏸ (Q15) |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⏸ libMapCore plan |
 | M9 | Locus integration | M | ⏸ libMapCore plan; needs Q14, Q16 |
-| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | 🔧 M10.5 on the umbrella `feature/m10-mvt` |
+| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | 🔧 M10.0–M10.5 done, umbrella `feature/m10-mvt` into `main` |
 
 ## Done: M0–M6
 
@@ -200,7 +200,7 @@ the umbrella `feature/m10-mvt`, which merges into `main` when M10 is done.
 | M10.3e | Render costs of the A54 profile: filters evaluated only on the features their selected property admits (per-render index), `in` and `match` by hash, exact-size gzip inflate and decode arrays; draw batching, vertex thinning and lazy layer decode measured and dropped | goldens unchanged; A54 and JVM before/after in performance.md ✅ PR #61 |
 | M10.3f | Spike leftovers (mvt.md Spike and Symbols): a render result telling a cancelled tile from an empty one, fill patterns scaled with the tile size and `deviceScale`, the `@2x` sprite decoded on first use above a style pixel per screen pixel, expression details as MapLibre, each text shaped once per tile layout | goldens unchanged; engine and driver tests ✅ PR #62 |
 | M10.4 | Label robustness and spec coverage (mvt.md Spec coverage): the layout stops when a render is cancelled; a label golden of four neighbouring tiles at their corner with a placement dump; `text-keep-upright`, `text-justify`, `text-opacity`, `icon-anchor`, `icon-opacity`, `circle-opacity`, `circle-stroke-opacity`, `fill-outline-color`; legacy `{"stops"}` functions and the missing simple expressions; the Android viewer draws MVT in MapLibre's sizes (512 × density px tiles, `deviceScale` 1) | corner golden and dump, label goldens nearer MapLibre; engine tests per property; A54 viewer check ✅ PR #63 |
-| M10.5 | `text-rotate` (a point text's box about its anchor, each glyph of a path text about its centre, so the `hike_bike` contour labels read as in MapLibre) and `text-halo-blur` (the halo's edge faded in up to 6 rings, as MapLibre's shader) | label goldens regenerated and compared; engine tests 🔧 |
+| M10.5 | `text-rotate` (a point text's box about its anchor, each glyph of a path text about its centre, so the `hike_bike` contour labels read as in MapLibre) and `text-halo-blur` (the halo's edge faded in up to 6 rings, as MapLibre's shader) | label goldens regenerated and compared; engine tests ✅ PR #64 |
 
 ## Decisions
 

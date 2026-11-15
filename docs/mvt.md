@@ -8,7 +8,7 @@ third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin render
 M10.3a engine performance, M10.3b render settings and M10.3c Android target done 2026-11-13, M10.3d
 A54 and Czech benchmarks and M10.3e render costs 2026-11-14 ([performance.md](performance.md));
 M10.3f spike leftovers 2026-11-15; M10.4 label robustness and spec coverage 2026-11-15 (PR #63);
-M10.5 `text-rotate` and `text-halo-blur` 🔧
+M10.5 `text-rotate` and `text-halo-blur` 2026-11-16 (PR #64)
 
 ## Goal
 
