@@ -189,11 +189,20 @@ class MvtRenderer internal constructor(
             TileRenderer.Result.CANCELLED -> return RenderResult.CANCELLED
             TileRenderer.Result.DRAWN -> Unit
         }
-        // cancelled after the last layer: the layout is skipped
-        if (isCancelled()) {
+        // latched: a host's check may turn false again, as a tile scrolls back in, and a layout
+        // that stopped part-way must not be stored as the tile's labels
+        var stopped = false
+        val labels = layout.labels(
+            zoom = tile.zoom,
+            x = tile.x,
+            y = tile.y,
+            tileSizePx = tileSize,
+            data = data,
+            isCancelled = { stopped || isCancelled().also { stopped = it } },
+        )
+        if (stopped) {
             return RenderResult.CANCELLED
         }
-        val labels = layout.labels(zoom = tile.zoom, x = tile.x, y = tile.y, tileSizePx = tileSize, data = data)
         labelStore.store(tile = tile, labels = labels)
         target.canvas = canvas
         return RenderResult.DRAWN

@@ -65,7 +65,8 @@ interface MvtRenderTarget {
     )
 
     /**
-     * Draws the lines of `text` centred on (`x`, `y`), each line centred, halo below the fill.
+     * Draws the lines of `text` centred on (`x`, `y`), a shorter line placed by `text.justify`,
+     * halo below the fill.
      */
     fun drawText(text: MvtText, x: Float, y: Float)
 
@@ -77,7 +78,7 @@ interface MvtRenderTarget {
 
     /**
      * Draws `icon` centred on (`x`, `y`), `icon.scale` times its sprite size, turned clockwise by
-     * `rotateDeg`; nothing for an unknown image.
+     * `rotateDeg`, at `icon.opacity`; nothing for an unknown image.
      */
     fun drawIcon(icon: MvtIcon, x: Float, y: Float, rotateDeg: Float)
 

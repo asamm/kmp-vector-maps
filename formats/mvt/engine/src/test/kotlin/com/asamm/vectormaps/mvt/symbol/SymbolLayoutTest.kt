@@ -30,6 +30,16 @@ class SymbolLayoutTest {
     }
 
     @Test
+    fun stopsWhenCancelled() {
+        val all = layout.labels(zoom = 14, x = 8529, y = 5974, tileSizePx = 512)
+        var checks = 0
+        val part = layout.labels(zoom = 14, x = 8529, y = 5974, tileSizePx = 512) { ++checks > 300 }
+
+        assertTrue(layout.labels(zoom = 14, x = 8529, y = 5974, tileSizePx = 512) { true }.isEmpty())
+        assertTrue(part.size < all.size, "${part.size} of ${all.size}")
+    }
+
+    @Test
     fun laysOutMonacoLabels() {
         val labels = layout.labels(zoom = 14, x = 8529, y = 5974, tileSizePx = 512)
 

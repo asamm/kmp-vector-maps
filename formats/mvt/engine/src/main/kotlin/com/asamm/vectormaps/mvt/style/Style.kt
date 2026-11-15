@@ -70,7 +70,7 @@ class Style(
                 val obj = json[section] as? JsonObject ?: return emptyMap()
                 return obj.mapNotNull { (key, value) ->
                     compile(id, key, problems) {
-                        if (key == "color-relief-color") reliefStops(value) else Expression.compile(value)
+                        if (key == "color-relief-color") reliefStops(value) else Expression.compile(value, key)
                     }?.let { key to it }
                 }.toMap()
             }

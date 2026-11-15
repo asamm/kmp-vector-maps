@@ -168,7 +168,13 @@ class AwtMvtRenderTarget(
             // each line box is a line height tall, its glyphs centred in it
             val baseline = top + i * text.lineHeightPx + text.lineHeightPx / 2f +
                 (metrics.ascent - metrics.descent) / 2f
-            outline.append(glyphs.getOutline(x - width / 2f, baseline), false)
+            // centred by default; text-justify moves a shorter line to a side of the box
+            val left = if (text.lines.size < 2) {
+                x - width / 2f
+            } else {
+                x - text.width / 2f + (text.width - width) * text.justify
+            }
+            outline.append(glyphs.getOutline(left, baseline), false)
         }
         paint(outline, text)
     }
@@ -213,7 +219,10 @@ class AwtMvtRenderTarget(
         val saved = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION)
             ?: RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
+        val composite = g.composite
+        g.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, icon.opacity)
         g.drawImage(tile, transform, null)
+        g.composite = composite
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, saved)
     }
 

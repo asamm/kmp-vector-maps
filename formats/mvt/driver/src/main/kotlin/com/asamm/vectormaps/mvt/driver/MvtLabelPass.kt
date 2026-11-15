@@ -13,6 +13,7 @@ import com.asamm.vectormaps.core.label.LabelId
 import com.asamm.vectormaps.core.label.LabelKind
 import com.asamm.vectormaps.core.label.LabelText
 import com.asamm.vectormaps.core.label.LabelViewport
+import com.asamm.vectormaps.core.label.PathTextDirection
 import com.asamm.vectormaps.core.label.PreparedLabels
 import com.asamm.vectormaps.core.label.ScreenTransform
 import com.asamm.vectormaps.core.label.TileLabelSource
@@ -32,7 +33,7 @@ import kotlin.math.sin
 /**
  * The label pass of the MVT renderer (D39): places the symbols its tiles laid out and draws them
  * on an [MvtRenderTarget] the size of the screen. Point symbols stay upright; path texts follow
- * their line and read upright.
+ * their line and read upright unless `text-keep-upright` is false.
  */
 class MvtLabelPass internal constructor(
     source: TileLabelSource<MvtLabel>,
@@ -83,6 +84,7 @@ class MvtLabelPass internal constructor(
                 display = display,
                 text = labelText,
                 path = world,
+                direction = if (label.keepUpright) PathTextDirection.UPRIGHT else PathTextDirection.FORWARD,
                 source = label,
             )
         }
@@ -207,6 +209,7 @@ class MvtLabelPass internal constructor(
             && icon.translateX.isFinite()
             && icon.translateY.isFinite()
             && icon.rotateDeg.isFinite()
+            && icon.opacity in 0f..1f
     }
 
     private fun nonNegative(value: Float): Boolean {

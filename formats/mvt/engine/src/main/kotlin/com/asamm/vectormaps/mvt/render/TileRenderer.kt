@@ -96,6 +96,9 @@ class TileRenderer(
             val source = tile.layers[layer.sourceLayer] ?: continue
             try {
                 val paint = LayerPaint(layer)
+                // fill outlines go after all of the layer's fills, as MapLibre's second pass, so a
+                // neighbour's fill never covers half of a shared edge
+                val outlines = ArrayList<Pair<MvtPath, Color>>()
                 for (feature in index.candidates(layer = source, filter = layer.filter)) {
                     ctx.feature = feature
                     if (layer.filter != null
@@ -110,10 +113,13 @@ class TileRenderer(
                         frame = frame,
                     )
                     when (layer.type) {
-                        LayerType.FILL -> drawFill(paint, shape, ctx, target, x, y, pixelScale)
+                        LayerType.FILL -> drawFill(paint, shape, ctx, target, x, y, pixelScale, outlines)
                         LayerType.LINE -> drawLine(paint, shape, ctx, target, pixelScale)
                         else -> drawCircles(paint, shape, ctx, target, pixelScale)
                     }
+                }
+                for ((path, color) in outlines) {
+                    target.strokePath(path, color, pixelScale, LineCap.BUTT, LineJoin.MITER, null)
                 }
             } catch (e: RuntimeException) {
                 // a malformed style or tile skips this layer, not the tile
@@ -137,6 +143,7 @@ class TileRenderer(
         x: Int,
         y: Int,
         pixelScale: Float,
+        outlines: MutableList<Pair<MvtPath, Color>>,
     ) {
         if (shape.type != GeometryType.POLYGON
             || !shape.meets(marginPx = 1f)
@@ -159,7 +166,15 @@ class TileRenderer(
             return
         }
         val color = paint.color("fill-color", ctx) ?: Color(0xff000000.toInt())
-        target.fillPath(shape.path(), color.withOpacity(opacity), antialias)
+        val path = shape.path()
+        target.fillPath(path, color.withOpacity(opacity), antialias)
+        // MapLibre's 1 px outline, drawn only with antialiasing; unset, it is the fill's own edge
+        val outline = paint.color("fill-outline-color", ctx)
+        if (outline != null
+            && antialias
+        ) {
+            outlines += path to outline.withOpacity(opacity)
+        }
     }
 
     private fun drawLine(
@@ -217,8 +232,10 @@ class TileRenderer(
         if (!shape.meets(marginPx = radius + strokeWidth + 1f)) {
             return
         }
-        val color = paint.color("circle-color", ctx) ?: Color(0xff000000.toInt())
-        val strokeColor = paint.color("circle-stroke-color", ctx) ?: Color(0xff000000.toInt())
+        val color = (paint.color("circle-color", ctx) ?: Color(0xff000000.toInt()))
+            .withOpacity(paint.number("circle-opacity", ctx, 1.0))
+        val strokeColor = (paint.color("circle-stroke-color", ctx) ?: Color(0xff000000.toInt()))
+            .withOpacity(paint.number("circle-stroke-opacity", ctx, 1.0))
         val path = shape.path()
         var i = 0
         while (i + 1 < path.coords.size) {
