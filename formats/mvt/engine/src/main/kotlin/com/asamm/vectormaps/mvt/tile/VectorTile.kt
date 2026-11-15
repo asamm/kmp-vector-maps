@@ -79,9 +79,11 @@ class VectorTile(
                 val tag = reader.readTag()
                 value = when (tag) {
                     TAG_VALUE_STRING -> reader.readString()
-                    TAG_VALUE_FLOAT -> reader.readFloat().toDouble()
-                    TAG_VALUE_DOUBLE -> reader.readDouble()
-                    TAG_VALUE_INT, TAG_VALUE_UINT -> reader.readVarint().toDouble()
+                    // + 0.0: -0.0 as 0.0, the style's equality
+                    TAG_VALUE_FLOAT -> reader.readFloat().toDouble() + 0.0
+                    TAG_VALUE_DOUBLE -> reader.readDouble() + 0.0
+                    TAG_VALUE_INT -> reader.readVarint().toDouble()
+                    TAG_VALUE_UINT -> reader.readVarint().toULong().toDouble()
                     TAG_VALUE_SINT -> reader.readSVarint().toDouble()
                     TAG_VALUE_BOOL -> reader.readVarint() != 0L
                     else -> {

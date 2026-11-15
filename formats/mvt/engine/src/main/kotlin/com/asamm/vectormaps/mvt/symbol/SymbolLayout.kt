@@ -69,6 +69,8 @@ class SymbolLayout(
         val ctx = EvalContext(zoom.toDouble())
         val out = ArrayList<MvtLabel>()
         val features = FeatureIndex()
+        // a road's or a river's pieces repeat its name
+        val shaped = HashMap<Shaping, Shaped>()
         for ((index, layer) in style.layers.withIndex()) {
             if (layer.type != LayerType.SYMBOL
                 || !layer.isActive(ctx.zoom)
@@ -100,6 +102,7 @@ class SymbolLayout(
                         ctx = ctx,
                         tileSizePx = tileSizePx,
                         pixelScale = frame.pixelScale,
+                        shaped = shaped,
                         pieces = pieces,
                         out = out,
                     )
@@ -130,6 +133,7 @@ class SymbolLayout(
         ctx: EvalContext,
         tileSizePx: Int,
         pixelScale: Float,
+        shaped: MutableMap<Shaping, Shaped>,
         pieces: MutableList<LinePiece>,
         out: MutableList<MvtLabel>,
     ) {
@@ -154,7 +158,7 @@ class SymbolLayout(
             && layer.layout["text-rotation-alignment"]?.eval(ctx) as? String != "viewport"
         val iconAlongLine = onLine
             && layer.layout["icon-rotation-alignment"]?.eval(ctx) as? String != "viewport"
-        val text = shapeText(layer, ctx, pixelScale, wrap = !alongPath)
+        val text = shapeText(layer = layer, ctx = ctx, pixelScale = pixelScale, wrap = !alongPath, shaped = shaped)
         val icon = iconOf(layer, ctx, pixelScale)
         if (text == null
             && icon == null
@@ -333,7 +337,13 @@ class SymbolLayout(
         val line: LineSymbol,
     )
 
-    private fun shapeText(layer: StyleLayer, ctx: EvalContext, pixelScale: Float, wrap: Boolean): MvtText? {
+    private fun shapeText(
+        layer: StyleLayer,
+        ctx: EvalContext,
+        pixelScale: Float,
+        wrap: Boolean,
+        shaped: MutableMap<Shaping, Shaped>,
+    ): MvtText? {
         ctx.localNames = localNames
         val raw = try {
             layer.layout["text-field"]?.eval(ctx)
@@ -360,17 +370,17 @@ class SymbolLayout(
         val lineHeight = finite(number(layer.layout["text-line-height"], ctx, 1.2).toFloat(), 1.2f)
             .coerceAtLeast(0f) * size
         val maxWidth = finite(number(layer.layout["text-max-width"], ctx, 10.0).toFloat(), 10f) * size
-        // wrapping and the label's width measure the same lines
-        val widths = HashMap<String, Float>()
-        fun widthOf(line: String): Float {
-            return widths.getOrPut(line) { metrics.width(line, size, font, letterSpacing).coerceAtLeast(0f) }
+        val shaping = Shaping(
+            text = value,
+            sizePx = size,
+            font = font,
+            letterSpacingPx = letterSpacing,
+            maxWidthPx = maxWidth,
+            wrap = wrap,
+        )
+        val (lines, width) = shaped.getOrPut(shaping) {
+            shape(shaping)
         }
-        val lines = if (wrap) {
-            value.split('\n').flatMap { wrapLine(it, maxWidth, ::widthOf) }
-        } else {
-            listOf(value.replace('\n', ' '))
-        }
-        val width = lines.maxOf { widthOf(it) }
         val height = lines.size * lineHeight
         val offset = layer.layout["text-offset"]?.eval(ctx) as? List<*>
         val ox = finite(((offset?.getOrNull(0) as? Double) ?: 0.0).toFloat()) * size
@@ -403,6 +413,35 @@ class SymbolLayout(
             paddingPx = finite(number(layer.layout["text-padding"], ctx, 2.0).toFloat()).coerceAtLeast(0f) * pixelScale,
         )
     }
+
+    // the lines `shaping` wraps into and the widest one's width
+    private fun shape(shaping: Shaping): Shaped {
+        // wrapping and the label's width measure the same lines
+        val widths = HashMap<String, Float>()
+        fun widthOf(line: String): Float {
+            return widths.getOrPut(line) {
+                metrics.width(line, shaping.sizePx, shaping.font, shaping.letterSpacingPx).coerceAtLeast(0f)
+            }
+        }
+        val lines = if (shaping.wrap) {
+            shaping.text.split('\n').flatMap { wrapLine(it, shaping.maxWidthPx, ::widthOf) }
+        } else {
+            listOf(shaping.text.replace('\n', ' '))
+        }
+        return Shaped(lines = lines, width = lines.maxOf { widthOf(it) })
+    }
+
+    // what a text's lines and width depend on
+    private data class Shaping(
+        val text: String,
+        val sizePx: Float,
+        val font: MvtFont,
+        val letterSpacingPx: Float,
+        val maxWidthPx: Float,
+        val wrap: Boolean,
+    )
+
+    private data class Shaped(val lines: List<String>, val width: Float)
 
     private fun iconOf(layer: StyleLayer, ctx: EvalContext, pixelScale: Float): MvtIcon? {
         val name = layer.layout["icon-image"]?.eval(ctx) as? String ?: return null

@@ -18,7 +18,18 @@ class SpriteIndex(
     val images: Map<String, SpriteImage>,
 ) {
 
+    /**
+     * Image pixels per style pixel of image `name`, 2 in an `@2x` sheet; 1 when unknown.
+     */
+    fun pixelRatio(name: String): Float {
+        return images[name]?.pixelRatio?.toFloat() ?: 1f
+    }
+
     companion object {
+
+        private const val MIN_PIXEL_RATIO = 0.25
+
+        private const val MAX_PIXEL_RATIO = 16.0
 
         fun parse(text: String): SpriteIndex {
             val root = Json.parseToJsonElement(text).jsonObject
@@ -33,7 +44,10 @@ class SpriteIndex(
                         y = int("y"),
                         width = int("width"),
                         height = int("height"),
-                        pixelRatio = (o["pixelRatio"] as? JsonPrimitive)?.doubleOrNull ?: 1.0,
+                        // a malformed ratio would size icons and patterns to nothing or infinity
+                        pixelRatio = (o["pixelRatio"] as? JsonPrimitive)?.doubleOrNull
+                            ?.takeIf { it in MIN_PIXEL_RATIO..MAX_PIXEL_RATIO }
+                            ?: 1.0,
                     )
                 }.toMap(),
             )

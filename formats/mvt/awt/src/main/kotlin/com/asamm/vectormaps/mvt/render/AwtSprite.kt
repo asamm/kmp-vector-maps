@@ -40,4 +40,11 @@ class AwtSprite(
         images[name] = copy
         return copy
     }
+
+    /**
+     * Image pixels per style pixel of image `name`, as [SpriteIndex.pixelRatio].
+     */
+    fun pixelRatio(name: String): Float {
+        return index.pixelRatio(name)
+    }
 }

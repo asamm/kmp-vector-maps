@@ -37,7 +37,13 @@ class AwtMvtGraphics(
                 ) {
                     "loadSprite(), sheet of $width x $height px"
                 }
-                return AwtSprite(index, reader.read(0))
+                val sheet = try {
+                    reader.read(0)
+                } catch (e: OutOfMemoryError) {
+                    // an Error passes the caller's catch; the style goes without the sheet
+                    throw IllegalArgumentException("loadSprite(), no memory for the sheet", e)
+                }
+                return AwtSprite(index, sheet)
             } finally {
                 reader.dispose()
             }

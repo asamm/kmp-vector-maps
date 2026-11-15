@@ -50,7 +50,8 @@ class TileRenderer(
      * @param data the tile's data tile when the caller has it, else read from the tile source
      * @param hillshade the host's elevation drawing, called at each active hillshade and
      *  colour-relief layer, which the renderer leaves to the host
-     * @return false when there is no data for the tile
+     * @return [Result.EMPTY] when there is no data for the tile, [Result.CANCELLED] when
+     *  `isCancelled` stopped it part-drawn
      */
     fun render(
         zoom: Int,
@@ -60,15 +61,15 @@ class TileRenderer(
         isCancelled: () -> Boolean,
         data: VectorTile? = null,
         hillshade: ((StyleLayer) -> Unit)? = null,
-    ): Boolean {
+    ): Result {
         val frame = DataTileFrame(zoom, x, y, target.widthPx, target.heightPx, maxDataZoom, scale)
-        val tile = data ?: tileSource(frame.dataZoom, frame.dataX, frame.dataY) ?: return false
+        val tile = data ?: tileSource(frame.dataZoom, frame.dataX, frame.dataY) ?: return Result.EMPTY
         val pixelScale = frame.pixelScale
         val ctx = EvalContext(zoom.toDouble())
         val index = FeatureIndex()
         for (layer in style.layers) {
             if (isCancelled()) {
-                return true
+                return Result.CANCELLED
             }
             if (!layer.isActive(ctx.zoom)) {
                 continue
@@ -109,7 +110,7 @@ class TileRenderer(
                         frame = frame,
                     )
                     when (layer.type) {
-                        LayerType.FILL -> drawFill(paint, shape, ctx, target, x, y)
+                        LayerType.FILL -> drawFill(paint, shape, ctx, target, x, y, pixelScale)
                         LayerType.LINE -> drawLine(paint, shape, ctx, target, pixelScale)
                         else -> drawCircles(paint, shape, ctx, target, pixelScale)
                     }
@@ -119,7 +120,13 @@ class TileRenderer(
                 failed.add(layer.id)
             }
         }
-        return true
+        return Result.DRAWN
+    }
+
+    enum class Result {
+        DRAWN,
+        EMPTY,
+        CANCELLED,
     }
 
     private fun drawFill(
@@ -129,6 +136,7 @@ class TileRenderer(
         target: MvtRenderTarget,
         x: Int,
         y: Int,
+        pixelScale: Float,
     ) {
         if (shape.type != GeometryType.POLYGON
             || !shape.meets(marginPx = 1f)
@@ -146,6 +154,7 @@ class TileRenderer(
                 antialias,
                 x.toLong() * target.widthPx,
                 y.toLong() * target.heightPx,
+                pixelScale,
             )
             return
         }

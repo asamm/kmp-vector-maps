@@ -6,7 +6,8 @@ third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin render
 **Author:** Menion · **Analysed:** 2026-11-12 · **Milestone:** M10 (see [ROADMAP.md](ROADMAP.md)) ·
 **Status:** spike, M10.1 symbols, M10.2 driver and M10.2b viewer online maps done 2026-11-12;
 M10.3a engine performance, M10.3b render settings and M10.3c Android target done 2026-11-13, M10.3d
-A54 and Czech benchmarks 2026-11-14 ([performance.md](performance.md)); M10.3e render costs 🔧
+A54 and Czech benchmarks and M10.3e render costs 2026-11-14 ([performance.md](performance.md));
+M10.3f spike leftovers 🔧
 
 ## Goal
 
@@ -92,10 +93,11 @@ Why A fits:
 - Done from its review in M10.3a ([performance.md](performance.md)): geometry decoded once per
   feature and tile, an overzoom bounding-box cull, feature-constant properties evaluated once per
   layer.
-- Left from its review (M10.3f): a tri-state render result for cancelling, patterns scaled for
-  the tile size and `deviceScale`, and `@2x` sprites; expression details MapLibre handles differently and the
-  Asamm styles do not use (`string`/`number` type assertions, `to-number` of null, negative
-  `slice`, `round` of halves, uint64 ids).
+- Done from its review in M10.3f: a render result telling a cancelled tile from an empty one,
+  fill patterns scaled with the tile size and `deviceScale`, the `@2x` sprite above a style pixel
+  per screen pixel, and expression details as MapLibre (`string`/`number`/`boolean` assertions,
+  `to-number` of null, negative `slice`, `round` of halves away from zero, -0 equal to 0, uint64
+  ids and values), and each text shaped once per tile layout.
 
 ## Symbols
 
@@ -131,8 +133,7 @@ draws them on the target (D39).
   text placed along the line by `text-anchor` or `text-offset[0]` (centred here), an icon beside a
   path text (no Asamm style has one), `symbol-sort-key` beyond 0–999, mixed-direction text runs
   (one base direction per line); the label golden on a four-tile corner with a placement dump
-  and `isCancelled` for the layout, with neighbouring fixture tiles; with M10.3f shaped text cached
-  per layer.
+  and `isCancelled` for the layout, with neighbouring fixture tiles.
 
 ## Driver
 
@@ -143,15 +144,15 @@ formats; the desktop viewer opens `.pmtiles` maps with a `style.json`.
 |---|---|
 | Offline | `open(files)` reads PMTiles v3 (`PmTilesSource`: gzip or plain directories and tiles, leaf directories), files of one max zoom; MBTiles waits for V1 |
 | Online | `openSource(MvtTileSource)`: the host's downloader and cache; the library ships none; the desktop viewer opens a TileJSON file (`tiles/planet.json`) through its own `HttpTileSource`, tiles cached in `~/.kmp-vector-maps/tiles` |
-| Style | `loadStyle(style.json)` with `sprite.json` and `sprite.png` beside it, or the name its `sprite` gives; every vector source reads the dataset |
-| Platform | `MvtGraphics` creates targets and decodes sprites; `AwtMvtGraphics` on the desktop, `AndroidMvtGraphics` (`formats/mvt/android`, `Canvas`, Android's own text shaping) on Android; sprite sheets up to 8192 px a side on the desktop, 4096 × 4096 pixels in all on Android, a larger one leaves the style without icons |
+| Style | `loadStyle(style.json)` with `sprite.json` and `sprite.png` beside it, or the name its `sprite` gives, and its `@2x` sheet for renderers above a style pixel per screen pixel, each decoded on first use; every vector source reads the dataset |
+| Platform | `MvtGraphics` creates targets and decodes sprites; `AwtMvtGraphics` on the desktop, `AndroidMvtGraphics` (`formats/mvt/android`, `Canvas`, Android's own text shaping) on Android; sprite sheets up to 8192 px a side on the desktop, 4096 × 4096 pixels in all on Android, a larger one leaves the style without icons, an oversized or unreadable `@2x` sheet falls back to the 1x one |
 | Renderer | tiles above the sources' max zoom cut from it, decoded data tiles cached for their children; the label store sized by the host; the hillshade hook at each active hillshade and colour-relief layer, with its source and paint (`HillshadeLayer`); labels stored per tile for the label pass |
 
 - The fixture `dev/fixtures/mvt/tiles/fixtures.pmtiles` holds the 6 fixture tiles, written by
   `dev/mvt/pmtiles.py` from the spec, apart from the Kotlin reader; the goldens read it through
   the driver.
 - `RenderConfig` (M10.3b): a style pixel is `deviceScale` screen pixels on a 512 px tile and scales
-  with the tile size, as MapLibre's, fill patterns excepted (M10.3f); a host with tiles of
+  with the tile size, as MapLibre's, fill patterns too; a host with tiles of
   256 px × density (D20) passes 2 for Mapsforge's sizes at `deviceScale` = density; `textScale` multiplies
   text and halos; `language` makes text fields read `name:xx` for `name` where a feature has it,
   as the MapLibre language plugin does: `zh-Hant` reads `name:zh-Hant`, then `name:zh`, `de-AT`

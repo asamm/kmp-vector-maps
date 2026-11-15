@@ -150,7 +150,7 @@ internal object ExpressionCompiler {
             JsonNull -> null
             is JsonPrimitive -> when {
                 json.isString -> json.content
-                else -> json.booleanOrNull ?: json.doubleOrNull
+                else -> json.booleanOrNull ?: json.doubleOrNull?.let { it + 0.0 }
             }
             is JsonArray -> json.map { toValue(it) }
             is JsonObject -> json.mapValues { toValue(it.value) }
@@ -213,11 +213,11 @@ internal object ExpressionCompiler {
             "!has" -> feature { ctx -> read(ctx) == null }
             "in" -> {
                 val set = values.toHashSet()
-                feature(selector = Selector(key = key, values = set).takeIf { selects }) { ctx -> read(ctx) in set }
+                feature(selector = Selector(key = key, values = set).takeIf { selects }) { ctx -> canonical(read(ctx)) in set }
             }
             "!in" -> {
                 val set = values.toHashSet()
-                feature { ctx -> read(ctx) !in set }
+                feature { ctx -> canonical(read(ctx)) !in set }
             }
             "==" -> feature(selector = Selector(key = key, values = setOf(values[0])).takeIf { selects }) { ctx ->
                 looseEquals(read(ctx), values[0])
@@ -231,7 +231,7 @@ internal object ExpressionCompiler {
     private fun legacyGetter(key: String): (EvalContext) -> Any? {
         return when (key) {
             "\$type" -> { ctx -> ctx.feature?.type?.let { geometryTypeName(it) } }
-            "\$id" -> { ctx -> ctx.feature?.id?.toDouble() }
+            "\$id" -> { ctx -> ctx.feature?.id?.let { idValue(it) } }
             else -> { ctx -> ctx.feature?.property(key) }
         }
     }
@@ -294,7 +294,7 @@ internal object ExpressionCompiler {
                 feature { ctx -> ctx.feature?.property(key) != null }
             }
             "geometry-type" -> feature { ctx -> ctx.feature?.type?.let { geometryTypeName(it) } }
-            "id" -> feature { ctx -> ctx.feature?.id?.toDouble() }
+            "id" -> feature { ctx -> ctx.feature?.id?.let { idValue(it) } }
             "zoom" -> Op(args = emptyArray(), readsFeature = false, readsZoom = true) { ctx, _ -> ctx.zoom }
             "let" -> {
                 // name, value pairs and a body
@@ -361,7 +361,7 @@ internal object ExpressionCompiler {
                 val set = (args[1] as? Constant)?.eval(EvalContext()).let { it as? List<*> }?.toHashSet()
                 if (set != null) {
                     val selector = propertyKeyOf(args[0])?.let { Selector(key = it, values = set) }
-                    op(args, selector = selector) { ctx, a -> a[0].eval(ctx) in set }
+                    op(args, selector = selector) { ctx, a -> canonical(a[0].eval(ctx)) in set }
                 } else {
                     op(args) { ctx, a ->
                         val needle = a[0].eval(ctx)
@@ -386,12 +386,12 @@ internal object ExpressionCompiler {
                 val end = if (a.size > 2) (a[2].eval(ctx) as? Double)?.toInt() else null
                 when (val v = a[0].eval(ctx)) {
                     is String -> {
-                        val from = start.coerceIn(0, v.length)
-                        v.substring(from, (end ?: v.length).coerceIn(from, v.length))
+                        val from = sliceIndex(start, v.length)
+                        v.substring(from, sliceIndex(end ?: v.length, v.length).coerceAtLeast(from))
                     }
                     is List<*> -> {
-                        val from = start.coerceIn(0, v.size)
-                        v.subList(from, (end ?: v.size).coerceIn(from, v.size))
+                        val from = sliceIndex(start, v.size)
+                        v.subList(from, sliceIndex(end ?: v.size, v.size).coerceAtLeast(from))
                     }
                     else -> null
                 }
@@ -437,7 +437,10 @@ internal object ExpressionCompiler {
                 }
             }
             "to-color" -> op(args) { ctx, a -> toColor(a[0].eval(ctx)) }
-            "string", "number", "boolean" -> op(args) { ctx, a -> a[0].eval(ctx) }
+            // the first value of the type; none is an error, which leaves the property's default
+            "string" -> op(args) { ctx, a -> a.firstNotNullOfOrNull { it.eval(ctx) as? String } }
+            "number" -> op(args) { ctx, a -> a.firstNotNullOfOrNull { it.eval(ctx) as? Double } }
+            "boolean" -> op(args) { ctx, a -> a.firstNotNullOfOrNull { it.eval(ctx) as? Boolean } }
             "length" -> op(args) { ctx, a ->
                 when (val v = a[0].eval(ctx)) {
                     is String -> v.length.toDouble()
@@ -457,7 +460,14 @@ internal object ExpressionCompiler {
             "max" -> op(args) { ctx, a -> a.maxOf { num(it.eval(ctx)) } }
             "ceil" -> op(args) { ctx, a -> ceil(num(a[0].eval(ctx))) }
             "floor" -> op(args) { ctx, a -> floor(num(a[0].eval(ctx))) }
-            "round" -> op(args) { ctx, a -> Math.round(num(a[0].eval(ctx))).toDouble() }
+            // halves away from zero, as MapLibre
+            "round" -> op(args) { ctx, a ->
+                val v = num(a[0].eval(ctx))
+                // the fraction compared, not abs(v) + 0.5, which itself rounds next to a half
+                val whole = floor(kotlin.math.abs(v))
+                val rounded = if (kotlin.math.abs(v) - whole >= 0.5) whole + 1.0 else whole
+                kotlin.math.sign(v) * rounded
+            }
             "abs" -> op(args) { ctx, a -> kotlin.math.abs(num(a[0].eval(ctx))) }
             else -> throw UnsupportedExpressionException(name)
         }
@@ -484,7 +494,7 @@ internal object ExpressionCompiler {
             }
         }
         return op(listOf(input) + outputs + fallback) { ctx, _ ->
-            (outputOf[input.eval(ctx)] ?: fallback).eval(ctx)
+            (outputOf[canonical(input.eval(ctx))] ?: fallback).eval(ctx)
         }
     }
 
@@ -590,14 +600,22 @@ internal object ExpressionCompiler {
         }
     }
 
-    // plain equality: the sets and maps of `in`, `match` and selectors compare the same way
+    // plain equality but for -0.0, which equals 0 as in MapLibre; the sets and maps of `in`,
+    // `match` and selectors compare the same way, as values reach them through canonical
     fun looseEquals(a: Any?, b: Any?): Boolean {
-        return a == b
+        return canonical(a) == canonical(b)
+    }
+
+    /**
+     * `v` with -0.0 as 0.0, the key the sets and maps of `in`, `match` and selectors hold.
+     */
+    fun canonical(v: Any?): Any? {
+        return if (v is Double) v + 0.0 else v
     }
 
     private fun compareValues(op: String, a: Any?, b: Any?): Boolean {
         val c = when {
-            a is Double && b is Double -> a.compareTo(b)
+            a is Double && b is Double -> (a + 0.0).compareTo(b + 0.0)
             a is String && b is String -> a.compareTo(b)
             else -> return false
         }
@@ -613,13 +631,25 @@ internal object ExpressionCompiler {
         return v as? Double ?: 0.0
     }
 
+    // null converts to 0, as MapLibre
     private fun toNumberOrNull(v: Any?): Double? {
         return when (v) {
+            null -> 0.0
             is Double -> v
             is String -> v.toDoubleOrNull()
             is Boolean -> if (v) 1.0 else 0.0
             else -> null
         }
+    }
+
+    // a negative index counts from the end, as JavaScript's slice
+    private fun sliceIndex(index: Int, length: Int): Int {
+        return if (index < 0) maxOf(length + index, 0) else minOf(index, length)
+    }
+
+    // the spec's ids are uint64
+    private fun idValue(id: Long): Double {
+        return id.toULong().toDouble()
     }
 
     fun toText(v: Any?): String {

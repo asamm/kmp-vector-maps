@@ -77,6 +77,8 @@ class MvtRenderer internal constructor(
     // data tiles being read and decoded, by cache key
     private val loading = ConcurrentHashMap<Long, CompletableFuture<VectorTile?>>()
 
+    private val sprite = style.spriteFor(pixelScale = config.tileSizePx / 512f * config.deviceScale)
+
     // the tileSource lambdas are a fallback only: renderTile always passes its data tile
     private val tiles = TileRenderer(
         style = style.style,
@@ -87,7 +89,7 @@ class MvtRenderer internal constructor(
 
     private val layout = SymbolLayout(
         style = style.style,
-        sprite = style.spriteIndex,
+        sprite = sprite?.index,
         metrics = graphics.metrics,
         maxDataZoom = maxDataZoom,
         scale = config.deviceScale,
@@ -102,7 +104,7 @@ class MvtRenderer internal constructor(
         source = labelStore,
         tileSize = config.tileSizePx,
         graphics = graphics,
-        sprite = style.sprite,
+        sprite = sprite?.sheet,
     )
 
     /**
@@ -162,8 +164,8 @@ class MvtRenderer internal constructor(
         val data = tile(zoom = tile.zoom - dz, x = tile.x shr dz, y = tile.y shr dz, shared = dz > 0)
             ?: return RenderResult.EMPTY
         val tileSize = key.config.tileSizePx
-        val canvas = graphics.createTarget(widthPx = tileSize, heightPx = tileSize, sprite = style.sprite)
-        val drawn = tiles.render(
+        val canvas = graphics.createTarget(widthPx = tileSize, heightPx = tileSize, sprite = sprite?.sheet)
+        val result = tiles.render(
             zoom = tile.zoom,
             x = tile.x,
             y = tile.y,
@@ -182,9 +184,12 @@ class MvtRenderer internal constructor(
                 LOGGER.log(Level.SEVERE, "hillshade($tile, ${layer.id})", e)
             }
         }
-        if (!drawn) {
-            return RenderResult.EMPTY
+        when (result) {
+            TileRenderer.Result.EMPTY -> return RenderResult.EMPTY
+            TileRenderer.Result.CANCELLED -> return RenderResult.CANCELLED
+            TileRenderer.Result.DRAWN -> Unit
         }
+        // cancelled after the last layer: the layout is skipped
         if (isCancelled()) {
             return RenderResult.CANCELLED
         }

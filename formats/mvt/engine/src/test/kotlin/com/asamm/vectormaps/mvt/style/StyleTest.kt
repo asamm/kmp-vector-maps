@@ -95,6 +95,20 @@ class StyleTest {
         assertEquals(1.0, eval("""["index-of", "x", ["literal", ["a", "x"]]]"""))
         assertEquals("AB", eval("""["upcase", ["concat", "a", "b"]]"""))
         assertEquals("bc", eval("""["slice", "abc", 1]"""))
+        assertEquals("bc", eval("""["slice", "abc", -2]"""))
+        assertEquals("ab", eval("""["slice", "abc", 0, -1]"""))
+        assertEquals(-2.0, eval("""["round", -1.5]"""))
+        assertEquals(3.0, eval("""["round", 2.5]"""))
+        assertEquals(true, eval("""["==", ["round", -0.3], 0]"""))
+        assertEquals(0.0, eval("""["round", 0.49999999999999994]"""))
+        assertEquals(4503599627370497.0, eval("""["round", 4503599627370497]"""))
+        assertEquals(true, eval("""["==", ["ceil", -0.3], 0]"""))
+        assertEquals(false, eval("""["<", ["ceil", -0.3], 0]"""))
+        assertEquals(true, eval("""["in", ["ceil", -0.3], ["literal", [0, 1]]]"""))
+        assertEquals(0.0, eval("""["to-number", null, "7"]"""))
+        assertEquals(7.0, eval("""["to-number", "x", "7"]"""))
+        assertEquals("b", eval("""["string", 1, "b"]"""))
+        assertEquals(null, eval("""["number", "a"]"""))
         assertEquals(6.0, eval("""["let", "w", 3, ["*", ["var", "w"], 2]]"""))
         assertEquals("y", eval("""["case", false, "x", true, "y", "z"]"""))
         assertEquals(
@@ -105,6 +119,21 @@ class StyleTest {
         assertEquals(Color(0x80ff0000.toInt()), Colors.interpolate(Color(0xffff0000.toInt()), Color(0x00ff0000), 0.5))
         assertEquals(Color(0x80ff0000.toInt()), Colors.parse("rgba(255, 0, 0, 0.5)"))
         assertEquals(Color(0xff00ff00.toInt()), Colors.parse("hsl(120, 100%, 50%)"))
+    }
+
+    @Test
+    fun readsSpritePixelRatios() {
+        val index = SpriteIndex.parse(
+            """{"a": {"width": 2, "height": 2, "pixelRatio": 2},
+               "b": {"width": 2, "height": 2, "pixelRatio": 1e400},
+               "c": {"width": 2, "height": 2, "pixelRatio": 1e-50}}""",
+        )
+
+        assertEquals(2f, index.pixelRatio("a"))
+        // a malformed ratio reads as 1, as a missing one
+        assertEquals(1f, index.pixelRatio("b"))
+        assertEquals(1f, index.pixelRatio("c"))
+        assertEquals(1f, index.pixelRatio("none"))
     }
 
     @Test

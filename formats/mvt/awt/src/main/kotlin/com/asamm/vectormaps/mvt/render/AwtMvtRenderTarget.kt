@@ -82,16 +82,13 @@ class AwtMvtRenderTarget(
         antialias: Boolean,
         tileOriginX: Long,
         tileOriginY: Long,
+        scale: Float,
     ) {
         val tile = sprite?.image(pattern) ?: return
-        val w = tile.width
-        val h = tile.height
-        val anchor = Rectangle2D.Float(
-            -Math.floorMod(tileOriginX, w.toLong()).toFloat(),
-            -Math.floorMod(tileOriginY, h.toLong()).toFloat(),
-            w.toFloat(),
-            h.toFloat(),
-        )
+        val factor = scale / sprite.pixelRatio(pattern)
+        val w = tile.width * factor
+        val h = tile.height * factor
+        val anchor = Rectangle2D.Float(-patternOffset(tileOriginX, w), -patternOffset(tileOriginY, h), w, h)
         val saved = g.composite
         g.composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, opacity.coerceIn(0f, 1f))
         g.setRenderingHint(
@@ -99,7 +96,13 @@ class AwtMvtRenderTarget(
             if (antialias) RenderingHints.VALUE_ANTIALIAS_ON else RenderingHints.VALUE_ANTIALIAS_OFF,
         )
         g.paint = TexturePaint(tile, anchor)
+        // a scaled pattern samples between its pixels, as icons do
+        // a fresh Graphics2D reports no hint; its default is nearest neighbour
+        val interpolation = g.getRenderingHint(RenderingHints.KEY_INTERPOLATION)
+            ?: RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
         g.fill(toPath(path, Path2D.WIND_NON_ZERO))
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, interpolation)
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         g.composite = saved
     }
