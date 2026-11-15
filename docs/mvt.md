@@ -7,7 +7,8 @@ third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin render
 **Status:** spike, M10.1 symbols, M10.2 driver and M10.2b viewer online maps done 2026-11-12;
 M10.3a engine performance, M10.3b render settings and M10.3c Android target done 2026-11-13, M10.3d
 A54 and Czech benchmarks and M10.3e render costs 2026-11-14 ([performance.md](performance.md));
-M10.3f spike leftovers 2026-11-15; M10.4 label robustness and spec coverage 🔧
+M10.3f spike leftovers 2026-11-15; M10.4 label robustness and spec coverage 2026-11-15 (PR #63);
+M10.5 `text-rotate` and `text-halo-blur` 🔧
 
 ## Goal
 
@@ -115,7 +116,7 @@ draws them on the target (D39).
 | Icons on lines turn with them (`icon-rotation-alignment` `auto` = `map`), `icon-offset` with `icon-rotate`, `icon-translate` in the map's frame | same |
 | Later layers place first, then lower `symbol-sort-key` | label priority |
 | `allow-overlap` | `ALWAYS`, which also never blocks others |
-| Text: `text-field`, `-transform`, `-size`, `-font` face, `-max-width` wrapping at spaces and hyphens, `-line-height`, `-letter-spacing`, `-anchor`, `-offset`, `-padding`, halo | same; lines wrap greedily, not balanced |
+| Text: `text-field`, `-transform`, `-size`, `-font` face, `-max-width` wrapping at spaces and hyphens, `-line-height`, `-letter-spacing`, `-anchor`, `-offset`, `-padding`, `-justify`, `-rotate`, `-opacity`, halo with blur | same; lines wrap greedily, not balanced |
 | Icons: `icon-image`, `-size`, `-offset`, `-rotate`, `-padding`, `icon-translate` | same |
 | SDF glyphs from the font server | platform fonts, shaped (joining, bidi base direction) for measuring and drawing; goldens use the bundled DejaVu Sans |
 

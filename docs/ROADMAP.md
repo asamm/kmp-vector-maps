@@ -84,13 +84,13 @@ the archive has the full notes.
 | P8 | The menu's per-instruction category filter is not covered by the corpus | M2.1 | — |
 | P16 | Corpus gaps: explicit way label positions, water tiles, `readLabels`, `readPoiData` | M2.5 | — |
 | P9 | `PaintCostTest` never ran on the A54; F1's native growth mostly unexplained (Q18) | M5.3 | M7 |
-| P10 | The Android viewer redraws the Garmin label bitmap every pan frame | PR #42 | M8 |
+| P10 | The Android viewer redraws the Garmin label bitmap every pan frame, and the MVT one (PR #59) | PR #42 | M8 |
 | P11 | A Garmin road name over a sharp turn draws its letters around the bend | M6.1d | — |
 | P12 | Garmin: an archive's first TYP styles all its maps; maps across the antimeridian rejected | M4.3b | — |
 | P13 | An external `.typ`'s night style is not offered by the viewers | M4.4 | M8 |
 | P14 | The desktop viewer builds renderers on its UI thread | M4.2b | — |
 | P17 | The PMTiles directory cache (100,000 entries, ~3 MB of columns) not measured on a planet file | M10.3d | — |
-| P18 | MVT blurred halos draw each text up to 7 times, a turned path text a character at a time; the Android viewer redraws MVT labels every pan frame; not measured on the A54 | M10.5 | — |
+| P18 | MVT blurred halos draw each text up to 7 times (6 rings from a density of ~1.43), a turned path text a character at a time; not measured on the A54 | M10.5 | — |
 
 - P1: M8 settles it with an Android golden of the pass.
 - P10: the fix is an `AndroidRenderTarget` over an external `Canvas`, an engine API change.

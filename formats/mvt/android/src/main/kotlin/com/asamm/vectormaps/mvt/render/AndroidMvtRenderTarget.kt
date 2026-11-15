@@ -61,6 +61,11 @@ class AndroidMvtRenderTarget(
 
     private val tangent = FloatArray(2)
 
+    // a turned path text's characters: their starts, and x, y, angle, advance of each
+    private var charStarts = IntArray(CHARS)
+
+    private var charPlaces = FloatArray(CHARS * 4)
+
     private val iconBox = RectF()
 
     // a tile's pattern fills share their pattern's shader
@@ -246,30 +251,52 @@ class AndroidMvtRenderTarget(
         if (measure.length <= 0f) {
             return
         }
+        // placed once, drawn for each halo ring and the fill
+        val count = placeAlong(line = line, start = start)
         paint(text) {
-            turnedAlong(text = text, line = line, start = start, baseline = baseline)
+            turnedAlong(text = text, line = line, count = count, baseline = baseline)
         }
     }
 
-    // each character of `line` at its point on `along`, shifted across the line by text-offset,
-    // then turned by text-rotate about its centre
-    private fun turnedAlong(text: MvtText, line: String, start: Float, baseline: Float) {
+    // each character of `line` at its point on `along` into charStarts and charPlaces; the count
+    private fun placeAlong(line: String, start: Float): Int {
+        val count = line.codePointCount(0, line.length)
+        if (charStarts.size <= count) {
+            charStarts = IntArray(count + 1)
+            charPlaces = FloatArray(count * 4)
+        }
+        var at = start
         var i = 0
-        while (i < line.length) {
+        for (c in 0 until count) {
             val next = line.offsetByCodePoints(i, 1)
             val advance = this.text.measureText(line, i, next)
-            val at = start + this.text.measureText(line, 0, i) + advance / 2f
+            val centre = at + advance / 2f
             // past either end the line goes on straight, as for glyphs measured a little wider
-            val on = at.coerceIn(0f, measure.length)
+            val on = centre.coerceIn(0f, measure.length)
             measure.getPosTan(on, position, tangent)
+            charStarts[c] = i
+            charPlaces[c * 4] = position[0] + tangent[0] * (centre - on)
+            charPlaces[c * 4 + 1] = position[1] + tangent[1] * (centre - on)
+            charPlaces[c * 4 + 2] = Math.toDegrees(atan2(tangent[1], tangent[0]).toDouble()).toFloat()
+            charPlaces[c * 4 + 3] = advance
+            at += advance
+            i = next
+        }
+        charStarts[count] = line.length
+        return count
+    }
+
+    // the placed characters, shifted across the line by text-offset, then turned by text-rotate
+    // about their centres
+    private fun turnedAlong(text: MvtText, line: String, count: Int, baseline: Float) {
+        for (c in 0 until count) {
             val saved = canvas.save()
-            canvas.translate(position[0] + tangent[0] * (at - on), position[1] + tangent[1] * (at - on))
-            canvas.rotate(Math.toDegrees(atan2(tangent[1], tangent[0]).toDouble()).toFloat())
+            canvas.translate(charPlaces[c * 4], charPlaces[c * 4 + 1])
+            canvas.rotate(charPlaces[c * 4 + 2])
             canvas.translate(0f, text.centerY)
             canvas.rotate(text.rotateDeg)
-            canvas.drawText(line, i, next, -advance / 2f, baseline, this.text)
+            canvas.drawText(line, charStarts[c], charStarts[c + 1], -charPlaces[c * 4 + 3] / 2f, baseline, this.text)
             canvas.restoreToCount(saved)
-            i = next
         }
     }
 
@@ -331,5 +358,11 @@ class AndroidMvtRenderTarget(
             start = end
         }
         return p
+    }
+
+    private companion object {
+
+        // characters of a turned path text placed without growing the arrays
+        const val CHARS = 32
     }
 }

@@ -32,9 +32,9 @@ import kotlin.math.sin
 
 /**
  * The label pass of the MVT renderer (D39): places the symbols its tiles laid out and draws them
- * on an [MvtRenderTarget] the size of the screen. Point symbols stay upright, turned by
- * `text-rotate` alone; path texts follow their line and read upright unless `text-keep-upright` is
- * false.
+ * on an [MvtRenderTarget] the size of the screen. Point texts stay upright but for `text-rotate`;
+ * icons turn by `icon-rotate` and, placed on a line, with it; path texts follow their line and read
+ * upright unless `text-keep-upright` is false.
  */
 class MvtLabelPass internal constructor(
     source: TileLabelSource<MvtLabel>,
