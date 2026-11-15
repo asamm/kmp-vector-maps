@@ -11,11 +11,13 @@ import android.graphics.DashPathEffect
 import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.PathMeasure
 import android.graphics.RectF
 import android.graphics.Shader
 import com.asamm.vectormaps.mvt.style.Color
 import com.asamm.vectormaps.mvt.symbol.MvtIcon
 import com.asamm.vectormaps.mvt.symbol.MvtText
+import kotlin.math.atan2
 import kotlin.math.hypot
 
 /**
@@ -52,6 +54,12 @@ class AndroidMvtRenderTarget(
     private val along = Path()
 
     private val metrics = Paint.FontMetrics()
+
+    private val measure = PathMeasure()
+
+    private val position = FloatArray(2)
+
+    private val tangent = FloatArray(2)
 
     private val iconBox = RectF()
 
@@ -180,17 +188,15 @@ class AndroidMvtRenderTarget(
         // each line box is a line height tall, its glyphs centred in it
         val first = y - text.height / 2f + text.lineHeightPx / 2f -
             (metrics.ascent + metrics.descent) / 2f
+        val saved = canvas.save()
+        canvas.rotate(text.rotateDeg, x, y)
         // all halos first, so no line's halo covers another's glyphs
-        if (hasHalo(text)) {
-            halo(text)
+        paint(text) {
             for ((i, line) in text.lines.withIndex()) {
                 canvas.drawText(line, lineX(text, line, x), first + i * text.lineHeightPx, this.text)
             }
         }
-        glyphs(text)
-        for ((i, line) in text.lines.withIndex()) {
-            canvas.drawText(line, lineX(text, line, x), first + i * text.lineHeightPx, this.text)
-        }
+        canvas.restoreToCount(saved)
     }
 
     // the centre of `line` in the box centred at `x`: text-justify moves a shorter line to a side
@@ -226,14 +232,45 @@ class AndroidMvtRenderTarget(
             length += hypot(path[i] - path[i - 2], path[i + 1] - path[i - 1])
         }
         val start = (length - this.text.measureText(line)) / 2f
-        // the glyphs centre on the line, shifted across it by text-offset
-        val across = -(metrics.ascent + metrics.descent) / 2f + text.centerY
-        if (hasHalo(text)) {
-            halo(text)
-            canvas.drawTextOnPath(line, along, start, across, this.text)
+        // the glyphs centre on the line
+        val baseline = -(metrics.ascent + metrics.descent) / 2f
+        if (text.rotateDeg == 0f) {
+            // shifted across the line by text-offset
+            paint(text) {
+                canvas.drawTextOnPath(line, along, start, baseline + text.centerY, this.text)
+            }
+            return
         }
-        glyphs(text)
-        canvas.drawTextOnPath(line, along, start, across, this.text)
+        // drawTextOnPath cannot turn a glyph, so each character is placed on its own, unshaped
+        measure.setPath(along, false)
+        if (measure.length <= 0f) {
+            return
+        }
+        paint(text) {
+            turnedAlong(text = text, line = line, start = start, baseline = baseline)
+        }
+    }
+
+    // each character of `line` at its point on `along`, shifted across the line by text-offset,
+    // then turned by text-rotate about its centre
+    private fun turnedAlong(text: MvtText, line: String, start: Float, baseline: Float) {
+        var i = 0
+        while (i < line.length) {
+            val next = line.offsetByCodePoints(i, 1)
+            val advance = this.text.measureText(line, i, next)
+            val at = start + this.text.measureText(line, 0, i) + advance / 2f
+            // past either end the line goes on straight, as for glyphs measured a little wider
+            val on = at.coerceIn(0f, measure.length)
+            measure.getPosTan(on, position, tangent)
+            val saved = canvas.save()
+            canvas.translate(position[0] + tangent[0] * (at - on), position[1] + tangent[1] * (at - on))
+            canvas.rotate(Math.toDegrees(atan2(tangent[1], tangent[0]).toDouble()).toFloat())
+            canvas.translate(0f, text.centerY)
+            canvas.rotate(text.rotateDeg)
+            canvas.drawText(line, i, next, -advance / 2f, baseline, this.text)
+            canvas.restoreToCount(saved)
+            i = next
+        }
     }
 
     override fun drawIcon(icon: MvtIcon, x: Float, y: Float, rotateDeg: Float) {
@@ -252,23 +289,26 @@ class AndroidMvtRenderTarget(
         canvas.restoreToCount(saved)
     }
 
-    private fun hasHalo(text: MvtText): Boolean {
-        return text.haloWidthPx > 0f
-            && text.haloColor.alpha > 0
-    }
-
-    // the halo as a round stroke around the glyphs
-    private fun halo(text: MvtText) {
-        this.text.style = Paint.Style.STROKE
-        this.text.strokeWidth = text.haloWidthPx * 2f
-        this.text.strokeJoin = Paint.Join.ROUND
-        this.text.strokeCap = Paint.Cap.ROUND
-        this.text.color = text.haloColor.argb
-    }
-
-    private fun glyphs(text: MvtText) {
+    // the halo as round strokes around the glyphs, outermost first, then the glyphs, each by `draw`
+    private inline fun paint(text: MvtText, draw: () -> Unit) {
+        if (text.hasHalo) {
+            this.text.style = Paint.Style.STROKE
+            this.text.strokeJoin = Paint.Join.ROUND
+            this.text.strokeCap = Paint.Cap.ROUND
+            for (ring in 0 until text.haloRings) {
+                val radius = text.haloRingRadius(ring)
+                // the inner rings lie within the glyphs
+                if (radius <= 0f) {
+                    break
+                }
+                this.text.strokeWidth = radius * 2f
+                this.text.color = text.haloRingColor(ring).argb
+                draw()
+            }
+        }
         this.text.style = Paint.Style.FILL
         this.text.color = text.color.argb
+        draw()
     }
 
     private fun toPath(path: MvtPath): Path {

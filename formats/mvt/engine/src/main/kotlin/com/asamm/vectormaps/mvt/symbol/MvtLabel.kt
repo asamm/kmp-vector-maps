@@ -5,6 +5,7 @@
 package com.asamm.vectormaps.mvt.symbol
 
 import com.asamm.vectormaps.mvt.style.Color
+import kotlin.math.ceil
 
 /**
  * One symbol a tile's symbol layers place: a text, an icon or both, at a point or along a line.
@@ -38,6 +39,10 @@ class MvtLabel(
  * @param centerX offset of the box centre from the anchor; unused for a path text
  * @param centerY offset of the box centre from the anchor; across the line for a path text
  * @param justify where shorter lines sit in the box, 0 left to 1 right (`text-justify`)
+ * @param rotateDeg `text-rotate`, clockwise: the box about the anchor, or each glyph of a path text
+ *  about its centre, after the text-offset shift
+ * @param haloBlurPx `text-halo-blur`: the halo's edge fades over [HALO_BLUR_FADE] times it on either
+ *  side of [haloWidthPx], as MapLibre's
  */
 class MvtText(
     val lines: List<String>,
@@ -54,7 +59,64 @@ class MvtText(
     val centerY: Float,
     val paddingPx: Float,
     val justify: Float = 0.5f,
-)
+    val rotateDeg: Float = 0f,
+    val haloBlurPx: Float = 0f,
+) {
+
+    /**
+     * The text has a halo to draw, one with a colour and a width; as MapLibre, a blur alone draws
+     * none.
+     */
+    val hasHalo: Boolean
+        get() {
+            return haloColor.alpha > 0
+                && haloWidthPx > 0f
+        }
+
+    /**
+     * How many strokes draw the halo, each by [haloRingRadius] and [haloRingColor] from the
+     * outermost: one for a sharp halo, more for a blurred one.
+     */
+    val haloRings: Int
+        get() {
+            if (!(haloBlurPx > 0f)) {
+                return 1
+            }
+            val rings = ceil(2f * HALO_BLUR_FADE * haloBlurPx / HALO_RING_STEP_PX).toInt()
+            return rings.coerceIn(1, MAX_HALO_RINGS)
+        }
+
+    /**
+     * The stroke radius of halo `ring`, 0 the outermost; 0 or less draws nothing.
+     */
+    fun haloRingRadius(ring: Int): Float {
+        val fade = HALO_BLUR_FADE * haloBlurPx.coerceAtLeast(0f)
+        return haloWidthPx + fade - (ring + 0.5f) * 2f * fade / haloRings
+    }
+
+    /**
+     * The colour of halo `ring`, so the rings drawn over each other step the halo's alpha evenly
+     * from its outer edge to its full [haloColor] inside.
+     */
+    fun haloRingColor(ring: Int): Color {
+        val alpha = haloColor.alpha / 255.0
+        return haloColor.withOpacity(1.0 / (haloRings - alpha * ring))
+    }
+
+    companion object {
+
+        /**
+         * The fade of a blurred halo's edge on either side, per pixel of `text-halo-blur`, as
+         * MapLibre's SDF shader.
+         */
+        const val HALO_BLUR_FADE = 1.19f
+
+        // the width of one step of a blurred halo's fade
+        private const val HALO_RING_STEP_PX = 1.5f
+
+        private const val MAX_HALO_RINGS = 6
+    }
+}
 
 /**
  * A sprite image drawn at an offset from the label's anchor, `scale` times its sprite size.

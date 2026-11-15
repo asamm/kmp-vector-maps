@@ -32,8 +32,9 @@ import kotlin.math.sin
 
 /**
  * The label pass of the MVT renderer (D39): places the symbols its tiles laid out and draws them
- * on an [MvtRenderTarget] the size of the screen. Point symbols stay upright; path texts follow
- * their line and read upright unless `text-keep-upright` is false.
+ * on an [MvtRenderTarget] the size of the screen. Point symbols stay upright, turned by
+ * `text-rotate` alone; path texts follow their line and read upright unless `text-keep-upright` is
+ * false.
  */
 class MvtLabelPass internal constructor(
     source: TileLabelSource<MvtLabel>,
@@ -90,11 +91,18 @@ class MvtLabelPass internal constructor(
         }
         val boxes = ArrayList<CollisionBox>(2)
         if (text != null) {
+            // turned about the anchor; MapLibre collides the turned padded box's bounds
+            val (cx, cy) = turned(text.centerX, text.centerY, text.rotateDeg.toDouble())
+            val radians = Math.toRadians(text.rotateDeg.toDouble())
+            val cos = abs(cos(radians))
+            val sin = abs(sin(radians))
+            val halfWidth = text.width / 2.0 + text.paddingPx
+            val halfHeight = text.height / 2.0 + text.paddingPx
             boxes += CollisionBox(
-                centerX = text.centerX.toDouble(),
-                centerY = text.centerY.toDouble(),
-                halfWidth = text.width / 2.0 + text.paddingPx,
-                halfHeight = text.height / 2.0 + text.paddingPx,
+                centerX = cx,
+                centerY = cy,
+                halfWidth = halfWidth * cos + halfHeight * sin,
+                halfHeight = halfWidth * sin + halfHeight * cos,
             )
         }
         val icon = label.icon
@@ -172,7 +180,8 @@ class MvtLabelPass internal constructor(
                 target.drawIcon(it, sx + (ox + tx).toFloat(), sy + (oy + ty).toFloat(), turn.toFloat())
             }
             if (text != null) {
-                target.drawText(text, sx + text.centerX, sy + text.centerY)
+                val (cx, cy) = turned(text.centerX, text.centerY, text.rotateDeg.toDouble())
+                target.drawText(text, sx + cx.toFloat(), sy + cy.toFloat())
             }
         }
     }
@@ -195,6 +204,8 @@ class MvtLabelPass internal constructor(
             && nonNegative(text.height / 2f + text.paddingPx)
             && nonNegative(text.sizePx / 2f + abs(text.centerY) + text.paddingPx)
             && nonNegative(text.haloWidthPx)
+            && nonNegative(text.haloBlurPx)
+            && text.rotateDeg.isFinite()
             && text.centerX.isFinite()
             && text.centerY.isFinite()
     }

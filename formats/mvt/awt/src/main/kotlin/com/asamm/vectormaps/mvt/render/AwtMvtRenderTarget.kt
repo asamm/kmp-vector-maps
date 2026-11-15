@@ -176,6 +176,15 @@ class AwtMvtRenderTarget(
             }
             outline.append(glyphs.getOutline(left, baseline), false)
         }
+        if (text.rotateDeg != 0f) {
+            val turn = AffineTransform.getRotateInstance(
+                Math.toRadians(text.rotateDeg.toDouble()),
+                x.toDouble(),
+                y.toDouble(),
+            )
+            paint(turn.createTransformedShape(outline), text)
+            return
+        }
         paint(outline, text)
     }
 
@@ -191,17 +200,21 @@ class AwtMvtRenderTarget(
             length += hypot(path[i] - path[i - 2], path[i + 1] - path[i - 1])
         }
         val start = (length - total) / 2f
-        // the baseline sits so the glyphs centre on the line, shifted across it by text-offset
-        val across = (metrics.ascent - metrics.descent) / 2f + text.centerY
+        // the baseline sits so the glyphs centre on the line
+        val baseline = (metrics.ascent - metrics.descent) / 2f
+        val rotate = Math.toRadians(text.rotateDeg.toDouble())
         val outline = Path2D.Float()
         for (g in 0 until glyphs.numGlyphs) {
             val position = glyphs.getGlyphPosition(g)
             val advance = glyphs.getGlyphMetrics(g).advance
             val at = start + position.x.toFloat() + advance / 2f
             val (px, py, angle) = pointAt(path, at)
-            val glyph = glyphs.getGlyphOutline(g, -(position.x.toFloat() + advance / 2f), across)
+            val glyph = glyphs.getGlyphOutline(g, -(position.x.toFloat() + advance / 2f), baseline)
+            // shifted across the line by text-offset, then turned by text-rotate about its centre
             val transform = AffineTransform.getTranslateInstance(px.toDouble(), py.toDouble())
             transform.rotate(angle)
+            transform.translate(0.0, text.centerY.toDouble())
+            transform.rotate(rotate)
             outline.append(transform.createTransformedShape(glyph), false)
         }
         paint(outline, text)
@@ -250,14 +263,19 @@ class AwtMvtRenderTarget(
         return p
     }
 
-    // the halo as a round stroke around the glyphs, then the glyphs over it
+    // the halo as round strokes around the glyphs, outermost first, then the glyphs over it
     private fun paint(outline: Shape, text: MvtText) {
-        if (text.haloWidthPx > 0f
-            && text.haloColor.alpha > 0
-        ) {
-            g.color = awt(text.haloColor)
-            g.stroke = BasicStroke(text.haloWidthPx * 2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-            g.draw(outline)
+        if (text.hasHalo) {
+            for (ring in 0 until text.haloRings) {
+                val radius = text.haloRingRadius(ring)
+                // the inner rings lie within the glyphs
+                if (radius <= 0f) {
+                    break
+                }
+                g.color = awt(text.haloRingColor(ring))
+                g.stroke = BasicStroke(radius * 2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
+                g.draw(outline)
+            }
         }
         g.color = awt(text.color)
         g.fill(outline)

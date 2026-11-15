@@ -110,6 +110,45 @@ class StylePropertiesTest {
     }
 
     @Test
+    fun rotatesTextAndBlursItsHalo() {
+        val text = labels(
+            """{"id": "t", "type": "symbol", "source": "s", "source-layer": "poi",
+               "layout": {"text-field": "x", "text-rotate": 180},
+               "paint": {"text-halo-color": "#fff", "text-halo-width": 2, "text-halo-blur": 2}}""",
+        ).first().text!!
+
+        assertEquals(180f, text.rotateDeg)
+        assertEquals(2f, text.haloBlurPx)
+    }
+
+    @Test
+    fun fadesABlurredHaloEdgeEvenly() {
+        val text = labels(
+            """{"id": "t", "type": "symbol", "source": "s", "source-layer": "poi", "layout": {"text-field": "x"},
+               "paint": {"text-halo-color": "rgba(255, 255, 255, 0.8)", "text-halo-width": 2, "text-halo-blur": 2}}""",
+        ).first().text!!
+        // the halo's alpha where the rings reaching `distance` from the glyphs overlap
+        fun alphaAt(distance: Float): Double {
+            var clear = 1.0
+            for (ring in 0 until text.haloRings) {
+                if (text.haloRingRadius(ring) >= distance) {
+                    clear *= 1.0 - text.haloRingColor(ring).alpha / 255.0
+                }
+            }
+            return 1.0 - clear
+        }
+        val fade = MvtText.HALO_BLUR_FADE * 2f
+
+        assertTrue(text.haloRings > 1)
+        assertTrue(text.hasHalo)
+        assertEquals(0.8, alphaAt(0f), 0.01)
+        assertEquals(0.0, alphaAt(2f + fade))
+        assertEquals(0.4, alphaAt(2f), 0.8 / text.haloRings)
+        val steps = (0..20).map { alphaAt(it * (2f + fade) / 20f) }
+        assertEquals(steps.sortedDescending(), steps)
+    }
+
+    @Test
     fun anchorsAndFadesIcons() {
         fun icon(extra: String): MvtIcon {
             return labels(
