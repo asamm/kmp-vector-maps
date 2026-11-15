@@ -16,6 +16,7 @@ import kotlinx.serialization.json.doubleOrNull
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
+import kotlin.math.roundToInt
 
 /**
  * What an expression reads: the zoom, the feature and the `let` bindings in scope.
@@ -140,9 +141,71 @@ internal object ExpressionCompiler {
     fun compile(json: JsonElement): Expression {
         return when (json) {
             is JsonArray -> compileArray(json)
-            is JsonObject -> throw UnsupportedExpressionException("function object ${json.keys}")
+            is JsonObject -> compile(functionExpression(json))
             else -> Constant(toValue(json))
         }
+    }
+
+    // a legacy function (`{"stops": ...}`) as the expression MapLibre turns it into: interpolate,
+    // step or match over the zoom or a property
+    private fun functionExpression(function: JsonObject): JsonElement {
+        val property = (function["property"] as? JsonPrimitive)?.content
+        val input = if (property != null) array("get", JsonPrimitive(property)) else array("zoom")
+        val type = (function["type"] as? JsonPrimitive)?.content
+        if (type == "identity"
+            && property != null
+        ) {
+            return input
+        }
+        val stops = (function["stops"] as? JsonArray)?.map { it as? JsonArray }
+            ?: throw UnsupportedExpressionException("function object ${function.keys}")
+        require(stops.isNotEmpty()
+            && stops.all { it != null && it.size == 2 && it[0] is JsonPrimitive }
+        ) {
+            "function stops $stops"
+        }
+        val inputs = stops.map { it!![0] }
+        val outputs = stops.map { array("literal", it!![1]) }
+        // MapLibre picks the default type by the property, which compiling one value does not
+        // know: numbers, number lists and colour notations interpolate, the rest steps
+        val interpolatable = stops.all { stop ->
+            when (val value = toValue(stop!![1])) {
+                is Double -> true
+                is List<*> -> value.all { it is Double }
+                is String -> value.startsWith("#") || value.startsWith("rgb") || value.startsWith("hsl")
+                else -> false
+            }
+        }
+        val expression = when (type ?: if (interpolatable) "exponential" else "interval") {
+            "exponential" -> JsonArray(
+                listOf(JsonPrimitive("interpolate"), array("exponential", function["base"] ?: JsonPrimitive(1.0)), input) +
+                    inputs.zip(outputs).flatMap { listOf(it.first, it.second) },
+            )
+            "interval" -> JsonArray(
+                listOf(JsonPrimitive("step"), input, outputs[0]) +
+                    inputs.zip(outputs).drop(1).flatMap { listOf(it.first, it.second) },
+            )
+            "categorical" -> return JsonArray(
+                listOf(JsonPrimitive("match"), input) +
+                    inputs.zip(outputs).flatMap { listOf(it.first, it.second) } +
+                    array("literal", function["default"] ?: JsonNull),
+            )
+            else -> throw UnsupportedExpressionException("function type $type")
+        }
+        if (property == null) {
+            return expression
+        }
+        // a feature without a number takes the function's default, else the property's
+        return array(
+            "case",
+            array("==", array("typeof", input), JsonPrimitive("number")),
+            expression,
+            array("literal", function["default"] ?: JsonNull),
+        )
+    }
+
+    private fun array(vararg items: Any): JsonArray {
+        return JsonArray(items.map { if (it is String) JsonPrimitive(it) else it as JsonElement })
     }
 
     fun toValue(json: JsonElement): Any? {
@@ -469,6 +532,69 @@ internal object ExpressionCompiler {
                 kotlin.math.sign(v) * rounded
             }
             "abs" -> op(args) { ctx, a -> kotlin.math.abs(num(a[0].eval(ctx))) }
+            "sqrt" -> op(args) { ctx, a -> kotlin.math.sqrt(num(a[0].eval(ctx))) }
+            "ln" -> op(args) { ctx, a -> kotlin.math.ln(num(a[0].eval(ctx))) }
+            "log10" -> op(args) { ctx, a -> kotlin.math.log10(num(a[0].eval(ctx))) }
+            "log2" -> op(args) { ctx, a -> kotlin.math.log2(num(a[0].eval(ctx))) }
+            "sin" -> op(args) { ctx, a -> kotlin.math.sin(num(a[0].eval(ctx))) }
+            "cos" -> op(args) { ctx, a -> kotlin.math.cos(num(a[0].eval(ctx))) }
+            "tan" -> op(args) { ctx, a -> kotlin.math.tan(num(a[0].eval(ctx))) }
+            "asin" -> op(args) { ctx, a -> kotlin.math.asin(num(a[0].eval(ctx))) }
+            "acos" -> op(args) { ctx, a -> kotlin.math.acos(num(a[0].eval(ctx))) }
+            "atan" -> op(args) { ctx, a -> kotlin.math.atan(num(a[0].eval(ctx))) }
+            "pi" -> Constant(kotlin.math.PI)
+            "e" -> Constant(kotlin.math.E)
+            "ln2" -> Constant(kotlin.math.ln(2.0))
+            "at" -> op(args) { ctx, a ->
+                val list = a[1].eval(ctx) as? List<*>
+                val index = a[0].eval(ctx) as? Double
+                // an index off the list is an error, which leaves the property's default
+                if (list != null
+                    && index != null
+                    && index == floor(index)
+                    && index >= 0
+                    && index < list.size
+                ) {
+                    list[index.toInt()]
+                } else {
+                    null
+                }
+            }
+            "array" -> op(args) { ctx, a -> a.last().eval(ctx) as? List<*> }
+            // the name: the sprite resolves it, and a missing image draws none
+            "image" -> op(args) { ctx, a -> a[0].eval(ctx) as? String }
+            "typeof" -> op(args) { ctx, a ->
+                when (val v = a[0].eval(ctx)) {
+                    null -> "null"
+                    is String -> "string"
+                    is Double -> "number"
+                    is Boolean -> "boolean"
+                    is Color -> "color"
+                    is List<*> -> "array"
+                    else -> "object"
+                }
+            }
+            // a channel off its range is an error, which leaves the property's default, as MapLibre
+            "rgb", "rgba" -> op(args) { ctx, a ->
+                val channels = DoubleArray(3) { num(a[it].eval(ctx)) }
+                val alpha = if (a.size > 3) num(a[3].eval(ctx)) else 1.0
+                if (channels.any { it !in 0.0..255.0 }
+                    || alpha !in 0.0..1.0
+                ) {
+                    return@op null
+                }
+                val (r, g, b) = channels.map { it.roundToInt() }
+                Color(((alpha * 255).roundToInt() shl 24) or (r shl 16) or (g shl 8) or b)
+            }
+            "to-rgba" -> op(args) { ctx, a ->
+                val c = toColor(a[0].eval(ctx)) ?: return@op null
+                listOf(
+                    (c.argb shr 16 and 0xff).toDouble(),
+                    (c.argb shr 8 and 0xff).toDouble(),
+                    (c.argb and 0xff).toDouble(),
+                    c.alpha / 255.0,
+                )
+            }
             else -> throw UnsupportedExpressionException(name)
         }
     }
@@ -678,6 +804,9 @@ internal object ExpressionCompiler {
         "downcase" to 1, "to-string" to 1, "to-number" to 1, "to-boolean" to 1, "to-color" to 1,
         "string" to 1, "number" to 1, "boolean" to 1, "length" to 1, "-" to 1, "/" to 2, "%" to 2,
         "^" to 2, "min" to 1, "max" to 1, "ceil" to 1, "floor" to 1, "round" to 1, "abs" to 1,
+        "sqrt" to 1, "ln" to 1, "log10" to 1, "log2" to 1, "sin" to 1, "cos" to 1, "tan" to 1,
+        "asin" to 1, "acos" to 1, "atan" to 1, "at" to 2, "array" to 1, "image" to 1, "typeof" to 1,
+        "rgb" to 3, "rgba" to 4, "to-rgba" to 1,
     )
 
     // every operator of the style spec; an array starting with one of them is an expression

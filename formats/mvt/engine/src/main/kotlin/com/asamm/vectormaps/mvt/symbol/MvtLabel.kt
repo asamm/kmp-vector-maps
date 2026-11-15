@@ -15,6 +15,8 @@ import com.asamm.vectormaps.mvt.style.Color
  * @param allowOverlap placed whatever it overlaps (`text-allow-overlap`, `icon-allow-overlap`)
  * @param lineAngleDeg the line's direction at the anchor, clockwise from east, for an icon that
  *  turns with its line; null for one that stays upright
+ * @param keepUpright a path text flipped so it never reads upside down (`text-keep-upright`);
+ *  false draws it in its line's direction
  */
 class MvtLabel(
     val layerId: String,
@@ -26,6 +28,7 @@ class MvtLabel(
     val path: FloatArray?,
     val allowOverlap: Boolean,
     val lineAngleDeg: Float? = null,
+    val keepUpright: Boolean = true,
 )
 
 /**
@@ -34,6 +37,7 @@ class MvtLabel(
  * @param width the widest line, in pixels; the full text for a path text
  * @param centerX offset of the box centre from the anchor; unused for a path text
  * @param centerY offset of the box centre from the anchor; across the line for a path text
+ * @param justify where shorter lines sit in the box, 0 left to 1 right (`text-justify`)
  */
 class MvtText(
     val lines: List<String>,
@@ -49,6 +53,7 @@ class MvtText(
     val centerX: Float,
     val centerY: Float,
     val paddingPx: Float,
+    val justify: Float = 0.5f,
 )
 
 /**
@@ -56,6 +61,7 @@ class MvtText(
  *
  * @param centerX `icon-offset` of the centre from the anchor, turned with the icon
  * @param translateX `icon-translate`, a shift in the map's frame that never turns with the icon
+ * @param opacity `icon-opacity`, 0 to 1
  */
 class MvtIcon(
     val name: String,
@@ -68,6 +74,7 @@ class MvtIcon(
     val scale: Float,
     val rotateDeg: Float,
     val paddingPx: Float,
+    val opacity: Float = 1f,
 )
 
 /**

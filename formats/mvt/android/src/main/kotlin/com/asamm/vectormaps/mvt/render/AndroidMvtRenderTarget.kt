@@ -184,13 +184,24 @@ class AndroidMvtRenderTarget(
         if (hasHalo(text)) {
             halo(text)
             for ((i, line) in text.lines.withIndex()) {
-                canvas.drawText(line, x, first + i * text.lineHeightPx, this.text)
+                canvas.drawText(line, lineX(text, line, x), first + i * text.lineHeightPx, this.text)
             }
         }
         glyphs(text)
         for ((i, line) in text.lines.withIndex()) {
-            canvas.drawText(line, x, first + i * text.lineHeightPx, this.text)
+            canvas.drawText(line, lineX(text, line, x), first + i * text.lineHeightPx, this.text)
         }
+    }
+
+    // the centre of `line` in the box centred at `x`: text-justify moves a shorter line to a side
+    private fun lineX(text: MvtText, line: String, x: Float): Float {
+        if (text.justify == 0.5f
+            || text.lines.size < 2
+        ) {
+            return x
+        }
+        val width = this.text.measureText(line)
+        return x - text.width / 2f + (text.width - width) * text.justify + width / 2f
     }
 
     override fun drawTextAlongPath(text: MvtText, path: FloatArray) {
@@ -234,8 +245,10 @@ class AndroidMvtRenderTarget(
         canvas.translate(x, y)
         canvas.rotate(rotateDeg)
         iconBox.set(-w / 2f, -h / 2f, w / 2f, h / 2f)
+        image.alpha = (icon.opacity * 255f).toInt()
         // straight from the sheet, so no icon is copied
         canvas.drawBitmap(sprite.sheet, place, iconBox, image)
+        image.alpha = 255
         canvas.restoreToCount(saved)
     }
 

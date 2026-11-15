@@ -9,8 +9,8 @@ package com.asamm.vectormaps.core
  * scale and tile size.
  *
  * @param deviceScale size of a style pixel in screen pixels; MVT counts it on a 512 px tile and
- *  scales it with the tile size, as MapLibre does, so a host with tiles of 256 px × density
- *  passes 2 for the sizes Mapsforge and Garmin draw at `deviceScale` = density
+ *  scales it with the tile size, as MapLibre does, so a host draws MapLibre's sizes with 512 ×
+ *  density px tiles and 1 here, and half of them with 256 × density px tiles and 1
  * @param textScale extra factor on label text, on top of `deviceScale`
  * @param language preferred label language as a BCP 47 tag (`Locale.toLanguageTag()`, such as
  *  `zh-Hant-TW`); null for the map's default

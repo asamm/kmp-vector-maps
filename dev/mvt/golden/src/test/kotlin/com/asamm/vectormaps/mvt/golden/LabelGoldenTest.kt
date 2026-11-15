@@ -7,9 +7,6 @@ package com.asamm.vectormaps.mvt.golden
 import com.asamm.vectormaps.core.label.LabelViewport
 import com.asamm.vectormaps.mvt.golden.MvtFixtures.SIZE
 import com.asamm.vectormaps.mvt.render.AwtMvtRenderTarget
-import java.awt.RenderingHints
-import java.awt.image.BufferedImage
-import java.io.File
 import javax.imageio.ImageIO
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -51,7 +48,7 @@ class LabelGoldenTest {
                     val prepared = pass.prepareNow(view)
                     pass.draw(labels, view, prepared)
                     labels.dispose()
-                    val image = screen(tile, rotationDeg, labels.image)
+                    val image = MvtFixtures.screen(map = tile, mapX = 0, mapY = 0, rotationDeg = rotationDeg, labels = labels.image)
                     val name = if (rotationDeg == 0.0) ref.name else "${ref.name}_r${rotationDeg.toInt()}"
                     if (rotationDeg == 0.0) {
                         val ms = (System.nanoTime() - start) / 1e6
@@ -66,17 +63,7 @@ class LabelGoldenTest {
                     } else {
                         MvtFixtures.writeStrip("labels_$name", image)
                     }
-                    val expected = javaClass.classLoader.getResource("golden/labels/$name.png")
-                        ?.let { ImageIO.read(it) }
-                        ?.takeIf { it.width == SIZE && it.height == SIZE }
-                    val (_, off) = expected?.let { MvtFixtures.difference(image, it, tolerance = GOLDEN_TOLERANCE) }
-                        ?: (0.0 to 100.0)
-                    if (off > MAX_GOLDEN_OFF_PERCENT) {
-                        val candidate = File(MvtFixtures.outDir, "candidates/$name.png")
-                        candidate.parentFile.mkdirs()
-                        ImageIO.write(image, "png", candidate)
-                        failures.add("$name: %.2f %% off golden, candidate $candidate".format(off))
-                    }
+                    MvtFixtures.checkLabelGolden(name = name, image = image, failures = failures)
                 }
             }
             assertEquals(emptySet(), renderer.failedLayers, "layers that threw")
@@ -84,30 +71,8 @@ class LabelGoldenTest {
         }
     }
 
-    // the tile on a white screen turned clockwise by `rotationDeg` about its centre, as the label
-    // pass turns the map, the labels over it
-    private fun screen(tile: BufferedImage, rotationDeg: Double, labels: BufferedImage): BufferedImage {
-        val image = BufferedImage(SIZE, SIZE, BufferedImage.TYPE_INT_ARGB)
-        image.createGraphics().apply {
-            color = java.awt.Color.WHITE
-            fillRect(0, 0, SIZE, SIZE)
-            val screen = transform
-            setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
-            rotate(Math.toRadians(rotationDeg), SIZE / 2.0, SIZE / 2.0)
-            drawImage(tile, 0, 0, null)
-            transform = screen
-            drawImage(labels, 0, 0, null)
-            dispose()
-        }
-        return image
-    }
-
     private companion object {
 
         const val TURNED_DEG = 30.0
-
-        // antialiasing and font rasterising noise across systems
-        const val GOLDEN_TOLERANCE = 8
-        const val MAX_GOLDEN_OFF_PERCENT = 0.5
     }
 }

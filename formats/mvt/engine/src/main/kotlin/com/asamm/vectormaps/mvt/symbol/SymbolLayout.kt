@@ -61,9 +61,17 @@ class SymbolLayout(
     /**
      * The labels whose anchors fall inside tile (`zoom`, `x`, `y`) of `tileSizePx`; a neighbour
      * tile lays out the rest, so the label pass sees each anchor once; `data` is the tile's data
-     * tile when the caller has it, else read from the tile source.
+     * tile when the caller has it, else read from the tile source. Once `isCancelled` it stops
+     * between layers, the labels so far a part only.
      */
-    fun labels(zoom: Int, x: Int, y: Int, tileSizePx: Int, data: VectorTile? = null): List<MvtLabel> {
+    fun labels(
+        zoom: Int,
+        x: Int,
+        y: Int,
+        tileSizePx: Int,
+        data: VectorTile? = null,
+        isCancelled: () -> Boolean = { false },
+    ): List<MvtLabel> {
         val frame = DataTileFrame(zoom, x, y, tileSizePx, tileSizePx, maxDataZoom, scale)
         val tile = data ?: tileSource(frame.dataZoom, frame.dataX, frame.dataY) ?: return emptyList()
         val ctx = EvalContext(zoom.toDouble())
@@ -72,6 +80,9 @@ class SymbolLayout(
         // a road's or a river's pieces repeat its name
         val shaped = HashMap<Shaping, Shaped>()
         for ((index, layer) in style.layers.withIndex()) {
+            if (isCancelled()) {
+                return out
+            }
             if (layer.type != LayerType.SYMBOL
                 || !layer.isActive(ctx.zoom)
             ) {
@@ -174,6 +185,7 @@ class SymbolLayout(
             icon = icon,
             allowOverlap = (text == null || layer.layout["text-allow-overlap"]?.eval(ctx) == true)
                 && (icon == null || layer.layout["icon-allow-overlap"]?.eval(ctx) == true),
+            keepUpright = layer.layout["text-keep-upright"]?.eval(ctx) != false,
         )
         if (onLine) {
             val line = LineSymbol(
@@ -308,6 +320,7 @@ class SymbolLayout(
             path = path,
             allowOverlap = symbol.allowOverlap,
             lineAngleDeg = lineAngleDeg,
+            keepUpright = symbol.keepUpright,
         )
     }
 
@@ -318,6 +331,7 @@ class SymbolLayout(
         val text: MvtText?,
         val icon: MvtIcon?,
         val allowOverlap: Boolean,
+        val keepUpright: Boolean,
     )
 
     // how a feature's symbol repeats along its lines
@@ -396,12 +410,24 @@ class SymbolLayout(
             anchor.startsWith("bottom") -> -height / 2f
             else -> 0f
         }
+        // `auto` justifies to the side the anchor puts the text on
+        val justify = when (layer.layout["text-justify"]?.eval(ctx) as? String ?: "center") {
+            "left" -> 0f
+            "right" -> 1f
+            "auto" -> when {
+                anchor.endsWith("left") -> 0f
+                anchor.endsWith("right") -> 1f
+                else -> 0.5f
+            }
+            else -> 0.5f
+        }
+        val opacity = number(layer.paint["text-opacity"], ctx, 1.0)
         return MvtText(
             lines = lines,
             font = font,
             sizePx = size,
-            color = color(layer.paint["text-color"], ctx) ?: Color(0xff000000.toInt()),
-            haloColor = color(layer.paint["text-halo-color"], ctx) ?: Color(0),
+            color = (color(layer.paint["text-color"], ctx) ?: Color(0xff000000.toInt())).withOpacity(opacity),
+            haloColor = (color(layer.paint["text-halo-color"], ctx) ?: Color(0)).withOpacity(opacity),
             haloWidthPx = finite(number(layer.paint["text-halo-width"], ctx, 0.0).toFloat()).coerceAtLeast(0f) *
                 pixelScale * textScale,
             letterSpacingPx = letterSpacing,
@@ -411,6 +437,7 @@ class SymbolLayout(
             centerX = cx,
             centerY = cy,
             paddingPx = finite(number(layer.layout["text-padding"], ctx, 2.0).toFloat()).coerceAtLeast(0f) * pixelScale,
+            justify = justify,
         )
     }
 
@@ -461,18 +488,31 @@ class SymbolLayout(
         }
         val offset = layer.layout["icon-offset"]?.eval(ctx) as? List<*>
         val translate = layer.paint["icon-translate"]?.eval(ctx) as? List<*>
+        // the side of the anchor the icon sits on, as text-anchor for text
+        val anchor = layer.layout["icon-anchor"]?.eval(ctx) as? String ?: "center"
+        val anchorX = when {
+            anchor.endsWith("left") -> width * iconScale / 2f
+            anchor.endsWith("right") -> -width * iconScale / 2f
+            else -> 0f
+        }
+        val anchorY = when {
+            anchor.startsWith("top") -> height * iconScale / 2f
+            anchor.startsWith("bottom") -> -height * iconScale / 2f
+            else -> 0f
+        }
         // icon-offset counts in icon pixels, icon-translate in screen pixels
         return MvtIcon(
             name = name,
             width = width,
             height = height,
-            centerX = finite(((offset?.getOrNull(0) as? Double) ?: 0.0).toFloat()) * iconScale,
-            centerY = finite(((offset?.getOrNull(1) as? Double) ?: 0.0).toFloat()) * iconScale,
+            centerX = finite(((offset?.getOrNull(0) as? Double) ?: 0.0).toFloat()) * iconScale + anchorX,
+            centerY = finite(((offset?.getOrNull(1) as? Double) ?: 0.0).toFloat()) * iconScale + anchorY,
             translateX = finite(((translate?.getOrNull(0) as? Double) ?: 0.0).toFloat()) * pixelScale,
             translateY = finite(((translate?.getOrNull(1) as? Double) ?: 0.0).toFloat()) * pixelScale,
             scale = iconScale,
             rotateDeg = finite(number(layer.layout["icon-rotate"], ctx, 0.0).toFloat()),
             paddingPx = finite(number(layer.layout["icon-padding"], ctx, 2.0).toFloat()).coerceAtLeast(0f) * pixelScale,
+            opacity = finite(number(layer.paint["icon-opacity"], ctx, 1.0).toFloat(), 1f).coerceIn(0f, 1f),
         )
     }
 

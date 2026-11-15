@@ -7,7 +7,7 @@ third format next to Mapsforge and Garmin IMG, is doable as an own Kotlin render
 **Status:** spike, M10.1 symbols, M10.2 driver and M10.2b viewer online maps done 2026-11-12;
 M10.3a engine performance, M10.3b render settings and M10.3c Android target done 2026-11-13, M10.3d
 A54 and Czech benchmarks and M10.3e render costs 2026-11-14 ([performance.md](performance.md));
-M10.3f spike leftovers 🔧
+M10.3f spike leftovers 2026-11-15; M10.4 label robustness and spec coverage 🔧
 
 ## Goal
 
@@ -128,12 +128,53 @@ draws them on the target (D39).
   wider than Noto, so some labels lose collisions MapLibre's win. Reported, not checked.
 - A malformed size, halo or padding drops or clamps the value; a symbol layer that throws is left
   out whole and listed in `SymbolLayout.failedLayers`.
-- Left: font stacks mapped to named platform fonts (the desktop viewer passes the logical fonts), balanced line wrapping, `text-variable-anchor`
-  and `icon-text-fit` (unused by the Asamm styles), MapLibre's exact line anchor offsets, path
-  text placed along the line by `text-anchor` or `text-offset[0]` (centred here), an icon beside a
-  path text (no Asamm style has one), `symbol-sort-key` beyond 0–999, mixed-direction text runs
-  (one base direction per line); the label golden on a four-tile corner with a placement dump
-  and `isCancelled` for the layout, with neighbouring fixture tiles.
+- M10.4: the layout stops between layers once a render is cancelled; `CornerLabelGoldenTest`
+  places the labels of four neighbouring tiles (`tiles/corner`, Pec pod Sněžkou) on a screen
+  centred where they meet, straight and turned, against a dump of every placed label and a PNG.
+- Left: font stacks mapped to named platform fonts (the desktop viewer passes the logical fonts),
+  balanced line wrapping, MapLibre's exact line anchor offsets, path text placed along the line by
+  `text-anchor` or `text-offset[0]` (centred here), an icon beside a path text (no Asamm style has
+  one), `symbol-sort-key` beyond 0–999, mixed-direction text runs (one base direction per line);
+  the spec gaps below.
+
+## Spec coverage
+
+2026-11-15, M10.4: the [MapLibre style spec](https://maplibre.org/maplibre-style-spec/) against
+the engine. The Asamm `hike_bike` style uses nothing outside "Supported" but `text-halo-blur` (7
+layers), `text-rotate` (1) and the hillshade and colour-relief paint, which is the host's.
+
+| Layer | Supported | Not yet |
+|---|---|---|
+| background | `background-color`, `-opacity` | `-pattern` |
+| fill | `fill-color`, `-opacity`, `-antialias`, `-pattern` (scaled with the tile), `-outline-color` (M10.4) | `-translate`, `-sort-key` |
+| line | `line-color`, `-width`, `-opacity`, `-dasharray`, `-offset`, `-cap`, `-join` (miter limit 2) | `-pattern`, `-gap-width`, `-blur`, `-translate`, `-gradient`, `-miter-limit`, `-round-limit`, `-sort-key` |
+| circle | `circle-radius`, `-color`, `-stroke-width`, `-stroke-color`, `-opacity`, `-stroke-opacity` (M10.4) | `-blur`, `-translate`, `-pitch-*`, `-sort-key` |
+| symbol, placement | `symbol-placement` (`point`, `line`, `line-center`), `-spacing`, `-sort-key` (0–999), `text-`/`icon-allow-overlap`, `-rotation-alignment`, `text-max-angle`, `text-keep-upright` (M10.4) | `text-variable-anchor`, `-radial-offset`, `-ignore-placement`, `-optional`, `icon-text-fit`, `icon-keep-upright`, `symbol-avoid-edges`, `-z-order`, `-pitch-alignment`, `text-writing-mode` |
+| symbol, text | `text-field`, `-font` (face), `-size`, `-max-width`, `-line-height`, `-letter-spacing`, `-justify` (M10.4), `-anchor`, `-offset`, `-transform`, `-padding`, `-color`, `-halo-color`, `-halo-width`, `-opacity` (M10.4) | `-rotate`, `-halo-blur`, `-translate`, `formatted` text |
+| symbol, icon | `icon-image`, `-size`, `-offset`, `-rotate`, `-padding`, `-translate`, `-anchor`, `-opacity` (M10.4) | SDF `icon-color`, `-halo-*` |
+| hillshade, color-relief | the host's hook, with source and paint | drawn by the engine |
+| raster, fill-extrusion, heatmap | — | all |
+
+- Every layer: `minzoom`, `maxzoom`, `filter` (expression or legacy), `layout.visibility`.
+- Expressions: `let`, `var`, `literal`, `get` (local names for `name`), `has`, `id`, `zoom`,
+  `geometry-type`, `interpolate` (linear, exponential; cubic-bezier as linear), `step`, `case`,
+  `match`, `coalesce`, `all`, `any`, `!`, comparisons, `in`, `index-of`, `slice`, `at`, `length`,
+  `concat`, `upcase`, `downcase`, `to-string`, `to-number`, `to-boolean`, `to-color`, `to-rgba`,
+  `rgb`, `rgba`, `string`, `number`, `boolean`, `array`, `typeof`, `image`, arithmetic, `min`,
+  `max`, `round`, `floor`, `ceil`, `abs`, `sqrt`, `ln`, `log10`, `log2`, trigonometry, `pi`,
+  `e`, `ln2`; legacy `{"stops"}` functions over the zoom or a property (M10.4), a feature without
+  the property taking the function's `default`.
+- As MapLibre in part: a legacy function's default type comes from its stop values (numbers,
+  number lists and colour notations interpolate), not from the property; `image` returns the name
+  even for a missing image, so `coalesce` over images never falls back; `typeof` says `array`
+  without the item type.
+- Not yet: `interpolate-hcl`/`-lab`, `format`, `number-format`, `collator`, `resolved-locale`,
+  `is-supported-script`, `properties`, `feature-state`, `line-progress`, `heatmap-density`,
+  `elevation`, `accumulated`, `distance`, `within`, `global-state`, `split`, `join`, `object`; a
+  zoom and property function in one. A style using one compiles without that property and lists
+  it in `Style.problems`; a layer whose filter it is draws unfiltered.
+- Next candidates, small and checkable: `line-gap-width` (two offset strokes), `text-translate`
+  and `fill-translate` (a shift), `text-halo-blur` (a blur filter), `text-rotate`.
 
 ## Driver
 
@@ -152,8 +193,9 @@ formats; the desktop viewer opens `.pmtiles` maps with a `style.json`.
   `dev/mvt/pmtiles.py` from the spec, apart from the Kotlin reader; the goldens read it through
   the driver.
 - `RenderConfig` (M10.3b): a style pixel is `deviceScale` screen pixels on a 512 px tile and scales
-  with the tile size, as MapLibre's, fill patterns too; a host with tiles of
-  256 px × density (D20) passes 2 for Mapsforge's sizes at `deviceScale` = density; `textScale` multiplies
+  with the tile size, as MapLibre's, fill patterns too; a host draws MapLibre's sizes with tiles of
+  512 × density px and `deviceScale` 1, as the Android viewer does since M10.4 (with 512 px tiles and
+  `deviceScale` = density everything drew 2.6 times too heavy on the A54); `textScale` multiplies
   text and halos; `language` makes text fields read `name:xx` for `name` where a feature has it,
   as the MapLibre language plugin does: `zh-Hant` reads `name:zh-Hant`, then `name:zh`, `de-AT`
   reads `name:de`, Android's `iw` reads `name:he`; the style's other name fields (`name_en`,

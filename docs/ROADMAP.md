@@ -12,7 +12,7 @@ driver interface, with desktop JVM for benchmarks and tools.
 desktop stays AWT (Q15). M8 and M9 ⏸ since 2026-11-12, while locus-core reworks the
 libMapCore plan (locus-core `docs/libraries/libMapCore/plan/`) around this library. M10 (vector
 tiles) started 2026-11-12 with a desktop spike on the umbrella branch `feature/m10-mvt`
-([mvt.md](mvt.md)).** Next action: the M10 steps after M10.3f, to plan;
+([mvt.md](mvt.md)).** Next action: the M10 steps after M10.4, to plan;
 M8.0 (logging through kmp-logger) resumes when the libMapCore plan says so.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
@@ -34,7 +34,7 @@ settles, labels before speed, the Locus-facing API last.
 | M7 | Performance and Skia desktop backend | L | ✅ PRs #47–#52, `6155c9d`; M7.1 ⏸ (Q15) |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⏸ libMapCore plan |
 | M9 | Locus integration | M | ⏸ libMapCore plan; needs Q14, Q16 |
-| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | 🔧 M10.3f on the umbrella `feature/m10-mvt` |
+| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | 🔧 M10.4 on the umbrella `feature/m10-mvt` |
 
 ## Done: M0–M6
 
@@ -197,7 +197,8 @@ the umbrella `feature/m10-mvt`, which merges into `main` when M10 is done.
 | M10.3c | Android target (`formats/mvt/android`: `AndroidMvtGraphics` over `Canvas`, platform text, sprite size guard), a reusable label-pass target (`MvtRenderTarget.clear()`, both viewers), Android viewer opens `.pmtiles` | `dev/mvt/golden-android` (Robolectric native graphics) within the JVM golden's limits of MapLibre ✅ PR #59 |
 | M10.3d | A54 benchmarks (`androidx.benchmark`); LoMaps Czech MBTiles converted to PMTiles (`dev/mvt/mbtiles2pmtiles.py`, local only) for JVM and A54 runs at Prague; decoded tiles kept only above the data zoom, within a byte budget | baselines in performance.md; directory cache on a planet file in P17 ✅ PR #60 |
 | M10.3e | Render costs of the A54 profile: filters evaluated only on the features their selected property admits (per-render index), `in` and `match` by hash, exact-size gzip inflate and decode arrays; draw batching, vertex thinning and lazy layer decode measured and dropped | goldens unchanged; A54 and JVM before/after in performance.md ✅ PR #61 |
-| M10.3f | Spike leftovers (mvt.md Spike and Symbols): a render result telling a cancelled tile from an empty one, fill patterns scaled with the tile size and `deviceScale`, the `@2x` sprite decoded on first use above a style pixel per screen pixel, expression details as MapLibre, each text shaped once per tile layout | goldens unchanged; engine and driver tests 🔧 |
+| M10.3f | Spike leftovers (mvt.md Spike and Symbols): a render result telling a cancelled tile from an empty one, fill patterns scaled with the tile size and `deviceScale`, the `@2x` sprite decoded on first use above a style pixel per screen pixel, expression details as MapLibre, each text shaped once per tile layout | goldens unchanged; engine and driver tests ✅ PR #62 |
+| M10.4 | Label robustness and spec coverage (mvt.md Spec coverage): the layout stops when a render is cancelled; a label golden of four neighbouring tiles at their corner with a placement dump; `text-keep-upright`, `text-justify`, `text-opacity`, `icon-anchor`, `icon-opacity`, `circle-opacity`, `circle-stroke-opacity`, `fill-outline-color`; legacy `{"stops"}` functions and the missing simple expressions; the Android viewer draws MVT in MapLibre's sizes (512 × density px tiles, `deviceScale` 1) | corner golden and dump, label goldens nearer MapLibre; engine tests per property; A54 viewer check 🔧 |
 
 ## Decisions
 
@@ -303,7 +304,7 @@ changes output against upstream.
 | Q5 | SVG outside Android: pre-rasterise at theme build, or Skia SVG? | — (answered 2026-11-09: AndroidSVG 1.4 on Android, as locus-core; svg-salamander on the AWT desktop) |
 | Q14 | Does the Mapsforge README waiver cover pre-2018 contributors? (locus-core Q1) | M9 |
 | Q15 | Desktop backend Skia via Skiko (recommended) or AWT only? | — (answered 2026-11-09: AWT only for now; the desktop serves tests and benchmarks, not production; M7.1 ⏸) |
-| Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? MVT counts `deviceScale` per 512 px tile (M10.3b), so 256 px × density tiles pass 2 | M9 |
+| Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? MVT counts `deviceScale` per 512 px tile (M10.3b): 512 × density px tiles with `deviceScale` 1 draw MapLibre's sizes (the Android viewer since M10.4), 256 × density px tiles with 1 draw half of them | M9 |
 | Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed; none recurred through the M6.1b and M6.1c A54 soaks. | M7 |
 | Q18 | F1: the Paints' native heap explains ~15–22 MB of the native +93–170 MB zoom growth (M5.3 fixes); what holds the rest? A phone zoom soak after M5.6 shows how much the cache bound removes. | M7 |
 | Q19 | C7's matching-cache keys hold copied tag lists (house numbers, `ele`, `ref`); upstream keyed on an `Integer`. How much heap do both caches retain on the corpus, against C7's Paint saving? | M7 |

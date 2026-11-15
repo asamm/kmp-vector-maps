@@ -22,6 +22,7 @@ import com.asamm.vectormaps.mvt.driver.MvtDriver
 import com.asamm.vectormaps.mvt.render.AndroidMvtGraphics
 import com.asamm.vectormaps.viewer.Viewport
 import java.io.File
+import kotlin.math.roundToInt
 
 /**
  * Shows the bundled Monaco map with the LoMaps theme. Other files, readable by the app:
@@ -50,14 +51,6 @@ class MainActivity : Activity() {
             factoryReady = true
         }
         val density = resources.displayMetrics.density
-        val startView = savedInstanceState?.takeIf { it.containsKey(STATE_ZOOM) }?.let {
-            Viewport(
-                zoom = it.getInt(STATE_ZOOM),
-                x = it.getDouble(STATE_X),
-                y = it.getDouble(STATE_Y),
-                tileSize = TILE_SIZE,
-            )
-        }
         val view = try {
             val fixtures = unpackFixtures()
             val map = intent.getStringExtra("map")?.let(::File) ?: File(fixtures, "maps/monaco.osm.map")
@@ -65,6 +58,21 @@ class MainActivity : Activity() {
             // an MVT map without a style extra takes the fixture style
             val theme = intent.getStringExtra("theme")?.let(::File)
                 ?: File(fixtures, if (mvt) MVT_STYLE else "themes/lomaps/theme.xml")
+            // MVT in MapLibre's sizes: a tile of 512 density pixels; the others scale their 512 px
+            // tiles by density
+            val config = if (mvt) {
+                RenderConfig(tileSizePx = (TILE_SIZE * density).roundToInt())
+            } else {
+                RenderConfig(tileSizePx = TILE_SIZE, deviceScale = density)
+            }
+            val startView = savedInstanceState?.takeIf { it.containsKey(STATE_ZOOM) }?.let {
+                Viewport(
+                    zoom = it.getInt(STATE_ZOOM),
+                    x = it.getDouble(STATE_X),
+                    y = it.getDouble(STATE_Y),
+                    tileSize = config.tileSizePx,
+                )
+            }
             val garminBitmaps = AndroidBitmapCache()
             MapView(
                 context = this,
@@ -85,10 +93,10 @@ class MainActivity : Activity() {
                 ),
                 mapFile = map,
                 styleFile = theme,
-                config = RenderConfig(tileSizePx = TILE_SIZE, deviceScale = density),
+                config = config,
                 // the fixture's bounds span Monaco and Sněžka, whose fit is below its tiles' zooms
                 startView = startView
-                    ?: Viewport.at(lat = 43.735, lon = 7.42, zoom = 14, tileSize = TILE_SIZE)
+                    ?: Viewport.at(lat = 43.735, lon = 7.42, zoom = 14, tileSize = config.tileSizePx)
                         .takeIf { mvt && map.name == "fixtures.pmtiles" },
             )
         } catch (e: Exception) {
