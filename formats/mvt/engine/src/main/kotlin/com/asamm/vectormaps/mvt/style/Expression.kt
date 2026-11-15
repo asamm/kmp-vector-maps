@@ -64,10 +64,11 @@ abstract class Expression {
         /**
          * Compiles a JSON value: an expression array, or a constant (literal string, number, ...).
          * An array whose head is not a spec operator is a constant; a spec operator this engine
-         * does not implement throws [UnsupportedExpressionException].
+         * does not implement throws [UnsupportedExpressionException]. `property` names the style
+         * property it is the value of, which picks a legacy function's default type.
          */
-        internal fun compile(json: JsonElement): Expression {
-            return ExpressionCompiler.compile(json)
+        internal fun compile(json: JsonElement, property: String? = null): Expression {
+            return ExpressionCompiler.compile(json, property)
         }
 
         /**
@@ -105,7 +106,8 @@ value class Color(val argb: Int) {
      * This colour with its alpha multiplied by `opacity`.
      */
     fun withOpacity(opacity: Double): Color {
-        val a = (alpha * opacity.coerceIn(0.0, 1.0) + 0.5).toInt()
+        // a NaN opacity, an expression's error, leaves the colour as it is
+        val a = (alpha * (if (opacity.isNaN()) 1.0 else opacity.coerceIn(0.0, 1.0)) + 0.5).toInt()
         return Color((a shl 24) or (argb and 0xffffff))
     }
 }
@@ -138,17 +140,17 @@ private class Op(
 
 internal object ExpressionCompiler {
 
-    fun compile(json: JsonElement): Expression {
+    fun compile(json: JsonElement, property: String? = null): Expression {
         return when (json) {
             is JsonArray -> compileArray(json)
-            is JsonObject -> compile(functionExpression(json))
+            is JsonObject -> compile(functionExpression(json, property))
             else -> Constant(toValue(json))
         }
     }
 
     // a legacy function (`{"stops": ...}`) as the expression MapLibre turns it into: interpolate,
     // step or match over the zoom or a property
-    private fun functionExpression(function: JsonObject): JsonElement {
+    private fun functionExpression(function: JsonObject, styleProperty: String?): JsonElement {
         val property = (function["property"] as? JsonPrimitive)?.content
         val input = if (property != null) array("get", JsonPrimitive(property)) else array("zoom")
         val type = (function["type"] as? JsonPrimitive)?.content
@@ -166,16 +168,17 @@ internal object ExpressionCompiler {
         }
         val inputs = stops.map { it!![0] }
         val outputs = stops.map { array("literal", it!![1]) }
-        // MapLibre picks the default type by the property, which compiling one value does not
-        // know: numbers, number lists and colour notations interpolate, the rest steps
-        val interpolatable = stops.all { stop ->
-            when (val value = toValue(stop!![1])) {
-                is Double -> true
-                is List<*> -> value.all { it is Double }
-                is String -> value.startsWith("#") || value.startsWith("rgb") || value.startsWith("hsl")
-                else -> false
+        // MapLibre picks the default type by the property: the ones the spec never interpolates
+        // step, the others interpolate numbers, number lists and colours
+        val interpolatable = STEPPED_PROPERTIES.none { styleProperty?.endsWith(it) == true }
+            && stops.all { stop ->
+                when (val value = toValue(stop!![1])) {
+                    is Double -> true
+                    is List<*> -> value.all { it is Double }
+                    is String -> Colors.parse(value) != null
+                    else -> false
+                }
             }
-        }
         val expression = when (type ?: if (interpolatable) "exponential" else "interval") {
             "exponential" -> JsonArray(
                 listOf(JsonPrimitive("interpolate"), array("exponential", function["base"] ?: JsonPrimitive(1.0)), input) +
@@ -808,6 +811,9 @@ internal object ExpressionCompiler {
         "asin" to 1, "acos" to 1, "atan" to 1, "at" to 2, "array" to 1, "image" to 1, "typeof" to 1,
         "rgb" to 3, "rgba" to 4, "to-rgba" to 1,
     )
+
+    // properties the spec does not interpolate, whose number lists or names a legacy function steps
+    private val STEPPED_PROPERTIES = listOf("-dasharray", "-pattern", "-image", "-font", "-field", "-anchor")
 
     // every operator of the style spec; an array starting with one of them is an expression
     private val OPERATORS = setOf(

@@ -243,8 +243,11 @@ class MapView(
 
     // a tile shows its labels while the label store keeps it, so no more tiles than that
     private fun keptTiles(renderer: MapRenderer, argb: Boolean, tileSize: Int): Int {
-        // ARGB_8888 Garmin and MVT tiles take twice the RGB_565 Mapsforge ones
-        val byMemory = (KEPT_BYTES / ((if (argb) 4L else 2L) * tileSize * tileSize)).toInt().coerceAtLeast(1)
+        // ARGB_8888 Garmin and MVT tiles take twice the RGB_565 Mapsforge ones; the screen and a
+        // ring of tiles around it at least, which MVT's 512 × density px tiles need past the budget
+        val metrics = resources.displayMetrics
+        val screen = (metrics.widthPixels / tileSize + 2) * (metrics.heightPixels / tileSize + 2)
+        val byMemory = (KEPT_BYTES / ((if (argb) 4L else 2L) * tileSize * tileSize)).toInt().coerceAtLeast(screen)
         val labelTiles = (renderer.labelPass as? TiledLabelPass<*>)?.storeCapacity ?: return byMemory
         return minOf(byMemory, labelTiles)
     }
@@ -470,7 +473,7 @@ class MapView(
         // the A54 stops scaling above its 4 big cores (docs/performance.md M2.7b)
         const val RENDER_THREADS = 4
 
-        // 100 Mapsforge or 50 Garmin or MVT tiles at 512 px
+        // 100 Mapsforge or 50 Garmin tiles at 512 px, 7 MVT tiles at 512 × 2.625 px
         const val KEPT_BYTES = 50L shl 20
 
         const val ERROR_LINES = 3

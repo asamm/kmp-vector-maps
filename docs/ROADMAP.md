@@ -225,7 +225,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D17 | This roadmap is the source of truth; the locus-core plan stays the record |
 | D18 | Shared viewer starts from the kmp-garmin-img viewer |
 | D19 | From-scratch code is Apache-2.0; formats keep their licence |
-| D20 | 512 px tiles in goldens, benchmarks, viewers; Locus per Q16 |
+| D20 | 512 px tiles in goldens, benchmarks, viewers, but MVT in the Android viewer at 512 × density px with `deviceScale` 1 (Menion, 2026-11-15, M10.4); Locus per Q16 |
 | D21 | Speed work after the Kotlin conversion, against a Java baseline |
 | D22 | No iOS; Kotlin/JVM libraries, KMP only for the viewer UI |
 | D23 | Host API mirrors Locus' `MapSourceRenderer` seam |

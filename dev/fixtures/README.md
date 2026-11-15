@@ -18,8 +18,9 @@ Map attribution, as stated in the map header and its tags:
 - Low-zoom features (`ne_*` tags): Natural Earth, public domain.
 
 Vector tile attribution (`mvt/`), as the style's sources state it:
-- Tiles: © OpenMapTiles, © OpenStreetMap contributors (ODbL), Natural Earth, Tom Patterson;
-  contour lines: SRTM, Viewfinder Panoramas, Sonny (CC BY 4.0).
+- Tiles: © OpenMapTiles, © OpenStreetMap contributors (ODbL), Natural Earth, Tom Patterson.
+- The corner tiles, as their MBTiles metadata states it: © OpenMapTiles, © OpenStreetMap
+  contributors; contour lines SRTM, Viewfinder Panoramas, Sonny (CC BY 4.0).
 - Hillshade and bathymetry, in the `full` MapLibre and the server renders only: Sonny
   (CC BY 4.0), Mapterhorn, SRTM, Viewfinder Panoramas, GEBCO 2025 Grid.
 

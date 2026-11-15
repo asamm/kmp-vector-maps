@@ -128,6 +128,10 @@ class StyleTest {
         // number lists interpolate, as offsets do in MapLibre
         assertEquals(listOf(0.0, 1.5), eval("""{"stops": [[10, [0, 1]], [12, [0, 2]]]}""", zoom = 11.0))
         assertEquals(null, eval("""["rgb", 300, 0, 0]"""))
+        // named colours interpolate; a dasharray steps, as the spec does not interpolate it
+        assertEquals(Colors.interpolate(Color(0xff000000.toInt()), Color(0xffffffff.toInt()), 0.5), eval("""{"stops": [[0, "black"], [20, "white"]]}"""))
+        val dashes = Expression.compile(Json.parseToJsonElement("""{"stops": [[10, [1, 1]], [12, [3, 3]]]}"""), "line-dasharray")
+        assertEquals(listOf(1.0, 1.0), dashes.eval(EvalContext(11.0)))
         assertEquals(6.0, eval("""["let", "w", 3, ["*", ["var", "w"], 2]]"""))
         assertEquals("y", eval("""["case", false, "x", true, "y", "z"]"""))
         assertEquals(

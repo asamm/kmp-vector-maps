@@ -141,12 +141,14 @@ draws them on the target (D39).
 
 2026-11-15, M10.4: the [MapLibre style spec](https://maplibre.org/maplibre-style-spec/) against
 the engine. The Asamm `hike_bike` style uses nothing outside "Supported" but `text-halo-blur` (7
-layers), `text-rotate` (1) and the hillshade and colour-relief paint, which is the host's.
+layers), `text-rotate` (1) and the hillshade and colour-relief paint, which is the host's. Its
+contour labels show the gap: `text-keep-upright: false` puts their reversed digits in MapLibre's
+order, but without `text-rotate: 180` each glyph stays upside down.
 
 | Layer | Supported | Not yet |
 |---|---|---|
 | background | `background-color`, `-opacity` | `-pattern` |
-| fill | `fill-color`, `-opacity`, `-antialias`, `-pattern` (scaled with the tile), `-outline-color` (M10.4) | `-translate`, `-sort-key` |
+| fill | `fill-color`, `-opacity`, `-antialias`, `-pattern` (scaled with the tile), `-outline-color` (M10.4, not with a pattern) | `-translate`, `-sort-key` |
 | line | `line-color`, `-width`, `-opacity`, `-dasharray`, `-offset`, `-cap`, `-join` (miter limit 2) | `-pattern`, `-gap-width`, `-blur`, `-translate`, `-gradient`, `-miter-limit`, `-round-limit`, `-sort-key` |
 | circle | `circle-radius`, `-color`, `-stroke-width`, `-stroke-color`, `-opacity`, `-stroke-opacity` (M10.4) | `-blur`, `-translate`, `-pitch-*`, `-sort-key` |
 | symbol, placement | `symbol-placement` (`point`, `line`, `line-center`), `-spacing`, `-sort-key` (0–999), `text-`/`icon-allow-overlap`, `-rotation-alignment`, `text-max-angle`, `text-keep-upright` (M10.4) | `text-variable-anchor`, `-radial-offset`, `-ignore-placement`, `-optional`, `icon-text-fit`, `icon-keep-upright`, `symbol-avoid-edges`, `-z-order`, `-pitch-alignment`, `text-writing-mode` |
@@ -165,9 +167,10 @@ layers), `text-rotate` (1) and the hillshade and colour-relief paint, which is t
   `e`, `ln2`; legacy `{"stops"}` functions over the zoom or a property (M10.4), a feature without
   the property taking the function's `default`.
 - As MapLibre in part: a legacy function's default type comes from its stop values (numbers,
-  number lists and colour notations interpolate), not from the property; `image` returns the name
-  even for a missing image, so `coalesce` over images never falls back; `typeof` says `array`
-  without the item type.
+  number lists and colours interpolate), except properties the spec never interpolates
+  (`-dasharray`, `-pattern`, `-image`, `-font`, `-field`, `-anchor`), which step; `image` returns
+  the name even for a missing image, so `coalesce` over images never falls back; `typeof` says
+  `array` without the item type.
 - Not yet: `interpolate-hcl`/`-lab`, `format`, `number-format`, `collator`, `resolved-locale`,
   `is-supported-script`, `properties`, `feature-state`, `line-progress`, `heatmap-density`,
   `elevation`, `accumulated`, `distance`, `within`, `global-state`, `split`, `join`, `object`; a

@@ -177,7 +177,7 @@ class MainActivity : Activity() {
 
     private companion object {
 
-        // 512 px tiles as everywhere in this repo (D20)
+        // 512 px tiles as everywhere in this repo (D20); MVT's are 512 density pixels
         const val TILE_SIZE = 512
 
         // the style an MVT map takes without a theme extra

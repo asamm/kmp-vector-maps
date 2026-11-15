@@ -58,7 +58,9 @@ class CornerLabelGoldenTest {
                 pass.draw(labels, view, prepared)
                 labels.dispose()
                 val dump = dump(prepared)
-                assertEquals(dump.size, dump.toSet().size, "$name: a label placed twice")
+                if (dump.size != dump.toSet().size) {
+                    failures.add("$name: a label placed twice")
+                }
                 check(name = name, dump = dump, failures = failures)
                 // the mosaic's centre, the corner, at the screen's
                 val image = MvtFixtures.screen(
