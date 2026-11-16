@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, feature/m10-mvt]
+    branches: [main]
 
 permissions:
   contents: read

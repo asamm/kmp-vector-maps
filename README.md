@@ -5,18 +5,19 @@ render pipeline and viewer shared by every format.
 
 ## Status
 
-**Pre-release, M0–M6 done.** Mapsforge 0.30.0 render subset, synced to 0.31.0, converted to
-Kotlin (differences in [docs/upstream.md](docs/upstream.md)); Garmin IMG imported from
-kmp-garmin-img 0.5.2; both behind the core driver interface with a screen-wide label pass, a
-hillshade anchor for the host and, for Mapsforge, a feature query; golden tests green, desktop and
-Android viewers running. Not published yet. Milestones: [docs/ROADMAP.md](docs/ROADMAP.md);
-benchmarks: [docs/performance.md](docs/performance.md).
+**Pre-release, M0–M7 and M10 done.** Mapsforge 0.30.0 render subset, synced to 0.31.0, converted
+to Kotlin (differences in [docs/upstream.md](docs/upstream.md)); Garmin IMG imported from
+kmp-garmin-img 0.5.2; Mapbox Vector Tiles (PMTiles and online tiles, MapLibre styles); all behind
+the core driver interface with a screen-wide label pass, a hillshade anchor for the host and, for
+Mapsforge, a feature query; golden tests green, desktop and Android viewers running. Not published
+yet. Milestones: [docs/ROADMAP.md](docs/ROADMAP.md); benchmarks:
+[docs/performance.md](docs/performance.md).
 
 | Format | State |
 |---|---|
 | Mapsforge `.map` v5 | vendored from [Mapsforge](https://github.com/mapsforge/mapsforge) 0.30.0, synced to 0.31.0 |
 | Garmin IMG | from `asamm/kmp-garmin-img` 0.5.2 (history in [docs/garmin-img/](docs/garmin-img/)), extended in M4 |
-| Mapbox Vector Tiles | M10 in progress, desktop and Android ([docs/mvt.md](docs/mvt.md)) |
+| Mapbox Vector Tiles | written in M10: PMTiles and the host's online tiles, a MapLibre style subset, desktop and Android ([docs/mvt.md](docs/mvt.md)) |
 
 Targets: Android (Locus Map), JVM desktop (benchmarks, tools). No iOS.
 

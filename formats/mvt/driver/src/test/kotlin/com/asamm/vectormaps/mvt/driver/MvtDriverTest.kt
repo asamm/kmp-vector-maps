@@ -192,7 +192,8 @@ class MvtDriverTest {
                         renderer.render(TileRequest(x = 8529 * 2, y = 5974 * 2, zoom = 15), MvtTileTarget(256)) { false }
                     })
                     val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(10)
-                    while (childThread.get()?.state != Thread.State.WAITING) {
+                    // a waiter polls for cancellation, so it waits timed
+                    while (childThread.get()?.state != Thread.State.TIMED_WAITING) {
                         check(System.nanoTime() < deadline) { "child never waited" }
                         Thread.sleep(5)
                     }

@@ -55,6 +55,11 @@ class AndroidMvtRenderTarget(
 
     private val metrics = Paint.FontMetrics()
 
+    // the last dash pattern's effect, reused while a layer's lines share it (native memory)
+    private var lastDash: FloatArray? = null
+
+    private var lastDashEffect: DashPathEffect? = null
+
     private val measure = PathMeasure()
 
     private val position = FloatArray(2)
@@ -153,11 +158,23 @@ class AndroidMvtRenderTarget(
             LineJoin.BEVEL -> Paint.Join.BEVEL
         }
         stroke.pathEffect = dash?.takeIf { d -> d.isNotEmpty() && d.any { it > 0f } }?.let {
-            // Android takes pairs of on and off; an odd list repeats, as in AWT
-            DashPathEffect(if (it.size % 2 == 0) it else it + it, 0f)
+            dashEffect(it)
         }
         canvas.drawPath(toPath(path), stroke)
         stroke.pathEffect = null
+    }
+
+    private fun dashEffect(dash: FloatArray): DashPathEffect {
+        lastDashEffect?.let {
+            if (dash.contentEquals(lastDash)) {
+                return it
+            }
+        }
+        // Android takes pairs of on and off; an odd list repeats, as in AWT
+        val effect = DashPathEffect(if (dash.size % 2 == 0) dash else dash + dash, 0f)
+        lastDash = dash
+        lastDashEffect = effect
+        return effect
     }
 
     override fun drawCircle(
@@ -211,7 +228,8 @@ class AndroidMvtRenderTarget(
         ) {
             return x
         }
-        val width = this.text.measureText(line)
+        // without the trailing letter spacing, as AndroidFonts measured text.width
+        val width = this.text.measureText(line) - text.letterSpacingPx
         return x - text.width / 2f + (text.width - width) * text.justify + width / 2f
     }
 

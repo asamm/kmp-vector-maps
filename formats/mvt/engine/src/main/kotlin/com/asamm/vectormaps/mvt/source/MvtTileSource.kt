@@ -40,16 +40,19 @@ interface MvtTileSource : Closeable {
 
     companion object {
 
-        // far above any real tile, below what a render thread can hold
-        private const val MAX_INFLATED = 64 shl 20
+        /**
+         * The most bytes a tile may take, stored or inflated: far above any real tile (a few
+         * hundred KB), below what render threads can hold at once.
+         */
+        const val MAX_TILE_BYTES = 16 shl 20
 
         private const val EXACT_RATIO = 32
 
         /**
          * `bytes` inflated when gzip-compressed, as tiles usually are, else as they are. Throws
-         * when they inflate past [limit] bytes, 64 MB by default.
+         * when they inflate past [limit] bytes, [MAX_TILE_BYTES] by default.
          */
-        fun uncompressed(bytes: ByteArray, limit: Int = MAX_INFLATED): ByteArray {
+        fun uncompressed(bytes: ByteArray, limit: Int = MAX_TILE_BYTES): ByteArray {
             if (bytes.size < 2
                 || bytes[0] != 0x1f.toByte()
                 || bytes[1] != 0x8b.toByte()
@@ -67,10 +70,11 @@ interface MvtTileSource : Closeable {
                     if (n < 0) {
                         return out.toByteArray()
                     }
-                    out.write(buffer, 0, n)
-                    if (out.size() > limit) {
+                    // checked before writing, so the content never passes the limit
+                    if (out.size().toLong() + n > limit) {
                         throw IOException("uncompressed(), inflates past $limit bytes")
                     }
+                    out.write(buffer, 0, n)
                 }
             }
         }

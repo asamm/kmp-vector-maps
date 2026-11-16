@@ -48,6 +48,10 @@ class AndroidMvtGraphics(
         return AndroidMvtRenderTarget(bitmap, sprite as AndroidSprite?, fonts)
     }
 
+    override fun discard(target: MvtRenderTarget) {
+        (target as AndroidMvtRenderTarget).bitmap.recycle()
+    }
+
     private companion object {
 
         // 64 MB of pixels, far above any real sheet (@2x ones reach about 2048 px a side)

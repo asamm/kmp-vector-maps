@@ -5,9 +5,11 @@
 package com.asamm.vectormaps.mvt.source
 
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.util.zip.GZIPOutputStream
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertSame
 
 class MvtTileSourceTest {
@@ -24,6 +26,13 @@ class MvtTileSourceTest {
 
         assertContentEquals(plain, MvtTileSource.uncompressed(gzip(plain)))
         assertSame(plain, MvtTileSource.uncompressed(plain))
+    }
+
+    @Test
+    fun stopsInflatingAtTheLimit() {
+        val bomb = gzip(ByteArray(1 shl 20))
+
+        assertFailsWith<IOException> { MvtTileSource.uncompressed(bomb, limit = 64 * 1024) }
     }
 
     @Test

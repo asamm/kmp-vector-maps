@@ -26,9 +26,11 @@ import com.asamm.vectormaps.mvt.symbol.SymbolLayout
 import com.asamm.vectormaps.mvt.tile.VectorTile
 import java.lang.ref.WeakReference
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.CompletionException
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.logging.Level
 import java.util.logging.Logger
@@ -161,10 +163,41 @@ class MvtRenderer internal constructor(
         // the data tile first, so a tile without data allocates no canvas; drawing and layout
         // share it, and only tiles above the data zoom keep it for their neighbours
         val dz = maxOf(0, tile.zoom - maxDataZoom)
-        val data = tile(zoom = tile.zoom - dz, x = tile.x shr dz, y = tile.y shr dz, shared = dz > 0)
-            ?: return RenderResult.EMPTY
+        val data = try {
+            tile(
+                zoom = tile.zoom - dz,
+                x = tile.x shr dz,
+                y = tile.y shr dz,
+                shared = dz > 0,
+                isCancelled = isCancelled,
+            )
+        } catch (e: CancelledRead) {
+            return RenderResult.CANCELLED
+        } ?: return RenderResult.EMPTY
         val tileSize = key.config.tileSizePx
         val canvas = graphics.createTarget(widthPx = tileSize, heightPx = tileSize, sprite = sprite?.sheet)
+        var result: RenderResult? = null
+        try {
+            result = drawTile(tile = tile, canvas = canvas, data = data, isCancelled = isCancelled)
+            if (result == RenderResult.DRAWN) {
+                target.canvas = canvas
+            }
+            return result
+        } finally {
+            // a tile canvas is large; one not shown goes now, not with the next collection
+            if (result != RenderResult.DRAWN) {
+                graphics.discard(canvas)
+            }
+        }
+    }
+
+    private fun drawTile(
+        tile: TileRequest,
+        canvas: MvtRenderTarget,
+        data: VectorTile,
+        isCancelled: () -> Boolean,
+    ): RenderResult {
+        val tileSize = key.config.tileSizePx
         val result = tiles.render(
             zoom = tile.zoom,
             x = tile.x,
@@ -204,7 +237,6 @@ class MvtRenderer internal constructor(
             return RenderResult.CANCELLED
         }
         labelStore.store(tile = tile, labels = labels)
-        target.canvas = canvas
         return RenderResult.DRAWN
     }
 
@@ -233,8 +265,15 @@ class MvtRenderer internal constructor(
     }
 
     // the decoded tile of the first source that has it, kept for later renders when `shared`;
-    // threads missing the same tile at once wait for one read and decode
-    private fun tile(zoom: Int, x: Int, y: Int, shared: Boolean): VectorTile? {
+    // threads missing the same tile at once wait for one read and decode, a waiter throwing
+    // CancelledRead once `isCancelled`
+    private fun tile(
+        zoom: Int,
+        x: Int,
+        y: Int,
+        shared: Boolean,
+        isCancelled: () -> Boolean = { false },
+    ): VectorTile? {
         // the tiles of all lower zooms, then the tile's row-major index; unique up to
         // TileRequest.MAX_ZOOM (30), below 2^61
         val key = ((1L shl 2 * zoom) - 1) / 3 + (y.toLong() shl zoom) + x
@@ -244,11 +283,7 @@ class MvtRenderer internal constructor(
         val mine = CompletableFuture<VectorTile?>()
         val running = loading.putIfAbsent(key, mine)
         if (running != null) {
-            val tile = try {
-                running.join()
-            } catch (e: CompletionException) {
-                throw e.cause ?: e
-            }
+            val tile = await(running = running, isCancelled = isCancelled)
             // the owner may not share it; a sibling arriving before this keep reads it again
             if (tile != null
                 && shared
@@ -274,6 +309,28 @@ class MvtRenderer internal constructor(
             loading.remove(key)
         }
     }
+
+    // the read another thread runs, given up once `isCancelled`, as an online read may take long
+    private fun await(running: CompletableFuture<VectorTile?>, isCancelled: () -> Boolean): VectorTile? {
+        while (true) {
+            try {
+                return running.get(AWAIT_STEP_MS, TimeUnit.MILLISECONDS)
+            } catch (e: TimeoutException) {
+                if (isCancelled()) {
+                    throw CancelledRead()
+                }
+            } catch (e: ExecutionException) {
+                throw e.cause ?: e
+            } catch (e: InterruptedException) {
+                // hosts cancel through isCancelled; an interrupt ends this render as cancelled
+                Thread.currentThread().interrupt()
+                throw CancelledRead()
+            }
+        }
+    }
+
+    // a render's wait for a data tile, cancelled
+    private class CancelledRead : RuntimeException(null, null, false, false)
 
     // the kept tile, else an evicted one still alive, kept again when `shared`
     private fun cached(key: Long, shared: Boolean): VectorTile? {
@@ -323,8 +380,10 @@ class MvtRenderer internal constructor(
 
         val LOGGER: Logger = Logger.getLogger(MvtRenderer::class.java.name)
 
-        // a dense Prague z14 tile keeps ~5.4 MB with its geometry (docs/performance.md M10.3d)
+        // a dense Prague z14 tile keeps ~4.4 MB with its geometry (docs/performance.md M10)
         const val DECODED_BYTES = 16L shl 20
+
+        const val AWAIT_STEP_MS = 50L
 
         // colours as ARGB, the colour-relief stops as metres to ARGB
         fun hostValue(name: String, value: Any?): Any? {

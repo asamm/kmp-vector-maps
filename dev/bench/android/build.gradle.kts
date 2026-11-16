@@ -40,9 +40,9 @@ android {
 
     androidResources {
         noCompress += listOf("map", "img", "pmtiles")
-        // the golden font folder stays out. A set list replaces aapt's default ignores, so they are
-        // repeated first
-        ignoreAssetsPatterns += listOf("!.svn", "!.git", "!.ds_store", "!*.scc", ".*", "<dir>_*", "!CVS", "!thumbs.db", "!picasa.ini", "!*~", "<dir>fonts")
+        // the golden font folder and the MapLibre reference renders stay out. A set list replaces
+        // aapt's default ignores, so they are repeated first
+        ignoreAssetsPatterns += listOf("!.svn", "!.git", "!.ds_store", "!*.scc", ".*", "<dir>_*", "!CVS", "!thumbs.db", "!picasa.ini", "!*~", "<dir>fonts", "<dir>reference")
     }
 }
 

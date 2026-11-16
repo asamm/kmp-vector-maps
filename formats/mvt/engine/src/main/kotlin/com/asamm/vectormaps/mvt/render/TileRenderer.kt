@@ -211,10 +211,12 @@ class TileRenderer(
             "bevel" -> LineJoin.BEVEL
             else -> LineJoin.MITER
         }
-        // dash lengths are in line widths
+        // dash lengths are in line widths; a pattern repeating within a pixel looks solid, and its
+        // dashes would take a stroke each
         val dash = (paint.value("line-dasharray", ctx) as? List<*>)
             ?.map { ((it as? Double ?: 0.0) * width).toFloat().coerceAtLeast(0.01f) }
             ?.toFloatArray()
+            ?.takeIf { it.sum() >= MIN_DASH_PERIOD_PX }
         val path = shape.path()
         val drawn = if (offset != 0f) LineOffset.offset(path, offset) else path
         target.strokePath(drawn, color.withOpacity(opacity), width, cap, join, dash)
@@ -306,5 +308,10 @@ class TileRenderer(
         fun color(name: String, ctx: EvalContext): Color? {
             return ExpressionCompiler.toColor(value(name, ctx))
         }
+    }
+
+    private companion object {
+
+        const val MIN_DASH_PERIOD_PX = 1f
     }
 }

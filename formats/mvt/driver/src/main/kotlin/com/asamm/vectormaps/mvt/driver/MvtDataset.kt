@@ -82,7 +82,8 @@ class MvtDataset internal constructor(
      * Creates a renderer for an [MvtStyle] of this dataset's driver; the selection is unused, as
      * MapLibre styles have no layer menu. Style pixels are [RenderConfig.deviceScale] screen pixels
      * on a 512 px tile, as MapLibre's, and scale with the tile size; [RenderConfig.language] picks
-     * the `name:xx` field a style's labels read for `name`.
+     * the `name:xx` field a style's labels read for `name`. The first renderer of a style reads and
+     * decodes its sprite, file I/O to keep off the UI thread.
      */
     override fun createRenderer(
         style: MapStyle,
@@ -151,7 +152,7 @@ class MvtDataset internal constructor(
                 emptyList()
             }
         }
-        toClose.forEach(MvtTileSource::close)
+        closeAll(toClose)
     }
 
     override fun close() {
@@ -166,7 +167,22 @@ class MvtDataset internal constructor(
                 sources.toList()
             }
         }
-        toClose.forEach(MvtTileSource::close)
+        closeAll(toClose)
+    }
+
+    // every source, though one fails; the first failure thrown, the others suppressed in it
+    private fun closeAll(toClose: List<MvtTileSource>) {
+        var failure: Throwable? = null
+        for (source in toClose) {
+            try {
+                source.close()
+            } catch (t: Throwable) {
+                failure?.addSuppressed(t) ?: run { failure = t }
+            }
+        }
+        failure?.let {
+            throw it
+        }
     }
 
     private companion object {

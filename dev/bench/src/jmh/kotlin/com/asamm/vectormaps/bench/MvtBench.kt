@@ -35,11 +35,6 @@ import java.util.concurrent.Callable
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.floor
-import kotlin.math.ln
-import kotlin.math.tan
 
 /**
  * The MVT driver on the `bench.mvt.mapFile` tiles, else the Asamm fixture tiles of Sněžka
@@ -233,9 +228,7 @@ open class MvtBench {
          * fixture's tile of Sněžka, or its top-left child above the data zoom.
          */
         fun tileAt(zoom: Int): TileRequest {
-            val center = System.getProperty("bench.mvt.center").orEmpty().takeIf { it.isNotBlank() }
-                ?.split(Regex("[,:]"))
-                ?.let { it[0].trim().toDouble() to it[1].trim().toDouble() }
+            val center = BenchTiles.center("bench.mvt.center")
             if (center != null) {
                 val (west, south, east, north) = PmTilesSource(mapFile()).use { it.bounds }
                 check(center.first in south..north
@@ -243,13 +236,7 @@ open class MvtBench {
                 ) {
                     "tileAt($center), outside the map ${listOf(west, south, east, north)}"
                 }
-                val n = (1 shl zoom).toDouble()
-                val lat = Math.toRadians(center.first)
-                return TileRequest(
-                    x = floor((center.second + 180.0) / 360.0 * n).toInt(),
-                    y = floor((1.0 - ln(tan(lat) + 1.0 / cos(lat)) / PI) / 2.0 * n).toInt(),
-                    zoom = zoom,
-                )
+                return BenchTiles.tileOf(lat = center.first, lon = center.second, zoom = zoom)
             }
             val dz = zoom - DATA_ZOOM
             return if (dz > 0) {

@@ -110,7 +110,7 @@ draws them on the target (D39).
 |---|---|
 | Point at its point, line at its first point, polygon at its pole of inaccessibility | same |
 | `line` placement along lines and polygon rings, none at points | same |
-| `line` every `symbol-spacing` (spec minimum 1, widened to a longer label) from half a spacing in, else the middle; `line-center` once | same |
+| `line` every `symbol-spacing` (spec minimum 1, widened to a longer label) from half a spacing in, the middle only where no spaced anchor fits anywhere on the line; `line-center` once | same |
 | `text-max-angle`: absolute turns within 3/5 of the text size, for every text, not for icons alone | same |
 | `line` pieces with text joined first (`mergeLines`), each chain with its first piece's symbol | same |
 | Icons on lines turn with them (`icon-rotation-alignment` `auto` = `map`), `icon-offset` with `icon-rotate`, `icon-translate` in the map's frame | same |
@@ -135,7 +135,8 @@ draws them on the target (D39).
 - Left: font stacks mapped to named platform fonts (the desktop viewer passes the logical fonts),
   balanced line wrapping, MapLibre's exact line anchor offsets, path text placed along the line by
   `text-anchor` or `text-offset[0]` (centred here), an icon beside a path text (no Asamm style has
-  one), `symbol-sort-key` beyond 0–999, mixed-direction text runs (one base direction per line);
+  one), `symbol-sort-key` beyond 0–999, mixed-direction text runs (one base direction per line; an
+  Android turned path text places its characters in logical order);
   the spec gaps below.
 
 ## Spec coverage
@@ -169,7 +170,8 @@ ring blends twice where neighbouring glyphs' rings overlap.
   `rgb`, `rgba`, `string`, `number`, `boolean`, `array`, `typeof`, `image`, arithmetic, `min`,
   `max`, `round`, `floor`, `ceil`, `abs`, `sqrt`, `ln`, `log10`, `log2`, trigonometry, `pi`,
   `e`, `ln2`; legacy `{"stops"}` functions over the zoom or a property (M10.4), a feature without
-  the property taking the function's `default`.
+  the property taking the function's `default`; legacy `{token}` strings in `text-field` and
+  `icon-image`.
 - As MapLibre in part: a legacy function's default type comes from its stop values (numbers,
   number lists and colours interpolate), except properties the spec never interpolates
   (`-dasharray`, `-pattern`, `-image`, `-font`, `-field`, `-anchor`), which step; `image` returns
@@ -193,7 +195,7 @@ formats; the desktop viewer opens `.pmtiles` maps with a `style.json`.
 | Offline | `open(files)` reads PMTiles v3 (`PmTilesSource`: gzip or plain directories and tiles, leaf directories), files of one max zoom; MBTiles waits for V1 |
 | Online | `openSource(MvtTileSource)`: the host's downloader and cache; the library ships none; the desktop viewer opens a TileJSON file (`tiles/planet.json`) through its own `HttpTileSource`, tiles cached in `~/.kmp-vector-maps/tiles` |
 | Style | `loadStyle(style.json)` with `sprite.json` and `sprite.png` beside it, or the name its `sprite` gives, and its `@2x` sheet for renderers above a style pixel per screen pixel, each decoded on first use; every vector source reads the dataset |
-| Platform | `MvtGraphics` creates targets and decodes sprites; `AwtMvtGraphics` on the desktop, `AndroidMvtGraphics` (`formats/mvt/android`, `Canvas`, Android's own text shaping) on Android; sprite sheets up to 8192 px a side on the desktop, 4096 × 4096 pixels in all on Android, a larger one leaves the style without icons, an oversized or unreadable `@2x` sheet falls back to the 1x one |
+| Platform | `MvtGraphics` creates targets and decodes sprites; `AwtMvtGraphics` on the desktop, `AndroidMvtGraphics` (`formats/mvt/android`, `Canvas`, Android's own text shaping) on Android; sprite sheets up to 4096 × 4096 pixels in all on both platforms, a larger one leaves the style without icons, an oversized or unreadable `@2x` sheet falls back to the 1x one |
 | Renderer | tiles above the sources' max zoom cut from it, decoded data tiles cached for their children; the label store sized by the host; the hillshade hook at each active hillshade and colour-relief layer, with its source and paint (`HillshadeLayer`); labels stored per tile for the label pass |
 
 - The fixture `dev/fixtures/mvt/tiles/fixtures.pmtiles` holds the 6 fixture tiles, written by

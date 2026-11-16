@@ -4,6 +4,8 @@
  */
 package com.asamm.vectormaps.mvt.style
 
+import com.asamm.vectormaps.mvt.tile.Feature
+import com.asamm.vectormaps.mvt.tile.GeometryType
 import com.asamm.vectormaps.mvt.tile.Layer
 import com.asamm.vectormaps.mvt.tile.VectorTile
 import kotlinx.serialization.json.Json
@@ -165,6 +167,50 @@ class StyleTest {
         val filter = Expression.compileFilter(json)
         assertEquals(false, filter.isFeatureConstant)
         assertEquals(false, filter.eval(EvalContext()))
+    }
+
+    @Test
+    fun readsLegacyTokensAndMapLibreDefaults() {
+        val style = Style.parse(
+            """{"layers": [{"id": "a", "type": "symbol",
+                "layout": {"text-field": "{name} ({ele} m)", "icon-image": "{class}_11"}}]}""",
+        )
+        val layer = style.layers.single()
+        val ctx = EvalContext(10.0)
+        val source = Layer(
+            name = "l",
+            extent = 4096,
+            keys = arrayOf("name", "ele", "class"),
+            values = arrayOf("Sněžka", 1603.0, "peak"),
+        )
+        ctx.feature = Feature(
+            layer = source,
+            id = null,
+            tags = intArrayOf(0, 0, 1, 1, 2, 2),
+            type = GeometryType.POINT,
+            geometry = IntArray(0),
+        )
+
+        assertEquals("Sněžka (1603 m)", layer.layout.getValue("text-field").eval(ctx))
+        assertEquals("peak_11", layer.layout.getValue("icon-image").eval(ctx))
+        val zoomed = Expression.compile(Json.parseToJsonElement("""{"stops": [[0, "{name}"]]}"""), "text-field")
+        assertEquals("Sněžka", zoomed.eval(ctx))
+        // no maxzoom: active at any zoom, as MapLibre
+        assertTrue(layer.isActive(26.0))
+    }
+
+    @Test
+    fun listsMalformedCaseAndMatchAsProblems() {
+        val style = Style.parse(
+            """{"layers": [
+                {"id": "a", "type": "line", "paint": {"line-width": ["case", false, 2]}},
+                {"id": "b", "type": "line", "paint": {"line-width": ["match", ["get", "k"], "x", 2]}},
+                {"id": "c", "type": "line", "paint": {"line-width": ["case", false, 2, 3]}}
+            ]}""",
+        )
+
+        assertEquals(2, style.problems.size, "${style.problems}")
+        assertEquals(false, Expression.compile(Json.parseToJsonElement("""["to-boolean", ["*", -1, 0]]""")).eval(EvalContext(0.0)))
     }
 
     @Test

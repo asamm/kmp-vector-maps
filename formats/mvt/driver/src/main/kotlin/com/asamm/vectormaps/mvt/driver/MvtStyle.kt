@@ -11,8 +11,9 @@ import com.asamm.vectormaps.mvt.style.Style
 
 /**
  * A MapLibre style read by [MvtDriver.loadStyle]: the parsed style, shared by its renderers, and
- * its sprite sheets decoded by the driver's graphics on first use, the `@2x` one only for
- * renderers drawing above a style pixel per screen pixel; it has no layer menu.
+ * its sprite sheets read and decoded by the driver's graphics when the first renderer needing one
+ * is created, the `@2x` one only for renderers drawing above a style pixel per screen pixel; it has
+ * no layer menu.
  *
  * @param loadSprite the sheet's index and the platform's decoded sheet, `@2x` or not; null without
  *  a readable one

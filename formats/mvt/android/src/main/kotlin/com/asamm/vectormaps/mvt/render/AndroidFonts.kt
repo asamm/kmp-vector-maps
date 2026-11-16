@@ -54,6 +54,8 @@ class AndroidFonts(
     override fun width(text: String, sizePx: Float, font: MvtFont, letterSpacingPx: Float): Float {
         val paint = paints.get()
         apply(paint = paint, font = font, sizePx = sizePx, letterSpacingPx = letterSpacingPx)
-        return paint.measureText(text).coerceAtLeast(0f)
+        // Android spaces every glyph, the last too; MapLibre and the AWT fonts count the gaps only
+        val trailing = if (text.isEmpty()) 0f else letterSpacingPx
+        return (paint.measureText(text) - trailing).coerceAtLeast(0f)
     }
 }

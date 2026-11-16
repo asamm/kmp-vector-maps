@@ -156,5 +156,31 @@ class SymbolLayoutTest {
 
         assertEquals(listOf("Ravin de", "Sainte", "Dévote"), lines)
         assertEquals(listOf("MONACO-", "VILLE"), SymbolLayout.wrapLine("MONACO-VILLE", 8f) { it.length.toFloat() })
+        // a lone hyphen keeps the spaces around it
+        assertEquals(listOf("Praha -", "Brno"), SymbolLayout.wrapLine("Praha - Brno", 7f) { it.length.toFloat() })
+    }
+
+    @Test
+    fun placesNoMiddleAnchorWhereSpacedOnesMissTheRegion() {
+        // a 1000 px line with anchors every 250 px from 125: a region between two of them shows
+        // none, a line no spacing fits shows its middle
+        val line = floatArrayOf(0f, 0f, 1000f, 0f)
+        fun anchors(region: FloatArray, spacing: Float = 250f): List<Float> {
+            return LineAnchors.find(
+                coords = line,
+                start = 0,
+                end = line.size,
+                spacing = spacing,
+                labelLength = 50f,
+                center = false,
+                maxAngleDeg = 45.0,
+                angleWindow = 0f,
+                region = region,
+            ).map { it.x }
+        }
+
+        assertEquals(emptyList(), anchors(floatArrayOf(400f, -10f, 600f, 10f)))
+        assertEquals(listOf(625f), anchors(floatArrayOf(600f, -10f, 700f, 10f)))
+        assertEquals(listOf(500f), anchors(floatArrayOf(400f, -10f, 600f, 10f), spacing = 2000f))
     }
 }

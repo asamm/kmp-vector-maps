@@ -104,6 +104,23 @@ class LabelPlacerTest {
     }
 
     @Test
+    fun mapShiftsTurnWithTheMap() {
+        // an upright box shifted 20 px east on the map, below its anchor once the map turns 90
+        // degrees, where the other label's anchor lands
+        val shifted = LabelCandidate(
+            id = 1,
+            kind = LabelKind.POINT,
+            x = 0.0,
+            y = 0.0,
+            priority = 2,
+            boxes = listOf(CollisionBox(centerX = 0.0, centerY = 0.0, halfWidth = 5.0, halfHeight = 5.0, mapShiftX = 20.0)),
+        )
+        val other = point(id = 2, x = 20.0, y = 0.0, priority = 1, halfWidth = 5.0, halfHeight = 5.0)
+
+        assertEquals(listOf(1L), ids(LabelPlacer.place(listOf(shifted, other), rotationDeg = 90.0)))
+    }
+
+    @Test
     fun displayGroups() {
         val ifSpace = point(id = 1, x = 0.0, y = 0.0, priority = 5)
         val always = point(id = 2, x = 0.0, y = 0.0, priority = 1, display = LabelDisplay.ALWAYS)

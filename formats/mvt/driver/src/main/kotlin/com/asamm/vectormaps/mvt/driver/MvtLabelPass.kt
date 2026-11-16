@@ -108,16 +108,18 @@ class MvtLabelPass internal constructor(
         val icon = label.icon
         if (icon != null) {
             val angle = label.lineAngleDeg
-            // icon-offset turns with icon-rotate, and with its line; icon-translate never turns
+            // icon-offset turns with icon-rotate, and with its line; icon-translate with the map only
             val turn = (angle ?: 0f) + icon.rotateDeg.toDouble()
             val (ox, oy) = turned(icon.centerX, icon.centerY, turn)
             boxes += CollisionBox(
-                centerX = ox + icon.translateX,
-                centerY = oy + icon.translateY,
+                centerX = ox,
+                centerY = oy,
                 halfWidth = icon.width * icon.scale / 2.0 + icon.paddingPx,
                 halfHeight = icon.height * icon.scale / 2.0 + icon.paddingPx,
                 angleDeg = if (angle != null) turn else 0.0,
                 alignment = if (angle != null) BoxAlignment.MAP else BoxAlignment.VIEWPORT,
+                mapShiftX = icon.translateX.toDouble(),
+                mapShiftY = icon.translateY.toDouble(),
             )
         }
         return LabelCandidate(

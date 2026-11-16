@@ -243,8 +243,9 @@ class MapView(
 
     // a tile shows its labels while the label store keeps it, so no more tiles than that
     private fun keptTiles(renderer: MapRenderer, argb: Boolean, tileSize: Int): Int {
-        // ARGB_8888 Garmin and MVT tiles take twice the RGB_565 Mapsforge ones; the screen and a
-        // ring of tiles around it at least, which MVT's 512 × density px tiles need past the budget
+        // ARGB_8888 Garmin and MVT tiles take twice the RGB_565 Mapsforge ones; at least the most
+        // tiles the screen shows at once, which MVT's 512 × density px tiles need past the budget,
+        // no ring around it, as memory comes first
         val metrics = resources.displayMetrics
         val screen = (metrics.widthPixels / tileSize + 2) * (metrics.heightPixels / tileSize + 2)
         val byMemory = (KEPT_BYTES / ((if (argb) 4L else 2L) * tileSize * tileSize)).toInt().coerceAtLeast(screen)

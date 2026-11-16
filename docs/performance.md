@@ -194,17 +194,19 @@ committed). "Again" renders one tile through a long-lived renderer, "cold" throu
   below, A54 Prague "again" after it: at or below the data zoom a render now reads its data tile
   anew, so "again" equals "cold" there; the read and decode are a few per cent of a render.
 
-Memory: a decoded Prague tile keeps far more than a fixture tile, about 7 times its protobuf.
+Memory: a decoded Prague tile keeps far more than a fixture tile, about 7 times its protobuf
+(6 times since the M10 review drops a feature's encoded geometry once decoded, below).
 
-| Prague data tile | Protobuf | Features | Decoded | + geometry |
-|---|---|---|---|---|
-| z14 8848/5550 | 802 KB | 16,414 | 3.5 MB | +1.9 MB |
-| z12 2212/1387 | 307 KB | 8,225 | 1.5 MB | +1.0 MB |
-| z10 553/346 | 234 KB | 4,742 | 1.1 MB | +0.7 MB |
+| Prague data tile | Protobuf | Features | Decoded | + geometry | + geometry, M10 (2026-11-16) |
+|---|---|---|---|---|---|
+| z14 8848/5550 | 802 KB | 16,414 | 3.5 MB | +1.9 MB | +0.9 MB |
+| z12 2212/1387 | 307 KB | 8,225 | 1.5 MB | +1.0 MB | +0.4 MB |
+| z10 553/346 | 234 KB | 4,742 | 1.1 MB | +0.7 MB | +0.2 MB |
 
 - The 12-tile cache of M10.3a could keep about 65 MB over Prague at z14. Now a render passes its
   data tile to the draw and the label layout, and only data tiles above the data zoom, shared by
-  their children, are kept: up to 16 MB estimated (7 × protobuf), the newest kept even alone.
+  their children, are kept: up to 16 MB estimated (7 × protobuf, 6 × since M10), the newest kept
+  even alone.
 - A renderer over Prague keeps no data tile after 16 z14 tiles, 3.8 MB after a z16 block (its
   one z14 data tile), 12 MB after an 8×8 z16 area over four data tiles (two within the budget, the
   rest until collected), and nothing once closed (JVM heap after GC, against a closed renderer).

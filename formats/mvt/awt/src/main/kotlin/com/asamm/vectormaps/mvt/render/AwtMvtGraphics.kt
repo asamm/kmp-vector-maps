@@ -32,8 +32,9 @@ class AwtMvtGraphics(
                 // the size first, so a crafted header cannot exhaust the heap
                 val width = reader.getWidth(0)
                 val height = reader.getHeight(0)
-                require(width <= MAX_SPRITE_PX
-                    && height <= MAX_SPRITE_PX
+                require(width > 0
+                    && height > 0
+                    && width.toLong() * height <= MAX_SPRITE_PIXELS
                 ) {
                     "loadSprite(), sheet of $width x $height px"
                 }
@@ -55,9 +56,13 @@ class AwtMvtGraphics(
         return AwtMvtRenderTarget(image, sprite as AwtSprite?, fonts)
     }
 
+    override fun discard(target: MvtRenderTarget) {
+        (target as AwtMvtRenderTarget).dispose()
+    }
+
     private companion object {
 
-        // far above any real sheet
-        const val MAX_SPRITE_PX = 8192
+        // 64 MB of pixels, far above any real sheet, as the Android graphics
+        const val MAX_SPRITE_PIXELS = 4096L * 4096
     }
 }

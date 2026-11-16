@@ -25,4 +25,12 @@ interface MvtGraphics {
      * one that [loadSprite] returned, or none.
      */
     fun createTarget(widthPx: Int, heightPx: Int, sprite: Any?): MvtRenderTarget
+
+    /**
+     * Releases `target`, one [createTarget] returned that is never shown, such as a cancelled
+     * tile's: its pixels at once where the platform can (Android), else what it holds besides.
+     */
+    fun discard(target: MvtRenderTarget) {
+        // the collector frees it by default
+    }
 }

@@ -653,15 +653,28 @@ class ViewerState(
     }
 
     /**
-     * Closes the engine and dataset and waits for renders in progress; for the end of the session.
+     * Closes the engine, then the style and dataset once its renders end, without waiting for
+     * them; for the end of the session.
      */
     override fun close() {
-        // renders waiting on downloads must not hold the window's close
-        engine?.closeLater()
-        engine = null
-        replaceLoadedStyle(null)
-        dataset?.close()
+        val style = loadedStyle
+        val data = dataset
+        loadedStyle = null
         dataset = null
+        val closing = engine
+        // one close, the one that runs the callback once renders end
+        engine = null
+        dropEngine()
+        // renders waiting on downloads must not hold the window's close
+        if (closing == null) {
+            style?.close()
+            data?.close()
+            return
+        }
+        closing.closeLater {
+            style?.close()
+            data?.close()
+        }
     }
 
     // the replaced style's theme lives on until the renderers still using it close

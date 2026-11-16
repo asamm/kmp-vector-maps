@@ -23,7 +23,8 @@ internal object LineMerge {
      * the free ends, in one pass in piece order.
      */
     fun merge(parts: List<FloatArray>): List<Chain> {
-        val lines = arrayOfNulls<FloatArray>(parts.size)
+        // each line as its pieces in order, joined into one array once at the end
+        val lines = arrayOfNulls<ArrayDeque<Int>>(parts.size)
         // a free end's point to the index of the line it starts or ends
         val starts = HashMap<Long, Int>()
         val ends = HashMap<Long, Int>()
@@ -37,28 +38,49 @@ internal object LineMerge {
                 && before != after
             ) {
                 // the piece joins two lines into one
-                lines[before] = lines[before]!! + part.copyOfRange(2, part.size) +
-                    lines[after]!!.copyOfRange(2, lines[after]!!.size)
+                val joined = lines[before]!!
+                joined.addLast(k)
+                joined.addAll(lines[after]!!)
                 ends.remove(startKey)
                 starts.remove(endKey)
-                val joined = lines[before]!!
-                ends[key(joined[joined.size - 2], joined[joined.size - 1])] = before
+                val last = parts[joined.last()]
+                ends[key(last[last.size - 2], last[last.size - 1])] = before
                 lines[after] = null
             } else if (before != null) {
-                lines[before] = lines[before]!! + part.copyOfRange(2, part.size)
+                lines[before]!!.addLast(k)
                 ends.remove(startKey)
                 ends[endKey] = before
             } else if (after != null) {
-                lines[after] = part + lines[after]!!.copyOfRange(2, lines[after]!!.size)
+                lines[after]!!.addFirst(k)
                 starts.remove(endKey)
                 starts[startKey] = after
             } else {
-                lines[k] = part
+                lines[k] = ArrayDeque(listOf(k))
                 starts[startKey] = k
                 ends[endKey] = k
             }
         }
-        return lines.indices.mapNotNull { i -> lines[i]?.let { Chain(it, i) } }
+        return lines.indices.mapNotNull { i -> lines[i]?.let { Chain(coordsOf(parts, it), i) } }
+    }
+
+    // the pieces end to end, each after the first without the point it shares with the one before
+    private fun coordsOf(parts: List<FloatArray>, pieces: ArrayDeque<Int>): FloatArray {
+        if (pieces.size == 1) {
+            return parts[pieces.first()]
+        }
+        var size = parts[pieces.first()].size
+        for (j in 1 until pieces.size) {
+            size += parts[pieces[j]].size - 2
+        }
+        val out = FloatArray(size)
+        var at = 0
+        for ((j, piece) in pieces.withIndex()) {
+            val part = parts[piece]
+            val from = if (j == 0) 0 else 2
+            part.copyInto(out, destinationOffset = at, startIndex = from)
+            at += part.size - from
+        }
+        return out
     }
 
     private fun key(x: Float, y: Float): Long {

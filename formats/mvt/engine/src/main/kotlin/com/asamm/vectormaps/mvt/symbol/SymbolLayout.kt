@@ -15,9 +15,13 @@ import com.asamm.vectormaps.mvt.style.LayerType
 import com.asamm.vectormaps.mvt.style.SpriteIndex
 import com.asamm.vectormaps.mvt.style.Style
 import com.asamm.vectormaps.mvt.style.StyleLayer
+import com.asamm.vectormaps.mvt.tile.Feature
+import com.asamm.vectormaps.mvt.tile.Geometry
 import com.asamm.vectormaps.mvt.tile.GeometryType
 import com.asamm.vectormaps.mvt.tile.VectorTile
+import java.util.Collections
 import java.util.Locale
+import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -57,6 +61,10 @@ class SymbolLayout(
         }
 
     private val failed = ConcurrentHashMap.newKeySet<String>()
+
+    // the poles of a feature's polygons in data-tile units, x, y per polygon, for the sibling
+    // tiles above the data zoom that share its data tile; gone with the tile
+    private val poles = Collections.synchronizedMap(WeakHashMap<Feature, FloatArray>())
 
     /**
      * The labels whose anchors fall inside tile (`zoom`, `x`, `y`) of `tileSizePx`; a neighbour
@@ -104,11 +112,18 @@ class SymbolLayout(
                     if (!frame.meets(geometry = geometry, extent = source.extent, marginPx = tileSizePx.toFloat())) {
                         continue
                     }
+                    val pole: (Int, List<IntRange>, FloatArray) -> Pair<Float, Float> = if (frame.dz > 0) {
+                        { i, _, _ -> sharedPole(feature, geometry, source.extent, frame, i) }
+                    } else {
+                        { _, polygon, coords -> Polylabel.find(coords, polygon, precision = 1f) }
+                    }
                     layoutFeature(
                         layer = layer,
                         index = index,
                         type = feature.type,
+                        pole = pole,
                         coords = frame.project(geometry, source.extent),
+                        dataCoords = geometry.coords,
                         partEnds = geometry.partEnds,
                         ctx = ctx,
                         tileSizePx = tileSizePx,
@@ -139,7 +154,9 @@ class SymbolLayout(
         layer: StyleLayer,
         index: Int,
         type: GeometryType,
+        pole: (Int, List<IntRange>, FloatArray) -> Pair<Float, Float>,
         coords: FloatArray,
+        dataCoords: FloatArray,
         partEnds: IntArray,
         ctx: EvalContext,
         tileSizePx: Int,
@@ -236,12 +253,14 @@ class SymbolLayout(
                 }
             }
             GeometryType.POLYGON -> {
-                for (polygon in Polylabel.polygons(coords, partEnds)) {
+                // rings classified on the exact data units, as the shared poles are; their ranges
+                // index the projected coords alike
+                for ((i, polygon) in Polylabel.polygons(dataCoords, partEnds).withIndex()) {
                     // the pole lies inside the outer ring's bounds
                     if (!boundsMeetTile(coords, polygon.first(), 0f, tileSizePx)) {
                         continue
                     }
-                    val (px, py) = Polylabel.find(coords, polygon, precision = 1f)
+                    val (px, py) = pole(i, polygon, coords)
                     emit(symbol, px, py, null, tileSizePx, out)
                 }
             }
@@ -274,6 +293,25 @@ class SymbolLayout(
             }
             emit(line.symbol, a.x, a.y, path, tileSizePx, out, if (line.iconAlongLine) a.angleDeg else null)
         }
+    }
+
+    // above the data zoom the sibling tiles share the pole of polygon `i`, found once in data units
+    // with MapLibre's precision of a 512th of the tile, then projected into the tile
+    private fun sharedPole(feature: Feature, geometry: Geometry, extent: Int, frame: DataTileFrame, i: Int): Pair<Float, Float> {
+        val all = poles.getOrPut(feature) { polesOf(geometry = geometry, precision = extent / 512f) }
+        return Pair(frame.projectX(all[i * 2], extent), frame.projectY(all[i * 2 + 1], extent))
+    }
+
+    // the pole of each polygon of `geometry`, x, y pairs in its own units
+    private fun polesOf(geometry: Geometry, precision: Float): FloatArray {
+        val polygons = Polylabel.polygons(geometry.coords, geometry.partEnds)
+        val out = FloatArray(polygons.size * 2)
+        for ((i, polygon) in polygons.withIndex()) {
+            val (x, y) = Polylabel.find(geometry.coords, polygon, precision = precision)
+            out[i * 2] = x
+            out[i * 2 + 1] = y
+        }
+        return out
     }
 
     // the bounds of `range` in `coords`, grown by `margin`, overlap the tile
@@ -564,8 +602,12 @@ class SymbolLayout(
             val out = ArrayList<String>()
             var current = ""
             // a break after a space drops it, after a hyphen keeps it
-            for (word in WORDS.findAll(line).map { it.value }) {
-                val glue = if (current.isEmpty() || current.endsWith("-")) "" else " "
+            for (match in WORDS.findAll(line)) {
+                val word = match.value
+                // the space the word follows in the line, as after a lone hyphen
+                val spaced = match.range.first > 0
+                    && line[match.range.first - 1] == ' '
+                val glue = if (current.isNotEmpty() && spaced) " " else ""
                 val candidate = current + glue + word
                 if (current.isNotEmpty()
                     && widthOf(candidate) > maxWidth

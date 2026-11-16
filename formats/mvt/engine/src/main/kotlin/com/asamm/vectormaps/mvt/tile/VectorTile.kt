@@ -16,9 +16,10 @@ class VectorTile(
 ) {
 
     /**
-     * An estimate of the heap the tile keeps with every feature's geometry decoded: about 7 times
+     * An estimate of the heap the tile keeps with every feature's geometry decoded: about 6 times
      * its protobuf on the Asamm tiles, dense Prague and sparse fixture tiles alike
-     * (docs/performance.md M10.3d), at least the objects of its features, plus those of the tile.
+     * (docs/performance.md M10.3d, M10), at least the objects of its features, plus those of the
+     * tile.
      */
     val retainedBytes: Long = maxOf(
         encodedBytes * RETAINED_PER_ENCODED,
@@ -27,7 +28,7 @@ class VectorTile(
 
     companion object {
 
-        private const val RETAINED_PER_ENCODED = 7L
+        private const val RETAINED_PER_ENCODED = 6L
 
         // a Feature with its tag and geometry arrays, for tiles of many tiny features
         private const val RETAINED_PER_FEATURE = 96L
@@ -185,8 +186,11 @@ class Feature(
     val id: Long?,
     private val tags: IntArray,
     val type: GeometryType,
-    private val geometry: IntArray,
+    geometry: IntArray,
 ) {
+
+    // the command stream until decoded, then dropped, so a kept tile holds one of the two
+    private var encoded: IntArray? = geometry
 
     // decoded once, as the layers of a tile and the tiles cut from it share it
     @Volatile
@@ -224,10 +228,19 @@ class Feature(
         decoded?.let {
             return it
         }
-        return decode().also { decoded = it }
+        // render threads sharing a tile decode a feature once; later calls skip the lock
+        synchronized(this) {
+            decoded?.let {
+                return it
+            }
+            val geometry = decode(requireNotNull(encoded))
+            decoded = geometry
+            encoded = null
+            return geometry
+        }
     }
 
-    private fun decode(): Geometry {
+    private fun decode(geometry: IntArray): Geometry {
         // sized by a first pass over the commands, so the geometry is allocated once
         var points = 0
         var moves = 0

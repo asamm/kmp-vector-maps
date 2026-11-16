@@ -210,10 +210,7 @@ open class MapsforgeBench {
          * centre; it must lie inside the map, or the render is just background.
          */
         fun centerTile(store: MapFile, zoom: Byte): Tile {
-            val center = System.getProperty("bench.center").orEmpty()
-                .takeIf { it.isNotBlank() }
-                ?.split(Regex("[,:]"))
-                ?.let { LatLong(it[0].trim().toDouble(), it[1].trim().toDouble()) }
+            val center = BenchTiles.center("bench.center")?.let { (lat, lon) -> LatLong(lat, lon) }
                 ?: store.startPosition()
             check(store.boundingBox().contains(center)) {
                 "centerTile($center), outside the map ${store.boundingBox()}"

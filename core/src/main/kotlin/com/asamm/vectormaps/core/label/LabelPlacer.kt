@@ -228,6 +228,8 @@ internal class ScreenShape(val boxes: Array<ScreenBox>) {
                     uy = ux * sin + uy * cos
                     ux = turnedX
                 }
+                offsetX += box.mapShiftX * cos - box.mapShiftY * sin
+                offsetY += box.mapShiftX * sin + box.mapShiftY * cos
                 ScreenBox(
                     cx = anchorX + offsetX,
                     cy = anchorY + offsetY,

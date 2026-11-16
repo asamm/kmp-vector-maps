@@ -16,6 +16,7 @@ import kotlinx.serialization.json.jsonObject
 import java.io.File
 import java.io.IOException
 import java.net.URI
+import java.net.URISyntaxException
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
@@ -28,12 +29,14 @@ import java.util.concurrent.TimeoutException
 
 /**
  * Online vector tiles for the viewer, from the first URL template of a TileJSON file such as the
- * Asamm server's `planet.json`; downloaded tiles stay in [cacheDir], tiles the server lacks as
+ * Asamm server's `planet.json`, with `{z}`, `{x}` and `{y}` only, rows from the north or, for
+ * `scheme: tms`, from the south; downloaded tiles stay in [cacheDir], tiles the server lacks as
  * empty files. For UI testing only: no expiry, retries or size limit, and a tile that fails to
  * download stays blank until Rerender or Reload.
  */
 class HttpTileSource private constructor(
     private val template: String,
+    private val tms: Boolean,
     override val minZoom: Int,
     override val maxZoom: Int,
     override val bounds: DoubleArray?,
@@ -45,7 +48,13 @@ class HttpTileSource private constructor(
         if (cached.isFile) {
             return cached.readBytes().takeIf { it.isNotEmpty() }
         }
-        val uri = URI(template.replace("{z}", "$zoom").replace("{x}", "$x").replace("{y}", "$y"))
+        val row = if (tms) (1 shl zoom) - 1 - y else y
+        // checked in open(), so only a malformed template throws here; its query may hold a key
+        val uri = try {
+            URI(template.replace("{z}", "$zoom").replace("{x}", "$x").replace("{y}", "$row"))
+        } catch (e: URISyntaxException) {
+            throw IOException("tile($zoom, $x, $y), malformed tile template")
+        }
         // without the query, which may hold a key
         val where = "${uri.host}${uri.rawPath}"
         val request = HttpRequest.newBuilder(uri)
@@ -132,18 +141,32 @@ class HttpTileSource private constructor(
             val template = requireNotNull(templateOf(json)) {
                 "open($file), no http(s) tile template"
             }
-            // the host and port, then the path up to the first placeholder and a hash of the whole
-            // template, so templates differing in port, query or suffix keep apart
-            val uri = URI(template.substringBefore("{"))
+            // {s}, {r}, {ratio} and the like would fail every tile
+            require(!template.replace("{z}", "").replace("{x}", "").replace("{y}", "").contains('{')) {
+                "open($file), a tile template placeholder other than {z}, {x} and {y}"
+            }
+            // the host and port, not the user info, then the path up to the first placeholder and a
+            // hash of the whole template, so templates differing in port, query or suffix keep apart
+            // the template may hold a key, so no message quotes it
+            val uri = try {
+                URI(template.substringBefore("{"))
+            } catch (e: URISyntaxException) {
+                throw IllegalArgumentException("open($file), malformed tile template")
+            }
+            val host = requireNotNull(uri.host) {
+                "open($file), a tile template without a host"
+            }
+            val server = host + if (uri.port >= 0) "_${uri.port}" else ""
             val tileset = uri.rawPath.trim('/') + "-" + "%08x".format(template.hashCode())
             val bounds = (json["bounds"] as? JsonArray)?.mapNotNull { (it as? JsonPrimitive)?.doubleOrNull }
                 ?.takeIf { it.size == 4 }
             return HttpTileSource(
                 template = template,
+                tms = (json["scheme"] as? JsonPrimitive)?.content == "tms",
                 minZoom = (json["minzoom"] as? JsonPrimitive)?.intOrNull ?: 0,
                 maxZoom = (json["maxzoom"] as? JsonPrimitive)?.intOrNull ?: 14,
                 bounds = bounds?.toDoubleArray(),
-                cacheDir = File(cacheRoot, "${plain(uri.rawAuthority)}/${plain(tileset)}"),
+                cacheDir = File(cacheRoot, "${plain(server)}/${plain(tileset)}"),
             )
         }
 

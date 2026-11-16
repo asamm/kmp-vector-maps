@@ -70,12 +70,17 @@ class MvtDriver(
     /**
      * Reads a MapLibre `style.json`; its sprite (`sprite.json` and `sprite.png` beside it, or the
      * files its `sprite` names there, and the `@2x` pair for renderers above a style pixel per
-     * screen pixel) is decoded on a renderer's first use, and a style without a readable one draws
-     * no icons or patterns. The style's id covers `style.json` and the sprite files as they are now.
-     * Its vector sources all read from the dataset it renders. Throws for a file with no style layers, such as a sprite index.
+     * screen pixel) is read and decoded by the first renderer created for it, and a style without
+     * a readable one draws no icons or patterns. The style's id covers `style.json` and the sprite
+     * files as they are now. Its vector sources all read from the dataset it renders. Throws for a
+     * file with no style layers, such as a sprite index, or one larger than 16 MB.
      */
     override fun loadStyle(file: File): MvtStyle {
         val lastModified = file.lastModified()
+        // a read past this would exhaust the heap; real styles take a few MB
+        require(file.length() <= MAX_STYLE_BYTES) {
+            "loadStyle($file), ${file.length()} bytes"
+        }
         val style = Style.parse(file.readText())
         require(style.layers.isNotEmpty()) {
             "loadStyle($file), no style layers"
@@ -130,6 +135,8 @@ class MvtDriver(
         private const val MAX_SPRITE_INDEX_BYTES = 4L shl 20
 
         private const val MAX_SPRITE_PNG_BYTES = 32L shl 20
+
+        private const val MAX_STYLE_BYTES = 16L shl 20
 
         /**
          * The source's bounds within the world; an axis that is reversed, such as one crossing the

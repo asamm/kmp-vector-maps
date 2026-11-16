@@ -28,7 +28,10 @@ internal class DataTileFrame(
 
     val dataZoom = minOf(zoom, maxDataZoom)
 
-    private val dz = zoom - dataZoom
+    /**
+     * Zooms above the data zoom, 0 at or below it.
+     */
+    val dz = zoom - dataZoom
 
     val dataX = x shr dz
 
@@ -55,6 +58,20 @@ internal class DataTileFrame(
             && geometry.minX * sx - offsetX <= widthPx + marginPx
             && geometry.maxY * sy - offsetY >= -marginPx
             && geometry.minY * sy - offsetY <= heightPx + marginPx
+    }
+
+    /**
+     * The x of data-tile point `x` in the requested tile's pixels, for a layer of `extent`.
+     */
+    fun projectX(x: Float, extent: Int): Float {
+        return x * widthPx * (1 shl dz).toFloat() / extent - offsetX
+    }
+
+    /**
+     * The y of data-tile point `y` in the requested tile's pixels, for a layer of `extent`.
+     */
+    fun projectY(y: Float, extent: Int): Float {
+        return y * heightPx * (1 shl dz).toFloat() / extent - offsetY
     }
 
     /**

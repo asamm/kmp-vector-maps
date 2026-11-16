@@ -57,9 +57,9 @@ internal object LineAnchors {
         val out = ArrayList<Anchor>()
         // MapLibre widens a spacing the label nearly fills
         val step = if (spacing - labelLength < spacing / 4f) labelLength + spacing / 4f else spacing
-        if (!center
+        val spaced = !center
             && total >= step
-        ) {
+        if (spaced) {
             var at = 0.0
             var i = start + 2
             while (i < end
@@ -102,12 +102,36 @@ internal object LineAnchors {
         // the middle, for `line-center`, a line shorter than its spacing, or one no spacing fits
         val middle = total / 2.0
         val (x, y, angle) = pointAt(coords, start, end, middle.toFloat())
-        if (inside(x, y, region)
-            && fits(middle)
+        if (!inside(x, y, region)
+            || !fits(middle)
         ) {
-            out += Anchor(x, y, middle.toFloat(), angle)
+            return out
         }
+        // a region the spaced anchors miss, such as a tile above the data zoom between two of
+        // them, shows none where one fits elsewhere on the line: they are its neighbours'
+        if (spaced
+            && spacedFits(step = step, total = total, fits = ::fits)
+        ) {
+            return out
+        }
+        out += Anchor(x, y, middle.toFloat(), angle)
         return out
+    }
+
+    // a spaced anchor fits somewhere along the whole line
+    private fun spacedFits(step: Float, total: Float, fits: (Double) -> Boolean): Boolean {
+        var k = 0L
+        while (k < MAX_ANCHORS) {
+            val d = step / 2.0 + k * step
+            if (d > total) {
+                return false
+            }
+            if (fits(d)) {
+                return true
+            }
+            k++
+        }
+        return false
     }
 
     /**

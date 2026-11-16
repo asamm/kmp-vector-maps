@@ -144,8 +144,39 @@ internal object ExpressionCompiler {
         return when (json) {
             is JsonArray -> compileArray(json)
             is JsonObject -> compile(functionExpression(json, property))
-            else -> Constant(toValue(json))
+            else -> {
+                if (property in TOKEN_PROPERTIES
+                    && json is JsonPrimitive
+                    && json.isString
+                    && TOKEN.containsMatchIn(json.content)
+                ) {
+                    compile(tokenExpression(json.content))
+                } else {
+                    Constant(toValue(json))
+                }
+            }
         }
+    }
+
+    // a legacy `{name}` token string as the expression MapLibre turns it into: the text around
+    // each token, concatenated with the token's property as text
+    private fun tokenExpression(text: String): JsonElement {
+        val parts = ArrayList<JsonElement>()
+        var at = 0
+        for (match in TOKEN.findAll(text)) {
+            if (match.range.first > at) {
+                parts.add(JsonPrimitive(text.substring(at, match.range.first)))
+            }
+            parts.add(array("to-string", array("get", JsonPrimitive(match.groupValues[1]))))
+            at = match.range.last + 1
+        }
+        if (at < text.length) {
+            parts.add(JsonPrimitive(text.substring(at)))
+        }
+        if (parts.size == 1) {
+            return parts[0]
+        }
+        return array("concat", *parts.toTypedArray())
     }
 
     // a legacy function (`{"stops": ...}`) as the expression MapLibre turns it into: interpolate,
@@ -167,7 +198,20 @@ internal object ExpressionCompiler {
             "function stops $stops"
         }
         val inputs = stops.map { it!![0] }
-        val outputs = stops.map { array("literal", it!![1]) }
+        val outputs = stops.map { stop ->
+            val value = stop!![1]
+            // a zoom function's `{name}` tokens resolve as a plain value's do
+            if (property == null
+                && styleProperty in TOKEN_PROPERTIES
+                && value is JsonPrimitive
+                && value.isString
+                && TOKEN.containsMatchIn(value.content)
+            ) {
+                tokenExpression(value.content)
+            } else {
+                array("literal", value)
+            }
+        }
         // MapLibre picks the default type by the property: the ones the spec never interpolates
         // step, the others interpolate numbers, number lists and colours
         val interpolatable = STEPPED_PROPERTIES.none { styleProperty?.endsWith(it) == true }
@@ -191,7 +235,7 @@ internal object ExpressionCompiler {
             "categorical" -> return JsonArray(
                 listOf(JsonPrimitive("match"), input) +
                     inputs.zip(outputs).flatMap { listOf(it.first, it.second) } +
-                    array("literal", function["default"] ?: JsonNull),
+                    listOf(array("literal", function["default"] ?: JsonNull)),
             )
             else -> throw UnsupportedExpressionException("function type $type")
         }
@@ -462,7 +506,7 @@ internal object ExpressionCompiler {
                     else -> null
                 }
             }
-            "case" -> op(args) { ctx, a ->
+            "case" -> op(requireArity(name, args, odd = true)) { ctx, a ->
                 var i = 0
                 while (i + 1 < a.size) {
                     if (a[i].eval(ctx) == true) {
@@ -472,7 +516,7 @@ internal object ExpressionCompiler {
                 }
                 a.last().eval(ctx)
             }
-            "match" -> compileMatch(args)
+            "match" -> compileMatch(requireArity(name, args, odd = false))
             "coalesce" -> op(args) { ctx, a ->
                 for (e in a) {
                     val v = e.eval(ctx)
@@ -497,8 +541,9 @@ internal object ExpressionCompiler {
             }
             "to-boolean" -> op(args) { ctx, a ->
                 when (val v = a[0].eval(ctx)) {
-                    null, false, 0.0, "" -> false
-                    is Double -> !v.isNaN()
+                    null, false, "" -> false
+                    // -0 too, which a boxed 0.0 does not equal
+                    is Double -> v != 0.0 && !v.isNaN()
                     else -> true
                 }
             }
@@ -600,6 +645,17 @@ internal object ExpressionCompiler {
             }
             else -> throw UnsupportedExpressionException(name)
         }
+    }
+
+    // case takes condition, output pairs and a fallback, match an input, label, output pairs and a
+    // fallback; a call short of a pair would return an output as its fallback
+    private fun requireArity(name: String, args: List<Expression>, odd: Boolean): List<Expression> {
+        require(args.size >= (if (odd) 3 else 4)
+            && (args.size % 2 == 1) == odd
+        ) {
+            "$name with ${args.size} arguments"
+        }
+        return args
     }
 
     private fun compileMatch(args: List<Expression>): Expression {
@@ -811,6 +867,11 @@ internal object ExpressionCompiler {
         "asin" to 1, "acos" to 1, "atan" to 1, "at" to 2, "array" to 1, "image" to 1, "typeof" to 1,
         "rgb" to 3, "rgba" to 4, "to-rgba" to 1,
     )
+
+    // properties whose strings may hold legacy `{name}` tokens
+    private val TOKEN_PROPERTIES = setOf("text-field", "icon-image")
+
+    private val TOKEN = Regex("\\{([^{}]+)}")
 
     // properties the spec does not interpolate, whose number lists or names a legacy function steps
     private val STEPPED_PROPERTIES = listOf("-dasharray", "-pattern", "-image", "-font", "-field", "-anchor")

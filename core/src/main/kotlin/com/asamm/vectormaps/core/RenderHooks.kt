@@ -68,7 +68,8 @@ fun interface HillshadeHook {
 /**
  * An elevation layer of an MVT style the host draws for [HillshadeHook]: its MapLibre `hillshade`
  * or `color-relief` layer and its `raster-dem` source. The host picks the layers it draws, such as
- * only those of its terrain source.
+ * only those of its terrain source; [sourceUrl] and [tiles] come from the style file unchecked, so
+ * a host fetching them checks them against the servers it trusts.
  *
  * @param source the style's id of the layer's source
  * @param sourceUrl the source's TileJSON `url`, null when it lists [tiles] or the style lacks it

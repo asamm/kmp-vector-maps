@@ -37,11 +37,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.math.PI
 import kotlin.math.atan
-import kotlin.math.cos
-import kotlin.math.floor
-import kotlin.math.ln
 import kotlin.math.sinh
-import kotlin.math.tan
 
 /**
  * Baseline of the Garmin driver per stage with the map's own TYP and 512 px tiles
@@ -245,23 +241,14 @@ open class GarminBench {
          */
         fun centerTile(dataset: GarminDataset, zoom: Int): TileRequest {
             val bounds = dataset.bounds
-            val (lat, lon) = System.getProperty("bench.garmin.center").orEmpty()
-                .takeIf { it.isNotBlank() }
-                ?.split(Regex("[,:]"))
-                ?.let { it[0].trim().toDouble() to it[1].trim().toDouble() }
+            val (lat, lon) = BenchTiles.center("bench.garmin.center")
                 ?: ((bounds.minLat + bounds.maxLat) / 2 to (bounds.minLon + bounds.maxLon) / 2)
             check(lat in bounds.minLat..bounds.maxLat
                 && lon in bounds.minLon..bounds.maxLon
             ) {
                 "centerTile($lat, $lon), outside the map $bounds"
             }
-            val n = (1 shl zoom).toDouble()
-            val latRad = lat * PI / 180.0
-            return TileRequest(
-                x = floor((lon + 180.0) / 360.0 * n).toInt(),
-                y = floor((1.0 - ln(tan(latRad) + 1.0 / cos(latRad)) / PI) / 2.0 * n).toInt(),
-                zoom = zoom,
-            )
+            return BenchTiles.tileOf(lat = lat, lon = lon, zoom = zoom)
         }
 
         // as `GarminRenderer` projects a tile

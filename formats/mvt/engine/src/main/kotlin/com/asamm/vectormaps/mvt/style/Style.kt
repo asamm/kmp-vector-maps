@@ -81,7 +81,8 @@ class Style(
                 source = json.string("source"),
                 sourceLayer = json.string("source-layer"),
                 minZoom = (json["minzoom"] as? JsonPrimitive)?.doubleOrNull ?: 0.0,
-                maxZoom = (json["maxzoom"] as? JsonPrimitive)?.doubleOrNull ?: 24.0,
+                // none by default, as MapLibre
+                maxZoom = (json["maxzoom"] as? JsonPrimitive)?.doubleOrNull ?: Double.POSITIVE_INFINITY,
                 visible = (layout["visibility"] as? Constant)?.eval(EvalContext()) != "none",
                 filter = filter,
                 paint = properties("paint"),
@@ -126,6 +127,10 @@ class Style(
                 block()
             } catch (e: RuntimeException) {
                 problems.add("$id $key: ${e.message}")
+                null
+            } catch (e: StackOverflowError) {
+                // a degenerate style nesting deeper than the stack, which no real one does
+                problems.add("$id $key: nested too deep")
                 null
             }
         }

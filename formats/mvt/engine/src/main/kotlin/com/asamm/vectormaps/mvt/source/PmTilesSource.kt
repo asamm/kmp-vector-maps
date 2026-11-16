@@ -43,7 +43,12 @@ class PmTilesSource(file: File) : MvtTileSource {
         try {
             header = Header.parse(read(0, HEADER_SIZE))
         } catch (e: Throwable) {
-            channel.close()
+            // a failing close must not hide why the file was rejected
+            try {
+                channel.close()
+            } catch (t: Throwable) {
+                e.addSuppressed(t)
+            }
             throw e
         }
     }
@@ -77,7 +82,12 @@ class PmTilesSource(file: File) : MvtTileSource {
                 return null
             }
             if (directory.runLengths[i] > 0) {
-                val bytes = read(header.dataOffset + directory.offsets[i], directory.lengths[i].toInt())
+                val tileLength = directory.lengths[i]
+                // a damaged entry must not allocate far past any real tile
+                require(tileLength in 0..MvtTileSource.MAX_TILE_BYTES) {
+                    "tile(), $tileLength bytes for $zoom/$x/$y"
+                }
+                val bytes = read(header.dataOffset + directory.offsets[i], tileLength.toInt())
                 return if (header.tileCompression == COMPRESSION_GZIP) MvtTileSource.uncompressed(bytes) else bytes
             }
             offset = header.leafOffset + directory.offsets[i]
@@ -352,7 +362,7 @@ class PmTilesSource(file: File) : MvtTileSource {
         fun parseDirectory(bytes: ByteArray): Directory {
             val reader = PbfReader(bytes, 0, bytes.size)
             val count = reader.readVarint()
-            // each entry takes at least four bytes, one per column
+            // each entry takes at least four bytes, one per column, within MAX_DIRECTORY_BYTES
             require(count in 0..(bytes.size - 1) / 4L) {
                 "parseDirectory(), $count entries in ${bytes.size} bytes"
             }
