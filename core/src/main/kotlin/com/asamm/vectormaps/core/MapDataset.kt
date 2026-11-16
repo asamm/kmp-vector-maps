@@ -39,7 +39,8 @@ interface MapDataset : Closeable {
      * this dataset's driver. May compile the style, which is costly: reuse renderers per
      * [RenderKey] and [hooks]. A renderer may keep the file set it was created with: close and recreate it after
      * [addMap]. Closing the dataset leaves its renderers open. Throws `IllegalArgumentException`
-     * for a configuration the driver does not support.
+     * for a configuration the driver does not support; a driver may ignore settings it does not
+     * apply yet, as its KDoc says.
      *
      * @param hooks host drawing at the format's anchors; not part of [RenderKey], so a host keys its
      *   tile caches on them too

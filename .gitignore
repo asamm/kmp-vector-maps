@@ -49,6 +49,10 @@ Desktop.ini
 
 ### Local ###
 /local.properties
+# large local test data (maps, converted tilesets), never committed
+/local/
+# Python's bytecode cache of the dev/ scripts
+__pycache__/
 
 ### Claude Code session state ###
 .claude/

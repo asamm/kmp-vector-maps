@@ -54,7 +54,8 @@ class TileEngine<I : Any>(
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val scope = CoroutineScope(
-        SupervisorJob() + Dispatchers.Default.limitedParallelism(threads.coerceIn(1, renderer.maxParallelism)),
+        // the IO pool, as an online source blocks its render thread while a tile downloads
+        SupervisorJob() + Dispatchers.IO.limitedParallelism(threads.coerceIn(1, renderer.maxParallelism)),
     )
 
     private val running = ConcurrentHashMap<TileRequest, Job>()

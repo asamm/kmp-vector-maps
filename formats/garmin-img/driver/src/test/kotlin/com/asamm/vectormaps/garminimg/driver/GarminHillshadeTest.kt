@@ -33,7 +33,7 @@ class GarminHillshadeTest {
 
     @Test
     fun hookDrawsOverThePolygonsAndUnderTheLines() {
-        val green = HillshadeHook { canvas, _, _, _ ->
+        val green = HillshadeHook { canvas, _, _, _, _ ->
             val graphics = canvas as Graphics2D
             graphics.color = java.awt.Color(GREEN)
             graphics.fillRect(0, 0, 256, 256)
@@ -68,7 +68,7 @@ class GarminHillshadeTest {
     @Test
     fun canvasStateTheHookLeavesStaysWithIt() {
         // draws nothing and leaves a fully transparent composite behind
-        val leaking = HillshadeHook { canvas, _, _, _ ->
+        val leaking = HillshadeHook { canvas, _, _, _, _ ->
             (canvas as Graphics2D).composite = AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 0f)
         }
         val kinds = ObjectKind.POLYGON or ObjectKind.POLYLINE
@@ -84,7 +84,7 @@ class GarminHillshadeTest {
 
     @Test
     fun throwingHookLeavesTheTileUnshaded() {
-        val throwing = HillshadeHook { _, _, _, _ ->
+        val throwing = HillshadeHook { _, _, _, _, _ ->
             throw IllegalStateException("no elevation data")
         }
         val kinds = ObjectKind.POLYGON or ObjectKind.POLYLINE

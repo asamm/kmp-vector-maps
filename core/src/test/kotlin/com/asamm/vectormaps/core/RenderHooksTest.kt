@@ -28,7 +28,7 @@ class RenderHooksTest {
     fun drawTileGivesBoundsAndGroundScale() {
         var scale = 0.0
         var bounds: GeoBounds? = null
-        val hook = HillshadeHook { _, _, tileBounds, pixelsPerMeter ->
+        val hook = HillshadeHook { _, _, tileBounds, pixelsPerMeter, _ ->
             bounds = tileBounds
             scale = pixelsPerMeter
         }

@@ -156,6 +156,9 @@ data class LabelText(
 /**
  * A rectangle a candidate occupies, in screen pixels, centered at an offset from its anchor and
  * turned by [angleDeg] clockwise. Edges that touch count as a clash.
+ *
+ * @param mapShiftX with [mapShiftY], a shift of the centre in the map's frame, turned with the map
+ *  whatever the [alignment], such as MapLibre's `icon-translate`
  */
 data class CollisionBox(
     val centerX: Double,
@@ -164,14 +167,18 @@ data class CollisionBox(
     val halfHeight: Double,
     val angleDeg: Double = 0.0,
     val alignment: BoxAlignment = BoxAlignment.VIEWPORT,
+    val mapShiftX: Double = 0.0,
+    val mapShiftY: Double = 0.0,
 ) {
 
     init {
         require(centerX.isFinite()
             && centerY.isFinite()
             && angleDeg.isFinite()
+            && mapShiftX.isFinite()
+            && mapShiftY.isFinite()
         ) {
-            "CollisionBox(), center $centerX, $centerY, angle $angleDeg"
+            "CollisionBox(), center $centerX, $centerY, angle $angleDeg, shift $mapShiftX, $mapShiftY"
         }
         require(halfWidth >= 0.0
             && halfWidth.isFinite()

@@ -6,6 +6,7 @@ package com.asamm.vectormaps.bench.android
 
 import android.content.res.AssetManager
 import androidx.test.platform.app.InstrumentationRegistry
+import com.asamm.vectormaps.core.TileRequest
 import com.asamm.vectormaps.mapsforge.core.graphics.TileBitmap
 import com.asamm.vectormaps.mapsforge.core.model.LatLong
 import com.asamm.vectormaps.mapsforge.core.model.Tile
@@ -19,6 +20,11 @@ import com.asamm.vectormaps.mapsforge.map.reader.MapFile
 import com.asamm.vectormaps.mapsforge.map.rendertheme.ExternalRenderTheme
 import com.asamm.vectormaps.mapsforge.map.rendertheme.rule.RenderThemeFuture
 import java.io.File
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.ln
+import kotlin.math.tan
 
 /**
  * Map, theme and one long-lived renderer in Locus' primary label mode, set up like the JVM
@@ -116,6 +122,19 @@ class BenchScene : AutoCloseable {
         }
 
         /**
+         * The slippy-map tile at `zoom` holding a point.
+         */
+        fun tileOf(lat: Double, lon: Double, zoom: Int): TileRequest {
+            val n = (1 shl zoom).toDouble()
+            val latRad = Math.toRadians(lat)
+            return TileRequest(
+                x = floor((lon + 180.0) / 360.0 * n).toInt(),
+                y = floor((1.0 - ln(tan(latRad) + 1.0 / cos(latRad)) / PI) / 2.0 * n).toInt(),
+                zoom = zoom,
+            )
+        }
+
+        /**
          * The `bench.mapFile` argument, else the bundled Monaco map; prepares the fixtures and
          * the graphic factory on first use.
          */
@@ -150,6 +169,8 @@ class BenchScene : AutoCloseable {
             val target = File(app.cacheDir, "fixtures")
             copyAssets(assets = context.assets, path = "maps", target = File(target, "maps"))
             copyAssets(assets = context.assets, path = "themes", target = File(target, "themes"))
+            copyAssets(assets = context.assets, path = "mvt/tiles", target = File(target, "mvt/tiles"))
+            copyAssets(assets = context.assets, path = "mvt/styles", target = File(target, "mvt/styles"))
             return target
         }
 

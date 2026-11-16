@@ -18,15 +18,20 @@ import com.asamm.vectormaps.garminimg.render.AndroidBitmapCache
 import com.asamm.vectormaps.garminimg.render.AndroidRenderTarget
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.map.android.graphics.AndroidGraphicFactory
+import com.asamm.vectormaps.mvt.driver.MvtDriver
+import com.asamm.vectormaps.mvt.render.AndroidMvtGraphics
 import com.asamm.vectormaps.viewer.Viewport
 import java.io.File
+import kotlin.math.roundToInt
 
 /**
  * Shows the bundled Monaco map with the LoMaps theme. Other files, readable by the app:
  * `adb shell am start -S -n com.asamm.vectormaps.viewer.android/.MainActivity --es map <path>
  * --es theme <path>`; `-S` stops a running viewer, which would otherwise ignore the extras. A theme
  * the map's driver does not read is skipped for the map's own style, so the bundled Garmin map shows
- * with `--es map /data/data/com.asamm.vectormaps.viewer.android/files/fixtures/maps/otm-monaco/otm-monaco.img`.
+ * with `--es map /data/data/com.asamm.vectormaps.viewer.android/files/fixtures/maps/otm-monaco/otm-monaco.img`,
+ * and the bundled MVT tiles with the fixture `hike_bike` style with
+ * `--es map /data/data/com.asamm.vectormaps.viewer.android/files/fixtures/mvt/tiles/fixtures.pmtiles`.
  */
 class MainActivity : Activity() {
 
@@ -46,18 +51,28 @@ class MainActivity : Activity() {
             factoryReady = true
         }
         val density = resources.displayMetrics.density
-        val startView = savedInstanceState?.takeIf { it.containsKey(STATE_ZOOM) }?.let {
-            Viewport(
-                zoom = it.getInt(STATE_ZOOM),
-                x = it.getDouble(STATE_X),
-                y = it.getDouble(STATE_Y),
-                tileSize = TILE_SIZE,
-            )
-        }
         val view = try {
             val fixtures = unpackFixtures()
             val map = intent.getStringExtra("map")?.let(::File) ?: File(fixtures, "maps/monaco.osm.map")
-            val theme = intent.getStringExtra("theme")?.let(::File) ?: File(fixtures, "themes/lomaps/theme.xml")
+            val mvt = map.extension.equals("pmtiles", ignoreCase = true)
+            // an MVT map without a style extra takes the fixture style
+            val theme = intent.getStringExtra("theme")?.let(::File)
+                ?: File(fixtures, if (mvt) MVT_STYLE else "themes/lomaps/theme.xml")
+            // MVT in MapLibre's sizes: a tile of 512 density pixels; the others scale their 512 px
+            // tiles by density
+            val config = if (mvt) {
+                RenderConfig(tileSizePx = (TILE_SIZE * density).roundToInt())
+            } else {
+                RenderConfig(tileSizePx = TILE_SIZE, deviceScale = density)
+            }
+            val startView = savedInstanceState?.takeIf { it.containsKey(STATE_ZOOM) }?.let {
+                Viewport(
+                    zoom = it.getInt(STATE_ZOOM),
+                    x = it.getDouble(STATE_X),
+                    y = it.getDouble(STATE_Y),
+                    tileSize = config.tileSizePx,
+                )
+            }
             val garminBitmaps = AndroidBitmapCache()
             MapView(
                 context = this,
@@ -73,12 +88,16 @@ class MainActivity : Activity() {
                                 bitmapCache = garminBitmaps,
                             )
                         },
+                        MvtDriver(AndroidMvtGraphics()),
                     ),
                 ),
                 mapFile = map,
                 styleFile = theme,
-                config = RenderConfig(tileSizePx = TILE_SIZE, deviceScale = density),
-                startView = startView,
+                config = config,
+                // the fixture's bounds span Monaco and Sněžka, whose fit is below its tiles' zooms
+                startView = startView
+                    ?: Viewport.at(lat = 43.735, lon = 7.42, zoom = 14, tileSize = config.tileSizePx)
+                        .takeIf { mvt && map.name == "fixtures.pmtiles" },
             )
         } catch (e: Exception) {
             showError(e)
@@ -120,8 +139,9 @@ class MainActivity : Activity() {
     }
 
     /**
-     * Copies the `maps` and `themes` asset folders to app storage, since the readers need real
-     * files; again after each install, so changed fixtures arrive. Returns the copy's root.
+     * Copies the `maps`, `themes` and `mvt/styles` asset folders and the MVT fixture tiles to app
+     * storage, since the readers need real files; again after each install, so changed fixtures
+     * arrive. Returns the copy's root.
      */
     private fun unpackFixtures(): File {
         val root = File(filesDir, "fixtures")
@@ -132,7 +152,7 @@ class MainActivity : Activity() {
         ) {
             return root
         }
-        val pending = ArrayDeque(listOf("maps", "themes"))
+        val pending = ArrayDeque(listOf("maps", "themes", "mvt/tiles/fixtures.pmtiles", "mvt/styles"))
         while (pending.isNotEmpty()) {
             val path = pending.removeFirst()
             val entries = assets.list(path).orEmpty()
@@ -157,8 +177,11 @@ class MainActivity : Activity() {
 
     private companion object {
 
-        // 512 px tiles as everywhere in this repo (D20)
+        // 512 px tiles as everywhere in this repo (D20); MVT's are 512 density pixels
         const val TILE_SIZE = 512
+
+        // the style an MVT map takes without a theme extra
+        const val MVT_STYLE = "mvt/styles/hike_bike/style.json"
 
         const val STATE_ZOOM = "zoom"
 

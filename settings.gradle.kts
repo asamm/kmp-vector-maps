@@ -62,6 +62,16 @@ include(":formats:garmin-img:driver")
 // Garmin IMG golden test and dump comparison, not published
 include(":dev:garmin-img:golden")
 
+// MVT format (M10): the engine, its AWT and Android render targets, the driver
+include(":formats:mvt:engine")
+include(":formats:mvt:awt")
+include(":formats:mvt:android")
+include(":formats:mvt:driver")
+
+// MVT golden tests against MapLibre renders, JVM and Android, not published
+include(":dev:mvt:golden")
+include(":dev:mvt:golden-android")
+
 // benchmarks
 include(":dev:bench")
 include(":dev:bench:android")

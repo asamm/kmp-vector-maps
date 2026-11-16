@@ -3,7 +3,9 @@
  * build/results/jmh/results.json. Another map: `-Pbench.mapFile=<path>`, another centre than the
  * map's start position: `-Pbench.center=<lat>,<lon>` (or `<lat>:<lon>`, as on the A54); for Garmin
  * `-Pbench.garmin.mapFile` and `-Pbench.garmin.center` (default: the fixture's harbour, with another
- * map its bounds' centre). One renderer only: `-Pbench.includes=GarminBench`. Not published.
+ * map its bounds' centre); for MVT `-Pbench.mvt.mapFile` (a .pmtiles) and `-Pbench.mvt.center`
+ * (default: the fixture's Sněžka tile). One renderer only:
+ * `-Pbench.includes=GarminBench`. Not published.
  */
 plugins {
     alias(libs.plugins.kotlinJvm)
@@ -18,6 +20,8 @@ dependencies {
     jmh(project(":formats:mapsforge:awt"))
     jmh(project(":formats:garmin-img:driver"))
     jmh(project(":formats:garmin-img:awt"))
+    jmh(project(":formats:mvt:driver"))
+    jmh(project(":formats:mvt:awt"))
 }
 
 val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures").asFile
@@ -29,6 +33,8 @@ val garminMapFile = providers.gradleProperty("bench.garmin.mapFile")
 // the fixture's harbour; its bounds' centre is a nearly empty tile
 val garminCenter = providers.gradleProperty("bench.garmin.center")
     .orElse(providers.gradleProperty("bench.garmin.mapFile").map { "" }.orElse("43.735,7.423"))
+val mvtMapFile = providers.gradleProperty("bench.mvt.mapFile").orElse("")
+val mvtCenter = providers.gradleProperty("bench.mvt.center").orElse("")
 val benchIncludes = providers.gradleProperty("bench.includes")
 
 jmh {
@@ -51,6 +57,8 @@ jmh {
         "-Dbench.center=${center.get()}",
         "-Dbench.garmin.mapFile=${garminMapFile.get()}",
         "-Dbench.garmin.center=${garminCenter.get()}",
+        "-Dbench.mvt.mapFile=${mvtMapFile.get()}",
+        "-Dbench.mvt.center=${mvtCenter.get()}",
     )
 }
 

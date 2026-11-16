@@ -10,8 +10,10 @@ driver interface, with desktop JVM for benchmarks and tools.
 
 **Status: M0–M7 done (PRs #1–#52, the last merged as `6155c9d` on 2026-11-10); M7.1 ⏸, the
 desktop stays AWT (Q15). M8 and M9 ⏸ since 2026-11-12, while locus-core reworks the
-[libMapCore plan][mapcore-plan] around this library.** Next action: none here; M8.0 (logging
-through kmp-logger) resumes when that plan says so.
+libMapCore plan (locus-core `docs/libraries/libMapCore/plan/`) around this library. M10 (vector
+tiles, [mvt.md](mvt.md)) done 2026-11-16 on the umbrella branch `feature/m10-mvt` (PRs #53–#64),
+merging into `main`.** Next action: MVT in Locus with M8 and M9; MBTiles waits for V1;
+M8.0 (logging through kmp-logger) resumes when the libMapCore plan says so.
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -32,7 +34,7 @@ settles, labels before speed, the Locus-facing API last.
 | M7 | Performance and Skia desktop backend | L | ✅ PRs #47–#52, `6155c9d`; M7.1 ⏸ (Q15) |
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⏸ libMapCore plan |
 | M9 | Locus integration | M | ⏸ libMapCore plan; needs Q14, Q16 |
-| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | ⏸ analysed 2026-11-12 |
+| M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | 🔧 M10.0–M10.5 done, umbrella `feature/m10-mvt` into `main` |
 
 ## Done: M0–M6
 
@@ -82,11 +84,13 @@ the archive has the full notes.
 | P8 | The menu's per-instruction category filter is not covered by the corpus | M2.1 | — |
 | P16 | Corpus gaps: explicit way label positions, water tiles, `readLabels`, `readPoiData` | M2.5 | — |
 | P9 | `PaintCostTest` never ran on the A54; F1's native growth mostly unexplained (Q18) | M5.3 | M7 |
-| P10 | The Android viewer redraws the Garmin label bitmap every pan frame | PR #42 | M8 |
+| P10 | The Android viewer redraws the Garmin label bitmap every pan frame, and the MVT one (PR #59) | PR #42 | M8 |
 | P11 | A Garmin road name over a sharp turn draws its letters around the bend | M6.1d | — |
 | P12 | Garmin: an archive's first TYP styles all its maps; maps across the antimeridian rejected | M4.3b | — |
 | P13 | An external `.typ`'s night style is not offered by the viewers | M4.4 | M8 |
 | P14 | The desktop viewer builds renderers on its UI thread | M4.2b | — |
+| P17 | The PMTiles directory cache (100,000 entries, ~3 MB of columns) not measured on a planet file | M10.3d | — |
+| P18 | MVT blurred halos draw each text up to 7 times (6 rings from a density of ~1.43), a turned path text a character at a time; not measured on the A54 | M10.5 | — |
 
 - P1: M8 settles it with an Android golden of the pass.
 - P10: the fix is an `AndroidRenderTarget` over an external `Canvas`, an engine API change.
@@ -157,7 +161,7 @@ locus-core side.
 | I8 | A54 A/B of 7 views, zoom soak vs F1, `third_party_licenses.md` updated |
 | I9 | Garmin from this repo instead of `com.asamm.kmp:kmp-garmin-img-android:0.5.2`; only then delete `asamm/kmp-garmin-img`, as its GitHub Packages go with it |
 
-Against the locus-core [libMapCore plan][mapcore-plan], which moves `maps/` framework code out of
+Against the locus-core libMapCore plan, which moves `maps/` framework code out of
 libLocusCore (2026-11-10):
 
 - M8.0–M8.2 need nothing from locus-core: the host API has no Locus types, only the seam's shape.
@@ -177,7 +181,26 @@ libLocusCore (2026-11-10):
 - I6 (Q16) and its N6 both change the tile requests and the tile cache.
 - D32 (GPU renderer, bucket delivery) is its P7 and the "later GL backend" behind its D16 seams.
 
-[mapcore-plan]: https://github.com/asamm/locus-core/blob/development/docs/libraries/libMapCore/plan/README.md
+
+## M10 — Mapbox Vector Tiles
+
+Asamm's tiles and MapLibre styles, online and offline, one engine ([mvt.md](mvt.md)). PRs go into
+the umbrella `feature/m10-mvt`, which merges into `main` when M10 is done.
+
+| Step | Content | Verify |
+|---|---|---|
+| M10.0 | Desktop spike: decoder, style subset, renderer for every layer type but symbols, MapLibre reference renders, golden | goldens within mean 4.0 / 6 % of MapLibre ✅ PR #53 |
+| M10.1 | Symbol layers: icons, text, along-line placement and collision, through the label pass | label goldens with the bundled font; MapLibre `labels` renders compared, reported ✅ PR #54 |
+| M10.2 | Driver behind `core/` (PMTiles files, the host's tile sources for online maps, `style.json` with its sprite), desktop viewer; MBTiles waits for V1; `MvtLabelPass` built by the driver only | goldens through the driver on a PMTiles fixture; driver and viewer tests ✅ PR #55 |
+| M10.2b | Online maps in the desktop viewer for UI testing: a TileJSON file (the server's `planet.json`) opens through `openSource` with a viewer-only HTTP source and disk cache | source test on cached tiles; a live tile from the Asamm server ✅ PR #56 |
+| M10.3a | Engine performance on the desktop: JMH `MvtBench`; geometry decoded once per feature, features outside an overzoomed tile skipped; feature-constant paint evaluated once per layer; one read and decode per data tile and PMTiles directory under concurrent misses; directories as `LongArray` columns, cached by entries; fewer decoded tiles kept (12) | JMH time and memory before/after; goldens byte-identical ✅ PR #57 |
+| M10.3b | `RenderConfig.deviceScale` (style pixels times the tile size over 512, as MapLibre's), `textScale` on text and halos, `language` reading `name:xx` for `name` in text fields | engine and driver tests; goldens at scale 1 unchanged ✅ PR #58 |
+| M10.3c | Android target (`formats/mvt/android`: `AndroidMvtGraphics` over `Canvas`, platform text, sprite size guard), a reusable label-pass target (`MvtRenderTarget.clear()`, both viewers), Android viewer opens `.pmtiles` | `dev/mvt/golden-android` (Robolectric native graphics) within the JVM golden's limits of MapLibre ✅ PR #59 |
+| M10.3d | A54 benchmarks (`androidx.benchmark`); LoMaps Czech MBTiles converted to PMTiles (`dev/mvt/mbtiles2pmtiles.py`, local only) for JVM and A54 runs at Prague; decoded tiles kept only above the data zoom, within a byte budget | baselines in performance.md; directory cache on a planet file in P17 ✅ PR #60 |
+| M10.3e | Render costs of the A54 profile: filters evaluated only on the features their selected property admits (per-render index), `in` and `match` by hash, exact-size gzip inflate and decode arrays; draw batching, vertex thinning and lazy layer decode measured and dropped | goldens unchanged; A54 and JVM before/after in performance.md ✅ PR #61 |
+| M10.3f | Spike leftovers (mvt.md Spike and Symbols): a render result telling a cancelled tile from an empty one, fill patterns scaled with the tile size and `deviceScale`, the `@2x` sprite decoded on first use above a style pixel per screen pixel, expression details as MapLibre, each text shaped once per tile layout | goldens unchanged; engine and driver tests ✅ PR #62 |
+| M10.4 | Label robustness and spec coverage (mvt.md Spec coverage): the layout stops when a render is cancelled; a label golden of four neighbouring tiles at their corner with a placement dump; `text-keep-upright`, `text-justify`, `text-opacity`, `icon-anchor`, `icon-opacity`, `circle-opacity`, `circle-stroke-opacity`, `fill-outline-color`; legacy `{"stops"}` functions and the missing simple expressions; the Android viewer draws MVT in MapLibre's sizes (512 × density px tiles, `deviceScale` 1) | corner golden and dump, label goldens nearer MapLibre; engine tests per property; A54 viewer check ✅ PR #63 |
+| M10.5 | `text-rotate` (a point text's box about its anchor, each glyph of a path text about its centre, so the `hike_bike` contour labels read as in MapLibre) and `text-halo-blur` (the halo's edge faded in up to 6 rings, as MapLibre's shader) | label goldens regenerated and compared; engine tests ✅ PR #64 |
 
 ## Decisions
 
@@ -204,7 +227,7 @@ D1–D23 taken 2026-10-22; D24–D25 2026-10-25; D26–D29 2026-10-26; D30–D31
 | D17 | This roadmap is the source of truth; the locus-core plan stays the record |
 | D18 | Shared viewer starts from the kmp-garmin-img viewer |
 | D19 | From-scratch code is Apache-2.0; formats keep their licence |
-| D20 | 512 px tiles in goldens, benchmarks, viewers; Locus per Q16 |
+| D20 | 512 px tiles in goldens, benchmarks, viewers, but MVT in the Android viewer at 512 × density px with `deviceScale` 1 (Menion, 2026-11-15, M10.4); Locus per Q16 |
 | D21 | Speed work after the Kotlin conversion, against a Java baseline |
 | D22 | No iOS; Kotlin/JVM libraries, KMP only for the viewer UI |
 | D23 | Host API mirrors Locus' `MapSourceRenderer` seam |
@@ -253,7 +276,7 @@ See the locus-core plan, R1–R7. Repo-specific:
 | H2 | Vendored code misses upstream changes | per tag: `upstream_diff.py` grouping, hand port, parity with both goldens against the tag (`verify_upstream.py`, D36), deviation tables in [upstream.md](upstream.md) |
 | H3 | Interface shaped by Mapsforge alone | Garmin (M4) right after core v0 (M3) |
 | H4 | Locus sees nothing until M9 | A54 runs in the shared viewer; I7 fallback flag |
-| H5 | Committed PNGs break across OS, JDK, fonts | committed PNGs only for Mapsforge labels (AWT in the bundled DejaVu Sans, Android in Robolectric's fonts) and Garmin (DejaVu Sans), ≤ 0.2 % everywhere; a tile without an exact dump can lose a small label within it (D37, M6.0b gaps) |
+| H5 | Committed PNGs break across OS, JDK, fonts | committed PNGs only for Mapsforge labels (AWT in the bundled DejaVu Sans, Android in Robolectric's fonts) and Garmin (DejaVu Sans), ≤ 0.2 % everywhere, and MVT labels (DejaVu Sans, ≤ 0.5 %); a tile without an exact dump can lose a small label within it (D37, M6.0b gaps) |
 | H6 | JitPack outage or rebuild | checksum verification; cache the jars if outages hurt |
 | H7 | Host API drifts from Locus' real seam | mirrors `MapSourceRenderer`; M8.3 throwaway wiring |
 
@@ -283,7 +306,7 @@ changes output against upstream.
 | Q5 | SVG outside Android: pre-rasterise at theme build, or Skia SVG? | — (answered 2026-11-09: AndroidSVG 1.4 on Android, as locus-core; svg-salamander on the AWT desktop) |
 | Q14 | Does the Mapsforge README waiver cover pre-2018 contributors? (locus-core Q1) | M9 |
 | Q15 | Desktop backend Skia via Skiko (recommended) or AWT only? | — (answered 2026-11-09: AWT only for now; the desktop serves tests and benchmarks, not production; M7.1 ⏸) |
-| Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? | M9 |
+| Q16 | Locus tiles: keep 256 px × density, or fixed 512 px with a zoom/scale change? MVT counts `deviceScale` per 512 px tile (M10.3b): 512 × density px tiles with `deviceScale` 1 draw MapLibre's sizes (the Android viewer since M10.4), 256 × density px tiles with 1 draw half of them | M9 |
 | Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed; none recurred through the M6.1b and M6.1c A54 soaks. | M7 |
 | Q18 | F1: the Paints' native heap explains ~15–22 MB of the native +93–170 MB zoom growth (M5.3 fixes); what holds the rest? A phone zoom soak after M5.6 shows how much the cache bound removes. | M7 |
 | Q19 | C7's matching-cache keys hold copied tag lists (house numbers, `ele`, `ref`); upstream keyed on an `Integer`. How much heap do both caches retain on the corpus, against C7's Paint saving? | M7 |

@@ -13,6 +13,8 @@ kotlin = "2.4.20"
 
 # https://github.com/Kotlin/kotlinx.coroutines/releases
 kotlinxCoroutines = "1.11.0"
+# https://github.com/Kotlin/kotlinx.serialization/releases; JSON only, for MVT styles
+kotlinxSerialization = "1.9.0"
 
 # Compose Multiplatform Desktop — used only by :viewer:desktop
 # https://github.com/JetBrains/compose-multiplatform/releases
@@ -45,6 +47,7 @@ upstreamMapsforge = "0.30.0"
 [libraries]
 composeMaterial3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "composeMaterial3" }
 kotlinxCoroutinesCore = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+kotlinxSerializationJson = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 kotlinxCoroutinesSwing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "kotlinxCoroutines" }
 androidxBenchmarkJunit4 = { module = "androidx.benchmark:benchmark-junit4", version.ref = "androidxBenchmark" }
 androidxTestExtJunit = { module = "androidx.test.ext:junit", version.ref = "androidxTestExtJunit" }

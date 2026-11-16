@@ -33,6 +33,10 @@ import com.asamm.vectormaps.mapsforge.MapsforgeDataset
 import com.asamm.vectormaps.mapsforge.MapsforgeDriver
 import com.asamm.vectormaps.mapsforge.MapsforgeLabelPass
 import com.asamm.vectormaps.mapsforge.map.awt.graphics.AwtGraphicFactory
+import com.asamm.vectormaps.mvt.driver.MvtDataset
+import com.asamm.vectormaps.mvt.driver.MvtDriver
+import com.asamm.vectormaps.mvt.driver.MvtLabelPass
+import com.asamm.vectormaps.mvt.render.AwtMvtRenderTarget
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.awt.image.BufferedImage
@@ -198,6 +202,9 @@ class ViewerState(
     @Volatile
     private var labelsPending = false
 
+    // the MVT pass's label target and the pass it draws for; UI thread only
+    private var mvtLabels: Pair<MvtLabelPass, AwtMvtRenderTarget>? = null
+
     // the last label image and the placement and view it shows; UI thread only
     private var labelImageCache: Pair<Pair<PreparedLabels, LabelViewport>, ImageBitmap>? = null
 
@@ -216,9 +223,16 @@ class ViewerState(
     private var startPlace: Pair<String, Session.Place>? =
         session.mapPath?.let { path -> session.place?.let { path to it } }
 
+    /**
+     * The drivers' map extensions, and `json` for TileJSON online maps with the MVT driver.
+     */
     val mapExtensions: Set<String>
         get() {
-            return formats.drivers.flatMapTo(HashSet()) { it.extensions }
+            val extensions = formats.drivers.flatMapTo(HashSet()) { it.extensions }
+            if (formats.drivers.any { it is MvtDriver }) {
+                extensions += "json"
+            }
+            return extensions
         }
 
     /**
@@ -244,17 +258,27 @@ class ViewerState(
      * Opens `file` with the first driver that reads it; keeps the current style file when that
      * driver reads it too. Else a map without styles of its own (Mapsforge) takes the driver's last
      * style file, any other its own first style. Opening the same map again keeps its own style and
-     * the Garmin settings; a style file that fails leaves the error, not another style.
+     * the Garmin settings; a style file that fails leaves the error, not another style. A TileJSON
+     * file opens as an online MVT map ([HttpTileSource]).
      */
     fun openMap(file: File) {
-        val probed = formats.probe(file)
-        if (probed == null) {
-            fail("openMap(), no driver reads ${file.name}", formats.unreadableReason(file))
+        // a TileJSON opens as an online MVT map
+        val mvt = formats.drivers.filterIsInstance<MvtDriver>().firstOrNull()
+            ?.takeIf { HttpTileSource.isTileJson(file) }
+        val mapDriver = mvt ?: formats.probe(file)?.driver
+        if (mapDriver == null) {
+            // the map dialog offers .json for online maps only
+            val reason = if (file.extension.lowercase() == "json") {
+                "not a TileJSON with an http(s) tile template"
+            } else {
+                formats.unreadableReason(file)
+            }
+            fail("openMap(), no driver reads ${file.name}", reason)
             return
         }
         onOpen()
         val opened = try {
-            probed.driver.open(listOf(file))
+            if (mvt != null) mvt.openSource(HttpTileSource.open(file)) else mapDriver.open(listOf(file))
         } catch (e: Exception) {
             fail("openMap(${file.name}), ${e.message}", causesOf(e))
             return
@@ -270,15 +294,15 @@ class ViewerState(
         val previousStyle = style
         val previousIndex = mapStyles.indexOf(previousStyle)
         // a style file the new map cannot read stays the one for its own format
-        styleFile?.takeUnless(probed.driver::readsStyle)?.let { rememberStyle(file = it, layerId = layerId) }
+        styleFile?.takeUnless(mapDriver::readsStyle)?.let { rememberStyle(file = it, layerId = layerId) }
         // a map with its own styles starts with them, not with a file remembered from another map
-        val remembered = lastStyleFiles[probed.driver.id]?.takeIf { opened.styles.isEmpty() }
+        val remembered = lastStyleFiles[mapDriver.id]?.takeIf { opened.styles.isEmpty() }
         if (remembered != null
-            && styleFile?.let(probed.driver::readsStyle) != true
+            && styleFile?.let(mapDriver::readsStyle) != true
         ) {
             layerId = remembered.second
         }
-        val keptStyle = styleFile?.takeIf(probed.driver::readsStyle) ?: remembered?.first
+        val keptStyle = styleFile?.takeIf(mapDriver::readsStyle) ?: remembered?.first
         style = null
         styleFile = keptStyle
         mapStyles = opened.styles
@@ -296,7 +320,7 @@ class ViewerState(
             GarminOptions()
         }
         mapFile = file
-        driver = probed.driver
+        driver = mapDriver
         clearError()
         if (viewport == null) {
             startView()
@@ -448,12 +472,34 @@ class ViewerState(
                 target.endFrame()
                 target.image.toComposeImageBitmap()
             }
+            is MvtLabelPass -> {
+                val target = mvtLabelTarget(pass = pass, width = width, height = height)
+                target.clear()
+                pass.draw(target = target, view = view, prepared = prepared)
+                target.image.toComposeImageBitmap()
+            }
             else -> {
                 return null
             }
         }
         labelImageCache = Pair(key, image)
         return image
+    }
+
+    // one target per pass and screen size, cleared each frame; the image above copies its pixels
+    private fun mvtLabelTarget(pass: MvtLabelPass, width: Int, height: Int): AwtMvtRenderTarget {
+        mvtLabels?.let { (owner, target) ->
+            if (owner === pass
+                && target.widthPx == width
+                && target.heightPx == height
+            ) {
+                return target
+            }
+            target.dispose()
+        }
+        val target = pass.newTarget(widthPx = width, heightPx = height) as AwtMvtRenderTarget
+        mvtLabels = pass to target
+        return target
     }
 
     private fun mapsforgeLabels(pass: MapsforgeLabelPass, view: LabelViewport, prepared: PreparedLabels): ImageBitmap {
@@ -607,14 +653,28 @@ class ViewerState(
     }
 
     /**
-     * Closes the engine and dataset and waits for renders in progress; for the end of the session.
+     * Closes the engine, then the style and dataset once its renders end, without waiting for
+     * them; for the end of the session.
      */
     override fun close() {
-        engine?.close()
-        engine = null
-        replaceLoadedStyle(null)
-        dataset?.close()
+        val style = loadedStyle
+        val data = dataset
+        loadedStyle = null
         dataset = null
+        val closing = engine
+        // one close, the one that runs the callback once renders end
+        engine = null
+        dropEngine()
+        // renders waiting on downloads must not hold the window's close
+        if (closing == null) {
+            style?.close()
+            data?.close()
+            return
+        }
+        closing.closeLater {
+            style?.close()
+            data?.close()
+        }
     }
 
     // the replaced style's theme lives on until the renderers still using it close
@@ -664,6 +724,13 @@ class ViewerState(
                     labelStoreTiles = builtLabelStoreTiles,
                 )
             } else if (dataset is MapsforgeDataset) {
+                dataset.createRenderer(
+                    style = style,
+                    selection = selection,
+                    config = config,
+                    labelStoreTiles = builtLabelStoreTiles,
+                )
+            } else if (dataset is MvtDataset) {
                 dataset.createRenderer(
                     style = style,
                     selection = selection,
@@ -739,6 +806,9 @@ class ViewerState(
         engine?.closeLater()
         engine = null
         labelPass = null
+        // the old pass's label target, not kept for the next map
+        mvtLabels?.second?.dispose()
+        mvtLabels = null
     }
 
     private fun startView() {
@@ -827,6 +897,7 @@ class ViewerState(
         return when (driver) {
             is MapsforgeDriver -> AwtTileImages
             is GarminDriver -> GarminTileImages
+            is MvtDriver -> MvtTileImages
             else -> throw IllegalArgumentException("imagesFor(), no images for driver ${driver.id}")
         }
     }
