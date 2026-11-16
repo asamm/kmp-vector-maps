@@ -1,7 +1,7 @@
 # Performance
 
-Benchmark baselines and how M7 and M10.3 measure against them; their steps and status are in
-[ROADMAP.md](ROADMAP.md).
+Benchmark baselines and how M7 and M10.3 measure against them; their status is in
+[ROADMAP.md](ROADMAP.md), their steps in [archive/roadmap-m7-m10.md](archive/roadmap-m7-m10.md).
 
 **Author:** Menion · **Started:** 2026-11-06, split from the roadmap · **Baselines:** M2.7, M2.7b
 (Mapsforge, Java), M4.3c (Garmin)
