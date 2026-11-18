@@ -23,6 +23,7 @@ import java.util.Collections
 import java.util.Locale
 import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.hypot
 
 /**
  * Lays out the symbol layers of a [Style] for one tile into [MvtLabel]s for the label pass, which
@@ -102,6 +103,8 @@ class SymbolLayout(
             }
             val source = tile.layers[layer.sourceLayer] ?: continue
             val pieces = ArrayList<LinePiece>()
+            // the anchors a layer's line texts took, x, y pairs, as MapLibre's repeat check
+            val repeats = HashMap<String, FloatList>()
             val mark = out.size
             // the features' order in the data tile, the same in every tile cut from it
             var order = 0
@@ -132,7 +135,9 @@ class SymbolLayout(
                     }
                     val rank = order++
                     val geometry = feature.decodeGeometry()
-                    // the widest margin layoutFeature allows, before projecting
+                    // the widest margin layoutFeature allows, before projecting; it covers the repeat
+                    // check's half a spacing while symbol-spacing times the device scale stays within
+                    // 1024, as with MapLibre's sizes at deviceScale 1
                     if (!frame.meets(geometry = geometry, extent = source.extent, marginPx = tileSizePx.toFloat())) {
                         continue
                     }
@@ -164,7 +169,7 @@ class SymbolLayout(
                 // the pieces of one road or route join first, as MapLibre's mergeLines
                 for (group in pieces.groupBy { it.key }.values) {
                     for (chain in LineMerge.merge(group.map { it.coords })) {
-                        layoutLine(chain.coords, group[chain.first].line, tileSizePx, out)
+                        layoutLine(chain.coords, group[chain.first].line, tileSizePx, repeats, out)
                     }
                 }
             } catch (e: RuntimeException) {
@@ -268,7 +273,7 @@ class SymbolLayout(
                     ) {
                         pieces += LinePiece("${text.lines}|${icon?.name}", part, line)
                     } else {
-                        layoutLine(part, line, tileSizePx, out)
+                        layoutLine(part, line, tileSizePx, null, out)
                     }
                 }
                 start = end
@@ -307,13 +312,35 @@ class SymbolLayout(
         }
     }
 
-    private fun layoutLine(line: FloatArray, symbol: LineSymbol, tileSizePx: Int, out: MutableList<MvtLabel>) {
+    private fun layoutLine(
+        line: FloatArray,
+        symbol: LineSymbol,
+        tileSizePx: Int,
+        repeats: MutableMap<String, FloatList>?,
+        out: MutableList<MvtLabel>,
+    ) {
         val text = symbol.symbol.text
+        // MapLibre drops a `line` text's anchor within half a spacing of an earlier one with the
+        // same text in the layer, so the anchors around the tile count too
+        val taken = if (repeats != null
+            && text != null
+            && !symbol.center
+        ) {
+            repeats.getOrPut(text.lines.joinToString("\n")) { FloatList() }
+        } else {
+            null
+        }
+        val repeatPx = symbol.spacing / 2f
+        val margin = if (taken != null) repeatPx * 2f else 0f
         val icon = symbol.symbol.icon
         val iconLength = (icon?.width ?: 0f) * (icon?.scale ?: 1f)
         val length = maxOf(text?.width ?: 0f, iconLength)
-        // MapLibre lays the anchors out with the text at its layout size
-        val maxLength = maxOf((text?.width ?: 0f) * symbol.glyphSizePx / (text?.sizePx ?: 1f), iconLength)
+        // MapLibre lays the anchors out with the text at its layout size, and the icon at its sprite
+        // size scaled as that text, by its size over a 24 px em
+        val maxLength = maxOf(
+            (text?.width ?: 0f) * symbol.glyphSizePx / (text?.sizePx ?: 1f),
+            (icon?.width ?: 0f) * symbol.glyphSizePx / ONE_EM,
+        )
         // as MapLibre, `line` anchored on the line clipped to its data tile, `line-center` on the
         // whole line
         val parts = if (symbol.center) listOf(line) else LineAnchors.clip(line, symbol.bounds)
@@ -330,10 +357,23 @@ class SymbolLayout(
                 maxAngleDeg = symbol.maxAngleDeg,
                 // MapLibre's angle window, 3/5 of the text size; icons alone are not checked
                 angleWindow = if (text != null) symbol.glyphSizePx * 0.6f else 0f,
-                region = floatArrayOf(0f, 0f, tileSizePx.toFloat(), tileSizePx.toFloat()),
+                region = floatArrayOf(-margin, -margin, tileSizePx + margin, tileSizePx + margin),
                 bounds = symbol.bounds,
             )
             for (a in anchors) {
+                if (taken != null
+                    && tooClose(taken, a.x, a.y, repeatPx)
+                ) {
+                    continue
+                }
+                // an anchor around the tile only counted for the repeat check
+                if (a.x < 0f
+                    || a.y < 0f
+                    || a.x >= tileSizePx
+                    || a.y >= tileSizePx
+                ) {
+                    continue
+                }
                 val path = if (symbol.alongPath) {
                     LineAnchors.stretch(part, 0, part.size, a.distance - length / 2f, a.distance + length / 2f)
                         ?: continue
@@ -343,6 +383,21 @@ class SymbolLayout(
                 emit(symbol.symbol, a.x, a.y, path, tileSizePx, out, if (symbol.iconAlongLine) a.angleDeg else null)
             }
         }
+    }
+
+    // MapLibre's anchorIsTooClose: true for an anchor within `distance` of one already taken, else
+    // takes it
+    private fun tooClose(taken: FloatList, x: Float, y: Float, distance: Float): Boolean {
+        var i = 0
+        while (i < taken.size) {
+            if (hypot(taken[i] - x, taken[i + 1] - y) < distance) {
+                return true
+            }
+            i += 2
+        }
+        taken.add(x)
+        taken.add(y)
+        return false
     }
 
     // `text-size` at `zoom`, in style pixels
@@ -457,6 +512,26 @@ class SymbolLayout(
         // varying by feature, else the tile's zoom
         val glyphSizePx: Float,
     )
+
+    // x, y pairs without boxing
+    private class FloatList {
+
+        private var values = FloatArray(8)
+
+        var size = 0
+            private set
+
+        operator fun get(i: Int): Float {
+            return values[i]
+        }
+
+        fun add(value: Float) {
+            if (size == values.size) {
+                values = values.copyOf(size * 2)
+            }
+            values[size++] = value
+        }
+    }
 
     // one line piece waiting to join the others showing the same text
     private class LinePiece(
@@ -653,6 +728,9 @@ class SymbolLayout(
         private const val MAX_ORDER_SLOTS = 2048
 
         private const val MAX_TEXT_ZOOM = 18.0
+
+        // MapLibre's glyph size, which its icon box scale divides by
+        private const val ONE_EM = 24f
 
         // Java's and Android's old codes for Hebrew, Indonesian and Yiddish
         private val LEGACY_LANGUAGES = mapOf("iw" to "he", "in" to "id", "ji" to "yi")
