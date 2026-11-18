@@ -119,7 +119,7 @@ class TileRenderer(
                     }
                 }
                 for ((path, color) in outlines) {
-                    target.strokePath(path, color, pixelScale, LineCap.BUTT, LineJoin.MITER, null)
+                    target.outlinePath(path, color)
                 }
             } catch (e: RuntimeException) {
                 // a malformed style or tile skips this layer, not the tile
@@ -168,12 +168,13 @@ class TileRenderer(
         val color = paint.color("fill-color", ctx) ?: Color(0xff000000.toInt())
         val path = shape.path()
         target.fillPath(path, color.withOpacity(opacity), antialias)
-        // MapLibre's 1 px outline, drawn only with antialiasing; unset, it is the fill's own edge
-        val outline = paint.color("fill-outline-color", ctx)
-        if (outline != null
-            && antialias
-        ) {
-            outlines += path to outline.withOpacity(opacity)
+        // MapLibre's 1 px outline, drawn when fill-antialias is on, in the fill's colour unless
+        // set; it widens small polygons, as low zooms' woods
+        if (antialias) {
+            val outline = (paint.color("fill-outline-color", ctx) ?: color).withOpacity(opacity)
+            if (outline.alpha > 0) {
+                outlines += path to outline
+            }
         }
     }
 

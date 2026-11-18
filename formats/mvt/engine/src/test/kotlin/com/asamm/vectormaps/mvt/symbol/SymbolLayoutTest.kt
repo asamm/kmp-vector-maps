@@ -151,36 +151,65 @@ class SymbolLayoutTest {
     }
 
     @Test
-    fun wrapsAtSpaces() {
-        val lines = SymbolLayout.wrapLine("Ravin de Sainte Dévote", maxWidth = 10f) { it.length.toFloat() }
+    fun breaksLinesAsMapLibre() {
+        fun lines(text: String, maxWidth: Float): List<String> {
+            return SymbolLayout.breakLines(text, maxWidth, spacing = 0f) { it.length.toFloat() }
+        }
 
-        assertEquals(listOf("Ravin de", "Sainte", "Dévote"), lines)
-        assertEquals(listOf("MONACO-", "VILLE"), SymbolLayout.wrapLine("MONACO-VILLE", 8f) { it.length.toFloat() })
-        // a lone hyphen keeps the spaces around it
-        assertEquals(listOf("Praha -", "Brno"), SymbolLayout.wrapLine("Praha - Brno", 7f) { it.length.toFloat() })
+        assertEquals(listOf("Ravin de", "Sainte", "Dévote"), lines("Ravin de Sainte Dévote", 10f))
+        assertEquals(listOf("MONACO-", "VILLE"), lines("MONACO-VILLE", 8f))
+        // balanced, not greedy: the later lines no longer than the first
+        assertEquals(listOf("Freiberg", "am Neckar"), lines("Freiberg am Neckar", 10f))
+        assertEquals(listOf("Steinheim", "an der Murr"), lines("Steinheim an der Murr", 10f))
+        assertEquals(listOf("Praha", "- Brno"), lines("Praha - Brno", 7f))
+        assertEquals(listOf("Short"), lines("Short", 10f))
+        // an empty line keeps its place; a break before an open parenthesis
+        assertEquals(listOf("a", "", "b"), lines("a\n\nb", 10f))
+        assertEquals(listOf("Name", "(x)"), lines("Name(x)", 4f))
     }
 
     @Test
-    fun placesNoMiddleAnchorWhereSpacedOnesMissTheRegion() {
-        // a 1000 px line with anchors every 250 px from 125: a region between two of them shows
-        // none, a line no spacing fits shows its middle
+    fun anchorsLinesAsMapLibre() {
+        // a 1000 px line, a 50 px label, anchors every 250 px
         val line = floatArrayOf(0f, 0f, 1000f, 0f)
-        fun anchors(region: FloatArray, spacing: Float = 250f): List<Float> {
+        fun anchors(
+            region: FloatArray,
+            bounds: FloatArray,
+            spacing: Float = 250f,
+            glyphSize: Float = 10f,
+            overscale: Int = 1,
+        ): List<Float> {
             return LineAnchors.find(
                 coords = line,
                 start = 0,
                 end = line.size,
                 spacing = spacing,
                 labelLength = 50f,
+                glyphSize = glyphSize,
+                overscale = overscale,
                 center = false,
                 maxAngleDeg = 45.0,
                 angleWindow = 0f,
                 region = region,
+                bounds = bounds,
             ).map { it.x }
         }
+        val all = floatArrayOf(-10f, -10f, 2000f, 10f)
+        val fromEdge = floatArrayOf(0f, -10f, 2000f, 10f)
 
-        assertEquals(emptyList(), anchors(floatArrayOf(400f, -10f, 600f, 10f)))
-        assertEquals(listOf(625f), anchors(floatArrayOf(600f, -10f, 700f, 10f)))
-        assertEquals(listOf(500f), anchors(floatArrayOf(400f, -10f, 600f, 10f), spacing = 2000f))
+        // coming in over the tile's edge: from half a spacing in; a region between two anchors
+        // shows none, as they are its neighbours'
+        assertEquals(listOf(125f, 375f, 625f, 875f), anchors(all, fromEdge))
+        assertEquals(emptyList(), anchors(floatArrayOf(400f, -10f, 600f, 10f), fromEdge))
+        // starting in the tile: from half the label and two text sizes in
+        assertEquals(listOf(45f, 295f, 545f, 795f), anchors(all, all))
+        // a tile cut twice from its data tile: both offsets doubled, modulo the spacing
+        assertEquals(listOf(250f, 500f, 750f), anchors(all, fromEdge, overscale = 2))
+        assertEquals(listOf(90f, 340f, 590f, 840f), anchors(all, all, overscale = 2))
+        // no spaced anchor fits: the middle for a line starting in the tile, none for one coming in
+        assertEquals(listOf(500f), anchors(all, all, spacing = 2000f, glyphSize = 600f))
+        assertEquals(emptyList(), anchors(all, fromEdge, spacing = 2000f))
+        // the edge cuts a line into parts, each anchored on its own
+        assertEquals(2, LineAnchors.clip(floatArrayOf(0f, 0f, 100f, 0f, 100f, 100f, 0f, 100f), floatArrayOf(-1f, -1f, 50f, 101f)).size)
     }
 }

@@ -871,7 +871,8 @@ internal object ExpressionCompiler {
     // properties whose strings may hold legacy `{name}` tokens
     private val TOKEN_PROPERTIES = setOf("text-field", "icon-image")
 
-    private val TOKEN = Regex("\\{([^{}]+)}")
+    // the closing brace escaped, as Android's ICU regex rejects a bare one
+    private val TOKEN = Regex("\\{([^{}]+)\\}")
 
     // properties the spec does not interpolate, whose number lists or names a legacy function steps
     private val STEPPED_PROPERTIES = listOf("-dasharray", "-pattern", "-image", "-font", "-field", "-anchor")

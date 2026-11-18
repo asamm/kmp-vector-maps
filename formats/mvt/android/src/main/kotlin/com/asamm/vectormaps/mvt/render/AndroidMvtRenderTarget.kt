@@ -42,6 +42,12 @@ class AndroidMvtRenderTarget(
         strokeMiter = 2f
     }
 
+    // MapLibre's fill outline: a hairline one pixel wide, not antialiased, as GL lines
+    private val outline = Paint().apply {
+        style = Paint.Style.STROKE
+        strokeWidth = 0f
+    }
+
     private val text = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG)
 
     private val image = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
@@ -52,8 +58,6 @@ class AndroidMvtRenderTarget(
     private val shape = Path()
 
     private val along = Path()
-
-    private val metrics = Paint.FontMetrics()
 
     // the last dash pattern's effect, reused while a layer's lines share it (native memory)
     private var lastDash: FloatArray? = null
@@ -137,6 +141,11 @@ class AndroidMvtRenderTarget(
         fill.isAntiAlias = true
     }
 
+    override fun outlinePath(path: MvtPath, color: Color) {
+        outline.color = color.argb
+        canvas.drawPath(toPath(path), outline)
+    }
+
     override fun strokePath(
         path: MvtPath,
         color: Color,
@@ -206,10 +215,8 @@ class AndroidMvtRenderTarget(
             letterSpacingPx = text.letterSpacingPx,
         )
         this.text.textAlign = Paint.Align.CENTER
-        this.text.getFontMetrics(metrics)
-        // each line box is a line height tall, its glyphs centred in it
-        val first = y - text.height / 2f + text.lineHeightPx / 2f -
-            (metrics.ascent + metrics.descent) / 2f
+        // each line box is a line height tall, its baseline where MapLibre puts it
+        val first = y - text.height / 2f + text.lineHeightPx / 2f + text.baselinePx(-this.text.ascent())
         val saved = canvas.save()
         canvas.rotate(text.rotateDeg, x, y)
         // all halos first, so no line's halo covers another's glyphs
@@ -246,7 +253,6 @@ class AndroidMvtRenderTarget(
             letterSpacingPx = text.letterSpacingPx,
         )
         this.text.textAlign = Paint.Align.LEFT
-        this.text.getFontMetrics(metrics)
         along.rewind()
         along.moveTo(path[0], path[1])
         var length = 0f
@@ -255,8 +261,8 @@ class AndroidMvtRenderTarget(
             length += hypot(path[i] - path[i - 2], path[i + 1] - path[i - 1])
         }
         val start = (length - this.text.measureText(line)) / 2f
-        // the glyphs centre on the line
-        val baseline = -(metrics.ascent + metrics.descent) / 2f
+        // the baseline where MapLibre puts it below the line
+        val baseline = text.baselinePx(-this.text.ascent())
         if (text.rotateDeg == 0f) {
             // shifted across the line by text-offset
             paint(text) {

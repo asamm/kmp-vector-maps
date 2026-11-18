@@ -17,13 +17,16 @@ import java.util.concurrent.ConcurrentHashMap
  * The AWT fonts behind the style's `text-font` faces, shaping text for both the symbol layout's
  * measuring and the target's drawing: `sans` and `serif` at their regular weight, bold and italic
  * derived where the family has no own face.
+ *
+ * @param own faces of their own, such as a family's real bold, used before deriving one
  */
 class AwtFonts(
     private val sans: Font,
     private val serif: Font = sans,
+    own: Map<MvtFont, Font> = emptyMap(),
 ) : TextMetrics {
 
-    private val faces = ConcurrentHashMap<MvtFont, Font>()
+    private val faces = ConcurrentHashMap<MvtFont, Font>(own)
 
     /**
      * The face of `font` at `sizePx`.

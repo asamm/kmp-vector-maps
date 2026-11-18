@@ -1,6 +1,6 @@
 # Performance
 
-Benchmark baselines and how M7 and M10.3 measure against them; their status is in
+Benchmark baselines and how M7, M10.3 and M11 measure against them; their status is in
 [ROADMAP.md](ROADMAP.md), their steps in [archive/roadmap-m7-m10.md](archive/roadmap-m7-m10.md).
 
 **Author:** Menion · **Started:** 2026-11-06, split from the roadmap · **Baselines:** M2.7, M2.7b
@@ -10,7 +10,8 @@ Benchmark baselines and how M7 and M10.3 measure against them; their status is i
 up to 32 % faster on the JVM and 29 % on the A54 (M7.2b); up to 43 % less allocated per render
 (M7.3, M7.5) at the same single-tile time; a style's renderers share one compiled theme (M7.4).
 MVT engine on the JVM measured in M10.3a, on the A54 and on Czech data in M10.3d; the A54
-profile's render costs cut in M10.3e (Prague up to 47 % faster). **Next action:** none in M7,
+profile's render costs cut in M10.3e (Prague up to 47 % faster); MapLibre's fill outline costs
+up to 24 % on the JVM and 0–9 % on the A54 (M11.1). **Next action:** none in M7,
 M7.1 ⏸ (Q15). The open costs are below.
 
 ## How to measure
@@ -286,6 +287,36 @@ Before → after, p50 ms; A54 as in M10.3d (Prague and fixture), JVM `MvtBench` 
   (1–2 %, but parallel renders of different tiles overwrite it; the fixture and JVM columns ran
   with it).
 - The rest is Skia rasterising strokes and fills, which follows from the style.
+
+## M11.1 — MapLibre parity fixes, 2026-11-18
+
+JVM `MvtBench` at Prague, p50 ms on an idle desktop, JDK 17: `main` (`2d67915`) and the
+antialiased outline interleaved twice, the hairline one run before the review's label fixes. A54:
+`MvtTileBenchmark` at Prague, the three variants interleaved twice (each pair within 2 %).
+
+| Benchmark | `main` | AA 1 px outline | hairline outline (kept) |
+|---|---|---|---|
+| render tile z10 / z12 / z14 / z16 | 17.5 / 41.2 / 43.1 / 12.6 | 26.3 / 49.3 / 73.8 / 21.0 | 18.4 / 41.7 / 48.0 / 15.6 |
+| 4×4 block at z16, 1 / 4 / 8 threads | 201 / 86 / 59 | 297 / 138 / 85 | – |
+| allocated per render z10 / z12 / z14 / z16 | 4.5 / 10.5 / 14.1 / 4.9 MB | 5.1 / 11.1 / 18.3 / 8.0 MB | – |
+| A54 render tile cold z10 / z12 / z14 / z16 | 55 / 152 / 149 / 84 | 58 / 153 / 160 / 89 | 58 / 153 / 160 / 91 |
+| A54 render tile again z16 | 62 | 68 | 68 |
+| A54 objects per render z14 / z16 | 244k / 72.9k | 260k / 81.2k | 260k / 81.2k |
+
+- MapLibre's fill outline strokes every polygon. Antialiased 1 px wide it costs up to 70 %
+  (z14), as stroking dominates; stroking a layer's outlines of one colour as one path saves
+  nothing; an antialiased hairline 50 %. An aliased hairline, as GL lines, costs 11 % at z14 and
+  24 % at z16, label changes included, and keeps three quarters of the parity gain (plain tiles
+  0.29 % of pixels off against 0.15 % antialiased and 0.70 % before, all 83k sweep tiles).
+- The rest, 1–3 ms, is the label changes (lines clipped to their tile, balanced line breaking,
+  priority by feature order); a text that fits one line skips the breaking, a line inside its
+  tile the clipping.
+- Most of the added allocation is the AWT target building a second `Path2D` per outlined
+  polygon; the Android target rewinds one path for every draw.
+- On the A54 the outline costs 0–9 % (z14, z16), and antialiased costs the same as aliased: Skia
+  draws a 1 px antialiased stroke as cheaply as a hairline, unlike Java2D.
+- The A54 run found that no MVT style parsed on Android since PR #65: the legacy `{token}` regex
+  had a bare `}`, which ICU rejects and the JVM and Robolectric accept.
 
 ## Known costs to measure
 
