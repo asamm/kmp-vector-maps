@@ -12,8 +12,9 @@ up to 32 % faster on the JVM and 29 % on the A54 (M7.2b); up to 43 % less alloca
 MVT engine on the JVM measured in M10.3a, on the A54 and on Czech data in M10.3d; the A54
 profile's render costs cut in M10.3e (Prague up to 47 % faster); MapLibre's fill outline costs
 up to 24 % on the JVM (before the review's label fixes) and 0–10 % on the A54 (M11.1), made
-antialiased another 13–52 % on the JVM and nothing on the A54 (M11.2). **Next action:** none in
-M7, M7.1 ⏸ (Q15). The open costs are below.
+antialiased another 13–52 % on the JVM and nothing on the A54 (M11.2). After M11, Garmin on the
+A54 up to 69 % faster per tile by skipping off-tile objects; Mapsforge unchanged. **Next
+action:** none in M7, M7.1 ⏸ (Q15). The open costs are below.
 
 ## How to measure
 
@@ -340,6 +341,26 @@ pair within 1 %), p50 ms, Prague.
 - The hairline column, the review's label fixes included, is within 6 % of M11.1's single run
   (18.4 / 41.7 / 48.0 / 15.6), so those fixes cost little.
 
+## After M11 — Mapsforge and Garmin review, 2026-11-18
+
+A54, Czech maps at Prague, one run each without a profiler; ms p50.
+
+| Benchmark | Mapsforge Czech | Garmin Czech, before | Garmin Czech, after |
+|---|---|---|---|
+| render z12 / z15 / z17 | 257 / 131 / 34 | 99 / 59 / 63 | 95 / 31 / 19 |
+| 4×4 block, 1 / 2 / 4 / 8 threads | | (1112 / 609 / 349 / 314, M7.0) | 450 / 252 / 150 / 141 |
+| allocations per render z12 / z15 / z17 | | 88.9k / 56.3k / 107.5k | 84.3k / 35.8k / 55.5k |
+
+- Mapsforge matches M7.5 (256 / 132 / 34). The profile: 55–60 % Skia `drawPath`, 9 % map read,
+  6 % theme matching; no change made.
+- Garmin parsed every object of each sub-division meeting the tile and read its label: at z17
+  6,840 objects and 2,144 label reads for 141 objects on the tile, the reads behind the `read`
+  syscall's 14–18 % of the profile. The renderer now skips objects whose geometry misses the tile
+  plus a quarter of it on each side before their label is read (`ObjectClip`).
+- Correctness: 1,463 Czech tiles at z8–18 pixel-identical to upstream 0.30 in both label modes
+  (Mapsforge `sweep` task); 1,012 tiles of a 2.3 GB Hungarian gmapsupp with no error; after the clip
+  the 1,007 drawn ones pixel-identical with the same labels placed (`GarminSweepTest`).
+
 ## Known costs to measure
 
 From M0–M6, each measured before it is changed (ROADMAP P-rows):
@@ -347,7 +368,7 @@ From M0–M6, each measured before it is changed (ROADMAP P-rows):
 | ID | Cost | Seen in |
 |---|---|---|
 | P2 | label pass `collect` describes every stored label on each prepare | M6.1b |
-| P5 | Garmin on the A54: reads ~6× the JVM, an allocation per pattern, dash, label and icon draw | M4.3c |
+| P5 | Garmin on the A54: reads ~6× the JVM, an allocation per pattern, dash, label and icon draw; reads of off-tile objects cut after M11 | M4.3c |
 | P15 | Garmin label halos draw each text nine times | M4.3c |
 | P6 | Garmin: boxed label and coordinate buffers; sub-division trees kept after add | M4.3c |
 | P9 | `PaintCostTest` never run on the A54; F1's native growth mostly unexplained (Q18) | M5.3 |

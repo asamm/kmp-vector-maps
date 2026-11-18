@@ -43,3 +43,26 @@ tasks.register<JavaExec>("renderGoldens") {
     }
     args(fixturesDir.asFile.absolutePath, outDir.absolutePath)
 }
+
+// a sweep over many tiles of a large map against the other side, `-Psweep.args="<map> <theme>
+// <menuLayer> <tiles.txt> <outDir> <deviceScale> <labelsInTile>"`, paths without spaces; renders
+// into `<outDir>/upstream`, see the harness's Sweep
+tasks.register<JavaExec>("sweep") {
+    description = "Renders a tile list of a large map for the Mapsforge sweep."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass = "com.asamm.mapsforge.golden.MainKt"
+    // same flags as renderGoldens
+    jvmArgs(
+        "-Xbatch",
+        "-XX:+UnlockExperimentalVMOptions",
+        "-XX:hashCode=3",
+        "-XX:+UseSerialGC",
+        "-Xms2g",
+        "-Xmx2g",
+    )
+    val sweepArgs = providers.gradleProperty("sweep.args")
+        .map { it.trim().split(Regex("\\s+")) }
+        .getOrElse(emptyList())
+    args = listOf("sweep") + sweepArgs + "upstream"
+    workingDir = rootDir
+}

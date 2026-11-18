@@ -14,6 +14,7 @@ import com.asamm.vectormaps.garminimg.parser.LblHeader
 import com.asamm.vectormaps.garminimg.parser.LblSubFile
 import com.asamm.vectormaps.garminimg.parser.NetHeader
 import com.asamm.vectormaps.garminimg.parser.NetSubFile
+import com.asamm.vectormaps.garminimg.parser.ObjectClip
 import com.asamm.vectormaps.garminimg.parser.RgnHeader
 import com.asamm.vectormaps.garminimg.parser.RgnSubFile
 import com.asamm.vectormaps.garminimg.parser.SubDivision
@@ -203,6 +204,7 @@ class ImgFile internal constructor(
      * features near the visible viewport. Inclusive on all four bounds.
      *
      * @param poiDetails false reads only a POI's name, without the address and city lookups.
+     * @param clip skips each object whose geometry misses it, before its label is read
      */
     fun readMapInBounds(
         minLong: Int,
@@ -212,6 +214,7 @@ class ImgFile internal constructor(
         objectKindFilter: Int = ObjectKind.ALL,
         levelFilter: Int? = null,
         poiDetails: Boolean = true,
+        clip: ObjectClip? = null,
     ): Sequence<MapObject> {
         return sequence {
             val candidates = if (levelFilter == null) {
@@ -236,6 +239,7 @@ class ImgFile internal constructor(
                         cityResolver = cityResolver,
                         objectKindFilter = objectKindFilter,
                         poiDetails = poiDetails,
+                        clip = clip,
                     ),
                 )
             }

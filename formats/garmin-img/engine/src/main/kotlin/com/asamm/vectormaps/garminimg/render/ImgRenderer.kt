@@ -9,6 +9,7 @@ package com.asamm.vectormaps.garminimg.render
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.model.MapObject
 import com.asamm.vectormaps.garminimg.model.ObjectKind
+import com.asamm.vectormaps.garminimg.parser.ObjectClip
 import com.asamm.vectormaps.garminimg.parser.TreLevels
 import com.asamm.vectormaps.garminimg.style.Color
 import com.asamm.vectormaps.garminimg.style.InternalStyles
@@ -101,6 +102,17 @@ class ImgRenderer(
         val projection = Projection(viewport)
         target.beginFrame(backgroundColor)
 
+        // objects off the viewport are skipped before their labels are read; the margin keeps
+        // icons and strokes that reach in from outside
+        val marginLon = (viewport.maxLon - viewport.minLon) / CLIP_MARGIN_DIVISOR
+        val marginLat = (viewport.maxLat - viewport.minLat) / CLIP_MARGIN_DIVISOR
+        val clip = ObjectClip(
+            minLong = viewport.minLon - marginLon,
+            maxLong = viewport.maxLon + marginLon,
+            minLat = viewport.minLat - marginLat,
+            maxLat = viewport.maxLat + marginLat,
+        )
+
         // First pass: bucket every map object by kind. Polygons need to be
         // sorted by draw priority (TYP's DRAWORDER section, when present)
         // so background polygons paint first and small foreground features
@@ -129,6 +141,7 @@ class ImgRenderer(
                 objectKindFilter = objectKindFilter,
                 levelFilter = targetLevel,
                 poiDetails = false,
+                clip = clip,
             )) {
                 val style = layer.styleResolver.resolve(obj)
                 when (obj) {
@@ -413,6 +426,9 @@ class ImgRenderer(
     }
 
     companion object {
+
+        // the clip margin on each side, a quarter of the viewport
+        private const val CLIP_MARGIN_DIVISOR = 4
 
         /**
          * Picks the TRE level whose `bitsPerCoord` matches the viewport's

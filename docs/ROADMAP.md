@@ -8,7 +8,8 @@ behind one driver interface, with desktop JVM for benchmarks and tools.
 (findings F1–F12, hazards R1–R7) · **Design:** [architecture.md](architecture.md) ·
 **Benchmarks:** [performance.md](performance.md)
 
-**Status: M0–M7, M10 and M11 done (PRs #1–#69, M11 merged as `be74335` on 2026-11-18); M7.1 ⏸,
+**Status: M0–M7, M10 and M11 done (PRs #1–#69, M11 merged as `be74335` on 2026-11-18), then a
+Mapsforge and Garmin review (2026-11-18, Garmin up to 69 % faster per tile on the A54); M7.1 ⏸,
 the desktop stays AWT. M8 and M9 ⏸ since 2026-11-12, while locus-core reworks the libMapCore plan
 (locus-core `docs/libraries/libMapCore/plan/`) around this library.** Next action: M8.0 (logging
 through kmp-logger) when the libMapCore plan says so; M8 and M9 bring all three formats into
@@ -73,6 +74,7 @@ One row per step; the as-built notes, measurements and soak logs are in
 | M10.4–M10.5 | Label robustness, spec coverage, MapLibre sizes on Android, `text-rotate`, `text-halo-blur` | ✅ PRs #63–#64 |
 | M10 | Umbrella `feature/m10-mvt` to `main`, with the review's hardening | ✅ PR #65 |
 | M11.1–M11.4 | MapLibre parity sweep against MapLibre Native (`dev/mvt/sweep`): fill outline, label priority, line breaking, anchors and baseline, `allow-overlap` blocking, Native's text size for line anchors, road shields; 13.9k subset labels 2.14 → 1.62 %, turned 2.97 → 2.49 %, tiles 0.29 → 0.15 % | ✅ PRs #66–#69 |
+| After M11 | Mapsforge and Garmin review: Mapsforge pixel-identical to upstream on 1,463 Czech tiles, A54 at baseline; Garmin skips off-tile objects before their labels, A54 z17 63 → 19 ms ([performance.md](performance.md)); sweep tooling for both; a scripted Garmin reference parked (Q21) | 🔧 |
 
 ### Carried forward
 
@@ -83,7 +85,7 @@ none yet); the archives have the full notes and the settled ones.
 |---|---|---|---|
 | P1 | The Mapsforge pass `draw` is right on AWT only: Android captions turn the canvas back | M6.1b | M8 |
 | P2 | The label pass describes every stored label on each prepare; measure before caching | M6.1b | — |
-| P5 | Garmin on the A54: reads ~6× the JVM; an allocation per pattern, dash, label, icon | M4.3c | — |
+| P5 | Garmin on the A54: reads ~6× the JVM; an allocation per pattern, dash, label, icon; off-tile reads cut after M11 | M4.3c | — |
 | P15 | Garmin label halos draw each text nine times, on both targets | M4.3c | — |
 | P6 | Garmin: boxed label and coordinate buffers; sub-division trees kept after add | M4.3c | — |
 | P8 | The menu's per-instruction category filter is not covered by the corpus | M2.1 | — |
@@ -270,3 +272,4 @@ Answered questions are in the archives ([M0–M6](archive/roadmap-m0-m6.md),
 | Q17 | M5.3b first soak: the test process died ~1 min into `IN_TILE`, no trace; conversion or emulator? Later soaks stream logcat until it is closed; none recurred through the M6.1b and M6.1c A54 soaks. | — |
 | Q18 | F1: the Paints' native heap explains ~15–22 MB of the native +93–170 MB zoom growth (M5.3 fixes); what holds the rest? A phone zoom soak after M5.6 shows how much the cache bound removes. | — |
 | Q19 | C7's matching-cache keys hold copied tag lists (house numbers, `ele`, `ref`); upstream keyed on an `Integer`. How much heap do both caches retain on the corpus, against C7's Paint saving? | — |
+| Q21 | Garmin has no reference renderer for sweeps: build a headless GPXSee tool when better Garmin rendering is in demand? Plan in [garmin-img/visual-reference](garmin-img/visual-reference/README.md#scripted-reference-not-built) | — |

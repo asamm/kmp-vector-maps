@@ -31,6 +31,7 @@ tasks.named<KotlinCompile>("compileTestKotlin") {
 
 val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures")
 val benchProperties = providers.gradlePropertiesPrefixedBy("bench.garmin")
+val sweepProperties = providers.gradlePropertiesPrefixedBy("sweep.garmin")
 
 tasks.test {
     useJUnitPlatform()
@@ -45,8 +46,15 @@ tasks.test {
     }
     val bench = benchProperties.get()
     bench.forEach { (key, value) -> systemProperty(key, value) }
+    val sweep = sweepProperties.get()
+    sweep.forEach { (key, value) -> systemProperty(key, value) }
     // a requested benchmark measures again, even with nothing changed
     if (bench["bench.garmin"] == "true") {
         outputs.upToDateWhen { false }
+    }
+    // a requested sweep runs again: its map, tiles and output are not task inputs or outputs
+    if (sweep.isNotEmpty()) {
+        outputs.upToDateWhen { false }
+        outputs.cacheIf { false }
     }
 }
