@@ -136,15 +136,6 @@ class AwtMvtRenderTarget(
         g.draw(toPath(path, Path2D.WIND_NON_ZERO))
     }
 
-    override fun outlinePath(path: MvtPath, color: Color) {
-        val antialias = g.getRenderingHint(RenderingHints.KEY_ANTIALIASING)
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF)
-        g.color = awt(color)
-        g.stroke = HAIRLINE
-        g.draw(toPath(path, Path2D.WIND_NON_ZERO))
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, antialias)
-    }
-
     override fun drawCircle(
         x: Float,
         y: Float,
@@ -312,11 +303,5 @@ class AwtMvtRenderTarget(
 
     private fun awt(color: Color): java.awt.Color {
         return java.awt.Color(color.argb, true)
-    }
-
-    private companion object {
-
-        // a line one pixel wide whatever its position, as GL lines
-        val HAIRLINE = BasicStroke(0f)
     }
 }

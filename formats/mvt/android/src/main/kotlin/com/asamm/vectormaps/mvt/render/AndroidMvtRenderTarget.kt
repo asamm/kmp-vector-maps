@@ -42,12 +42,6 @@ class AndroidMvtRenderTarget(
         strokeMiter = 2f
     }
 
-    // MapLibre's fill outline: a hairline one pixel wide, not antialiased, as GL lines
-    private val outline = Paint().apply {
-        style = Paint.Style.STROKE
-        strokeWidth = 0f
-    }
-
     private val text = Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG)
 
     private val image = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
@@ -139,11 +133,6 @@ class AndroidMvtRenderTarget(
         fill.shader = null
         fill.isFilterBitmap = false
         fill.isAntiAlias = true
-    }
-
-    override fun outlinePath(path: MvtPath, color: Color) {
-        outline.color = color.argb
-        canvas.drawPath(toPath(path), outline)
     }
 
     override fun strokePath(

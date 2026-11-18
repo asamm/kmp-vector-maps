@@ -11,10 +11,10 @@ behind one driver interface, with desktop JVM for benchmarks and tools.
 **Status: M0–M7 and M10 done (PRs #1–#65, M10 merged as `34c4040` on 2026-11-16); M7.1 ⏸, the
 desktop stays AWT. M8 and M9 ⏸ since 2026-11-12, while locus-core reworks the libMapCore plan
 (locus-core `docs/libraries/libMapCore/plan/`) around this library. M11 (MapLibre parity sweep)
-started 2026-11-17, M11.1 merged (PR #66, `c54eb74`, 2026-11-18).** Next action: M11.2, the
-next sweep differences (fill outline antialiasing, labels in dense city centres, road shields);
-M8.0 (logging through kmp-logger) when the libMapCore plan says so; M8 and M9 bring all three
-formats into Locus; MBTiles waits for V1 ([mvt.md](mvt.md)).
+started 2026-11-17, M11.1 merged (PR #66, `c54eb74`, 2026-11-18).** Next action: review M11.2
+(the antialiased fill outline); then labels in dense city centres and road shields; M8.0
+(logging through kmp-logger) when the libMapCore plan says so; M8 and M9 bring all three formats
+into Locus; MBTiles waits for V1 ([mvt.md](mvt.md)).
 
 Legend: ✅ done · 🔧 in review · ⬜ open · ⏸ deferred
 
@@ -36,7 +36,7 @@ settles, labels before speed, the Locus-facing API last.
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⏸ libMapCore plan |
 | M9 | Locus integration | M | ⏸ libMapCore plan; needs Q14, Q16 |
 | M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | ✅ PRs #53–#65, `34c4040` |
-| M11 | MapLibre parity sweep: thousands of tiles against MapLibre Native, fixes by impact ([mvt.md](mvt.md)) | M | ✅ M11.1 |
+| M11 | MapLibre parity sweep: thousands of tiles against MapLibre Native, fixes by impact ([mvt.md](mvt.md)) | M | 🔧 M11.2 |
 
 ## Done
 
@@ -110,6 +110,7 @@ renderer of Locus Map iOS, and fixes the worst causes first.
 | Step | Content | Verify |
 |---|---|---|
 | M11.1 | The sweep (`dev/mvt/sweep`, `dev/mvt/reference/sweep*.mjs`); fixes it found: the default fill outline (a hairline, performance.md M11.1), label priority by feature order, balanced line breaking, MapLibre's line anchors on lines clipped to their tile (at the z18 text size, times the overscale; `line-center` unclipped), MapLibre's text baseline; the legacy `{token}` regex Android's ICU rejected (no MVT style parsed on Android since PR #65) | 83k tiles z1–18 in three views, mean pixels off 0.70 → 0.29 % (tiles), 2.97 → 2.16 % (labels), 3.63 → 2.99 % (turned); the review's anchor fixes on the 13.9k subset 2.14 → 2.02 % and 2.97 → 2.86 %; goldens regenerated and compared; JVM and A54 A/B in performance.md ✅ PR #66 |
+| M11.2 | The fill outline antialiased, one device pixel wide, as MapLibre's lines (the hairline's overrides removed) | the 13.9k subset 0.29 → 0.15 % (tiles), 2.02 → 1.89 % (labels), 2.86 → 2.76 % (turned); label goldens regenerated, 7 of 8 closer to MapLibre; JVM +13–52 % per tile, A54 level (performance.md M11.2) 🔧 |
 
 ## M8 — Android host API
 

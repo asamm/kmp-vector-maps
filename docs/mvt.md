@@ -85,7 +85,7 @@ uses nothing outside "Supported" but the elevation paint, which is the host's.
 | Layer | Supported | Not yet |
 |---|---|---|
 | background | `-color`, `-opacity` | `-pattern` |
-| fill | `-color`, `-opacity`, `-antialias`, `-pattern`, `-outline-color` (by default the fill colour; drawn as MapLibre's GL lines, a hairline one device pixel wide, not antialiased; not with a pattern) | `-translate`, `-sort-key` |
+| fill | `-color`, `-opacity`, `-antialias`, `-pattern`, `-outline-color` (by default the fill colour; a line one device pixel wide, antialiased as MapLibre's; not with a pattern) | `-translate`, `-sort-key` |
 | line | `-color`, `-width`, `-opacity`, `-dasharray`, `-offset`, `-cap`, `-join` (miter limit 2) | `-pattern`, `-gap-width`, `-blur`, `-translate`, `-gradient`, `-miter-limit`, `-round-limit`, `-sort-key` |
 | circle | `-radius`, `-color`, `-opacity`, `-stroke-width`, `-stroke-color`, `-stroke-opacity` | `-blur`, `-translate`, `-pitch-*`, `-sort-key` |
 | symbol, placement | `symbol-placement`, `-spacing`, `-sort-key` (0–999), `*-allow-overlap`, `*-rotation-alignment`, `text-max-angle`, `text-keep-upright` | `text-variable-anchor`, `-radial-offset`, `-ignore-placement`, `-optional`, `icon-text-fit`, `icon-keep-upright`, `symbol-avoid-edges`, `-z-order`, `-pitch-alignment`, `text-writing-mode` |
@@ -113,7 +113,7 @@ uses nothing outside "Supported" but the elevation paint, which is the host's.
 
 | Area | Here |
 |---|---|
-| Pixels | goldens against MapLibre GL JS renders (`dev/mvt/reference`), 8 tiles z10–16: without labels mean 0.4–2.0 of 255 and 0.2–1.4 % of pixels off by more than 32 (the golden allows 4.0 and 6 %); with labels in DejaVu Sans against MapLibre's Noto, reported only. The parity sweep (below), 83k tiles z1–18 in Noto on both sides: 0.29 % of pixels off without labels, 2.2 % with labels, 3.0 % turned (before M11.1 0.70, 3.0 and 3.6 %; the review's anchor fixes then took a 13.9k subset from 2.1 to 2.0 % and 3.0 to 2.9 %) |
+| Pixels | goldens against MapLibre GL JS renders (`dev/mvt/reference`), 8 tiles z10–16: without labels mean 0.4–2.1 of 255 and 0.2–1.5 % of pixels off by more than 32 (the golden allows 4.0 and 6 %); with labels in DejaVu Sans against MapLibre's Noto, reported only. The parity sweep (below), 83k tiles z1–18 in Noto on both sides: 0.29 % of pixels off without labels, 2.2 % with labels, 3.0 % turned (before M11.1 0.70, 3.0 and 3.6 %); after M11.1's anchor fixes and M11.2's antialiased outline, a 13.9k subset 0.15, 1.9 and 2.8 % |
 | Text | path text around sharp bends where MapLibre picks a straighter stretch; more point and street labels in dense city centres; font stacks map to a face (serif, bold, italic), not named fonts; path text centred on its anchor, not moved by `text-anchor` or `text-offset[0]`; no icon beside a path text (no Asamm style has one) |
 | Fill | a line feature in a fill layer draws nothing; MapLibre fills its parts as rings, bridging them (OpenMapTiles' platform lines) |
 | Halo blur | up to 6 strokes of stepped alpha over 1.19 × blur, not clipped to a glyph buffer |
