@@ -5,9 +5,10 @@ render pipeline and viewer shared by every format.
 
 ## Status
 
-**Pre-release, M0–M7 and M10 done.** Mapsforge 0.30.0 render subset, synced to 0.31.0, converted
-to Kotlin (differences in [docs/upstream.md](docs/upstream.md)); Garmin IMG imported from
-kmp-garmin-img 0.5.2; Mapbox Vector Tiles (PMTiles and online tiles, MapLibre styles); all behind
+**Pre-release, M0–M7, M10 and M11 done.** Mapsforge 0.30.0 render subset, synced to 0.31.0,
+converted to Kotlin (differences in [docs/upstream.md](docs/upstream.md)); Garmin IMG imported from
+kmp-garmin-img 0.5.2; Mapbox Vector Tiles (PMTiles and online tiles, MapLibre styles, checked
+against MapLibre Native on a sweep of thousands of tiles); all behind
 the core driver interface with a screen-wide label pass, a hillshade anchor for the host and, for
 Mapsforge, a feature query; golden tests green, desktop and Android viewers running. Not published
 yet. Milestones: [docs/ROADMAP.md](docs/ROADMAP.md); benchmarks:

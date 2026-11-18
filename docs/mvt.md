@@ -4,7 +4,8 @@ Asamm's vector tiles with their MapLibre styles, rendered by an own Kotlin engin
 interface, as the third format next to Mapsforge and Garmin IMG.
 
 **Author:** Menion · **Done:** 2026-11-16, M10 (PRs #53–#65, step tables in
-[archive/roadmap-m7-m10.md](archive/roadmap-m7-m10.md)) · **Benchmarks:**
+[archive/roadmap-m7-m10.md](archive/roadmap-m7-m10.md)); MapLibre parity 2026-11-18, M11 (PRs
+#66–#69, [archive/roadmap-m11.md](archive/roadmap-m11.md)) · **Benchmarks:**
 [performance.md](performance.md)
 
 ## Goal
