@@ -49,21 +49,23 @@ val upstreamDoc = rootProject.layout.projectDirectory.file("docs/upstream.md").a
 // the committed label goldens, drawn in the bundled font (D37)
 val labelsDir = layout.projectDirectory.dir("labels/awt").asFile
 
+val identityHashJvmArgs = listOf(
+    // synchronous JIT: background compilation draws identity hashes at varying moments
+    "-Xbatch",
+    "-XX:+UnlockExperimentalVMOptions",
+    "-XX:hashCode=3",
+    "-XX:+UseSerialGC",
+    "-Xms2g",
+    "-Xmx2g",
+)
+
 // Same entry point and JVM flags as `:dev:mapsforge:golden-upstream:renderGoldens`, so both
 // renders get the same identity hashes and match exactly (see that task).
 val renderVendored = tasks.register<JavaExec>("renderVendored") {
     description = "Renders the golden corpus with the vendored Mapsforge modules."
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass = "com.asamm.mapsforge.golden.MainKt"
-    jvmArgs(
-        // synchronous JIT: background compilation draws identity hashes at varying moments
-        "-Xbatch",
-        "-XX:+UnlockExperimentalVMOptions",
-        "-XX:hashCode=3",
-        "-XX:+UseSerialGC",
-        "-Xms2g",
-        "-Xmx2g",
-    )
+    jvmArgs(identityHashJvmArgs)
     inputs.dir(fixturesDir)
     outputs.dir(actualDir)
     // a task-local copy: the configuration cache cannot capture script values
@@ -138,4 +140,21 @@ tasks.register<Sync>("updateLabelGoldens") {
         exclude("*_separate_*.png")
     }
     into(labelsDir)
+}
+
+// a sweep over many tiles of a large map against the other side, `-Psweep.args="<map> <theme>
+// <menuLayer> <tiles.txt> <outDir> <deviceScale> <labelsInTile>"`, paths without spaces; renders
+// into `<outDir>/vendored` after the upstream side, so their times do not compete; see the
+// harness's Sweep
+tasks.register<JavaExec>("mapsforgeSweep") {
+    description = "Renders a tile list of a large map for the Mapsforge sweep."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass = "com.asamm.mapsforge.golden.MainKt"
+    jvmArgs(identityHashJvmArgs)
+    mustRunAfter(":dev:mapsforge:golden-upstream:mapsforgeSweep")
+    val sweepArgs = providers.gradleProperty("sweep.args")
+        .map { it.trim().split(Regex("\\s+")) }
+        .getOrElse(emptyList())
+    args = listOf("sweep") + sweepArgs + "vendored"
+    workingDir = rootDir
 }

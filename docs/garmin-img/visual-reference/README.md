@@ -37,6 +37,23 @@ Map data © OpenStreetMap contributors (ODbL); map style © OpenTopoMap (CC-BY-S
    obvious (`qmapshack-`, `basecamp-`, ...).
 5. Add a row to the table above with bbox + any quirks worth noting.
 
+## Scripted reference (not built)
+
+A tile-by-tile reference renderer for Garmin sweeps, as MapLibre is for MVT; proposed in the
+2026-11-18 review, parked until better Garmin rendering is in demand (ROADMAP Q21).
+
+| Item | Plan |
+|---|---|
+| Renderer | [GPXSee](https://github.com/tumic0/GPXSee) (GPL-3.0, Qt): its IMG maps read `gmapsupp.img` and TYP and draw to a `QPainter`; Qt only, as recalled, not verified |
+| Rejected | QMapShack: its Garmin code needs GDAL, PROJ and its draw context, about 2–4 days to run headless; BaseCamp: GUI only, no export of given bounds, opens only installed or device maps |
+| Build | WSL Ubuntu 24.04, Qt 6 from `apt`; GPXSee cloned at a pinned tag into `local/` |
+| Tool | ~150 lines of C++: open the IMG, set Web Mercator bounds per `z/x/y`, draw 512 px, write PNG; reads the `tiles.txt` of `GarminSweepTest` |
+| Compare | per-tile difference scores to rank outliers (missing objects, level of detail, draw order, TYP colours), not a pixel golden: fonts, antialiasing and in-tile labels differ |
+| Licence | GPL: the tool stays in `local/`, or in `dev/garmin-img/reference/` under its own GPL notice with GPXSee fetched at build time, which needs a [licence.md](../../licence.md) entry first; nothing ships |
+| Effort | about 1 day |
+
+It is a second reading of the format, not Garmin's rendering.
+
 ## Why not test-gate these?
 
 Desktop renders depend on:

@@ -112,7 +112,7 @@ object RgnSubFile {
     }
 
     /**
-     * Parses every object in `subDivision` and yields them as a lazy
+     * Parses the objects in `subDivision`, those [clip] keeps, and yields them as a lazy
      * [Sequence]. Iterating advances the [reader]; consumers must not start a
      * second iteration concurrently. Pass `lblHeader`/`lblReader` to resolve
      * label offsets to decoded strings — pass `null` for both to get
@@ -121,6 +121,7 @@ object RgnSubFile {
      * @param objectKindFilter bit-mask of [ObjectKind] flags. The default
      *   `ObjectKind.ALL` emits every kind.
      * @param poiDetails false reads only a POI's name, without the address and city lookups.
+     * @param clip skips each object whose geometry misses it, before its label is read
      */
     fun parseSubDivision(
         reader: ImgRandomAccessReader,
@@ -134,6 +135,7 @@ object RgnSubFile {
         cityResolver: LblSubFile.IndexedPointLabelResolver? = null,
         objectKindFilter: Int = ObjectKind.ALL,
         poiDetails: Boolean = true,
+        clip: ObjectClip? = null,
     ): Sequence<MapObject> {
         // Bits-per-coord for this sub-division's level controls how the
         // record-encoded deltas scale into absolute Garmin coords. When
@@ -161,7 +163,8 @@ object RgnSubFile {
                             line = false,
                             bitsPerCoord,
                             lblReader,
-                            lblHeader
+                            lblHeader,
+                            clip = clip,
                         )
                     )
                 }
@@ -176,7 +179,8 @@ object RgnSubFile {
                             line = false,
                             bitsPerCoord,
                             lblReader,
-                            lblHeader
+                            lblHeader,
+                            clip = clip,
                         )
                     )
                 }
@@ -193,7 +197,8 @@ object RgnSubFile {
                             lblReader,
                             lblHeader,
                             netReader,
-                            netHeader
+                            netHeader,
+                            clip,
                         )
                     )
                 }
@@ -208,7 +213,8 @@ object RgnSubFile {
                             line = true,
                             bitsPerCoord,
                             lblReader,
-                            lblHeader
+                            lblHeader,
+                            clip = clip,
                         )
                     )
                 }
@@ -226,6 +232,7 @@ object RgnSubFile {
                             lblHeader,
                             cityResolver,
                             poiDetails,
+                            clip,
                         )
                     )
                 }
@@ -243,6 +250,7 @@ object RgnSubFile {
                             lblHeader,
                             cityResolver,
                             poiDetails,
+                            clip,
                         )
                     )
                 }
@@ -256,7 +264,8 @@ object RgnSubFile {
                             seg,
                             bitsPerCoord,
                             lblReader,
-                            lblHeader
+                            lblHeader,
+                            clip,
                         )
                     )
                 }
@@ -431,6 +440,7 @@ object RgnSubFile {
         lblHeader: LblHeader?,
         cityResolver: LblSubFile.IndexedPointLabelResolver? = null,
         poiDetails: Boolean = true,
+        clip: ObjectClip? = null,
     ): Sequence<MapObject.Point> = sequence {
         reader.seek(segment.start)
         while (reader.position() < segment.end) {
@@ -443,6 +453,23 @@ object RgnSubFile {
                 val longitudeDelta = readInt16(reader)
                 val latitudeDelta = readInt16(reader)
                 val subType = if (hasSubType) reader.readByte() else 0
+                val longitude = scaleAndAdd(
+                    subDivision.longitudeCenter,
+                    longitudeDelta,
+                    bitsPerCoord,
+                    additionalAccuracy = 0
+                )
+                val latitude = scaleAndAdd(
+                    subDivision.latitudeCenter,
+                    latitudeDelta,
+                    bitsPerCoord,
+                    additionalAccuracy = 0
+                )
+                if (clip != null
+                    && !clip.contains(longitude, latitude)
+                ) {
+                    continue
+                }
                 val hasPoiTable = isPoi && lblReader != null && lblHeader != null && lblHeader.poiLength > 0L
                 // rendering needs the name only; the address fields seek all over LBL and RGN
                 val poiName = if (hasPoiTable && !poiDetails) {
@@ -492,18 +519,8 @@ object RgnSubFile {
                     MapObject.Point(
                         type = type,
                         subType = subType,
-                        longitude = scaleAndAdd(
-                            subDivision.longitudeCenter,
-                            longitudeDelta,
-                            bitsPerCoord,
-                            additionalAccuracy = 0
-                        ),
-                        latitude = scaleAndAdd(
-                            subDivision.latitudeCenter,
-                            latitudeDelta,
-                            bitsPerCoord,
-                            additionalAccuracy = 0
-                        ),
+                        longitude = longitude,
+                        latitude = latitude,
                         label = label,
                         indexed = indexed,
                         isPoi = isPoi,
@@ -524,6 +541,7 @@ object RgnSubFile {
         bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
+        clip: ObjectClip?,
     ): Sequence<MapObject.Point> = sequence {
         reader.seek(segment.start)
         while (reader.position() < segment.end) {
@@ -534,26 +552,34 @@ object RgnSubFile {
                 val hasLabel = (subtipo and 0x20) != 0
                 val longitudeDelta = readInt16(reader)
                 val latitudeDelta = readInt16(reader)
+                val labelOffset = if (hasLabel) reader.readUInt24().toLong() else 0L
+                val longitude = scaleAndAdd(
+                    subDivision.longitudeCenter,
+                    longitudeDelta,
+                    bitsPerCoord,
+                    additionalAccuracy = 0
+                )
+                val latitude = scaleAndAdd(
+                    subDivision.latitudeCenter,
+                    latitudeDelta,
+                    bitsPerCoord,
+                    additionalAccuracy = 0
+                )
+                if (clip != null
+                    && !clip.contains(longitude, latitude)
+                ) {
+                    continue
+                }
                 val label = if (hasLabel) {
-                    resolveLabel(reader.readUInt24().toLong(), lblReader, lblHeader)
+                    resolveLabel(labelOffset, lblReader, lblHeader)
                 } else {
                     null
                 }
                     MapObject.Point(
                         type = fullType ushr 8,
                         subType = fullType and 0xFF,
-                        longitude = scaleAndAdd(
-                            subDivision.longitudeCenter,
-                            longitudeDelta,
-                            bitsPerCoord,
-                            additionalAccuracy = 0
-                        ),
-                        latitude = scaleAndAdd(
-                            subDivision.latitudeCenter,
-                            latitudeDelta,
-                            bitsPerCoord,
-                            additionalAccuracy = 0
-                        ),
+                        longitude = longitude,
+                        latitude = latitude,
                         label = label,
                         indexed = false,
                     )
@@ -579,6 +605,7 @@ object RgnSubFile {
         lblHeader: LblHeader?,
         netReader: ImgRandomAccessReader? = null,
         netHeader: NetHeader? = null,
+        clip: ObjectClip? = null,
     ): Sequence<MapObject.PolyShape> = sequence {
         reader.seek(segment.start)
         while (reader.position() < segment.end) {
@@ -591,7 +618,8 @@ object RgnSubFile {
                     lblReader,
                     lblHeader,
                     netReader,
-                    netHeader
+                    netHeader,
+                    clip,
                 )
             } catch (_: Exception) {
                 // Bit-stream over-ran or coordinate decode failed mid-record.
@@ -605,11 +633,12 @@ object RgnSubFile {
                 // that here so a single corrupt record can't poison the
                 // rest of the segment.
                 break
-            }
+            } ?: continue
             yield(shape)
         }
     }
 
+    // null when the shape misses the clip
     private fun parseOnePoly(
         reader: ImgRandomAccessReader,
         subDivision: SubDivision,
@@ -619,7 +648,8 @@ object RgnSubFile {
         lblHeader: LblHeader?,
         netReader: ImgRandomAccessReader? = null,
         netHeader: NetHeader? = null,
-    ): MapObject.PolyShape {
+        clip: ObjectClip? = null,
+    ): MapObject.PolyShape? {
         val infoByte = reader.readByte()
         val type: Int
         val direction: Boolean
@@ -658,6 +688,11 @@ object RgnSubFile {
             fixedExtraBitLong = if (extraBit) 1 else 0,
             readPolyExtraSignBit = false,
         )
+        if (clip != null
+            && !clip.intersects(longs, lats)
+        ) {
+            return null
+        }
 
         val label = if (line && dataInNet && netReader != null && netHeader != null) {
             // dataInNet: labelOffset points into NET's road-definitions
@@ -697,21 +732,23 @@ object RgnSubFile {
         bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
+        clip: ObjectClip? = null,
     ): Sequence<MapObject.PolyShape> = sequence {
         reader.seek(segment.start)
         while (reader.position() < segment.end) {
             val shape = try {
-                parseOneExtPoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader)
+                parseOneExtPoly(reader, subDivision, line, bitsPerCoord, lblReader, lblHeader, clip)
             } catch (_: Exception) {
                 // Same rationale as parsePoly — bail the segment on
                 // mid-record decode failure rather than continuing from a
                 // misaligned read position.
                 break
-            }
+            } ?: continue
             yield(shape)
         }
     }
 
+    // null when the shape misses the clip
     private fun parseOneExtPoly(
         reader: ImgRandomAccessReader,
         subDivision: SubDivision,
@@ -719,7 +756,8 @@ object RgnSubFile {
         bitsPerCoord: Int,
         lblReader: ImgRandomAccessReader?,
         lblHeader: LblHeader?,
-    ): MapObject.PolyShape {
+        clip: ObjectClip?,
+    ): MapObject.PolyShape? {
         val tipo = reader.readByte()
         val subtipo = reader.readByte()
         val fullType = ((tipo + 0x100) shl 8) + (subtipo and 0x1F)
@@ -749,9 +787,15 @@ object RgnSubFile {
             fixedExtraBitLong = 0,
             readPolyExtraSignBit = true,
         )
+        val labelOffset = if (hasLabel) reader.readUInt24().toLong() else 0L
+        if (clip != null
+            && !clip.intersects(longs, lats)
+        ) {
+            return null
+        }
 
         val label = if (hasLabel) {
-            resolveLabel(reader.readUInt24().toLong(), lblReader, lblHeader)
+            resolveLabel(labelOffset, lblReader, lblHeader)
         } else {
             null
         }
@@ -1043,6 +1087,52 @@ object RgnSubFile {
             this.start = start
             this.end = end
         }
+    }
+}
+
+/**
+ * Bounds in Garmin units, inclusive, that [RgnSubFile.parseSubDivision] clips objects to.
+ */
+class ObjectClip(
+    val minLong: Int,
+    val maxLong: Int,
+    val minLat: Int,
+    val maxLat: Int,
+) {
+
+    fun contains(longitude: Int, latitude: Int): Boolean {
+        return longitude in minLong..maxLong
+            && latitude in minLat..maxLat
+    }
+
+    /**
+     * True when the bounding box of the points meets the clip.
+     */
+    fun intersects(longitudes: IntArray, latitudes: IntArray): Boolean {
+        var minX = Int.MAX_VALUE
+        var maxX = Int.MIN_VALUE
+        var minY = Int.MAX_VALUE
+        var maxY = Int.MIN_VALUE
+        for (i in longitudes.indices) {
+            val x = longitudes[i]
+            val y = latitudes[i]
+            if (x < minX) {
+                minX = x
+            }
+            if (x > maxX) {
+                maxX = x
+            }
+            if (y < minY) {
+                minY = y
+            }
+            if (y > maxY) {
+                maxY = y
+            }
+        }
+        return minX <= maxLong
+            && maxX >= minLong
+            && minY <= maxLat
+            && maxY >= minLat
     }
 }
 

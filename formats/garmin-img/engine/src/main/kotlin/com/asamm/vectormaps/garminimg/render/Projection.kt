@@ -8,7 +8,9 @@ package com.asamm.vectormaps.garminimg.render
 
 import com.asamm.vectormaps.garminimg.utils.coord.CoordUtils
 import kotlin.math.PI
+import kotlin.math.atan
 import kotlin.math.ln
+import kotlin.math.sinh
 import kotlin.math.tan
 
 /**
@@ -85,6 +87,25 @@ class Projection(
             xsOut[i] = projectX(longitudes[i])
             ysOut[i] = projectY(latitudes[i])
         }
+    }
+
+    /**
+     * Longitude in degrees at screen x, which may lie outside the viewport.
+     */
+    fun longitudeDegAt(x: Double): Double {
+        return minLonDeg + x / widthPx * (maxLonDeg - minLonDeg)
+    }
+
+    /**
+     * Latitude in degrees at screen y, which may lie outside the viewport.
+     */
+    fun latitudeDegAt(y: Double): Double {
+        val ny = 1.0 - y / heightPx
+        if (!mercator) {
+            return minLatDeg + ny * (maxLatDeg - minLatDeg)
+        }
+        val mercY = minYMercator + ny * (maxYMercator - minYMercator)
+        return atan(sinh(mercY)) * 180.0 / PI
     }
 
     private fun mercatorX(lonDeg: Double): Double {

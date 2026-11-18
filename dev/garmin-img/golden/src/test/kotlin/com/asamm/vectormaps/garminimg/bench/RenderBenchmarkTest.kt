@@ -163,7 +163,7 @@ class RenderBenchmarkTest {
             "(polys=$polygonCountP, polylines=$polylineCountP, points=$pointCountP)")
 
         println("[bench]")
-        println("[bench] readMapInBounds (parse only, no draw):")
+        println("[bench] readMapInBounds (parse only, no draw, without the render's object clip):")
         printStats("[bench]   ", parseTimes)
 
         println("[bench]")

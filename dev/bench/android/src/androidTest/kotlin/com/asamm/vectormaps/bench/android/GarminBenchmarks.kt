@@ -82,8 +82,9 @@ class GarminTileBenchmark(private val zoom: Int) {
     }
 
     /**
-     * Every object the render reads, each map at the level it picks; unlike the render, it also
-     * picks the level of maps outside the tile.
+     * Every object of the sub-divisions meeting the tile, each map at the level the render picks;
+     * unlike the render, it also picks the level of maps outside the tile and reads objects off
+     * the tile.
      */
     @Test
     fun readTile() {

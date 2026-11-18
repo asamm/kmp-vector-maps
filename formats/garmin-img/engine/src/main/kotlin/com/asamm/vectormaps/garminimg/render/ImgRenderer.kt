@@ -9,10 +9,12 @@ package com.asamm.vectormaps.garminimg.render
 import com.asamm.vectormaps.garminimg.ImgFile
 import com.asamm.vectormaps.garminimg.model.MapObject
 import com.asamm.vectormaps.garminimg.model.ObjectKind
+import com.asamm.vectormaps.garminimg.parser.ObjectClip
 import com.asamm.vectormaps.garminimg.parser.TreLevels
 import com.asamm.vectormaps.garminimg.style.Color
 import com.asamm.vectormaps.garminimg.style.InternalStyles
 import com.asamm.vectormaps.garminimg.style.Style
+import com.asamm.vectormaps.garminimg.utils.coord.CoordUtils
 import kotlin.math.ln
 
 /**
@@ -101,6 +103,28 @@ class ImgRenderer(
         val projection = Projection(viewport)
         target.beginFrame(backgroundColor)
 
+        // objects past the line cull's margin are skipped before their labels are read; projected,
+        // they would be culled anyway
+        val margin = OFFSCREEN_LINE_MARGIN + 1.0
+        val clip = ObjectClip(
+            minLong = minOf(
+                viewport.minLon,
+                CoordUtils.fromWGS84(projection.longitudeDegAt(-margin)) - 1,
+            ),
+            maxLong = maxOf(
+                viewport.maxLon,
+                CoordUtils.fromWGS84(projection.longitudeDegAt(viewport.widthPx + margin)) + 1,
+            ),
+            minLat = minOf(
+                viewport.minLat,
+                CoordUtils.fromWGS84(projection.latitudeDegAt(viewport.heightPx + margin)) - 1,
+            ),
+            maxLat = maxOf(
+                viewport.maxLat,
+                CoordUtils.fromWGS84(projection.latitudeDegAt(-margin)) + 1,
+            ),
+        )
+
         // First pass: bucket every map object by kind. Polygons need to be
         // sorted by draw priority (TYP's DRAWORDER section, when present)
         // so background polygons paint first and small foreground features
@@ -129,6 +153,7 @@ class ImgRenderer(
                 objectKindFilter = objectKindFilter,
                 levelFilter = targetLevel,
                 poiDetails = false,
+                clip = clip,
             )) {
                 val style = layer.styleResolver.resolve(obj)
                 when (obj) {
