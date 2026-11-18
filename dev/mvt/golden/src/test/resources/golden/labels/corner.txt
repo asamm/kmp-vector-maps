@@ -16,7 +16,6 @@ elevation_label	008	97	13
 elevation_label	009	-226	-181
 elevation_label	009	-239	107
 elevation_label	009	-32	298
-elevation_label	009	-421	-42
 elevation_label	009	236	179
 elevation_label	009	391	-47
 elevation_label	009	453	471
@@ -24,7 +23,7 @@ elevation_label	009	458	284
 elevation_label	009	59	152
 elevation_label	009	77	-406
 hike_label	0408	-220	-67	reversed
-hike_label	1812	76	-186
+hike_label	7236	7	-442	reversed
 label_road_oneway__1	icon icons\one_way	-9	-125
 label_road_oneway__1	icon icons\one_way	105	-102
 label_road_oneway__1	icon icons\one_way	119	57
@@ -49,44 +48,49 @@ waterway_label__1	Úpa	398	115
 waterway_label__1	Úpa	51	-290
 waterway_label__2	Karlův potok	259	-227	reversed
 waterway_oneway	icon icons\one_way_river	-112	147
-waterway_oneway	icon icons\one_way_river	-122	-65
-waterway_oneway	icon icons\one_way_river	-128	371
-waterway_oneway	icon icons\one_way_river	-150	-488
-waterway_oneway	icon icons\one_way_river	-179	345
-waterway_oneway	icon icons\one_way_river	-182	196
-waterway_oneway	icon icons\one_way_river	-186	-117
-waterway_oneway	icon icons\one_way_river	-203	270
+waterway_oneway	icon icons\one_way_river	-122	385
+waterway_oneway	icon icons\one_way_river	-129	-69
+waterway_oneway	icon icons\one_way_river	-143	-494
+waterway_oneway	icon icons\one_way_river	-186	348
+waterway_oneway	icon icons\one_way_river	-189	199
+waterway_oneway	icon icons\one_way_river	-192	-121
+waterway_oneway	icon icons\one_way_river	-210	267
 waterway_oneway	icon icons\one_way_river	-214	66
-waterway_oneway	icon icons\one_way_river	-224	318
 waterway_oneway	icon icons\one_way_river	-227	451
-waterway_oneway	icon icons\one_way_river	-29	-445
-waterway_oneway	icon icons\one_way_river	-297	-203
+waterway_oneway	icon icons\one_way_river	-231	381
+waterway_oneway	icon icons\one_way_river	-232	316
 waterway_oneway	icon icons\one_way_river	-297	406
+waterway_oneway	icon icons\one_way_river	-298	-210
 waterway_oneway	icon icons\one_way_river	-30	233
 waterway_oneway	icon icons\one_way_river	-308	-270
+waterway_oneway	icon icons\one_way_river	-32	-12
 waterway_oneway	icon icons\one_way_river	-321	-42
-waterway_oneway	icon icons\one_way_river	-326	202
-waterway_oneway	icon icons\one_way_river	-327	311
+waterway_oneway	icon icons\one_way_river	-331	304
+waterway_oneway	icon icons\one_way_river	-333	199
 waterway_oneway	icon icons\one_way_river	-340	421
 waterway_oneway	icon icons\one_way_river	-352	360
-waterway_oneway	icon icons\one_way_river	-370	246
+waterway_oneway	icon icons\one_way_river	-36	-448
+waterway_oneway	icon icons\one_way_river	-377	244
+waterway_oneway	icon icons\one_way_river	-391	483
 waterway_oneway	icon icons\one_way_river	-439	493
-waterway_oneway	icon icons\one_way_river	-440	338
 waterway_oneway	icon icons\one_way_river	-441	421
+waterway_oneway	icon icons\one_way_river	-445	332
 waterway_oneway	icon icons\one_way_river	-454	-88
 waterway_oneway	icon icons\one_way_river	-84	452
-waterway_oneway	icon icons\one_way_river	-87	191
-waterway_oneway	icon icons\one_way_river	125	-377
+waterway_oneway	icon icons\one_way_river	-85	-431
+waterway_oneway	icon icons\one_way_river	-91	197
+waterway_oneway	icon icons\one_way_river	129	-383
+waterway_oneway	icon icons\one_way_river	134	-105
 waterway_oneway	icon icons\one_way_river	148	-23
-waterway_oneway	icon icons\one_way_river	169	-124
-waterway_oneway	icon icons\one_way_river	202	-18
-waterway_oneway	icon icons\one_way_river	210	-489
-waterway_oneway	icon icons\one_way_river	22	321
+waterway_oneway	icon icons\one_way_river	15	315
+waterway_oneway	icon icons\one_way_river	174	-130
+waterway_oneway	icon icons\one_way_river	195	-19
+waterway_oneway	icon icons\one_way_river	217	-491
 waterway_oneway	icon icons\one_way_river	26	-389
-waterway_oneway	icon icons\one_way_river	286	408
+waterway_oneway	icon icons\one_way_river	279	406
 waterway_oneway	icon icons\one_way_river	313	55
-waterway_oneway	icon icons\one_way_river	398	500
+waterway_oneway	icon icons\one_way_river	393	494
 waterway_oneway	icon icons\one_way_river	441	130
-waterway_oneway	icon icons\one_way_river	503	-309
+waterway_oneway	icon icons\one_way_river	500	-316
 waterway_oneway	icon icons\one_way_river	53	18
 waterway_oneway	icon icons\one_way_river	67	-247

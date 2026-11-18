@@ -11,8 +11,8 @@ behind one driver interface, with desktop JVM for benchmarks and tools.
 **Status: M0–M7 and M10 done (PRs #1–#65, M10 merged as `34c4040` on 2026-11-16); M7.1 ⏸, the
 desktop stays AWT. M8 and M9 ⏸ since 2026-11-12, while locus-core reworks the libMapCore plan
 (locus-core `docs/libraries/libMapCore/plan/`) around this library. M11 (MapLibre parity sweep)
-started 2026-11-17, M11.1 and M11.2 merged (PRs #66, #67, `a8a09e0`, 2026-11-18).** Next action:
-review M11.3 (allow-overlap symbols block later labels, line anchors at the tile's text size);
+started 2026-11-17, M11.1–M11.3 merged (PRs #66–#68, `83a3e1d`, 2026-11-18).** Next action:
+review M11.4 (road shields: icon length, MapLibre's repeat check);
 M8.0 (logging through kmp-logger) when the libMapCore plan says so; M8 and M9 bring all three
 formats into Locus; MBTiles waits for V1 ([mvt.md](mvt.md)).
 
@@ -36,7 +36,7 @@ settles, labels before speed, the Locus-facing API last.
 | M8 | Android host API, proven on a throwaway Locus branch | M | ⏸ libMapCore plan |
 | M9 | Locus integration | M | ⏸ libMapCore plan; needs Q14, Q16 |
 | M10 | Mapbox Vector Tiles, Asamm tiles and styles online and offline ([mvt.md](mvt.md)) | L | ✅ PRs #53–#65, `34c4040` |
-| M11 | MapLibre parity sweep: thousands of tiles against MapLibre Native, fixes by impact ([mvt.md](mvt.md)) | M | 🔧 M11.3 |
+| M11 | MapLibre parity sweep: thousands of tiles against MapLibre Native, fixes by impact ([mvt.md](mvt.md)) | M | 🔧 M11.4 |
 
 ## Done
 
@@ -111,8 +111,8 @@ renderer of Locus Map iOS, and fixes the worst causes first.
 |---|---|---|
 | M11.1 | The sweep (`dev/mvt/sweep`, `dev/mvt/reference/sweep*.mjs`); fixes it found: the default fill outline (a hairline, performance.md M11.1), label priority by feature order, balanced line breaking, MapLibre's line anchors on lines clipped to their tile (at the z18 text size, times the overscale; `line-center` unclipped), MapLibre's text baseline; the legacy `{token}` regex Android's ICU rejected (no MVT style parsed on Android since PR #65) | 83k tiles z1–18 in three views, mean pixels off 0.70 → 0.29 % (tiles), 2.97 → 2.16 % (labels), 3.63 → 2.99 % (turned); the review's anchor fixes on the 13.9k subset 2.14 → 2.02 % and 2.97 → 2.86 %; goldens regenerated and compared; JVM and A54 A/B in performance.md ✅ PR #66 |
 | M11.2 | The fill outline antialiased, one device pixel wide, as MapLibre's lines (the hairline's overrides removed) | the 13.9k subset 0.29 → 0.15 % (tiles), 2.02 → 1.89 % (labels), 2.86 → 2.76 % (turned); label goldens regenerated, 7 of 8 closer to MapLibre; JVM +13–52 % per tile, A54 level (performance.md M11.2) ✅ PR #67 |
-| M11.3 | Labels where the sweep still differs most, found by comparing the placed labels of both renderers (`sweep labels`, `sweep.mjs labels`): an `allow-overlap` symbol still blocks later labels (`LabelDisplay.OVERLAP`; `*-ignore-placement` supported), so dense centres no longer fill with POIs and route names; line anchors laid out with the text at the tile's zoom size as MapLibre Native, not GL JS's z18 | the 13.9k subset labels 1.888 → 1.776 %, turned 2.760 → 2.646 %, label tiles over 10 % 30 → 5; label goldens regenerated (they compare with GL JS) 🔧 |
-| M11.4 | Road shields: on 120 subset tiles z10–16 we place 134 shields to MapLibre's 108, and 40 % of MapLibre's sit within 3 px of ours (`sweep labels` against `sweep.mjs labels`, whose anchors equal Native's for the shields' constant text size) | the shield layers' placed labels and anchors match MapLibre's ⬜ |
+| M11.3 | Labels where the sweep still differs most, found by comparing the placed labels of both renderers (`sweep labels`, `sweep.mjs labels`): an `allow-overlap` symbol still blocks later labels (`LabelDisplay.OVERLAP`; `*-ignore-placement` supported), so dense centres no longer fill with POIs and route names; line anchors laid out with the text at the tile's zoom size as MapLibre Native, not GL JS's z18 | the 13.9k subset labels 1.888 → 1.776 %, turned 2.760 → 2.646 %, label tiles over 10 % 30 → 5; label goldens regenerated (they compare with GL JS) ✅ PR #68 |
+| M11.4 | Road shields: on 120 subset tiles z10–16 we placed 134 shields to MapLibre's 108, 40 % of MapLibre's within 3 px of ours (`sweep labels` against `sweep.mjs labels`, whose anchors equal Native's for the shields' constant text size). Fixed: a line label's icon counts at its sprite size times the text size over 24 px, as MapLibre's `getAnchors`; a `line` text's anchor within half a spacing of an earlier one with the same text is dropped (`anchorIsTooClose`), one shield on a dual carriageway | shields 106 to MapLibre's 108, 88 % within 3 px; the 13.9k subset labels 1.776 → 1.626 %, turned 2.646 → 2.497 %; label goldens regenerated, 3 of 8 closer to GL JS, none further 🔧 |
 
 ## M8 — Android host API
 

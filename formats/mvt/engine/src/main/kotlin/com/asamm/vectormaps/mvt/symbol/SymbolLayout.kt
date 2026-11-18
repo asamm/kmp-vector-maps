@@ -18,11 +18,13 @@ import com.asamm.vectormaps.mvt.style.StyleLayer
 import com.asamm.vectormaps.mvt.tile.Feature
 import com.asamm.vectormaps.mvt.tile.Geometry
 import com.asamm.vectormaps.mvt.tile.GeometryType
+import com.asamm.vectormaps.mvt.tile.Layer
 import com.asamm.vectormaps.mvt.tile.VectorTile
 import java.util.Collections
 import java.util.Locale
 import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.hypot
 
 /**
  * Lays out the symbol layers of a [Style] for one tile into [MvtLabel]s for the label pass, which
@@ -33,7 +35,8 @@ import java.util.concurrent.ConcurrentHashMap
  *
  * @param sprite the sprite index icons are sized from; null lays out no icons
  * @param scale screen pixels per style pixel on a 512 px tile, the host's device scale
- * @param textScale an extra factor on text, on top of `scale`
+ * @param textScale an extra factor on text, on top of `scale`; it also scales a line icon's length
+ *  in the anchor layout, which MapLibre takes at the text's scale
  * @param language the preferred label language, such as `de`: text fields read `name:de` for
  *  `name` where a feature has it; null keeps the style's names
  * @param tileSource the decoded tile at (zoom, x, y), or null when there is none
@@ -70,6 +73,11 @@ class SymbolLayout(
     // tiles above the data zoom that share its data tile; gone with the tile
     private val poles = Collections.synchronizedMap(WeakHashMap<Feature, FloatArray>())
 
+    // the anchors of a layer's line texts in its data tile, laid out once for the sibling tiles
+    // above the data zoom as MapLibre lays out a data tile, relative to its corner; per style
+    // layer, zoom and tile size; gone with the tile
+    private val sharedLines = Collections.synchronizedMap(WeakHashMap<Layer, MutableMap<String, List<SharedAnchor>>>())
+
     /**
      * The labels whose anchors fall inside tile (`zoom`, `x`, `y`) of `tileSizePx`; a neighbour
      * tile lays out the rest, so the label pass sees each anchor once; `data` is the tile's data
@@ -102,6 +110,8 @@ class SymbolLayout(
             }
             val source = tile.layers[layer.sourceLayer] ?: continue
             val pieces = ArrayList<LinePiece>()
+            // the anchors a layer's line texts took, x, y pairs, as MapLibre's repeat check
+            val repeats = HashMap<String, FloatList>()
             val mark = out.size
             // the features' order in the data tile, the same in every tile cut from it
             var order = 0
@@ -132,7 +142,9 @@ class SymbolLayout(
                     }
                     val rank = order++
                     val geometry = feature.decodeGeometry()
-                    // the widest margin layoutFeature allows, before projecting
+                    // the widest margin layoutFeature allows, before projecting; at the data zoom it
+                    // covers the repeat check's half a spacing while symbol-spacing times the device
+                    // scale stays within 1024, as with MapLibre's sizes at deviceScale 1
                     if (!frame.meets(geometry = geometry, extent = source.extent, marginPx = tileSizePx.toFloat())) {
                         continue
                     }
@@ -161,11 +173,27 @@ class SymbolLayout(
                         out = out,
                     )
                 }
-                // the pieces of one road or route join first, as MapLibre's mergeLines
-                for (group in pieces.groupBy { it.key }.values) {
-                    for (chain in LineMerge.merge(group.map { it.coords })) {
-                        layoutLine(chain.coords, group[chain.first].line, tileSizePx, out)
+                if (frame.dz == 0) {
+                    // the pieces of one road or route join first, as MapLibre's mergeLines
+                    for (group in pieces.groupBy { it.key }.values) {
+                        for (chain in LineMerge.merge(group.map { it.coords })) {
+                            layoutLine(chain.coords, group[chain.first].line, tileSizePx, repeats, out)
+                        }
                     }
+                } else if (pieces.isNotEmpty()) {
+                    // above the data zoom the data tile's whole layout decides, so sibling tiles agree
+                    val anchors = sharedLineAnchors(
+                        layer = layer,
+                        index = index,
+                        source = source,
+                        ctx = ctx,
+                        frame = frame,
+                        bounds = bounds,
+                        tileSizePx = tileSizePx,
+                        layoutTextSize = layoutTextSize,
+                        shaped = shaped,
+                    )
+                    emitShared(anchors = anchors, bounds = bounds, tileSizePx = tileSizePx, out = out)
                 }
             } catch (e: RuntimeException) {
                 // a malformed style or tile leaves this whole layer out
@@ -196,8 +224,14 @@ class SymbolLayout(
         shaped: MutableMap<Shaping, Shaped>,
         pieces: MutableList<LinePiece>,
         out: MutableList<MvtLabel>,
+        piecesOnly: Boolean = false,
     ) {
         val placement = layer.layout["symbol-placement"]?.eval(ctx) as? String ?: "point"
+        if (piecesOnly
+            && placement != "line"
+        ) {
+            return
+        }
         val onLine = placement != "point"
         // MapLibre places line symbols along lines and polygon rings, never at points
         if (onLine
@@ -209,7 +243,7 @@ class SymbolLayout(
         // a feature far from the tile shows nothing in it; a line's label reaches a tile further
         val margin = if (onLine) tileSizePx.toFloat() else 0f
         if (coords.size < 2
-            || !boundsMeetTile(coords, coords.indices, margin, tileSizePx)
+            || !piecesOnly && !boundsMeetTile(coords, coords.indices, margin, tileSizePx)
         ) {
             return
         }
@@ -244,7 +278,7 @@ class SymbolLayout(
             val line = LineSymbol(
                 symbol = symbol,
                 // the spec's minimum; the Asamm style interpolates below 0 at some zooms
-                spacing = number(layer.layout["symbol-spacing"], ctx, 250.0).toFloat().coerceAtLeast(1f) * pixelScale,
+                spacing = finite(number(layer.layout["symbol-spacing"], ctx, 250.0).toFloat(), 250f).coerceAtLeast(1f) * pixelScale,
                 maxAngleDeg = number(layer.layout["text-max-angle"], ctx, 45.0),
                 center = placement == "line-center",
                 alongPath = alongPath && text != null,
@@ -267,8 +301,8 @@ class SymbolLayout(
                         && text != null
                     ) {
                         pieces += LinePiece("${text.lines}|${icon?.name}", part, line)
-                    } else {
-                        layoutLine(part, line, tileSizePx, out)
+                    } else if (!piecesOnly) {
+                        layoutLine(part, line, tileSizePx, null, out)
                     }
                 }
                 start = end
@@ -307,13 +341,73 @@ class SymbolLayout(
         }
     }
 
-    private fun layoutLine(line: FloatArray, symbol: LineSymbol, tileSizePx: Int, out: MutableList<MvtLabel>) {
-        val text = symbol.symbol.text
+    private fun layoutLine(
+        line: FloatArray,
+        symbol: LineSymbol,
+        tileSizePx: Int,
+        repeats: MutableMap<String, FloatList>?,
+        out: MutableList<MvtLabel>,
+    ) {
+        val length = drawnLength(symbol)
+        lineAnchors(line = line, symbol = symbol, tileSizePx = tileSizePx, repeats = repeats) { part, a ->
+            // an anchor around the tile only counted for the repeat check
+            if (a.x < 0f
+                || a.y < 0f
+                || a.x >= tileSizePx
+                || a.y >= tileSizePx
+            ) {
+                return@lineAnchors
+            }
+            val path = if (symbol.alongPath) {
+                LineAnchors.stretch(part, 0, part.size, a.distance - length / 2f, a.distance + length / 2f)
+                    ?: return@lineAnchors
+            } else {
+                null
+            }
+            emit(symbol.symbol, a.x, a.y, path, tileSizePx, out, if (symbol.iconAlongLine) a.angleDeg else null)
+        }
+    }
+
+    // a label's length along its line as drawn
+    private fun drawnLength(symbol: LineSymbol): Float {
         val icon = symbol.symbol.icon
-        val iconLength = (icon?.width ?: 0f) * (icon?.scale ?: 1f)
-        val length = maxOf(text?.width ?: 0f, iconLength)
-        // MapLibre lays the anchors out with the text at its layout size
-        val maxLength = maxOf((text?.width ?: 0f) * symbol.glyphSizePx / (text?.sizePx ?: 1f), iconLength)
+        return maxOf(symbol.symbol.text?.width ?: 0f, (icon?.width ?: 0f) * (icon?.scale ?: 1f))
+    }
+
+    // the anchors of `line` kept by MapLibre's rules, with the part each lies on: around the tile
+    // of `tileSizePx`, or in the whole data tile without one
+    private inline fun lineAnchors(
+        line: FloatArray,
+        symbol: LineSymbol,
+        tileSizePx: Int?,
+        repeats: MutableMap<String, FloatList>?,
+        each: (FloatArray, LineAnchors.Anchor) -> Unit,
+    ) {
+        val text = symbol.symbol.text
+        // MapLibre drops a `line` text's anchor within half a spacing of an earlier one with the
+        // same text in the layer, so the anchors around the tile count too
+        val taken = if (repeats != null
+            && text != null
+            && !symbol.center
+        ) {
+            repeats.getOrPut(text.lines.joinToString("\n")) { FloatList() }
+        } else {
+            null
+        }
+        val repeatPx = symbol.spacing / 2f
+        val region = if (tileSizePx == null) {
+            symbol.bounds
+        } else {
+            val margin = if (taken != null) repeatPx * 2f else 0f
+            floatArrayOf(-margin, -margin, tileSizePx + margin, tileSizePx + margin)
+        }
+        val icon = symbol.symbol.icon
+        // MapLibre lays the anchors out with the text at its layout size, and the icon at its sprite
+        // size scaled as that text, by its size over a 24 px em
+        val maxLength = maxOf(
+            (text?.width ?: 0f) * symbol.glyphSizePx / (text?.sizePx ?: 1f),
+            (icon?.width ?: 0f) * symbol.glyphSizePx / ONE_EM,
+        )
         // as MapLibre, `line` anchored on the line clipped to its data tile, `line-center` on the
         // whole line
         val parts = if (symbol.center) listOf(line) else LineAnchors.clip(line, symbol.bounds)
@@ -330,19 +424,137 @@ class SymbolLayout(
                 maxAngleDeg = symbol.maxAngleDeg,
                 // MapLibre's angle window, 3/5 of the text size; icons alone are not checked
                 angleWindow = if (text != null) symbol.glyphSizePx * 0.6f else 0f,
-                region = floatArrayOf(0f, 0f, tileSizePx.toFloat(), tileSizePx.toFloat()),
+                region = region,
                 bounds = symbol.bounds,
             )
             for (a in anchors) {
-                val path = if (symbol.alongPath) {
-                    LineAnchors.stretch(part, 0, part.size, a.distance - length / 2f, a.distance + length / 2f)
-                        ?: continue
-                } else {
-                    null
+                if (taken != null
+                    && tooClose(taken, a.x, a.y, repeatPx)
+                ) {
+                    continue
                 }
-                emit(symbol.symbol, a.x, a.y, path, tileSizePx, out, if (symbol.iconAlongLine) a.angleDeg else null)
+                each(part, a)
             }
         }
+    }
+
+    // a layer's `line` texts in its whole data tile: every feature's pieces joined, anchored and
+    // repeat-checked once, as MapLibre lays out the data tile, relative to its corner
+    private fun sharedLineAnchors(
+        layer: StyleLayer,
+        index: Int,
+        source: Layer,
+        ctx: EvalContext,
+        frame: DataTileFrame,
+        bounds: FloatArray,
+        tileSizePx: Int,
+        layoutTextSize: Float?,
+        shaped: MutableMap<Shaping, Shaped>,
+    ): List<SharedAnchor> {
+        val key = "${layer.id}|${ctx.zoom}|$tileSizePx"
+        sharedLines[source]?.get(key)?.let { return it }
+        val pieces = ArrayList<LinePiece>()
+        val ignored = ArrayList<MvtLabel>()
+        var order = 0
+        for (feature in FeatureIndex().candidates(layer = source, filter = layer.filter)) {
+            ctx.feature = feature
+            if (layer.filter != null
+                && layer.filter.eval(ctx) != true
+            ) {
+                continue
+            }
+            val rank = order++
+            val geometry = feature.decodeGeometry()
+            layoutFeature(
+                layer = layer,
+                index = index,
+                rank = rank,
+                bounds = bounds,
+                type = feature.type,
+                pole = { _, _, _ -> Pair(0f, 0f) },
+                coords = frame.project(geometry, source.extent),
+                dataCoords = geometry.coords,
+                partEnds = geometry.partEnds,
+                ctx = ctx,
+                tileSizePx = tileSizePx,
+                pixelScale = frame.pixelScale,
+                overscale = 1 shl frame.dz,
+                layoutTextSize = layoutTextSize,
+                shaped = shaped,
+                pieces = pieces,
+                out = ignored,
+                piecesOnly = true,
+            )
+        }
+        val anchors = ArrayList<SharedAnchor>()
+        val repeats = HashMap<String, FloatList>()
+        for (group in pieces.groupBy { it.key }.values) {
+            for (chain in LineMerge.merge(group.map { it.coords })) {
+                val line = group[chain.first].line
+                var lastPart: FloatArray? = null
+                var local = FloatArray(0)
+                lineAnchors(line = chain.coords, symbol = line, tileSizePx = null, repeats = repeats) { part, a ->
+                    if (part !== lastPart) {
+                        lastPart = part
+                        local = FloatArray(part.size) { i -> part[i] - bounds[i % 2] }
+                    }
+                    anchors += SharedAnchor(
+                        line = line,
+                        part = local,
+                        x = a.x - bounds[0],
+                        y = a.y - bounds[1],
+                        distance = a.distance,
+                        angleDeg = a.angleDeg,
+                    )
+                }
+            }
+        }
+        synchronized(sharedLines) {
+            sharedLines.getOrPut(source) { HashMap() }[key] = anchors
+        }
+        return anchors
+    }
+
+    // the shared anchors that fall in this tile, whose data tile corner is at `bounds`
+    private fun emitShared(anchors: List<SharedAnchor>, bounds: FloatArray, tileSizePx: Int, out: MutableList<MvtLabel>) {
+        for (a in anchors) {
+            val x = a.x + bounds[0]
+            val y = a.y + bounds[1]
+            if (x < 0f
+                || y < 0f
+                || x >= tileSizePx
+                || y >= tileSizePx
+            ) {
+                continue
+            }
+            val path = if (a.line.alongPath) {
+                val length = drawnLength(a.line)
+                val stretch = LineAnchors.stretch(a.part, 0, a.part.size, a.distance - length / 2f, a.distance + length / 2f)
+                    ?: continue
+                for (i in stretch.indices) {
+                    stretch[i] += bounds[i % 2]
+                }
+                stretch
+            } else {
+                null
+            }
+            emit(a.line.symbol, x, y, path, tileSizePx, out, if (a.line.iconAlongLine) a.angleDeg else null)
+        }
+    }
+
+    // MapLibre's anchorIsTooClose: true for an anchor within `distance` of one already taken, else
+    // takes it
+    private fun tooClose(taken: FloatList, x: Float, y: Float, distance: Float): Boolean {
+        var i = 0
+        while (i < taken.size) {
+            if (hypot(taken[i] - x, taken[i + 1] - y) < distance) {
+                return true
+            }
+            i += 2
+        }
+        taken.add(x)
+        taken.add(y)
+        return false
     }
 
     // `text-size` at `zoom`, in style pixels
@@ -456,6 +668,37 @@ class SymbolLayout(
         // the text size MapLibre lays line anchors out with, icons alone too: z18 for a size
         // varying by feature, else the tile's zoom
         val glyphSizePx: Float,
+    )
+
+    // x, y pairs without boxing
+    private class FloatList {
+
+        private var values = FloatArray(8)
+
+        var size = 0
+            private set
+
+        operator fun get(i: Int): Float {
+            return values[i]
+        }
+
+        fun add(value: Float) {
+            if (size == values.size) {
+                values = values.copyOf(size * 2)
+            }
+            values[size++] = value
+        }
+    }
+
+    // an anchor of a line text laid out for its whole data tile, relative to the tile's corner, with
+    // the part of the line it lies on
+    private class SharedAnchor(
+        val line: LineSymbol,
+        val part: FloatArray,
+        val x: Float,
+        val y: Float,
+        val distance: Float,
+        val angleDeg: Float,
     )
 
     // one line piece waiting to join the others showing the same text
@@ -653,6 +896,10 @@ class SymbolLayout(
         private const val MAX_ORDER_SLOTS = 2048
 
         private const val MAX_TEXT_ZOOM = 18.0
+
+        // MapLibre's glyph size, which its text max box scale divides by; getAnchors scales an
+        // icon's length by it too
+        private const val ONE_EM = 24f
 
         // Java's and Android's old codes for Hebrew, Indonesian and Yiddish
         private val LEGACY_LANGUAGES = mapOf("iw" to "he", "in" to "id", "ji" to "yi")
