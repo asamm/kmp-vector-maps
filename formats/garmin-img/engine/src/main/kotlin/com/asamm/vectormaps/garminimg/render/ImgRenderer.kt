@@ -14,6 +14,7 @@ import com.asamm.vectormaps.garminimg.parser.TreLevels
 import com.asamm.vectormaps.garminimg.style.Color
 import com.asamm.vectormaps.garminimg.style.InternalStyles
 import com.asamm.vectormaps.garminimg.style.Style
+import com.asamm.vectormaps.garminimg.utils.coord.CoordUtils
 import kotlin.math.ln
 
 /**
@@ -102,15 +103,26 @@ class ImgRenderer(
         val projection = Projection(viewport)
         target.beginFrame(backgroundColor)
 
-        // objects off the viewport are skipped before their labels are read; the margin keeps
-        // icons and strokes that reach in from outside
-        val marginLon = (viewport.maxLon - viewport.minLon) / CLIP_MARGIN_DIVISOR
-        val marginLat = (viewport.maxLat - viewport.minLat) / CLIP_MARGIN_DIVISOR
+        // objects past the line cull's margin are skipped before their labels are read; projected,
+        // they would be culled anyway
+        val margin = OFFSCREEN_LINE_MARGIN + 1.0
         val clip = ObjectClip(
-            minLong = viewport.minLon - marginLon,
-            maxLong = viewport.maxLon + marginLon,
-            minLat = viewport.minLat - marginLat,
-            maxLat = viewport.maxLat + marginLat,
+            minLong = minOf(
+                viewport.minLon,
+                CoordUtils.fromWGS84(projection.longitudeDegAt(-margin)) - 1,
+            ),
+            maxLong = maxOf(
+                viewport.maxLon,
+                CoordUtils.fromWGS84(projection.longitudeDegAt(viewport.widthPx + margin)) + 1,
+            ),
+            minLat = minOf(
+                viewport.minLat,
+                CoordUtils.fromWGS84(projection.latitudeDegAt(viewport.heightPx + margin)) - 1,
+            ),
+            maxLat = maxOf(
+                viewport.maxLat,
+                CoordUtils.fromWGS84(projection.latitudeDegAt(-margin)) + 1,
+            ),
         )
 
         // First pass: bucket every map object by kind. Polygons need to be
@@ -426,9 +438,6 @@ class ImgRenderer(
     }
 
     companion object {
-
-        // the clip margin on each side, a quarter of the viewport
-        private const val CLIP_MARGIN_DIVISOR = 4
 
         /**
          * Picks the TRE level whose `bitsPerCoord` matches the viewport's

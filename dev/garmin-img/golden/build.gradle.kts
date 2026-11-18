@@ -2,7 +2,8 @@
  * Garmin IMG golden test: Monaco tiles through the Garmin driver against committed PNGs, with the
  * bundled DejaVu Sans so they match on every system, and the dump comparison against the legacy
  * Java parser (libGarminImg, kept as test sources). The benchmark and the comparison sheet run on
- * request: `-Pbench.garmin=true`, options in RenderBenchmarkTest. Not published.
+ * request: `-Pbench.garmin=true`, options in RenderBenchmarkTest, and the robustness sweep of a
+ * large map: `-Psweep.garmin.map=<img>`, see GarminSweepTest. Not published.
  */
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 

@@ -34,7 +34,11 @@ object Sweep {
         val theme = File(args[1])
         val menuLayer = args[2]
         val tiles = File(args[3]).readLines().filter { it.isNotBlank() }.map { line ->
-            val (z, x, y) = line.trim().split('/').map { it.toInt() }
+            val parts = line.trim().split('/').map { it.toInt() }
+            require(parts.size == 3) {
+                "bad tile line '$line'"
+            }
+            val (z, x, y) = parts
             Tile(x, y, z.toByte(), Corpus.TILE_SIZE)
         }
         val outDir = File(args[4], args[7]).apply { mkdirs() }
@@ -76,8 +80,11 @@ object Sweep {
                         failed.append("$name no bitmap\n")
                         continue
                     }
-                    ImageIO.write(AwtGraphicFactory.getBitmap(bitmap), "png", File(outDir, "$name.png"))
-                    bitmap.decrementRefCount()
+                    try {
+                        ImageIO.write(AwtGraphicFactory.getBitmap(bitmap), "png", File(outDir, "$name.png"))
+                    } finally {
+                        bitmap.decrementRefCount()
+                    }
                     times.append("$name ${"%.1f".format(ms)}\n")
                 } catch (e: Exception) {
                     failed.append("$name ${e.javaClass.simpleName}: ${e.message?.lineSequence()?.firstOrNull()}\n")

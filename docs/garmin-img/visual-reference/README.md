@@ -49,7 +49,7 @@ A tile-by-tile reference renderer for Garmin sweeps, as MapLibre is for MVT; pro
 | Build | WSL Ubuntu 24.04, Qt 6 from `apt`; GPXSee cloned at a pinned tag into `local/` |
 | Tool | ~150 lines of C++: open the IMG, set Web Mercator bounds per `z/x/y`, draw 512 px, write PNG; reads the `tiles.txt` of `GarminSweepTest` |
 | Compare | per-tile difference scores to rank outliers (missing objects, level of detail, draw order, TYP colours), not a pixel golden: fonts, antialiasing and in-tile labels differ |
-| Licence | GPL: the tool stays in `local/`, or in `dev/garmin-img/reference/` under its own GPL notice with GPXSee fetched at build time; nothing ships |
+| Licence | GPL: the tool stays in `local/`, or in `dev/garmin-img/reference/` under its own GPL notice with GPXSee fetched at build time, which needs a [licence.md](../../licence.md) entry first; nothing ships |
 | Effort | about 1 day |
 
 It is a second reading of the format, not Garmin's rendering.

@@ -21,20 +21,22 @@ dependencies {
 val fixturesDir = rootProject.layout.projectDirectory.dir("dev/fixtures")
 val expectedDir = layout.buildDirectory.dir("golden/expected")
 
+// same flags as :dev:mapsforge:golden:renderVendored; why: IdentityHashes in the harness
+val identityHashJvmArgs = listOf(
+    // synchronous JIT: background compilation draws identity hashes at varying moments
+    "-Xbatch",
+    "-XX:+UnlockExperimentalVMOptions",
+    "-XX:hashCode=3",
+    "-XX:+UseSerialGC",
+    "-Xms2g",
+    "-Xmx2g",
+)
+
 tasks.register<JavaExec>("renderGoldens") {
     description = "Renders the golden corpus with upstream Mapsforge 0.30.0."
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass = "com.asamm.mapsforge.golden.MainKt"
-    // same flags as :dev:mapsforge:golden:renderVendored; why: IdentityHashes in the harness
-    jvmArgs(
-        // synchronous JIT: background compilation draws identity hashes at varying moments
-        "-Xbatch",
-        "-XX:+UnlockExperimentalVMOptions",
-        "-XX:hashCode=3",
-        "-XX:+UseSerialGC",
-        "-Xms2g",
-        "-Xmx2g",
-    )
+    jvmArgs(identityHashJvmArgs)
     inputs.dir(fixturesDir)
     outputs.dir(expectedDir)
     val outDir = expectedDir.get().asFile
@@ -47,19 +49,11 @@ tasks.register<JavaExec>("renderGoldens") {
 // a sweep over many tiles of a large map against the other side, `-Psweep.args="<map> <theme>
 // <menuLayer> <tiles.txt> <outDir> <deviceScale> <labelsInTile>"`, paths without spaces; renders
 // into `<outDir>/upstream`, see the harness's Sweep
-tasks.register<JavaExec>("sweep") {
+tasks.register<JavaExec>("mapsforgeSweep") {
     description = "Renders a tile list of a large map for the Mapsforge sweep."
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass = "com.asamm.mapsforge.golden.MainKt"
-    // same flags as renderGoldens
-    jvmArgs(
-        "-Xbatch",
-        "-XX:+UnlockExperimentalVMOptions",
-        "-XX:hashCode=3",
-        "-XX:+UseSerialGC",
-        "-Xms2g",
-        "-Xmx2g",
-    )
+    jvmArgs(identityHashJvmArgs)
     val sweepArgs = providers.gradleProperty("sweep.args")
         .map { it.trim().split(Regex("\\s+")) }
         .getOrElse(emptyList())

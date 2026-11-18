@@ -112,7 +112,7 @@ object RgnSubFile {
     }
 
     /**
-     * Parses every object in `subDivision` and yields them as a lazy
+     * Parses the objects in `subDivision`, those [clip] keeps, and yields them as a lazy
      * [Sequence]. Iterating advances the [reader]; consumers must not start a
      * second iteration concurrently. Pass `lblHeader`/`lblReader` to resolve
      * label offsets to decoded strings — pass `null` for both to get

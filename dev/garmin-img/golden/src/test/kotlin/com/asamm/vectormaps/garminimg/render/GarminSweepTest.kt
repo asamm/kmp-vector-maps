@@ -5,7 +5,6 @@
 package com.asamm.vectormaps.garminimg.render
 
 import com.asamm.vectormaps.core.RenderConfig
-import com.asamm.vectormaps.core.RenderResult
 import com.asamm.vectormaps.core.StyleSelection
 import com.asamm.vectormaps.core.TileRequest
 import com.asamm.vectormaps.core.label.LabelViewport
@@ -38,7 +37,11 @@ class GarminSweepTest {
         }
         // parsed up front: a bad line fails before the run, not halfway through it
         val tiles = File(tilesPath).readLines().filter { it.isNotBlank() }.map { line ->
-            line.trim().split('/').map { it.toInt() }
+            line.trim().split('/').map { it.toInt() }.also { parts ->
+                require(parts.size == 3) {
+                    "bad tile line '$line'"
+                }
+            }
         }
         val out = File(outPath).apply { mkdirs() }
         val png = File(out, "png").apply { mkdirs() }
