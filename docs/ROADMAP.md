@@ -111,6 +111,7 @@ renderer of Locus Map iOS, and fixes the worst causes first.
 |---|---|---|
 | M11.1 | The sweep (`dev/mvt/sweep`, `dev/mvt/reference/sweep*.mjs`); fixes it found: the default fill outline (a hairline, performance.md M11.1), label priority by feature order, balanced line breaking, MapLibre's line anchors on lines clipped to their tile (at the z18 text size, times the overscale; `line-center` unclipped), MapLibre's text baseline; the legacy `{token}` regex Android's ICU rejected (no MVT style parsed on Android since PR #65) | 83k tiles z1–18 in three views, mean pixels off 0.70 → 0.29 % (tiles), 2.97 → 2.16 % (labels), 3.63 → 2.99 % (turned); the review's anchor fixes on the 13.9k subset 2.14 → 2.02 % and 2.97 → 2.86 %; goldens regenerated and compared; JVM and A54 A/B in performance.md ✅ PR #66 |
 | M11.2 | The fill outline antialiased, one device pixel wide, as MapLibre's lines (the hairline's overrides removed) | the 13.9k subset 0.29 → 0.15 % (tiles), 2.02 → 1.89 % (labels), 2.86 → 2.76 % (turned); label goldens regenerated, 7 of 8 closer to MapLibre; JVM +13–52 % per tile, A54 level (performance.md M11.2) ✅ PR #67 |
+| M11.3 | Labels where the sweep still differs most: more point and street labels than MapLibre in dense city centres (z14–15), road shield count and placement | sweep label views, the worst tiles from `local/sweep/m112/results.csv` ⬜ |
 
 ## M8 — Android host API
 
