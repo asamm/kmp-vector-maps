@@ -55,14 +55,16 @@ class StylePropertiesTest {
     }
 
     @Test
-    fun outlinesFillsOnlyWithAnOutlineColour() {
+    fun outlinesAntialiasedFillsInTheirOutlineColour() {
         val layer = """{"id": "f", "type": "fill", "source": "s", "source-layer": "building", "paint": {"fill-color": "#00f""""
         val plain = draws("$layer}}")
         val outlined = draws("""$layer, "fill-outline-color": "#f00", "fill-opacity": 0.5}}""")
         val unAntialiased = draws("""$layer, "fill-outline-color": "#f00", "fill-antialias": false}}""")
 
+        // as MapLibre, the outline defaults to the fill's colour
         assertTrue(plain.fills > 0)
-        assertEquals(0, plain.strokes.size)
+        assertEquals(plain.fills, plain.strokes.size)
+        assertTrue(plain.strokes.all { it == Color(0xff0000ff.toInt()) })
         assertEquals(outlined.fills, outlined.strokes.size)
         assertTrue(outlined.strokes.all { it == Color(0x80ff0000.toInt()) })
         assertEquals(0, unAntialiased.strokes.size)

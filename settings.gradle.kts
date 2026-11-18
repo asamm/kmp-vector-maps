@@ -71,6 +71,7 @@ include(":formats:mvt:driver")
 // MVT golden tests against MapLibre renders, JVM and Android, not published
 include(":dev:mvt:golden")
 include(":dev:mvt:golden-android")
+include(":dev:mvt:sweep")
 
 // benchmarks
 include(":dev:bench")

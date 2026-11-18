@@ -51,6 +51,10 @@ class SymbolLayout(
 
     private val localNames = localNamesOf(language)
 
+    // the ranks within a sort key a layer's features get, as many as the Int priority leaves
+    // room for
+    private val orderSlots = (Int.MAX_VALUE / (style.layers.size + 1) / SORT_KEYS).coerceIn(1, MAX_ORDER_SLOTS)
+
     /**
      * Ids of the symbol layers a layout skipped because evaluating them threw, such as a malformed
      * expression meeting unexpected tile data; the other layers still lay out.
@@ -99,6 +103,24 @@ class SymbolLayout(
             val source = tile.layers[layer.sourceLayer] ?: continue
             val pieces = ArrayList<LinePiece>()
             val mark = out.size
+            // the features' order in the data tile, the same in every tile cut from it
+            var order = 0
+            val extent = source.extent.toFloat()
+            val bounds = floatArrayOf(
+                frame.projectX(0f, source.extent),
+                frame.projectY(0f, source.extent),
+                frame.projectX(extent, source.extent),
+                frame.projectY(extent, source.extent),
+            )
+            // a size the same for every feature evaluated once
+            val sizeExpression = layer.layout["text-size"]
+            val layerMaxTextSize = if (sizeExpression == null
+                || sizeExpression.isFeatureConstant
+            ) {
+                maxTextSize(layer, ctx)
+            } else {
+                null
+            }
             try {
                 for (feature in features.candidates(layer = source, filter = layer.filter)) {
                     ctx.feature = feature
@@ -107,6 +129,7 @@ class SymbolLayout(
                     ) {
                         continue
                     }
+                    val rank = order++
                     val geometry = feature.decodeGeometry()
                     // the widest margin layoutFeature allows, before projecting
                     if (!frame.meets(geometry = geometry, extent = source.extent, marginPx = tileSizePx.toFloat())) {
@@ -120,6 +143,8 @@ class SymbolLayout(
                     layoutFeature(
                         layer = layer,
                         index = index,
+                        rank = rank,
+                        bounds = bounds,
                         type = feature.type,
                         pole = pole,
                         coords = frame.project(geometry, source.extent),
@@ -128,6 +153,8 @@ class SymbolLayout(
                         ctx = ctx,
                         tileSizePx = tileSizePx,
                         pixelScale = frame.pixelScale,
+                        overscale = 1 shl frame.dz,
+                        layerMaxTextSize = layerMaxTextSize,
                         shaped = shaped,
                         pieces = pieces,
                         out = out,
@@ -153,6 +180,8 @@ class SymbolLayout(
     private fun layoutFeature(
         layer: StyleLayer,
         index: Int,
+        rank: Int,
+        bounds: FloatArray,
         type: GeometryType,
         pole: (Int, List<IntRange>, FloatArray) -> Pair<Float, Float>,
         coords: FloatArray,
@@ -161,6 +190,8 @@ class SymbolLayout(
         ctx: EvalContext,
         tileSizePx: Int,
         pixelScale: Float,
+        overscale: Int,
+        layerMaxTextSize: Float?,
         shaped: MutableMap<Shaping, Shaped>,
         pieces: MutableList<LinePiece>,
         out: MutableList<MvtLabel>,
@@ -196,8 +227,10 @@ class SymbolLayout(
         val sortKey = number(layer.layout["symbol-sort-key"], ctx, 0.0)
         val symbol = Symbol(
             layerId = layer.id,
-            // later layers place first, then lower sort keys, as MapLibre
-            priority = index * PRIORITY_PER_LAYER - sortKey.coerceIn(0.0, PRIORITY_PER_LAYER - 1.0).toInt(),
+            // later layers place first, then lower sort keys, then the tile's order, as MapLibre
+            priority = index * orderSlots * SORT_KEYS -
+                sortKey.coerceIn(0.0, SORT_KEYS - 1.0).toInt() * orderSlots -
+                minOf(rank, orderSlots - 1),
             text = text,
             icon = icon,
             allowOverlap = (text == null || layer.layout["text-allow-overlap"]?.eval(ctx) == true)
@@ -213,6 +246,9 @@ class SymbolLayout(
                 center = placement == "line-center",
                 alongPath = alongPath && text != null,
                 iconAlongLine = iconAlongLine,
+                bounds = bounds,
+                overscale = overscale,
+                glyphSizePx = (layerMaxTextSize ?: maxTextSize(layer, ctx)) * pixelScale * textScale,
             )
             var start = 0
             for (end in partEnds) {
@@ -268,30 +304,58 @@ class SymbolLayout(
         }
     }
 
-    private fun layoutLine(part: FloatArray, line: LineSymbol, tileSizePx: Int, out: MutableList<MvtLabel>) {
-        val text = line.symbol.text
-        val icon = line.symbol.icon
-        val length = maxOf(text?.width ?: 0f, (icon?.width ?: 0f) * (icon?.scale ?: 1f))
-        val anchors = LineAnchors.find(
-            coords = part,
-            start = 0,
-            end = part.size,
-            spacing = line.spacing,
-            labelLength = length,
-            center = line.center,
-            maxAngleDeg = line.maxAngleDeg,
-            // MapLibre's angle window, 3/5 of the text size; icons alone are not checked
-            angleWindow = (text?.sizePx ?: 0f) * 0.6f,
-            region = floatArrayOf(0f, 0f, tileSizePx.toFloat(), tileSizePx.toFloat()),
-        )
-        for (a in anchors) {
-            val path = if (line.alongPath) {
-                LineAnchors.stretch(part, 0, part.size, a.distance - length / 2f, a.distance + length / 2f)
-                    ?: continue
-            } else {
-                null
+    private fun layoutLine(line: FloatArray, symbol: LineSymbol, tileSizePx: Int, out: MutableList<MvtLabel>) {
+        val text = symbol.symbol.text
+        val icon = symbol.symbol.icon
+        val iconLength = (icon?.width ?: 0f) * (icon?.scale ?: 1f)
+        val length = maxOf(text?.width ?: 0f, iconLength)
+        // MapLibre lays the anchors out once for all zooms, with the text at its z18 size
+        val maxLength = maxOf((text?.width ?: 0f) * symbol.glyphSizePx / (text?.sizePx ?: 1f), iconLength)
+        // as MapLibre, `line` anchored on the line clipped to its data tile, `line-center` on the
+        // whole line
+        val parts = if (symbol.center) listOf(line) else LineAnchors.clip(line, symbol.bounds)
+        for (part in parts) {
+            val anchors = LineAnchors.find(
+                coords = part,
+                start = 0,
+                end = part.size,
+                spacing = symbol.spacing,
+                labelLength = maxLength,
+                glyphSize = symbol.glyphSizePx,
+                overscale = symbol.overscale,
+                center = symbol.center,
+                maxAngleDeg = symbol.maxAngleDeg,
+                // MapLibre's angle window, 3/5 of the text size; icons alone are not checked
+                angleWindow = if (text != null) symbol.glyphSizePx * 0.6f else 0f,
+                region = floatArrayOf(0f, 0f, tileSizePx.toFloat(), tileSizePx.toFloat()),
+                bounds = symbol.bounds,
+            )
+            for (a in anchors) {
+                val path = if (symbol.alongPath) {
+                    LineAnchors.stretch(part, 0, part.size, a.distance - length / 2f, a.distance + length / 2f)
+                        ?: continue
+                } else {
+                    null
+                }
+                emit(symbol.symbol, a.x, a.y, path, tileSizePx, out, if (symbol.iconAlongLine) a.angleDeg else null)
             }
-            emit(line.symbol, a.x, a.y, path, tileSizePx, out, if (line.iconAlongLine) a.angleDeg else null)
+        }
+    }
+
+    // `text-size` at MapLibre's maximum text zoom, 18, in style pixels
+    private fun maxTextSize(layer: StyleLayer, ctx: EvalContext): Float {
+        val zoom = ctx.zoom
+        ctx.zoom = MAX_TEXT_ZOOM
+        try {
+            val size = number(layer.layout["text-size"], ctx, 16.0).toFloat()
+            if (!(size > 0f)
+                || size.isInfinite()
+            ) {
+                return 16f
+            }
+            return size
+        } finally {
+            ctx.zoom = zoom
         }
     }
 
@@ -380,6 +444,12 @@ class SymbolLayout(
         val center: Boolean,
         val alongPath: Boolean,
         val iconAlongLine: Boolean,
+        // the data tile in the tile's pixels, the edge MapLibre clips lines to
+        val bounds: FloatArray,
+        // times the tile is cut from its data tile
+        val overscale: Int,
+        // the text size at z18, which MapLibre lays line anchors out with, icons alone too
+        val glyphSizePx: Float,
     )
 
     // one line piece waiting to join the others showing the same text
@@ -491,10 +561,17 @@ class SymbolLayout(
                 metrics.width(line, shaping.sizePx, shaping.font, shaping.letterSpacingPx).coerceAtLeast(0f)
             }
         }
-        val lines = if (shaping.wrap) {
-            shaping.text.split('\n').flatMap { wrapLine(it, shaping.maxWidthPx, ::widthOf) }
-        } else {
+        val lines = if (!shaping.wrap) {
             listOf(shaping.text.replace('\n', ' '))
+        } else if ('\n' !in shaping.text
+            && widthOf(shaping.text) <= shaping.maxWidthPx
+        ) {
+            // one line, as MapLibre's line count for a text no wider than the maximum
+            listOf(shaping.text)
+        } else {
+            LineBreaks.breakLines(text = shaping.text, maxWidth = shaping.maxWidthPx, spacing = shaping.letterSpacingPx) {
+                metrics.width(it, shaping.sizePx, shaping.font, 0f)
+            }
         }
         return Shaped(lines = lines, width = lines.maxOf { widthOf(it) })
     }
@@ -564,7 +641,12 @@ class SymbolLayout(
 
     internal companion object {
 
-        const val PRIORITY_PER_LAYER = 1000
+        // symbol-sort-key values told apart, from 0
+        const val SORT_KEYS = 1000
+
+        private const val MAX_ORDER_SLOTS = 2048
+
+        private const val MAX_TEXT_ZOOM = 18.0
 
         // Java's and Android's old codes for Hebrew, Indonesian and Yiddish
         private val LEGACY_LANGUAGES = mapOf("iw" to "he", "in" to "id", "ji" to "yi")
@@ -586,42 +668,6 @@ class SymbolLayout(
                 return listOf("name:$base")
             }
             return listOf("name:$base-$script", "name:$base")
-        }
-
-        // a word with the hyphen it may break after, or a lone hyphen
-        private val WORDS = Regex("[^ -]+-?|-")
-
-        /**
-         * Breaks `line` at spaces and after hyphens so no line is wider than `maxWidth`, unless one
-         * word is.
-         */
-        fun wrapLine(line: String, maxWidth: Float, widthOf: (String) -> Float): List<String> {
-            if (widthOf(line) <= maxWidth) {
-                return listOf(line)
-            }
-            val out = ArrayList<String>()
-            var current = ""
-            // a break after a space drops it, after a hyphen keeps it
-            for (match in WORDS.findAll(line)) {
-                val word = match.value
-                // the space the word follows in the line, as after a lone hyphen
-                val spaced = match.range.first > 0
-                    && line[match.range.first - 1] == ' '
-                val glue = if (current.isNotEmpty() && spaced) " " else ""
-                val candidate = current + glue + word
-                if (current.isNotEmpty()
-                    && widthOf(candidate) > maxWidth
-                ) {
-                    out += current
-                    current = word
-                } else {
-                    current = candidate
-                }
-            }
-            if (current.isNotEmpty()) {
-                out += current
-            }
-            return out
         }
     }
 }

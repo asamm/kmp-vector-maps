@@ -65,14 +65,23 @@ interface MvtRenderTarget {
     )
 
     /**
+     * Draws `path` as MapLibre's fill outline, a line one device pixel wide and not antialiased as
+     * GL lines are; the default strokes it 1 px wide.
+     */
+    fun outlinePath(path: MvtPath, color: Color) {
+        strokePath(path, color, 1f, LineCap.BUTT, LineJoin.MITER, null)
+    }
+
+    /**
      * Draws the lines of `text` centred on (`x`, `y`) and turned about it by `text.rotateDeg`, a
      * shorter line placed by `text.justify`, the halo rings below the fill.
      */
     fun drawText(text: MvtText, x: Float, y: Float)
 
     /**
-     * Draws `text` along `path` (x, y pairs, from its first point), centred on its length and on
-     * the line, each glyph turned with the path and by `text.rotateDeg` about its centre.
+     * Draws `text` along `path` (x, y pairs, from its first point), centred on its length, its
+     * baseline [MvtText.baselinePx] below the line, each glyph turned with the path and by
+     * `text.rotateDeg` about its centre.
      */
     fun drawTextAlongPath(text: MvtText, path: FloatArray)
 

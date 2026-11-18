@@ -136,6 +136,15 @@ class AwtMvtRenderTarget(
         g.draw(toPath(path, Path2D.WIND_NON_ZERO))
     }
 
+    override fun outlinePath(path: MvtPath, color: Color) {
+        val antialias = g.getRenderingHint(RenderingHints.KEY_ANTIALIASING)
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_OFF)
+        g.color = awt(color)
+        g.stroke = HAIRLINE
+        g.draw(toPath(path, Path2D.WIND_NON_ZERO))
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, antialias)
+    }
+
     override fun drawCircle(
         x: Float,
         y: Float,
@@ -157,17 +166,15 @@ class AwtMvtRenderTarget(
 
     override fun drawText(text: MvtText, x: Float, y: Float) {
         val fonts = fonts ?: return
-        val font = fonts.font(text.font, text.sizePx)
-        val metrics = font.getLineMetrics("Hg", AwtFonts.CONTEXT)
+        val ascent = fonts.font(text.font, text.sizePx).getLineMetrics("Hg", AwtFonts.CONTEXT).ascent
         val top = y - text.height / 2f
         // all lines in one outline, so no line's halo covers another's glyphs
         val outline = Path2D.Float()
         for ((i, line) in text.lines.withIndex()) {
             val glyphs = fonts.shape(line, text.sizePx, text.font, text.letterSpacingPx)
             val width = glyphs.logicalBounds.width.toFloat()
-            // each line box is a line height tall, its glyphs centred in it
-            val baseline = top + i * text.lineHeightPx + text.lineHeightPx / 2f +
-                (metrics.ascent - metrics.descent) / 2f
+            // each line box is a line height tall, its baseline where MapLibre puts it
+            val baseline = top + i * text.lineHeightPx + text.lineHeightPx / 2f + text.baselinePx(ascent)
             // centred by default; text-justify moves a shorter line to a side of the box
             val left = if (text.lines.size < 2) {
                 x - width / 2f
@@ -191,8 +198,6 @@ class AwtMvtRenderTarget(
     override fun drawTextAlongPath(text: MvtText, path: FloatArray) {
         val fonts = fonts ?: return
         val line = text.lines.firstOrNull() ?: return
-        val font = fonts.font(text.font, text.sizePx)
-        val metrics = font.getLineMetrics("Hg", AwtFonts.CONTEXT)
         val glyphs = fonts.shape(line, text.sizePx, text.font, text.letterSpacingPx)
         val total = glyphs.logicalBounds.width.toFloat()
         var length = 0f
@@ -200,8 +205,9 @@ class AwtMvtRenderTarget(
             length += hypot(path[i] - path[i - 2], path[i + 1] - path[i - 1])
         }
         val start = (length - total) / 2f
-        // the baseline sits so the glyphs centre on the line
-        val baseline = (metrics.ascent - metrics.descent) / 2f
+        // the baseline where MapLibre puts it below the line
+        val ascent = fonts.font(text.font, text.sizePx).getLineMetrics("Hg", AwtFonts.CONTEXT).ascent
+        val baseline = text.baselinePx(ascent)
         val rotate = Math.toRadians(text.rotateDeg.toDouble())
         val outline = Path2D.Float()
         for (g in 0 until glyphs.numGlyphs) {
@@ -306,5 +312,11 @@ class AwtMvtRenderTarget(
 
     private fun awt(color: Color): java.awt.Color {
         return java.awt.Color(color.argb, true)
+    }
+
+    private companion object {
+
+        // a line one pixel wide whatever its position, as GL lines
+        val HAIRLINE = BasicStroke(0f)
     }
 }

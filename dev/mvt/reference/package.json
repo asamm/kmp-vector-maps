@@ -2,8 +2,11 @@
   "name": "mvt-reference",
   "private": true,
   "type": "module",
-  "description": "MapLibre reference renders for the MVT goldens, see render.mjs",
+  "description": "MapLibre reference renders for the MVT goldens (render.mjs) and the parity sweep (sweep*.mjs; MapLibre Native needs Node 22 or 24)",
   "devDependencies": {
     "playwright": "1.56.1"
+  },
+  "optionalDependencies": {
+    "@maplibre/maplibre-gl-native": "6.4.1"
   }
 }

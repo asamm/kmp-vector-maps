@@ -11,7 +11,8 @@ import kotlin.math.ceil
  * One symbol a tile's symbol layers place: a text, an icon or both, at a point or along a line.
  * Coordinates are pixels of the requested tile, from its top-left corner.
  *
- * @param priority higher places first: later style layers, then lower `symbol-sort-key`
+ * @param priority higher places first: later style layers, then lower `symbol-sort-key`, then
+ *  earlier in the data tile
  * @param path a text along a line: the stretch it runs along, x, y pairs; null for the others
  * @param allowOverlap placed whatever it overlaps (`text-allow-overlap`, `icon-allow-overlap`)
  * @param lineAngleDeg the line's direction at the anchor, clockwise from east, for an icon that
@@ -64,6 +65,15 @@ class MvtText(
 ) {
 
     /**
+     * How far a line's baseline lies below the line's centre for a font of `ascentPx` at this size:
+     * MapLibre lays a line out from 17/24 of the size above its centre and measures glyph tops from
+     * the font's ascender.
+     */
+    fun baselinePx(ascentPx: Float): Float {
+        return ascentPx - sizePx * LINE_TOP_EM
+    }
+
+    /**
      * The text has a halo to draw, one with a colour and a width; as MapLibre, a blur alone draws
      * none.
      */
@@ -110,6 +120,9 @@ class MvtText(
          * MapLibre's SDF shader.
          */
         const val HALO_BLUR_FADE = 1.19f
+
+        // MapLibre's 24 px em laid out from -17 px
+        private const val LINE_TOP_EM = 17f / 24f
 
         // the width of one step of a blurred halo's fade
         private const val HALO_RING_STEP_PX = 1.5f
