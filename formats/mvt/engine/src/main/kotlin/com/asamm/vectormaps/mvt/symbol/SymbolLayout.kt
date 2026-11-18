@@ -115,7 +115,7 @@ class SymbolLayout(
             // a size the same for every feature is MapLibre Native's at the tile's zoom, as its
             // layout is evaluated there before it asks for z18; evaluated once
             val sizeExpression = layer.layout["text-size"]
-            val layerMaxTextSize = if (sizeExpression == null
+            val layoutTextSize = if (sizeExpression == null
                 || sizeExpression.isFeatureConstant
             ) {
                 textSize(layer = layer, ctx = ctx, zoom = ctx.zoom)
@@ -155,7 +155,7 @@ class SymbolLayout(
                         tileSizePx = tileSizePx,
                         pixelScale = frame.pixelScale,
                         overscale = 1 shl frame.dz,
-                        layerMaxTextSize = layerMaxTextSize,
+                        layoutTextSize = layoutTextSize,
                         shaped = shaped,
                         pieces = pieces,
                         out = out,
@@ -192,7 +192,7 @@ class SymbolLayout(
         tileSizePx: Int,
         pixelScale: Float,
         overscale: Int,
-        layerMaxTextSize: Float?,
+        layoutTextSize: Float?,
         shaped: MutableMap<Shaping, Shaped>,
         pieces: MutableList<LinePiece>,
         out: MutableList<MvtLabel>,
@@ -251,7 +251,7 @@ class SymbolLayout(
                 iconAlongLine = iconAlongLine,
                 bounds = bounds,
                 overscale = overscale,
-                glyphSizePx = (layerMaxTextSize ?: textSize(layer = layer, ctx = ctx, zoom = MAX_TEXT_ZOOM)) * pixelScale * textScale,
+                glyphSizePx = (layoutTextSize ?: textSize(layer = layer, ctx = ctx, zoom = MAX_TEXT_ZOOM)) * pixelScale * textScale,
             )
             var start = 0
             for (end in partEnds) {

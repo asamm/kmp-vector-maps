@@ -7,7 +7,8 @@
 //   node sweep.mjs sample <file.pmtiles> <tiles.txt> [perZoom=200] [seed=1] [minZoom=1] [maxZoom=18]
 //   node sweep.mjs render <file.pmtiles> <tiles.txt> <runDir> [pages=8]
 //   node sweep.mjs serve <file.pmtiles>  (render starts it itself)
-//   node sweep.mjs labels <file.pmtiles> <tiles.txt> <out.tsv>  (the labels GL JS places)
+//   node sweep.mjs labels <file.pmtiles> <tiles.txt> <out.tsv>  (the labels GL JS places; its text
+//   is the feature's name or ref, so diff it with `sweep labels` on layer and anchor)
 // render writes <runDir>/maplibre/<mode>/<z>_<x>_<y>.png for the modes base (no symbols), labels
 // and labels_r30 (the map turned 30 degrees clockwise), and <runDir>/maplibre/failed.txt.
 import { spawn } from 'node:child_process';
@@ -197,6 +198,18 @@ async function renderView(page, z, x, y, bearing, file) {
   }
 }
 
+// the system Edge, so nothing needs downloading; PW_CHANNEL=chromium for Playwright's own build
+function launchBrowser() {
+  const channel = process.env.PW_CHANNEL || 'msedge';
+  return chromium.launch({
+    channel: channel === 'chromium' ? undefined : channel,
+    // the GPU through ANGLE, or SWEEP_GL=swiftshader for software rendering
+    args: process.env.SWEEP_GL === 'swiftshader'
+      ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+      : ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'],
+  });
+}
+
 async function render(file, list, runDir, pages) {
   const tiles = readFileSync(list, 'utf8').split(/\r?\n/).filter(Boolean).map(t => t.split('/').map(Number));
   const { child, port } = await startServer(file);
@@ -208,18 +221,9 @@ async function render(file, list, runDir, pages) {
         mkdirSync(join(out, view.name), { recursive: true });
       }
     }
-    // the system Edge, so nothing needs downloading; PW_CHANNEL=chromium for Playwright's own
-    // build
-    const channel = process.env.PW_CHANNEL || 'msedge';
     // a browser's pages share its one GPU process, so the pages spread over several browsers
     for (let i = 0; i < Math.ceil(pages / PAGES_PER_BROWSER); i++) {
-      browsers.push(await chromium.launch({
-        channel: channel === 'chromium' ? undefined : channel,
-        // the GPU through ANGLE, or SWEEP_GL=swiftshader for software rendering
-        args: process.env.SWEEP_GL === 'swiftshader'
-          ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']
-          : ['--use-angle=d3d11', '--enable-gpu', '--ignore-gpu-blocklist'],
-      }));
+      browsers.push(await launchBrowser());
     }
     await renderJobs(tiles, out, browsers, port, pages, child);
   } finally {
@@ -301,13 +305,20 @@ async function renderJobs(tiles, out, browsers, port, pages, child) {
 async function labels(file, list, out) {
   const tiles = readFileSync(list, 'utf8').split(/\r?\n/).filter(Boolean).map(t => t.split('/').map(Number));
   const { child, port } = await startServer(file);
-  const browser = await chromium.launch({ channel: process.env.PW_CHANNEL === 'chromium' ? undefined : 'msedge' });
+  let browser;
   try {
+    browser = await launchBrowser();
     const page = await openPage(browser, port, MODES.find(m => m.name === 'labels'));
     const lines = [];
+    const failed = [];
     for (const [z, x, y] of tiles) {
+      if (child.dead) {
+        throw new Error(`tile server died at ${z}/${x}/${y}; run again`);
+      }
       const [lon, lat] = tileCenter(z, x, y);
-      const found = await page.evaluate(({ lon, lat, z }) => new Promise(done => {
+      let found;
+      try {
+        found = await page.evaluate(({ lon, lat, z }) => new Promise(done => {
         window.map.once('idle', () => {
           // the anchors of the placed symbols, from GL JS's buckets and placement
           const style = window.map.style;
@@ -348,18 +359,22 @@ async function labels(file, list, out) {
         });
         window.map.jumpTo({ center: [lon, lat], zoom: z, bearing: 0 });
         window.map.triggerRepaint();
-      }), { lon, lat, z });
+        }), { lon, lat, z });
+      } catch (e) {
+        failed.push(`${z}/${x}/${y} ${String(e.message).split('\n')[0]}`);
+        continue;
+      }
       for (const f of found) {
         lines.push([`${z}_${x}_${y}`, ...f].join('\t'));
       }
     }
-    if (child.dead) {
-      throw new Error('tile server died; the labels are incomplete');
-    }
     writeFileSync(out, lines.join('\n') + '\n');
-    console.log(`${lines.length} placed symbols in ${tiles.length} tiles`);
+    console.log(`${lines.length} placed symbols in ${tiles.length} tiles, ${failed.length} failed`);
+    for (const f of failed) {
+      console.error(`  failed ${f}`);
+    }
   } finally {
-    await browser.close();
+    await browser?.close();
     child.kill();
   }
 }

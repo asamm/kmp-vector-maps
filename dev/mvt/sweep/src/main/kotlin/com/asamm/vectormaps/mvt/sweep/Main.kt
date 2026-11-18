@@ -232,7 +232,10 @@ private class Sweep(
             renderer(dataset).use { renderer ->
                 File(runDir, "labels.tsv").printWriter().use { out ->
                     for (tile in tiles()) {
-                        mosaic(renderer, tile)
+                        // the neighbours rendered fill the label store; no picture needed
+                        neighbours(tile) { _, _, tx, ty ->
+                            tile(renderer, tile.z, tx, ty)
+                        }
                         for (placed in renderer.labelPass.prepareNow(labelView(tile, 0.0)).placed) {
                             val label = placed.candidate.source as? MvtLabel ?: continue
                             val x = placed.candidate.x - tile.x * SIZE
@@ -362,24 +365,32 @@ private class Sweep(
     // rendering them also fills the label store the label pass reads
     private fun mosaic(renderer: MvtRenderer, tile: Tile): BufferedImage {
         val mosaic = BufferedImage(SIZE * 3, SIZE * 3, BufferedImage.TYPE_INT_ARGB)
-        val n = 1 shl tile.z
         mosaic.createGraphics().apply {
             // beyond the data and the world MapLibre shows the style's background
             color = background(tile.z)
             fillRect(0, 0, SIZE * 3, SIZE * 3)
-            for (dx in -1..1) {
-                for (dy in -1..1) {
-                    val ty = tile.y + dy
-                    if (ty < 0 || ty >= n) {
-                        continue
-                    }
-                    val tx = Math.floorMod(tile.x + dx, n)
-                    tile(renderer, tile.z, tx, ty)?.let { drawImage(it, SIZE * (dx + 1), SIZE * (dy + 1), null) }
-                }
+            neighbours(tile) { dx, dy, tx, ty ->
+                tile(renderer, tile.z, tx, ty)?.let { drawImage(it, SIZE * (dx + 1), SIZE * (dy + 1), null) }
             }
             dispose()
         }
         return mosaic
+    }
+
+    // the tile and the eight around it, `x` wrapped around the world, rows past its poles left out
+    private fun neighbours(tile: Tile, each: (dx: Int, dy: Int, x: Int, y: Int) -> Unit) {
+        val n = 1 shl tile.z
+        for (dx in -1..1) {
+            for (dy in -1..1) {
+                val ty = tile.y + dy
+                if (ty < 0
+                    || ty >= n
+                ) {
+                    continue
+                }
+                each(dx, dy, Math.floorMod(tile.x + dx, n), ty)
+            }
+        }
     }
 
     private fun tile(renderer: MvtRenderer, z: Int, x: Int, y: Int): BufferedImage? {

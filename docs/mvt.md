@@ -116,7 +116,7 @@ uses nothing outside "Supported" but the elevation paint, which is the host's.
 | Area | Here |
 |---|---|
 | Pixels | goldens against MapLibre GL JS renders (`dev/mvt/reference`), 8 tiles z10–16: without labels mean 0.4–2.1 of 255 and 0.2–1.5 % of pixels off by more than 32 (the golden allows 4.0 and 6 %); with labels in DejaVu Sans against MapLibre's Noto, reported only. The parity sweep (below), 83k tiles z1–18 in Noto on both sides: 0.29 % of pixels off without labels, 2.2 % with labels, 3.0 % turned (before M11.1 0.70, 3.0 and 3.6 %); after M11.1's anchor fixes, M11.2's antialiased outline and M11.3's label fixes, a 13.9k subset 0.15, 1.8 and 2.6 % |
-| Text | path text around sharp bends where MapLibre picks a straighter stretch; a few placement differences left in dense city centres; font stacks map to a face (serif, bold, italic), not named fonts; path text centred on its anchor, not moved by `text-anchor` or `text-offset[0]`; no icon beside a path text (no Asamm style has one) |
+| Text | path text around sharp bends where MapLibre picks a straighter stretch; a few placement differences left in dense city centres; road shield count and placement (M11.4); font stacks map to a face (serif, bold, italic), not named fonts; path text centred on its anchor, not moved by `text-anchor` or `text-offset[0]`; no icon beside a path text (no Asamm style has one) |
 | Fill | a line feature in a fill layer draws nothing; MapLibre fills its parts as rings, bridging them (OpenMapTiles' platform lines) |
 | Halo blur | up to 6 strokes of stepped alpha over 1.19 × blur, not clipped to a glyph buffer |
 | Android | a turned path text is drawn a character at a time, unshaped and in logical order; translucent halo rings blend twice where glyphs overlap |

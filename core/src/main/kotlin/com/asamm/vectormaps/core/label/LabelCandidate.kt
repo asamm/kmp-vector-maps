@@ -101,7 +101,8 @@ enum class LabelDisplay {
 
     /**
      * Always placed, and blocks the [IF_SPACE] candidates placed after it (MapLibre's
-     * `allow-overlap` without `ignore-placement`).
+     * `allow-overlap` without `ignore-placement`); at equal priority it places first, so it wins
+     * the tie.
      */
     OVERLAP,
 }
