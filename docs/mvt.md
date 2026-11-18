@@ -68,10 +68,10 @@ through the core `LabelPlacer` and draws them (D39). As MapLibre:
   anchor fits; laid out with the text at the tile's zoom size, z18 for a size varying by feature,
   as MapLibre Native (GL JS takes z18 for every size, so the GL JS goldens differ there);
   `line-center` at the middle of the whole line; pieces with one text joined first; a label's
-  length its text's or its icon's, the icon at its sprite size times the text size over 24 px; a
-  `line` text's anchor dropped within half a spacing of an earlier one with the same text in the
-  layer (`anchorIsTooClose`), the earlier ones seen within a spacing of the tile, MapLibre's in the
-  whole data tile.
+  length its text's or its icon's, the icon at its sprite size (not `icon-size`) times the text
+  size, 16 px without text, over 24 px; a `line` text's anchor dropped within half a spacing of an
+  earlier one with the same text in the layer (`anchorIsTooClose`); above the data zoom a layer's
+  line texts are laid out once for their whole data tile, as MapLibre, so sibling tiles agree.
 - Point text broken into lines least ragged against their average width (`determineLineBreaks`:
   empty lines kept, a break before `(`, CJK and Yi between any characters); a line's baseline the
   font's ascent less 17/24 of the size below its centre, as MapLibre's glyph layout puts it.
