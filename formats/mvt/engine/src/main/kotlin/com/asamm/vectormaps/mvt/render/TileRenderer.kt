@@ -118,8 +118,9 @@ class TileRenderer(
                         else -> drawCircles(paint, shape, ctx, target, pixelScale)
                     }
                 }
+                // MapLibre's outline: an antialiased line one device pixel wide
                 for ((path, color) in outlines) {
-                    target.outlinePath(path, color)
+                    target.strokePath(path, color, 1f, LineCap.BUTT, LineJoin.MITER, null)
                 }
             } catch (e: RuntimeException) {
                 // a malformed style or tile skips this layer, not the tile

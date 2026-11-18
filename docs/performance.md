@@ -11,8 +11,9 @@ up to 32 % faster on the JVM and 29 % on the A54 (M7.2b); up to 43 % less alloca
 (M7.3, M7.5) at the same single-tile time; a style's renderers share one compiled theme (M7.4).
 MVT engine on the JVM measured in M10.3a, on the A54 and on Czech data in M10.3d; the A54
 profile's render costs cut in M10.3e (Prague up to 47 % faster); MapLibre's fill outline costs
-up to 24 % on the JVM (before the review's label fixes) and 0–10 % on the A54 (M11.1). **Next action:** none in M7,
-M7.1 ⏸ (Q15). The open costs are below.
+up to 24 % on the JVM (before the review's label fixes) and 0–10 % on the A54 (M11.1), made
+antialiased another 13–52 % on the JVM and nothing on the A54 (M11.2). **Next action:** none in
+M7, M7.1 ⏸ (Q15). The open costs are below.
 
 ## How to measure
 
@@ -294,7 +295,7 @@ JVM `MvtBench` at Prague, p50 ms on an idle desktop, JDK 17: `main` (`2d67915`) 
 antialiased outline interleaved twice, the hairline one run before the review's label fixes. A54:
 `MvtTileBenchmark` at Prague, the three variants interleaved twice (each pair within 2 %).
 
-| Benchmark | `main` | AA 1 px outline | hairline outline (kept) |
+| Benchmark | `main` | AA 1 px outline | hairline outline (M11.1's pick, replaced in M11.2) |
 |---|---|---|---|
 | render tile z10 / z12 / z14 / z16 | 17.5 / 41.2 / 43.1 / 12.6 | 26.3 / 49.3 / 73.8 / 21.0 | 18.4 / 41.7 / 48.0 / 15.6 |
 | 4×4 block at z16, 1 / 4 / 8 threads | 201 / 86 / 59 | 297 / 138 / 85 | – |
@@ -319,6 +320,25 @@ antialiased outline interleaved twice, the hairline one run before the review's 
   order: a peak of one fill layer's geometry per render thread, not measured.
 - The A54 run found that no MVT style parsed on Android since PR #65: the legacy `{token}` regex
   had a bare `}`, which ICU rejects and the JVM and Robolectric accept.
+
+## M11.2 — antialiased fill outline, 2026-11-18
+
+`main` (`8a897cb`, the aliased hairline) against the antialiased 1 px outline, interleaved twice
+on an idle desktop (JDK 17, each pair within 4 %, the 8-thread block 8 %) and on the A54 (each
+pair within 1 %), p50 ms, Prague.
+
+| Benchmark | hairline | antialiased |
+|---|---|---|
+| render tile z10 / z12 / z14 / z16 | 19.4 / 44.1 / 49.0 / 15.7 | 26.9 / 49.9 / 74.4 / 20.8 |
+| 4×4 block at z16, 1 / 4 / 8 threads | 228 / 81 / 61 | 300 / 100 / 75 |
+| A54 render tile cold z10 / z12 / z14 / z16 | 57.9 / 152 / 159 / 89.1 | 58.1 / 153 / 159 / 89.6 |
+| A54 render tile again z16 | 67.7 | 67.7 |
+
+- The antialiased outline costs the JVM 13–52 % per tile (Java2D rasterises an antialiased 1 px
+  stroke as a full path) and the A54 nothing (Skia draws it as cheaply as a hairline); allocation
+  is unchanged. The A54 is the product, so the outline follows MapLibre's.
+- The hairline column, the review's label fixes included, is within 6 % of M11.1's single run
+  (18.4 / 41.7 / 48.0 / 15.6), so those fixes cost little.
 
 ## Known costs to measure
 
