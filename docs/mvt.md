@@ -65,15 +65,17 @@ through the core `LabelPlacer` and draws them (D39). As MapLibre:
 - `line` placement on lines clipped to their data tile, every `symbol-spacing` from half a spacing
   in for a line crossing the tile's edge, from half the label plus two text sizes for one starting
   in it (times the overscale above the data zoom), the middle of such a line only where no spaced
-  anchor fits; laid out with the text at its z18 size, as MapLibre lays anchors out once for all
-  zooms; `line-center` at the middle of the whole line; pieces with one text joined first.
+  anchor fits; laid out with the text at the tile's zoom size, z18 for a size varying by feature,
+  as MapLibre Native (GL JS takes z18 for every size, so the GL JS goldens differ there);
+  `line-center` at the middle of the whole line; pieces with one text joined first.
 - Point text broken into lines least ragged against their average width (`determineLineBreaks`:
   empty lines kept, a break before `(`, CJK and Yi between any characters); a line's baseline the
   font's ascent less 17/24 of the size below its centre, as MapLibre's glyph layout puts it.
 - `text-max-angle` over 3/5 of the text size; icons on lines turn with them; `icon-translate` in
   the map's frame, its collision box too.
 - Later layers place first, then lower `symbol-sort-key`, then the tile's feature order (the
-  OpenMapTiles rank); `allow-overlap` never blocks others.
+  OpenMapTiles rank); an `allow-overlap` symbol is always placed but still blocks the labels
+  placed after it, unless it also has `ignore-placement` (honoured only with `allow-overlap`).
 - Text in platform fonts (joining, one bidi base direction per line); the goldens use the bundled
   DejaVu Sans.
 
@@ -88,7 +90,7 @@ uses nothing outside "Supported" but the elevation paint, which is the host's.
 | fill | `-color`, `-opacity`, `-antialias`, `-pattern`, `-outline-color` (by default the fill colour; a line one device pixel wide, antialiased as MapLibre's; not with a pattern) | `-translate`, `-sort-key` |
 | line | `-color`, `-width`, `-opacity`, `-dasharray`, `-offset`, `-cap`, `-join` (miter limit 2) | `-pattern`, `-gap-width`, `-blur`, `-translate`, `-gradient`, `-miter-limit`, `-round-limit`, `-sort-key` |
 | circle | `-radius`, `-color`, `-opacity`, `-stroke-width`, `-stroke-color`, `-stroke-opacity` | `-blur`, `-translate`, `-pitch-*`, `-sort-key` |
-| symbol, placement | `symbol-placement`, `-spacing`, `-sort-key` (0–999), `*-allow-overlap`, `*-rotation-alignment`, `text-max-angle`, `text-keep-upright` | `text-variable-anchor`, `-radial-offset`, `-ignore-placement`, `-optional`, `icon-text-fit`, `icon-keep-upright`, `symbol-avoid-edges`, `-z-order`, `-pitch-alignment`, `text-writing-mode` |
+| symbol, placement | `symbol-placement`, `-spacing`, `-sort-key` (0–999), `*-allow-overlap`, `*-ignore-placement` (with `allow-overlap`), `*-rotation-alignment`, `text-max-angle`, `text-keep-upright` | `text-variable-anchor`, `-radial-offset`, `-optional`, `icon-text-fit`, `icon-keep-upright`, `symbol-avoid-edges`, `-z-order`, `-pitch-alignment`, `text-writing-mode` |
 | symbol, text | `text-field`, `-font` (face), `-size`, `-max-width`, `-line-height`, `-letter-spacing`, `-justify`, `-anchor`, `-offset`, `-transform`, `-padding`, `-rotate`, `-color`, `-opacity`, `-halo-color`, `-halo-width`, `-halo-blur` | `-translate`, `formatted` text |
 | symbol, icon | `icon-image`, `-size`, `-offset`, `-rotate`, `-padding`, `-translate`, `-anchor`, `-opacity` | SDF `icon-color`, `-halo-*` |
 | hillshade, color-relief | the host's hook, with source and paint | drawn by the engine |
@@ -113,8 +115,8 @@ uses nothing outside "Supported" but the elevation paint, which is the host's.
 
 | Area | Here |
 |---|---|
-| Pixels | goldens against MapLibre GL JS renders (`dev/mvt/reference`), 8 tiles z10–16: without labels mean 0.4–2.1 of 255 and 0.2–1.5 % of pixels off by more than 32 (the golden allows 4.0 and 6 %); with labels in DejaVu Sans against MapLibre's Noto, reported only. The parity sweep (below), 83k tiles z1–18 in Noto on both sides: 0.29 % of pixels off without labels, 2.2 % with labels, 3.0 % turned (before M11.1 0.70, 3.0 and 3.6 %); after M11.1's anchor fixes and M11.2's antialiased outline, a 13.9k subset 0.15, 1.9 and 2.8 % |
-| Text | path text around sharp bends where MapLibre picks a straighter stretch; more point and street labels in dense city centres; road shield count and placement; font stacks map to a face (serif, bold, italic), not named fonts; path text centred on its anchor, not moved by `text-anchor` or `text-offset[0]`; no icon beside a path text (no Asamm style has one) |
+| Pixels | goldens against MapLibre GL JS renders (`dev/mvt/reference`), 8 tiles z10–16: without labels mean 0.4–2.1 of 255 and 0.2–1.5 % of pixels off by more than 32 (the golden allows 4.0 and 6 %); with labels in DejaVu Sans against MapLibre's Noto, reported only. The parity sweep (below), 83k tiles z1–18 in Noto on both sides: 0.29 % of pixels off without labels, 2.2 % with labels, 3.0 % turned (before M11.1 0.70, 3.0 and 3.6 %); after M11.1's anchor fixes, M11.2's antialiased outline and M11.3's label fixes, a 13.9k subset 0.15, 1.8 and 2.6 % |
+| Text | path text around sharp bends where MapLibre picks a straighter stretch; a few placement differences left in dense city centres; font stacks map to a face (serif, bold, italic), not named fonts; path text centred on its anchor, not moved by `text-anchor` or `text-offset[0]`; no icon beside a path text (no Asamm style has one) |
 | Fill | a line feature in a fill layer draws nothing; MapLibre fills its parts as rings, bridging them (OpenMapTiles' platform lines) |
 | Halo blur | up to 6 strokes of stepped alpha over 1.19 × blur, not clipped to a glyph buffer |
 | Android | a turned path text is drawn a character at a time, unshaped and in logical order; translucent halo rings blend twice where glyphs overlap |
@@ -131,6 +133,7 @@ renderer of Locus Map iOS, to find what the eight goldens miss; nothing in it sh
 | MapLibre | `node dev/mvt/reference/sweep-native.mjs <file.pmtiles> <run>/tiles.txt <run> <cache> [processes]`, with Node 22 or 24 (the package's Windows binaries): views `base` (no symbols), `labels`, `labels_r30` (turned 30°), elevation layers left out |
 | Ours | `./gradlew :dev:mvt:sweep:sweep -Psweep.args="compare map=<file.pmtiles> run=<run> fonts=<dir>"`: the same views through the driver, labels in Noto (`NotoSans-Regular`, `-Bold`, `-Italic`, `NotoSerif-Italic`), scored as the goldens; `<run>/results.csv` and `report.html` with the worst tiles |
 | Frozen build | `./gradlew :dev:mvt:sweep:sweepInstall -Psweep.into=<dir>`, then `java -DfixturesDir=dev/fixtures -cp "<dir>/*" com.asamm.vectormaps.mvt.sweep.MainKt compare ...`: scores while the sources change |
+| Placed labels | `labels map=<file> run=<run> tiles=<list>` writes ours to `<run>/labels.tsv`, `node dev/mvt/reference/sweep.mjs labels <file> <list> <out.tsv>` GL JS's: tile, layer, text and anchor of each label placed on the screen |
 | One tile | `trace map=<file> tile=z/x/y px=x,y`: the pixel's colour as the style's layers add up; `features map=<file> tile=z/x/y layer=<name> [key=value]`: the data tile's features |
 
 - The Noto faces are Google's Noto Sans and Noto Serif (OFL) `.ttf` files; MapLibre's glyphs come

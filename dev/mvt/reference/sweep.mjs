@@ -7,6 +7,7 @@
 //   node sweep.mjs sample <file.pmtiles> <tiles.txt> [perZoom=200] [seed=1] [minZoom=1] [maxZoom=18]
 //   node sweep.mjs render <file.pmtiles> <tiles.txt> <runDir> [pages=8]
 //   node sweep.mjs serve <file.pmtiles>  (render starts it itself)
+//   node sweep.mjs labels <file.pmtiles> <tiles.txt> <out.tsv>  (the labels GL JS places)
 // render writes <runDir>/maplibre/<mode>/<z>_<x>_<y>.png for the modes base (no symbols), labels
 // and labels_r30 (the map turned 30 degrees clockwise), and <runDir>/maplibre/failed.txt.
 import { spawn } from 'node:child_process';
@@ -295,6 +296,74 @@ async function renderJobs(tiles, out, browsers, port, pages, child) {
   console.log(`rendered ${done} in ${((Date.now() - started) / 1000).toFixed(0)} s, ${failed.length} failed`);
 }
 
+// the symbols MapLibre GL JS places in each tile's labels view, as <out> lines: tile, layer, text
+// (the feature's name or ref), x and y of its anchor on the screen
+async function labels(file, list, out) {
+  const tiles = readFileSync(list, 'utf8').split(/\r?\n/).filter(Boolean).map(t => t.split('/').map(Number));
+  const { child, port } = await startServer(file);
+  const browser = await chromium.launch({ channel: process.env.PW_CHANNEL === 'chromium' ? undefined : 'msedge' });
+  try {
+    const page = await openPage(browser, port, MODES.find(m => m.name === 'labels'));
+    const lines = [];
+    for (const [z, x, y] of tiles) {
+      const [lon, lat] = tileCenter(z, x, y);
+      const found = await page.evaluate(({ lon, lat, z }) => new Promise(done => {
+        window.map.once('idle', () => {
+          // the anchors of the placed symbols, from GL JS's buckets and placement
+          const style = window.map.style;
+          const placements = style.placement.placements;
+          const out = [];
+          for (const cache of Object.values(style.sourceCaches)) {
+            for (const tile of Object.values(cache._tiles)) {
+              const layers = tile.latestFeatureIndex?.loadVTLayers?.() ?? {};
+              const { z: tz, x: tx, y: ty } = tile.tileID.canonical;
+              for (const layer of style._order.map(id => style._layers[id]).filter(l => l.type === 'symbol')) {
+                const bucket = tile.getBucket(layer);
+                if (!bucket?.symbolInstances) {
+                  continue;
+                }
+                const source = layers[layer.sourceLayer];
+                for (let i = 0; i < bucket.symbolInstances.length; i++) {
+                  const si = bucket.symbolInstances.get(i);
+                  const placed = placements[si.crossTileID];
+                  if (!placed || !(placed.text || placed.icon)) {
+                    continue;
+                  }
+                  const n = Math.pow(2, tz);
+                  const wx = (tx + si.anchorX / 8192) / n;
+                  const wy = (ty + si.anchorY / 8192) / n;
+                  const lng = wx * 360 - 180;
+                  const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * wy))) * 180 / Math.PI;
+                  const pt = window.map.project([lng, lat]);
+                  if (pt.x < 0 || pt.y < 0 || pt.x >= 512 || pt.y >= 512) {
+                    continue;
+                  }
+                  const props = source?.feature(si.featureIndex)?.properties ?? {};
+                  out.push([layer.id, String(props.name ?? props.ref ?? props.rcn_ref ?? ''), Math.round(pt.x), Math.round(pt.y)]);
+                }
+              }
+            }
+          }
+          done(out);
+        });
+        window.map.jumpTo({ center: [lon, lat], zoom: z, bearing: 0 });
+        window.map.triggerRepaint();
+      }), { lon, lat, z });
+      for (const f of found) {
+        lines.push([`${z}_${x}_${y}`, ...f].join('\t'));
+      }
+    }
+    if (child.dead) {
+      throw new Error('tile server died; the labels are incomplete');
+    }
+    writeFileSync(out, lines.join('\n') + '\n');
+    console.log(`${lines.length} placed symbols in ${tiles.length} tiles`);
+  } finally {
+    await browser.close();
+    child.kill();
+  }
+}
+
 const [command, ...args] = process.argv.slice(2);
 if (command === 'sample') {
   const [file, out, perZoom = '200', seed = '1', minZoom = '1', maxZoom = '18'] = args;
@@ -304,7 +373,10 @@ if (command === 'sample') {
 } else if (command === 'render') {
   const [file, list, runDir, pages = '8'] = args;
   await render(file, list, runDir, +pages);
+} else if (command === 'labels') {
+  const [file, list, out] = args;
+  await labels(file, list, out);
 } else {
-  console.error('usage: node sweep.mjs sample|render ..., see the header');
+  console.error('usage: node sweep.mjs sample|render|labels ..., see the header');
   process.exit(2);
 }

@@ -14,7 +14,10 @@ import kotlin.math.ceil
  * @param priority higher places first: later style layers, then lower `symbol-sort-key`, then
  *  earlier in the data tile
  * @param path a text along a line: the stretch it runs along, x, y pairs; null for the others
- * @param allowOverlap placed whatever it overlaps (`text-allow-overlap`, `icon-allow-overlap`)
+ * @param allowOverlap placed whatever it overlaps (`text-allow-overlap`, `icon-allow-overlap`),
+ *  still blocking the labels placed after it unless [ignorePlacement]
+ * @param ignorePlacement with [allowOverlap], blocks no other label (`text-ignore-placement`,
+ *  `icon-ignore-placement`); alone it is not honoured
  * @param lineAngleDeg the line's direction at the anchor, clockwise from east, for an icon that
  *  turns with its line; null for one that stays upright
  * @param keepUpright a path text flipped so it never reads upside down (`text-keep-upright`);
@@ -29,6 +32,7 @@ class MvtLabel(
     val icon: MvtIcon?,
     val path: FloatArray?,
     val allowOverlap: Boolean,
+    val ignorePlacement: Boolean = false,
     val lineAngleDeg: Float? = null,
     val keepUpright: Boolean = true,
 )

@@ -112,12 +112,13 @@ class SymbolLayout(
                 frame.projectX(extent, source.extent),
                 frame.projectY(extent, source.extent),
             )
-            // a size the same for every feature evaluated once
+            // a size the same for every feature is MapLibre Native's at the tile's zoom, as its
+            // layout is evaluated there before it asks for z18; evaluated once
             val sizeExpression = layer.layout["text-size"]
             val layerMaxTextSize = if (sizeExpression == null
                 || sizeExpression.isFeatureConstant
             ) {
-                maxTextSize(layer, ctx)
+                textSize(layer = layer, ctx = ctx, zoom = ctx.zoom)
             } else {
                 null
             }
@@ -235,6 +236,8 @@ class SymbolLayout(
             icon = icon,
             allowOverlap = (text == null || layer.layout["text-allow-overlap"]?.eval(ctx) == true)
                 && (icon == null || layer.layout["icon-allow-overlap"]?.eval(ctx) == true),
+            ignorePlacement = (text == null || layer.layout["text-ignore-placement"]?.eval(ctx) == true)
+                && (icon == null || layer.layout["icon-ignore-placement"]?.eval(ctx) == true),
             keepUpright = layer.layout["text-keep-upright"]?.eval(ctx) != false,
         )
         if (onLine) {
@@ -248,7 +251,7 @@ class SymbolLayout(
                 iconAlongLine = iconAlongLine,
                 bounds = bounds,
                 overscale = overscale,
-                glyphSizePx = (layerMaxTextSize ?: maxTextSize(layer, ctx)) * pixelScale * textScale,
+                glyphSizePx = (layerMaxTextSize ?: textSize(layer = layer, ctx = ctx, zoom = MAX_TEXT_ZOOM)) * pixelScale * textScale,
             )
             var start = 0
             for (end in partEnds) {
@@ -309,7 +312,7 @@ class SymbolLayout(
         val icon = symbol.symbol.icon
         val iconLength = (icon?.width ?: 0f) * (icon?.scale ?: 1f)
         val length = maxOf(text?.width ?: 0f, iconLength)
-        // MapLibre lays the anchors out once for all zooms, with the text at its z18 size
+        // MapLibre lays the anchors out with the text at its layout size
         val maxLength = maxOf((text?.width ?: 0f) * symbol.glyphSizePx / (text?.sizePx ?: 1f), iconLength)
         // as MapLibre, `line` anchored on the line clipped to its data tile, `line-center` on the
         // whole line
@@ -342,10 +345,10 @@ class SymbolLayout(
         }
     }
 
-    // `text-size` at MapLibre's maximum text zoom, 18, in style pixels
-    private fun maxTextSize(layer: StyleLayer, ctx: EvalContext): Float {
-        val zoom = ctx.zoom
-        ctx.zoom = MAX_TEXT_ZOOM
+    // `text-size` at `zoom`, in style pixels
+    private fun textSize(layer: StyleLayer, ctx: EvalContext, zoom: Double): Float {
+        val current = ctx.zoom
+        ctx.zoom = zoom
         try {
             val size = number(layer.layout["text-size"], ctx, 16.0).toFloat()
             if (!(size > 0f)
@@ -355,7 +358,7 @@ class SymbolLayout(
             }
             return size
         } finally {
-            ctx.zoom = zoom
+            ctx.zoom = current
         }
     }
 
@@ -421,6 +424,7 @@ class SymbolLayout(
             icon = symbol.icon,
             path = path,
             allowOverlap = symbol.allowOverlap,
+            ignorePlacement = symbol.ignorePlacement,
             lineAngleDeg = lineAngleDeg,
             keepUpright = symbol.keepUpright,
         )
@@ -433,6 +437,7 @@ class SymbolLayout(
         val text: MvtText?,
         val icon: MvtIcon?,
         val allowOverlap: Boolean,
+        val ignorePlacement: Boolean,
         val keepUpright: Boolean,
     )
 
@@ -448,7 +453,8 @@ class SymbolLayout(
         val bounds: FloatArray,
         // times the tile is cut from its data tile
         val overscale: Int,
-        // the text size at z18, which MapLibre lays line anchors out with, icons alone too
+        // the text size MapLibre lays line anchors out with, icons alone too: z18 for a size
+        // varying by feature, else the tile's zoom
         val glyphSizePx: Float,
     )
 

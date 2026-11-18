@@ -79,13 +79,13 @@ enum class LabelKind {
 }
 
 /**
- * How a candidate takes part in collisions (Mapsforge `Display`); at equal priority, later entries
- * draw above earlier ones, as in Mapsforge.
+ * How a candidate takes part in collisions (Mapsforge `Display`, and MapLibre's `allow-overlap`);
+ * at equal priority, later entries draw above earlier ones, as in Mapsforge.
  */
 enum class LabelDisplay {
 
     /**
-     * Placed when it clashes with no placed [IF_SPACE] candidate.
+     * Placed when it clashes with no placed [IF_SPACE] or [OVERLAP] candidate.
      */
     IF_SPACE,
 
@@ -98,6 +98,12 @@ enum class LabelDisplay {
      * Always placed; never blocks another candidate.
      */
     ALWAYS,
+
+    /**
+     * Always placed, and blocks the [IF_SPACE] candidates placed after it (MapLibre's
+     * `allow-overlap` without `ignore-placement`).
+     */
+    OVERLAP,
 }
 
 /**

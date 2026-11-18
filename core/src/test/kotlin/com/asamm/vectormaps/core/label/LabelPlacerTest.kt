@@ -151,6 +151,23 @@ class LabelPlacerTest {
     }
 
     @Test
+    fun overlapIsAlwaysPlacedAndBlocksLaterIfSpace() {
+        // the OVERLAP label lies between the two IF_SPACE ones, which clear each other
+        val overlap = point(id = 1, x = 15.0, y = 0.0, priority = 5, display = LabelDisplay.OVERLAP)
+        val ifSpaceHigh = point(id = 2, x = 0.0, y = 0.0, priority = 9)
+        val ifSpaceLow = point(id = 3, x = 30.0, y = 0.0, priority = 1)
+        val order = point(id = 4, x = 30.0, y = 0.0, priority = 1, display = LabelDisplay.ORDER)
+
+        // placed over an earlier IF_SPACE label, blocking the later one but not ORDER
+        assertEquals(
+            setOf(1L, 2L, 4L),
+            ids(LabelPlacer.place(listOf(overlap, ifSpaceHigh, ifSpaceLow, order), rotationDeg = 0.0)).toSet(),
+        )
+        // without it the later one fits
+        assertEquals(setOf(2L, 3L), ids(LabelPlacer.place(listOf(ifSpaceHigh, ifSpaceLow), rotationDeg = 0.0)).toSet())
+    }
+
+    @Test
     fun equalPointTextsCloseTogetherClash() {
         val town = pointText(id = 1, x = 0.0, text = "Brno")
         val near = pointText(id = 2, x = 150.0, text = "Brno")
@@ -320,8 +337,9 @@ class LabelPlacerTest {
         val kept = ArrayList<Int>()
         for (i in order.indices) {
             val clashes = order[i].display != LabelDisplay.ALWAYS
+                && order[i].display != LabelDisplay.OVERLAP
                 && kept.any { j ->
-                    order[j].display == order[i].display
+                    collisionGroup(order[j].display) == order[i].display
                         && shapes[i] != null
                         && shapes[j] != null
                         && shapes[i]!!.overlaps(shapes[j]!!)
