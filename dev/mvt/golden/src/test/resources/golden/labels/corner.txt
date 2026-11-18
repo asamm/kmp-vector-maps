@@ -1,5 +1,6 @@
 cycling_labels	K20	341	326	reversed
-cycling_labels	K21	137	-65	reversed
+cycling_labels	K21	142	-57	reversed
+cycling_labels	K21	44	-320
 elevation_label	0001	-289	-343
 elevation_label	0001	-372	67
 elevation_label	0001	219	-319
@@ -7,8 +8,10 @@ elevation_label	0001	395	-145
 elevation_label	0001	79	312
 elevation_label	0011	-454	171
 elevation_label	0021	388	-471
+elevation_label	008	-61	101
 elevation_label	008	210	-58
 elevation_label	008	392	36
+elevation_label	008	79	-80
 elevation_label	008	97	13
 elevation_label	009	-226	-181
 elevation_label	009	-239	107
@@ -17,11 +20,11 @@ elevation_label	009	-421	-42
 elevation_label	009	236	179
 elevation_label	009	391	-47
 elevation_label	009	453	471
+elevation_label	009	458	284
+elevation_label	009	59	152
 elevation_label	009	77	-406
 hike_label	0408	-220	-67	reversed
-hike_label	1812	74	-190
-hike_label	4206	111	-20	reversed
-hike_label	4206	157	-436
+hike_label	1812	76	-186
 label_road_oneway__1	icon icons\one_way	-9	-125
 label_road_oneway__1	icon icons\one_way	105	-102
 label_road_oneway__1	icon icons\one_way	119	57
@@ -38,14 +41,13 @@ peaks__1	888	-171	10
 peaks__2	Javor	434	378
 peaks__2	Lesní hora	-475	-471
 peaks__2	Skalka	-171	10
-poi_label_attraction_castle	Relaxpark Pec	80	-148
 poi_label_lm__4	Amor	-279	-61
 poi_label_lm__4	Javorka	263	481
 poi_label_lm__4	Lokomotiva	-157	482
 waterway_label__1	Úpa	233	-13
 waterway_label__1	Úpa	398	115
 waterway_label__1	Úpa	51	-290
-waterway_label__2	Karlův potok	213	-172	reversed
+waterway_label__2	Karlův potok	259	-227	reversed
 waterway_oneway	icon icons\one_way_river	-112	147
 waterway_oneway	icon icons\one_way_river	-122	-65
 waterway_oneway	icon icons\one_way_river	-128	371

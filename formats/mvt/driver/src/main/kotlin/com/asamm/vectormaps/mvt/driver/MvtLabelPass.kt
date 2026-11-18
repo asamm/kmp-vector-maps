@@ -53,7 +53,12 @@ class MvtLabelPass internal constructor(
         val x = originX + label.x
         val y = originY + label.y
         val text = label.text
-        val display = if (label.allowOverlap) LabelDisplay.ALWAYS else LabelDisplay.IF_SPACE
+        // as MapLibre: an overlapping label still blocks later ones, unless it ignores placement
+        val display = when {
+            label.allowOverlap && label.ignorePlacement -> LabelDisplay.ALWAYS
+            label.allowOverlap -> LabelDisplay.OVERLAP
+            else -> LabelDisplay.IF_SPACE
+        }
         val value = text?.lines?.joinToString("\n")
         val labelText = text?.let {
             LabelText(

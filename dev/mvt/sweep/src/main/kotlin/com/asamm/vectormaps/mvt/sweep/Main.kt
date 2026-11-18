@@ -21,6 +21,7 @@ import com.asamm.vectormaps.mvt.style.Colors
 import com.asamm.vectormaps.mvt.style.EvalContext
 import com.asamm.vectormaps.mvt.style.LayerType
 import com.asamm.vectormaps.mvt.symbol.MvtFont
+import com.asamm.vectormaps.mvt.symbol.MvtLabel
 import com.asamm.vectormaps.mvt.style.Color as MvtColor
 import java.awt.Color
 import java.awt.Font
@@ -44,7 +45,8 @@ import kotlin.math.atan
  * rendered into `<maplibre>/<view>` (`dev/mvt/reference/sweep*.mjs`), scores the pair as the
  * goldens do and writes `<run>/results.csv` and `<run>/report.html` with the `top` worst tiles per
  * view. The fonts are the style's Noto faces (NotoSans-Regular, -Bold, -Italic, NotoSerif-Italic
- * `.ttf`), as MapLibre draws them.
+ * `.ttf`), as MapLibre draws them. `labels` with the same options writes `<run>/labels.tsv`, the
+ * labels our pass places on each tile's screen.
  */
 fun main(args: Array<String>) {
     Locale.setDefault(Locale.ROOT)
@@ -56,12 +58,14 @@ fun main(args: Array<String>) {
         trace(args.drop(1).associate { it.substringBefore('=') to it.substringAfter('=') })
         return
     }
-    require(args.firstOrNull() == "compare") {
-        "usage: compare map=<file.pmtiles> run=<dir> [tiles=] [maplibre=] [threads=] [fonts=] [top=]"
+    require(args.firstOrNull() == "compare"
+        || args.firstOrNull() == "labels"
+    ) {
+        "usage: compare|labels map=<file.pmtiles> run=<dir> [tiles=] [maplibre=] [threads=] [fonts=] [top=]"
     }
     val options = args.drop(1).associate { it.substringBefore('=') to it.substringAfter('=') }
     val runDir = File(requireNotNull(options["run"]) { "run=<dir> missing" })
-    Sweep(
+    val sweep = Sweep(
         map = File(requireNotNull(options["map"]) { "map=<file.pmtiles> missing" }),
         runDir = runDir,
         tilesFile = options["tiles"]?.let(::File) ?: File(runDir, "tiles.txt"),
@@ -69,7 +73,12 @@ fun main(args: Array<String>) {
         fonts = fonts(options["fonts"]?.let(::File)),
         threads = options["threads"]?.toInt() ?: Runtime.getRuntime().availableProcessors(),
         top = options["top"]?.toInt() ?: 100,
-    ).run()
+    )
+    if (args.first() == "labels") {
+        sweep.labels()
+    } else {
+        sweep.run()
+    }
 }
 
 /**
@@ -207,11 +216,51 @@ private class Sweep(
         File(requireNotNull(System.getProperty("fixturesDir")) { "-DfixturesDir=<repository>/dev/fixtures missing" }, "mvt/styles/hike_bike/style.json"),
     )
 
-    fun run() {
-        runDir.mkdirs()
-        val tiles = tilesFile.readLines()
+    private fun tiles(): List<Tile> {
+        return tilesFile.readLines()
             .filter { it.isNotBlank() }
             .map { line -> line.trim().split('/').map { it.toInt() }.let { Tile(it[0], it[1], it[2]) } }
+    }
+
+    /**
+     * The labels our label pass places in each tile's `labels` view, one per line of
+     * `<run>/labels.tsv`: tile, layer, text, x and y on the 512 px screen.
+     */
+    fun labels() {
+        runDir.mkdirs()
+        driver.open(listOf(map)).use { dataset ->
+            renderer(dataset).use { renderer ->
+                File(runDir, "labels.tsv").printWriter().use { out ->
+                    for (tile in tiles()) {
+                        // the neighbours rendered fill the label store; no picture needed
+                        neighbours(tile) { _, _, tx, ty ->
+                            tile(renderer, tile.z, tx, ty)
+                        }
+                        for (placed in renderer.labelPass.prepareNow(labelView(tile, 0.0)).placed) {
+                            val label = placed.candidate.source as? MvtLabel ?: continue
+                            val x = placed.candidate.x - tile.x * SIZE
+                            val y = placed.candidate.y - tile.y * SIZE
+                            // the screen's labels only, as the GL JS dump
+                            if (x < 0
+                                || y < 0
+                                || x >= SIZE
+                                || y >= SIZE
+                            ) {
+                                continue
+                            }
+                            val text = placed.candidate.text?.value?.replace('\n', ' ') ?: ""
+                            out.println("${tile.name}\t${label.layerId}\t$text\t%.0f\t%.0f".format(x, y))
+                        }
+                    }
+                }
+            }
+        }
+        style.close()
+    }
+
+    fun run() {
+        runDir.mkdirs()
+        val tiles = tiles()
         val views = View.entries.filter { File(maplibreDir, it.dirName).isDirectory }
         println("${tiles.size} tiles, views ${views.map { it.dirName }}, $threads threads")
         val scores = driver.open(listOf(map)).use { dataset ->
@@ -290,14 +339,7 @@ private class Sweep(
         if (!view.labels) {
             return tile(renderer, tile.z, tile.x, tile.y) ?: blank(tile.z)
         }
-        val labelView = LabelViewport(
-            zoom = tile.z,
-            centerX = (tile.x + 0.5) * SIZE,
-            centerY = (tile.y + 0.5) * SIZE,
-            widthPx = SIZE,
-            heightPx = SIZE,
-            rotationDeg = view.rotationDeg,
-        )
+        val labelView = labelView(tile, view.rotationDeg)
         val tiles = mosaic.value
         val pass = renderer.labelPass
         val prepared = pass.prepareNow(labelView)
@@ -307,28 +349,48 @@ private class Sweep(
         return screen(tiles, labels.image, view.rotationDeg, background(tile.z))
     }
 
+    // the screen over the tile, turned clockwise by `rotationDeg`
+    private fun labelView(tile: Tile, rotationDeg: Double): LabelViewport {
+        return LabelViewport(
+            zoom = tile.z,
+            centerX = (tile.x + 0.5) * SIZE,
+            centerY = (tile.y + 0.5) * SIZE,
+            widthPx = SIZE,
+            heightPx = SIZE,
+            rotationDeg = rotationDeg,
+        )
+    }
+
     // the tile and its neighbours, as their labels reach in and a turned screen shows their corners;
     // rendering them also fills the label store the label pass reads
     private fun mosaic(renderer: MvtRenderer, tile: Tile): BufferedImage {
         val mosaic = BufferedImage(SIZE * 3, SIZE * 3, BufferedImage.TYPE_INT_ARGB)
-        val n = 1 shl tile.z
         mosaic.createGraphics().apply {
             // beyond the data and the world MapLibre shows the style's background
             color = background(tile.z)
             fillRect(0, 0, SIZE * 3, SIZE * 3)
-            for (dx in -1..1) {
-                for (dy in -1..1) {
-                    val ty = tile.y + dy
-                    if (ty < 0 || ty >= n) {
-                        continue
-                    }
-                    val tx = Math.floorMod(tile.x + dx, n)
-                    tile(renderer, tile.z, tx, ty)?.let { drawImage(it, SIZE * (dx + 1), SIZE * (dy + 1), null) }
-                }
+            neighbours(tile) { dx, dy, tx, ty ->
+                tile(renderer, tile.z, tx, ty)?.let { drawImage(it, SIZE * (dx + 1), SIZE * (dy + 1), null) }
             }
             dispose()
         }
         return mosaic
+    }
+
+    // the tile and the eight around it, `x` wrapped around the world, rows past its poles left out
+    private fun neighbours(tile: Tile, each: (dx: Int, dy: Int, x: Int, y: Int) -> Unit) {
+        val n = 1 shl tile.z
+        for (dx in -1..1) {
+            for (dy in -1..1) {
+                val ty = tile.y + dy
+                if (ty < 0
+                    || ty >= n
+                ) {
+                    continue
+                }
+                each(dx, dy, Math.floorMod(tile.x + dx, n), ty)
+            }
+        }
     }
 
     private fun tile(renderer: MvtRenderer, z: Int, x: Int, y: Int): BufferedImage? {

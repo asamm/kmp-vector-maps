@@ -53,14 +53,18 @@ object LabelPlacer {
         val kept = ArrayList<PlacedLabel>(order.size)
         for (i in order.indices) {
             val candidate = order[i]
-            if (candidate.display != LabelDisplay.ALWAYS) {
-                if (grid.clashes(index = i, order = order)
-                    || texts.clashes(candidate)
-                ) {
-                    continue
+            when (candidate.display) {
+                LabelDisplay.ALWAYS -> Unit
+                LabelDisplay.OVERLAP -> grid.add(i)
+                LabelDisplay.IF_SPACE, LabelDisplay.ORDER -> {
+                    if (grid.clashes(index = i, order = order)
+                        || texts.clashes(candidate)
+                    ) {
+                        continue
+                    }
+                    grid.add(i)
+                    texts.add(candidate)
                 }
-                grid.add(i)
-                texts.add(candidate)
             }
             kept.add(PlacedLabel(
                 candidate = candidate,
@@ -87,6 +91,11 @@ object LabelPlacer {
             }
         }
     }
+}
+
+// the candidates a kept one blocks: an OVERLAP label blocks as an IF_SPACE one
+internal fun collisionGroup(display: LabelDisplay): LabelDisplay {
+    return if (display == LabelDisplay.OVERLAP) LabelDisplay.IF_SPACE else display
 }
 
 private fun screenStartX(path: DoubleArray, cos: Double, sin: Double): Double {
@@ -307,8 +316,8 @@ private class Grid(private val shapes: Array<ScreenShape?>) {
                         continue
                     }
                     lastChecked[kept] = index
-                    // ORDER clashes with ORDER only, IF_SPACE with IF_SPACE only
-                    if (order[kept].display == display
+                    // ORDER clashes with ORDER only, IF_SPACE with IF_SPACE and OVERLAP
+                    if (collisionGroup(order[kept].display) == display
                         && shape.overlaps(shapes[kept]!!)
                     ) {
                         return true
