@@ -2,7 +2,7 @@
  * The MapLibre parity sweep: renders sampled tiles of a large PMTiles file through the MVT driver,
  * compares them with MapLibre renders of `dev/mvt/reference/sweep*.mjs` (Native, or GL JS) and
  * writes a ranked report. `./gradlew :dev:mvt:sweep:sweep -Psweep.args="compare map=<file.pmtiles>
- * run=<dir> ..."`, see Main.kt; `sweepInstall -Psweep.into=<dir>` replaces that folder's content
+ * run=<dir> ..."`, see Main.kt; `sweepInstall -Psweep.into=<dir>` replaces that folder's jars
  * with the tool and its classpath, to score a frozen build while the sources change. Not
  * published, not run by the build.
  */
@@ -32,8 +32,23 @@ tasks.register<JavaExec>("sweep") {
     maxHeapSize = "8g"
 }
 
-tasks.register<Sync>("sweepInstall") {
-    description = "Replaces the content of -Psweep.into, a folder of its own, with the sweep and its classpath"
-    from(tasks.jar, configurations.runtimeClasspath)
-    into(providers.gradleProperty("sweep.into").orElse(layout.buildDirectory.dir("sweep").map { it.asFile.path }))
+// a plain copy, as a Sync would fingerprint and empty whatever folder it is given
+tasks.register("sweepInstall") {
+    description = "Replaces the jars in -Psweep.into (from the repository root), a folder of jars only, with the sweep and its classpath"
+    val jars = files(tasks.jar, configurations.runtimeClasspath)
+    dependsOn(jars)
+    val root = rootDir
+    val target = providers.gradleProperty("sweep.into")
+        .map { root.resolve(it) }
+        .orElse(layout.buildDirectory.dir("sweep").map { it.asFile })
+    doLast {
+        val dir = target.get()
+        val other = dir.listFiles()?.filter { !it.isFile || it.extension != "jar" }.orEmpty()
+        if (other.isNotEmpty()) {
+            throw GradleException("$dir holds more than jars (${other.first().name}); install into a folder of its own")
+        }
+        dir.mkdirs()
+        dir.listFiles()?.forEach { it.delete() }
+        jars.forEach { it.copyTo(File(dir, it.name)) }
+    }
 }

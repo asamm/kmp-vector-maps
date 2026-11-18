@@ -28,7 +28,9 @@ import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import java.io.File
 import java.util.Locale
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.imageio.ImageIO
 import kotlin.math.PI
@@ -75,7 +77,7 @@ fun main(args: Array<String>) {
  * as each style layer is added, so the layer that draws it, or fails to, shows.
  */
 private fun trace(options: Map<String, String>) {
-    val fixtures = File(requireNotNull(System.getProperty("fixturesDir")), "mvt/styles/hike_bike")
+    val fixtures = File(requireNotNull(System.getProperty("fixturesDir")) { "-DfixturesDir=<repository>/dev/fixtures missing" }, "mvt/styles/hike_bike")
     val (z, x, y) = requireNotNull(options["tile"]).split('/').map { it.toInt() }
     val (px, py) = requireNotNull(options["px"]).split(',').map { it.toInt() }
     val work = File(options["work"] ?: "local/sweep/trace").apply { mkdirs() }
@@ -135,7 +137,7 @@ private fun fonts(dir: File?): AwtFonts {
         return Font.createFont(Font.TRUETYPE_FONT, File(dir, name))
     }
     if (dir == null) {
-        val fixtures = File(requireNotNull(System.getProperty("fixturesDir")), "fonts/dejavu/DejaVuSans.ttf")
+        val fixtures = File(requireNotNull(System.getProperty("fixturesDir")) { "-DfixturesDir=<repository>/dev/fixtures missing" }, "fonts/dejavu/DejaVuSans.ttf")
         println("no fonts dir: DejaVu Sans, labels will differ from MapLibre's Noto")
         return AwtFonts(Font.createFont(Font.TRUETYPE_FONT, fixtures))
     }
@@ -202,7 +204,7 @@ private class Sweep(
     private val driver = MvtDriver(AwtMvtGraphics(fonts))
 
     private val style: MvtStyle = driver.loadStyle(
-        File(requireNotNull(System.getProperty("fixturesDir")), "mvt/styles/hike_bike/style.json"),
+        File(requireNotNull(System.getProperty("fixturesDir")) { "-DfixturesDir=<repository>/dev/fixtures missing" }, "mvt/styles/hike_bike/style.json"),
     )
 
     fun run() {
@@ -227,12 +229,15 @@ private class Sweep(
         val done = AtomicInteger()
         val started = System.nanoTime()
         // one renderer per thread, so a thread's label pass sees only the tiles it rendered
-        val renderers = ThreadLocal.withInitial { renderer(dataset) }
+        val all = ConcurrentLinkedQueue<MvtRenderer>()
+        val renderers = ThreadLocal.withInitial { renderer(dataset).also { all += it } }
         try {
             val futures = tiles.map { tile ->
                 pool.submit<List<Score>> {
                     val renderer = renderers.get()
-                    val out = views.map { view -> scoreView(renderer, tile, view) }
+                    // the labelled views share one mosaic of the tile and its neighbours
+                    val mosaic = lazy { mosaic(renderer, tile) }
+                    val out = views.map { view -> scoreView(renderer, tile, view, mosaic) }
                     val n = done.incrementAndGet()
                     if (n % 200 == 0) {
                         val seconds = (System.nanoTime() - started) / 1e9
@@ -243,7 +248,9 @@ private class Sweep(
             }
             return futures.flatMap { it.get() }
         } finally {
-            pool.shutdown()
+            pool.shutdownNow()
+            pool.awaitTermination(1, TimeUnit.MINUTES)
+            all.forEach { it.close() }
         }
     }
 
@@ -256,7 +263,7 @@ private class Sweep(
         )
     }
 
-    private fun scoreView(renderer: MvtRenderer, tile: Tile, view: View): Score {
+    private fun scoreView(renderer: MvtRenderer, tile: Tile, view: View, mosaic: Lazy<BufferedImage>): Score {
         val reference = File(maplibreDir, "${view.dirName}/${tile.name}.png")
         if (!reference.isFile) {
             return Score(tile, view, 0.0, 0.0, "no MapLibre render")
@@ -270,8 +277,8 @@ private class Sweep(
             return Score(tile, view, 0.0, 0.0, "no MapLibre render")
         }
         val ours = try {
-            render(renderer, tile, view)
-        } catch (e: Exception) {
+            render(renderer, tile, view, mosaic)
+        } catch (e: Throwable) {
             return Score(tile, view, 0.0, 100.0, "error ${e.javaClass.simpleName}: ${e.message}")
         }
         val (mean, off) = difference(ours, theirs)
@@ -279,11 +286,30 @@ private class Sweep(
     }
 
     // the view as the hosts show it: the tile, or the screen over it with the label pass
-    private fun render(renderer: MvtRenderer, tile: Tile, view: View): BufferedImage {
+    private fun render(renderer: MvtRenderer, tile: Tile, view: View, mosaic: Lazy<BufferedImage>): BufferedImage {
         if (!view.labels) {
             return tile(renderer, tile.z, tile.x, tile.y) ?: blank(tile.z)
         }
-        // the neighbours too: their labels reach in, and a turned screen shows their corners
+        val labelView = LabelViewport(
+            zoom = tile.z,
+            centerX = (tile.x + 0.5) * SIZE,
+            centerY = (tile.y + 0.5) * SIZE,
+            widthPx = SIZE,
+            heightPx = SIZE,
+            rotationDeg = view.rotationDeg,
+        )
+        val tiles = mosaic.value
+        val pass = renderer.labelPass
+        val prepared = pass.prepareNow(labelView)
+        val labels = pass.newTarget(SIZE, SIZE) as AwtMvtRenderTarget
+        pass.draw(labels, labelView, prepared)
+        labels.dispose()
+        return screen(tiles, labels.image, view.rotationDeg, background(tile.z))
+    }
+
+    // the tile and its neighbours, as their labels reach in and a turned screen shows their corners;
+    // rendering them also fills the label store the label pass reads
+    private fun mosaic(renderer: MvtRenderer, tile: Tile): BufferedImage {
         val mosaic = BufferedImage(SIZE * 3, SIZE * 3, BufferedImage.TYPE_INT_ARGB)
         val n = 1 shl tile.z
         mosaic.createGraphics().apply {
@@ -302,20 +328,7 @@ private class Sweep(
             }
             dispose()
         }
-        val labelView = LabelViewport(
-            zoom = tile.z,
-            centerX = (tile.x + 0.5) * SIZE,
-            centerY = (tile.y + 0.5) * SIZE,
-            widthPx = SIZE,
-            heightPx = SIZE,
-            rotationDeg = view.rotationDeg,
-        )
-        val pass = renderer.labelPass
-        val prepared = pass.prepareNow(labelView)
-        val labels = pass.newTarget(SIZE, SIZE) as AwtMvtRenderTarget
-        pass.draw(labels, labelView, prepared)
-        labels.dispose()
-        return screen(mosaic, labels.image, view.rotationDeg, background(tile.z))
+        return mosaic
     }
 
     private fun tile(renderer: MvtRenderer, z: Int, x: Int, y: Int): BufferedImage? {
@@ -402,7 +415,7 @@ private class Sweep(
             td,th{border:1px solid #ccc;padding:2px 6px;text-align:right}img{display:block;max-width:100%}
             .row{margin:12px 0 28px}</style></head><body>
             <h1>MVT parity sweep</h1><p>${tilesFile.readLines().count { it.isNotBlank() }} tiles of
-            ${map.name}; mean is the mean RGB difference (0-255), off the share of pixels off by more than $TOLERANCE.
+            ${html(map.name)}; mean is the mean RGB difference (0-255), off the share of pixels off by more than $TOLERANCE.
             Strips: MapLibre | ours | difference (red: off).</p>
             """.trimIndent(),
         )
@@ -427,7 +440,8 @@ private class Sweep(
             for ((rank, s) in worst.withIndex()) {
                 val strip = File(images, "${view.dirName}_${rank + 1}_${s.tile.name}.png")
                 val reference = ImageIO.read(File(maplibreDir, "${view.dirName}/${s.tile.name}.png"))
-                val ours = runCatching { render(renderer, s.tile, view) }.getOrNull() ?: blank(s.tile.z)
+                val ours = runCatching { render(renderer, s.tile, view, lazy { mosaic(renderer, s.tile) }) }.getOrNull()
+                    ?: blank(s.tile.z)
                 ImageIO.write(strip(reference, ours), "png", strip)
                 html.append(
                     "<div class=row><b>#${rank + 1} ${s.tile.z}/${s.tile.x}/${s.tile.y}</b> " +
@@ -436,7 +450,7 @@ private class Sweep(
                             s.tile.lon,
                             s.mean,
                             s.offPercent,
-                            if (s.status == "ok") "" else s.status,
+                            if (s.status == "ok") "" else html(s.status),
                         ),
                 )
             }
@@ -472,6 +486,9 @@ private class Sweep(
 
         const val SIZE = 512
 
+        // copies of the golden harness, which lives in test sources: keep them with
+        // MvtFixtures.difference and GoldenRenderTest.MAX_OFF_PERCENT (dev/mvt/golden)
+
         // as the goldens: a channel off by more than this counts the pixel as off
         const val TOLERANCE = 32
 
@@ -479,6 +496,10 @@ private class Sweep(
         const val BASE_OFF_PERCENT = 6.0
 
         const val LABELS_OFF_PERCENT = 10.0
+
+        fun html(text: String): String {
+            return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+        }
 
         fun worst(p: Int, q: Int): Int {
             var worst = 0

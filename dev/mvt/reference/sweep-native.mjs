@@ -16,31 +16,12 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { deflateSync } from 'node:zlib';
 import { PmTiles } from './pmtiles.mjs';
+import { MODES, tileCenter } from './sweep-views.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const styleDir = resolve(here, '../../fixtures/mvt/styles/hike_bike');
 
-// a map per layer set; each view of a tile renders from it
-const MODES = [
-  // the tile renderer's layers: no symbols, no elevation layers
-  { name: 'base', hide: ['symbol', 'hillshade', 'color-relief'], views: [{ name: 'base', bearing: 0 }] },
-  // the label pass over the tiles: no elevation layers, which the host draws; MapLibre's bearing
-  // turns the map anticlockwise, the label pass's rotation clockwise
-  {
-    name: 'labels',
-    hide: ['hillshade', 'color-relief'],
-    views: [{ name: 'labels', bearing: 0 }, { name: 'labels_r30', bearing: -30 }],
-  },
-];
-
 const SIZE = 512;
-
-function tileCenter(z, x, y) {
-  const n = Math.pow(2, z);
-  const lon = (x + 0.5) / n * 360 - 180;
-  const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / n))) * 180 / Math.PI;
-  return [lon, lat];
-}
 
 function style(hide) {
   const s = JSON.parse(readFileSync(join(styleDir, 'style.json'), 'utf8'));

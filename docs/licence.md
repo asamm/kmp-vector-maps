@@ -12,7 +12,7 @@ the legal check is locus-core plan Q1.
 | `formats/mapsforge/**`, including its Kotlin conversion, and its golden tests `dev/mapsforge/**` | LGPL-3.0-or-later + §4(d)/(e) waiver |
 | `core/`, `render/`, `android/`, `dev/bench/`, `viewer/` (written fresh) | Apache-2.0 (D19) |
 | `formats/garmin-img/**` and its tests `dev/garmin-img/**` (M4) | LGPL-2.1-or-later, as upstream JGarminImgParser (D33) |
-| `formats/mvt/**` and `dev/mvt/**` (M10, written fresh) | Apache-2.0; dependency kotlinx-serialization-json, Apache-2.0; embedded code: `Polylabel.kt` translates Mapbox polylabel, ISC, its notice in the header |
+| `formats/mvt/**` and `dev/mvt/**` (M10, written fresh) | Apache-2.0; dependency kotlinx-serialization-json, Apache-2.0; embedded code: `Polylabel.kt` translates Mapbox polylabel, ISC, `LineBreaks.kt` MapLibre GL JS `determineLineBreaks`, BSD-3-Clause, their notices in the headers |
 | Fixtures | per [dev/fixtures/README.md](../dev/fixtures/README.md): ODbL map data, CC-BY-SA 4.0 OpenTopoMap style, Apache-2.0 theme, Bitstream Vera and Arev licence font (DejaVu Sans), vector tiles (OSM data ODbL, OpenMapTiles schema CC-BY 4.0), the Asamm `hike_bike` style and sprites (all rights reserved, test fixture only) |
 
 - An Apache-2.0 core keeps LGPL-2.1 and LGPL-3.0 code out of one derivative work.

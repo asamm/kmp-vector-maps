@@ -130,6 +130,8 @@ renderer of Locus Map iOS, to find what the eight goldens miss; nothing in it sh
 | Sample | `node dev/mvt/reference/sweep.mjs sample <file.pmtiles> <run>/tiles.txt <perZoom> <seed> 1 18`: distinct data tiles per zoom, denser likelier, overzoomed children above z14 |
 | MapLibre | `node dev/mvt/reference/sweep-native.mjs <file.pmtiles> <run>/tiles.txt <run> <cache> [processes]`, with Node 22 or 24 (the package's Windows binaries): views `base` (no symbols), `labels`, `labels_r30` (turned 30°), elevation layers left out |
 | Ours | `./gradlew :dev:mvt:sweep:sweep -Psweep.args="compare map=<file.pmtiles> run=<run> fonts=<dir>"`: the same views through the driver, labels in Noto (`NotoSans-Regular`, `-Bold`, `-Italic`, `NotoSerif-Italic`), scored as the goldens; `<run>/results.csv` and `report.html` with the worst tiles |
+| Frozen build | `./gradlew :dev:mvt:sweep:sweepInstall -Psweep.into=<dir>`, then `java -DfixturesDir=dev/fixtures -cp "<dir>/*" com.asamm.vectormaps.mvt.sweep.MainKt compare ...`: scores while the sources change |
+| One tile | `trace map=<file> tile=z/x/y px=x,y`: the pixel's colour as the style's layers add up; `features map=<file> tile=z/x/y layer=<name> [key=value]`: the data tile's features |
 
 - The Noto faces are Google's Noto Sans and Noto Serif (OFL) `.ttf` files; MapLibre's glyphs come
   from the LoMaps tile server on the first run, then from `<cache>/glyphs`.

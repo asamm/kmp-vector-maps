@@ -108,7 +108,7 @@ renderer of Locus Map iOS, and fixes the worst causes first.
 
 | Step | Content | Verify |
 |---|---|---|
-| M11.1 | The sweep (`dev/mvt/sweep`, `dev/mvt/reference/sweep*.mjs`); fixes it found: the default fill outline (a hairline, performance.md M11.1), label priority by feature order, balanced line breaking, MapLibre's line anchors on lines clipped to their tile (at the z18 text size, times the overscale; `line-center` unclipped), MapLibre's text baseline; the legacy `{token}` regex Android's ICU rejected (no MVT style parsed on Android since PR #65) | 83k tiles z1–18 in three views, mean pixels off 0.70 → 0.29 % (tiles), 2.97 → 2.16 % (labels), 3.63 → 2.99 % (turned); the review's anchor fixes on the 13.9k subset 2.14 → 2.02 % and 2.97 → 2.86 %; goldens regenerated and compared; JVM and A54 A/B in performance.md ✅ |
+| M11.1 | The sweep (`dev/mvt/sweep`, `dev/mvt/reference/sweep*.mjs`); fixes it found: the default fill outline (a hairline, performance.md M11.1), label priority by feature order, balanced line breaking, MapLibre's line anchors on lines clipped to their tile (at the z18 text size, times the overscale; `line-center` unclipped), MapLibre's text baseline; the legacy `{token}` regex Android's ICU rejected (no MVT style parsed on Android since PR #65) | 83k tiles z1–18 in three views, mean pixels off 0.70 → 0.29 % (tiles), 2.97 → 2.16 % (labels), 3.63 → 2.99 % (turned); the review's anchor fixes on the 13.9k subset 2.14 → 2.02 % and 2.97 → 2.86 %; goldens regenerated and compared; JVM and A54 A/B in performance.md 🔧 |
 
 ## M8 — Android host API
 

@@ -3,7 +3,8 @@
 //
 // Renders the MVT reference tiles with MapLibre GL JS in headless Chromium, into
 // dev/fixtures/mvt/reference/maplibre/<variant>/<z>/<x>/<y>.png, one variant per layer set.
-// Usage, from this folder: node render.mjs [z/x/y ...]  (default: every server reference tile)
+// Usage, from this folder: node render.mjs [z/x/y ...]  (default: every server reference tile);
+// set up with `npm ci --omit=optional`, as only the sweep needs MapLibre Native
 import { spawn } from 'node:child_process';
 import { mkdirSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';

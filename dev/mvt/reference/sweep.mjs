@@ -16,6 +16,7 @@ import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { PmTiles, zxy } from './pmtiles.mjs';
+import { MODES, tileCenter } from './sweep-views.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 // the server sees dev/ only, never the rest of the repository
@@ -87,20 +88,9 @@ function sample(file, out, perZoom, seed, minZoom, maxZoom) {
 
 // --- rendering ---
 
-// a page per style; each view of a tile renders from the tiles its page has loaded
-const MODES = [
-  // the tile renderer's layers: no symbols, no elevation layers
-  { name: 'base', hide: 'symbol,hillshade,color-relief', views: [{ name: 'base', bearing: 0 }] },
-  // the label pass over the tiles: no elevation layers, which the host draws; MapLibre's bearing
-  // turns the map anticlockwise, the label pass's rotation clockwise
-  {
-    name: 'labels',
-    hide: 'hillshade,color-relief',
-    views: [{ name: 'labels', bearing: 0 }, { name: 'labels_r30', bearing: -30 }],
-  },
-];
-
 const PAGES_PER_BROWSER = +(process.env.SWEEP_PAGES_PER_BROWSER || 2);
+
+const CACHE_BYTES = 256 * 1024 * 1024;
 
 const TYPES = { '.html': 'text/html', '.json': 'application/json', '.png': 'image/png' };
 
@@ -108,7 +98,9 @@ const TYPES = { '.html': 'text/html', '.json': 'application/json', '.png': 'imag
 // the pages' control
 function serve(file) {
   const pm = new PmTiles(file);
+  // inflated tiles, the oldest dropped past CACHE_BYTES
   const cache = new Map();
+  let cached = 0;
   const stats = { requests: 0, ms: 0 };
   const server = createServer((request, response) => {
     let path;
@@ -125,10 +117,13 @@ function serve(file) {
       let bytes = cache.get(path);
       if (bytes === undefined) {
         bytes = pm.tile(+match[1], +match[2], +match[3]);
-        if (cache.size > 4000) {
-          cache.delete(cache.keys().next().value);
+        while (cached > CACHE_BYTES) {
+          const [oldest, data] = cache.entries().next().value;
+          cache.delete(oldest);
+          cached -= data?.length ?? 0;
         }
         cache.set(path, bytes);
+        cached += bytes?.length ?? 0;
       }
       stats.requests++;
       stats.ms += performance.now() - t;
@@ -173,13 +168,6 @@ function startServer(file) {
   });
 }
 
-function tileCenter(z, x, y) {
-  const n = Math.pow(2, z);
-  const lon = (x + 0.5) / n * 360 - 180;
-  const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / n))) * 180 / Math.PI;
-  return [lon, lat];
-}
-
 async function openPage(browser, port, mode) {
   const page = await browser.newPage({ viewport: { width: 512, height: 512 }, deviceScaleFactor: 1 });
   // the tile server allows only its web app's origin; fetch its fonts outside the page
@@ -188,7 +176,7 @@ async function openPage(browser, port, mode) {
     await route.fulfill({ response, headers: { ...response.headers(), 'access-control-allow-origin': '*' } });
   });
   page.on('console', m => { if (m.type() === 'error') console.error(`  page ${mode.name}: ${m.text()}`); });
-  await page.goto(`http://127.0.0.1:${port}/mvt/reference/index.html?tile=1/0/0&style=hike_bike&tiles=sweep&hide=${mode.hide}`);
+  await page.goto(`http://127.0.0.1:${port}/mvt/reference/index.html?tile=1/0/0&style=hike_bike&tiles=sweep&hide=${mode.hide.join(',')}`);
   await page.waitForFunction(() => window.referenceReady === true, null, { timeout: 120000 });
   return page;
 }
@@ -202,7 +190,7 @@ async function renderView(page, z, x, y, bearing, file) {
     window.map.triggerRepaint();
   }), { lon, lat, z, bearing });
   const idle = Date.now();
-  await page.screenshot({ path: file, clip: { x: 0, y: 0, width: 512, height: 512 } });
+  await page.screenshot({ path: file, type: 'png', clip: { x: 0, y: 0, width: 512, height: 512 } });
   if (process.env.SWEEP_TRACE) {
     console.log(`    view ${z}/${x}/${y} b${bearing}: idle ${idle - started} ms, shot ${Date.now() - idle} ms`);
   }
@@ -256,6 +244,11 @@ async function renderJobs(tiles, out, browsers, port, pages, child) {
     const browser = browsers[Math.floor(index / PAGES_PER_BROWSER)];
     const own = {};
     for (;;) {
+      // a crashed browser's pages would fail every job left: the job goes back for the others
+      if (!browser.isConnected()) {
+        console.error(`  worker ${index}: its browser is gone`);
+        break;
+      }
       const job = todo.shift();
       if (!job
         || child.dead) {
@@ -276,6 +269,10 @@ async function renderJobs(tiles, out, browsers, port, pages, child) {
           console.log(`  ${job.mode.name} ${job.z}/${job.x}/${job.y} ${Date.now() - t} ms`);
         }
       } catch (e) {
+        if (!browser.isConnected()) {
+          todo.push(job);
+          continue;
+        }
         failed.push(`${job.mode.name} ${job.z}/${job.x}/${job.y} ${String(e.message).split('\n')[0]}`);
         await own[job.mode.name]?.close().catch(() => {});
         delete own[job.mode.name];

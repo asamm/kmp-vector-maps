@@ -11,7 +11,7 @@ up to 32 % faster on the JVM and 29 % on the A54 (M7.2b); up to 43 % less alloca
 (M7.3, M7.5) at the same single-tile time; a style's renderers share one compiled theme (M7.4).
 MVT engine on the JVM measured in M10.3a, on the A54 and on Czech data in M10.3d; the A54
 profile's render costs cut in M10.3e (Prague up to 47 % faster); MapLibre's fill outline costs
-up to 24 % on the JVM and 0–9 % on the A54 (M11.1). **Next action:** none in M7,
+up to 24 % on the JVM (before the review's label fixes) and 0–10 % on the A54 (M11.1). **Next action:** none in M7,
 M7.1 ⏸ (Q15). The open costs are below.
 
 ## How to measure
@@ -313,8 +313,10 @@ antialiased outline interleaved twice, the hairline one run before the review's 
   tile the clipping.
 - Most of the added allocation is the AWT target building a second `Path2D` per outlined
   polygon; the Android target rewinds one path for every draw.
-- On the A54 the outline costs 0–9 % (z14, z16), and antialiased costs the same as aliased: Skia
-  draws a 1 px antialiased stroke as cheaply as a hairline, unlike Java2D.
+- On the A54 the outline costs 0–10 % (z16 again 62 → 68 ms), and antialiased costs the same as
+  aliased: Skia draws a 1 px antialiased stroke as cheaply as a hairline, unlike Java2D.
+- The outline pass keeps a layer's projected polygons until its fills are drawn, MapLibre's
+  order: a peak of one fill layer's geometry per render thread, not measured.
 - The A54 run found that no MVT style parsed on Android since PR #65: the legacy `{token}` regex
   had a bare `}`, which ICU rejects and the JVM and Robolectric accept.
 

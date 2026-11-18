@@ -153,7 +153,7 @@ class SymbolLayoutTest {
     @Test
     fun breaksLinesAsMapLibre() {
         fun lines(text: String, maxWidth: Float): List<String> {
-            return SymbolLayout.breakLines(text, maxWidth, spacing = 0f) { it.length.toFloat() }
+            return LineBreaks.breakLines(text, maxWidth, spacing = 0f) { it.length.toFloat() }
         }
 
         assertEquals(listOf("Ravin de", "Sainte", "Dévote"), lines("Ravin de Sainte Dévote", 10f))

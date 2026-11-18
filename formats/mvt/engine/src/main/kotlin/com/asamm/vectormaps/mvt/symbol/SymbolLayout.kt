@@ -23,8 +23,6 @@ import java.util.Collections
 import java.util.Locale
 import java.util.WeakHashMap
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.math.abs
-import kotlin.math.ceil
 
 /**
  * Lays out the symbol layers of a [Style] for one tile into [MvtLabel]s for the label pass, which
@@ -114,6 +112,15 @@ class SymbolLayout(
                 frame.projectX(extent, source.extent),
                 frame.projectY(extent, source.extent),
             )
+            // a size the same for every feature evaluated once
+            val sizeExpression = layer.layout["text-size"]
+            val layerMaxTextSize = if (sizeExpression == null
+                || sizeExpression.isFeatureConstant
+            ) {
+                maxTextSize(layer, ctx)
+            } else {
+                null
+            }
             try {
                 for (feature in features.candidates(layer = source, filter = layer.filter)) {
                     ctx.feature = feature
@@ -147,6 +154,7 @@ class SymbolLayout(
                         tileSizePx = tileSizePx,
                         pixelScale = frame.pixelScale,
                         overscale = 1 shl frame.dz,
+                        layerMaxTextSize = layerMaxTextSize,
                         shaped = shaped,
                         pieces = pieces,
                         out = out,
@@ -183,6 +191,7 @@ class SymbolLayout(
         tileSizePx: Int,
         pixelScale: Float,
         overscale: Int,
+        layerMaxTextSize: Float?,
         shaped: MutableMap<Shaping, Shaped>,
         pieces: MutableList<LinePiece>,
         out: MutableList<MvtLabel>,
@@ -239,7 +248,7 @@ class SymbolLayout(
                 iconAlongLine = iconAlongLine,
                 bounds = bounds,
                 overscale = overscale,
-                glyphSizePx = maxTextSize(layer, ctx) * pixelScale * textScale,
+                glyphSizePx = (layerMaxTextSize ?: maxTextSize(layer, ctx)) * pixelScale * textScale,
             )
             var start = 0
             for (end in partEnds) {
@@ -560,7 +569,7 @@ class SymbolLayout(
             // one line, as MapLibre's line count for a text no wider than the maximum
             listOf(shaping.text)
         } else {
-            breakLines(text = shaping.text, maxWidth = shaping.maxWidthPx, spacing = shaping.letterSpacingPx) {
+            LineBreaks.breakLines(text = shaping.text, maxWidth = shaping.maxWidthPx, spacing = shaping.letterSpacingPx) {
                 metrics.width(it, shaping.sizePx, shaping.font, 0f)
             }
         }
@@ -659,124 +668,6 @@ class SymbolLayout(
                 return listOf("name:$base")
             }
             return listOf("name:$base-$script", "name:$base")
-        }
-
-        // where a line may break after: newline, space, &, ), +, -, /, soft hyphen, middle dot,
-        // zero width space, hyphen, en dash, hyphenation point, as MapLibre's
-        private val BREAKABLE = setOf(0x0a, 0x20, 0x26, 0x29, 0x2b, 0x2d, 0x2f, 0xad, 0xb7, 0x200b, 0x2010, 0x2013, 0x2027)
-
-        private val WHITESPACE = setOf(0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20)
-
-        /**
-         * `text` broken into lines as MapLibre's `determineLineBreaks`: into as few lines as fit
-         * `maxWidth`, at the breaks that make them least ragged against their average width, a last
-         * line rather shorter than longer, a newline always; `advance` measures one character,
-         * `spacing` adds after each.
-         */
-        fun breakLines(text: String, maxWidth: Float, spacing: Float, advance: (String) -> Float): List<String> {
-            val points = text.codePoints().toArray()
-            if (points.isEmpty()) {
-                return emptyList()
-            }
-            val widths = HashMap<Int, Float>()
-            fun advanceOf(point: Int): Float {
-                return widths.getOrPut(point) { advance(String(Character.toChars(point))).coerceAtLeast(0f) } + spacing
-            }
-            var total = 0f
-            for (point in points) {
-                total += advanceOf(point)
-            }
-            val lineCount = maxOf(1f, ceil(total / maxWidth))
-            val target = total / lineCount
-            val breaks = ArrayList<LineBreak>()
-            var x = 0f
-            for (i in points.indices) {
-                val point = points[i]
-                if (point !in WHITESPACE) {
-                    x += advanceOf(point)
-                }
-                if (i < points.size - 1
-                    && (point in BREAKABLE || ideographic(point) || breaksBefore(points, i + 1))
-                ) {
-                    val penalty = penalty(point = point, next = points[i + 1])
-                    breaks += evaluate(index = i + 1, x = x, target = target, prior = breaks, penalty = penalty, last = false)
-                }
-            }
-            val chosen = ArrayList<Int>()
-            var at: LineBreak? = evaluate(index = points.size, x = x, target = target, prior = breaks, penalty = 0f, last = true)
-            while (at != null) {
-                chosen.add(0, at.index)
-                at = at.prior
-            }
-            val lines = ArrayList<String>()
-            var start = 0
-            // an empty line between two newlines keeps its line height, as MapLibre's
-            for (end in chosen) {
-                lines += String(points, start, end - start).trim()
-                start = end
-            }
-            return lines.ifEmpty { listOf(text.trim()) }
-        }
-
-        private class LineBreak(val index: Int, val x: Float, val prior: LineBreak?, val badness: Float)
-
-        // the least bad way to end a line at `index`, over every earlier break
-        private fun evaluate(index: Int, x: Float, target: Float, prior: List<LineBreak>, penalty: Float, last: Boolean): LineBreak {
-            var best: LineBreak? = null
-            var bestBadness = badness(width = x, target = target, penalty = penalty, last = last)
-            for (p in prior) {
-                val b = badness(width = x - p.x, target = target, penalty = penalty, last = last) + p.badness
-                if (b <= bestBadness) {
-                    best = p
-                    bestBadness = b
-                }
-            }
-            return LineBreak(index = index, x = x, prior = best, badness = bestBadness)
-        }
-
-        private fun badness(width: Float, target: Float, penalty: Float, last: Boolean): Float {
-            val raggedness = (width - target) * (width - target)
-            if (last) {
-                // a last line shorter than the average rather than longer
-                return if (width < target) raggedness / 2f else raggedness * 2f
-            }
-            return raggedness + abs(penalty) * penalty
-        }
-
-        // MapLibre also breaks before an open parenthesis, unless it ends the text
-        private fun breaksBefore(points: IntArray, i: Int): Boolean {
-            return points[i] == 0x28
-                && i != points.size - 1
-        }
-
-        private fun penalty(point: Int, next: Int): Float {
-            var penalty = 0f
-            if (point == 0x0a) {
-                penalty -= 10000f
-            }
-            // an open parenthesis ends a line, a closing one starts it, only reluctantly
-            if (point == 0x28
-                || point == 0xff08
-            ) {
-                penalty += 50f
-            }
-            if (next == 0x29
-                || next == 0xff09
-            ) {
-                penalty += 50f
-            }
-            return penalty
-        }
-
-        // scripts written without spaces, which break between any characters, as MapLibre's
-        // ideographic breaking: CJK and Yi, not Hangul
-        private fun ideographic(point: Int): Boolean {
-            return point in 0x2e80..0x312f
-                || point in 0x3190..0x9fff
-                || point in 0xa000..0xa4cf
-                || point in 0xf900..0xfaff
-                || point in 0xff00..0xffef
-                || point in 0x20000..0x2fa1f
         }
     }
 }
